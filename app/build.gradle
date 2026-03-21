@@ -42,6 +42,7 @@ android {
         if (localPropertiesFile.exists()) {
             localProperties.load(new FileInputStream(localPropertiesFile))
         }
+        // This requires resValues = true in buildFeatures below
         resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
     }
 
@@ -53,13 +54,6 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // No signingConfig = Unsigned build
-            
-            packaging {
-                jniLibs {
-                    useLegacyPackaging = true 
-                }
-            }
         }
         nightly {
             initWith release
@@ -69,10 +63,14 @@ android {
 
     buildFeatures {
         viewBinding true
-        buildConfig true
+        buildConfig true   // Enabled for AGP 9.1 compatibility
+        resValues true     // FIXED: Required for custom resValue in defaultConfig
     }
 
     packaging {
+        jniLibs {
+            useLegacyPackaging = true 
+        }
         resources {
             excludes += [
                 'META-INF/README.md',
