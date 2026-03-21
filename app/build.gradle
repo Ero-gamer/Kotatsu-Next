@@ -34,7 +34,7 @@ android {
 
         ndk {
             abiFilters.clear()
-            abiFilters.add("armeabi-v7a") // Strictly armv7a
+            abiFilters.add("armeabi-v7a")
         }
 
         def localProperties = new Properties()
@@ -53,7 +53,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // REMOVED: signingConfig. Build will now produce an "unsigned" APK.
+            // Explicitly unsigned for the Xiaomi Box
             
             packaging {
                 jniLibs {
@@ -92,7 +92,6 @@ android {
         targetCompatibility JavaVersion.VERSION_21
     }
 
-    // FIXED: Modern Kotlin configuration for Gradle 9+
     kotlin {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
@@ -113,7 +112,6 @@ android {
         }
     }
 
-    // FIXED: Room schema directory for Gradle 9+
     room {
         schemaDirectory(layout.projectDirectory.dir("schemas").asFile.absolutePath)
     }
@@ -124,9 +122,6 @@ android {
     }
 }
 
-/**
- * CLEANED VARIANT CONFIGURATION (Strictly armv7a naming)
- */
 androidComponents {
     onVariants(selector().all(), { variant ->
         variant.outputs.forEach { output ->
@@ -144,7 +139,6 @@ androidComponents {
 }
 
 dependencies {
-    // Dynamic Parser Version Override
     def parsersVersion = libs.versions.parsers.get()
     if (System.properties.containsKey('parsersVersionOverride')) {
         parsersVersion = System.getProperty('parsersVersionOverride')
@@ -153,13 +147,11 @@ dependencies {
         exclude group: 'org.json', module: 'json'
     }
 
-    // Core Tooling
-    coreLibraryDesugaring libs.desugar_jdk_libs
+    coreLibraryDesugaring libs.desugar.jdk.libs
     implementation libs.kotlin.stdlib
     implementation libs.kotlinx.coroutines.android
     implementation libs.kotlinx.coroutines.guava
 
-    // UI & Navigation
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
     implementation libs.androidx.activity
@@ -181,12 +173,10 @@ dependencies {
     implementation libs.androidx.webkit
     implementation libs.androidx.window
 
-    // Room Database
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
 
-    // Background Tasks & Networking
     implementation libs.androidx.work.runtime
     implementation libs.guava
     implementation libs.okhttp
@@ -195,17 +185,14 @@ dependencies {
     implementation libs.okio
     implementation libs.kotlinx.serialization.json
 
-    // List Handling
     implementation libs.adapterdelegates
     implementation libs.adapterdelegates.viewbinding
 
-    // Dependency Injection (Hilt)
     implementation libs.hilt.android
     ksp libs.hilt.compiler
     implementation libs.androidx.hilt.work
     ksp libs.androidx.hilt.compiler
 
-    // Media Loading
     implementation libs.coil.core
     implementation libs.coil.network
     implementation libs.coil.gif
@@ -216,17 +203,14 @@ dependencies {
     implementation libs.markwon
     implementation libs.kizzyrpc
 
-    // Security & Reporting
     implementation libs.acra.http
     implementation libs.acra.dialog
     implementation libs.conscrypt.android
 
-    // Debug Tools
     debugImplementation libs.leakcanary.android
     nightlyImplementation libs.leakcanary.android
     debugImplementation libs.workinspector
 
-    // Testing
     testImplementation libs.junit
     testImplementation libs.json
     testImplementation libs.kotlinx.coroutines.test
