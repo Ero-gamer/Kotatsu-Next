@@ -34,7 +34,7 @@ android {
 
         ndk {
             abiFilters.clear()
-            abiFilters.add("armeabi-v7a")
+            abiFilters.add("armeabi-v7a") // Strictly armv7a
         }
 
         def localProperties = new Properties()
@@ -53,7 +53,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            // REMOVED: signingConfig. Build will now produce an "unsigned" APK.
             
             packaging {
                 jniLibs {
@@ -122,29 +122,22 @@ android {
         abortOnError true
         disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat'
     }
-
-    testOptions {
-        unitTests.includeAndroidResources true
-        unitTests.returnDefaultValues false
-    }
 }
 
 /**
- * OPTIMIZED VARIANT CONFIGURATION
+ * CLEANED VARIANT CONFIGURATION (Strictly armv7a naming)
  */
 androidComponents {
     onVariants(selector().all(), { variant ->
         variant.outputs.forEach { output ->
-            def abiMultiplier = 1 // Logic for armv7a
-            
             if (variant.name == "nightly") {
                 def now = LocalDateTime.now()
-                output.versionCode.set((now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInteger() * 10) + abiMultiplier)
+                output.versionCode.set(android.defaultConfig.versionCode)
                 output.versionNameOverride.set('N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                output.outputFileName.set("Kotatsu-Next-Nightly-${now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))}-armv7a.apk")
+                output.outputFileName.set("Kotatsu-Next-Nightly-armv7a-unsigned.apk")
             } else {
-                output.versionCode.set((android.defaultConfig.versionCode * 10) + abiMultiplier)
-                output.outputFileName.set("Kotatsu-Next-${variant.name}-${android.defaultConfig.versionName}-armv7a.apk")
+                output.versionCode.set(android.defaultConfig.versionCode)
+                output.outputFileName.set("Kotatsu-Next-${variant.name}-armv7a-unsigned.apk")
             }
         }
     })
@@ -212,7 +205,7 @@ dependencies {
     implementation libs.androidx.hilt.work
     ksp libs.androidx.hilt.compiler
 
-    // Media Loading (AVIF + SSIV)
+    // Media Loading
     implementation libs.coil.core
     implementation libs.coil.network
     implementation libs.coil.gif
@@ -223,7 +216,7 @@ dependencies {
     implementation libs.markwon
     implementation libs.kizzyrpc
 
-    // Crash Reporting & Security
+    // Security & Reporting
     implementation libs.acra.http
     implementation libs.acra.dialog
     implementation libs.conscrypt.android
