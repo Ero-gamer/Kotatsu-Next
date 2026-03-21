@@ -8,7 +8,6 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.room)
     alias(libs.plugins.kotlinx.serialization)
-    // alias(libs.plugins.decoroutinator) // Enable if needed
 }
 
 android {
@@ -38,7 +37,6 @@ android {
             abiFilters.add("armeabi-v7a")
         }
 
-        // Local properties for Telegram Backup Bot
         def localProperties = new Properties()
         def localPropertiesFile = rootProject.file('local.properties')
         if (localPropertiesFile.exists()) {
@@ -55,7 +53,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug // For your Xiaomi Box testing
+            signingConfig signingConfigs.debug
             
             packaging {
                 jniLibs {
@@ -94,26 +92,30 @@ android {
         targetCompatibility JavaVersion.VERSION_21
     }
 
-    kotlinOptions {
-        jvmTarget = "21"
-        freeCompilerArgs += [
-            '-opt-in=kotlin.ExperimentalStdlibApi',
-            '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
-            '-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
-            '-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
-            '-opt-in=kotlinx.coroutines.FlowPreview',
-            '-opt-in=kotlin.contracts.ExperimentalContracts',
-            '-opt-in=coil3.annotation.ExperimentalCoilApi',
-            '-opt-in=coil3.annotation.InternalCoilApi',
-            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
-            '-Xjspecify-annotations=strict',
-            '-Xannotation-default-target=first-only',
-            '-Xtype-enhancement-improvements-strict-mode'
-        ]
+    // FIXED: Modern Kotlin configuration for Gradle 9+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+            freeCompilerArgs.addAll(
+                '-opt-in=kotlin.ExperimentalStdlibApi',
+                '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
+                '-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
+                '-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
+                '-opt-in=kotlinx.coroutines.FlowPreview',
+                '-opt-in=kotlin.contracts.ExperimentalContracts',
+                '-opt-in=coil3.annotation.ExperimentalCoilApi',
+                '-opt-in=coil3.annotation.InternalCoilApi',
+                '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
+                '-Xjspecify-annotations=strict',
+                '-Xannotation-default-target=first-only',
+                '-Xtype-enhancement-improvements-strict-mode'
+            )
+        }
     }
 
+    // FIXED: Room schema directory for Gradle 9+
     room {
-        schemaDirectory "$projectDir/schemas"
+        schemaDirectory(layout.projectDirectory.dir("schemas").asFile.absolutePath)
     }
 
     lint {
@@ -128,8 +130,7 @@ android {
 }
 
 /**
- * MODERN GRADLE 9.1 VARIANT CONFIGURATION
- * Replaces applicationVariants.configureEach to avoid "Value not yet set" errors
+ * OPTIMIZED VARIANT CONFIGURATION
  */
 androidComponents {
     onVariants(selector().all(), { variant ->
@@ -140,17 +141,17 @@ androidComponents {
                 def now = LocalDateTime.now()
                 output.versionCode.set((now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInteger() * 10) + abiMultiplier)
                 output.versionNameOverride.set('N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                output.outputFileName.set("Kotatsu-Nightly-${now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))}-armv7a.apk")
+                output.outputFileName.set("Kotatsu-Next-Nightly-${now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))}-armv7a.apk")
             } else {
                 output.versionCode.set((android.defaultConfig.versionCode * 10) + abiMultiplier)
-                output.outputFileName.set("Kotatsu-${variant.name}-${android.defaultConfig.versionName}-armv7a.apk")
+                output.outputFileName.set("Kotatsu-Next-${variant.name}-${android.defaultConfig.versionName}-armv7a.apk")
             }
         }
     })
 }
 
 dependencies {
-    // Dynamic Parser Version Override logic
+    // Dynamic Parser Version Override
     def parsersVersion = libs.versions.parsers.get()
     if (System.properties.containsKey('parsersVersionOverride')) {
         parsersVersion = System.getProperty('parsersVersionOverride')
@@ -216,7 +217,7 @@ dependencies {
     implementation libs.coil.network
     implementation libs.coil.gif
     implementation libs.coil.svg
-    implementation libs.avif.coder // Updated for your Xiaomi Mi Box
+    implementation libs.avif.coder 
     implementation libs.ssiv
     implementation libs.disk.lru.cache
     implementation libs.markwon
