@@ -1,14 +1,11 @@
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-
 plugins {
-    id "com.android.application"
-    id "org.jetbrains.kotlin.android"
-    id "com.google.devtools.ksp"
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
     id "kotlin-parcelize"
-    id "com.google.dagger.hilt.android"
-    id "androidx.room"
-    id "org.jetbrains.kotlin.plugin.serialization"
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.room)
+    alias(libs.plugins.serialization)
 }
 
 android {
@@ -34,15 +31,12 @@ android {
         }
     }
 
-    splits {
-        abi { enable false }
-    }
-
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Warning: Using debug config for release is only for testing!
             signingConfig signingConfigs.debug 
             
             packaging {
@@ -67,49 +61,43 @@ android {
         ]
     }
 
-    // This block matches the 'androidx.room' plugin ID
     room {
         schemaDirectory "$projectDir/schemas"
     }
+}
 
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
+// Modern way to handle APK naming in Gradle 9.x / AGP 9.x
+androidComponents {
+    onVariants(selector().all(), { variant ->
+        variant.outputs.forEach { output ->
             def abiMultiplier = 1
-            output.versionCodeOverride = (defaultConfig.versionCode * 10) + abiMultiplier
-            outputFileName = "Kotatsu-Next-${variant.versionName}-armv7a.apk"
+            output.versionCode.set((android.defaultConfig.versionCode * 10) + abiMultiplier)
+            output.outputFileName.set("Kotatsu-Next-${android.defaultConfig.versionName}-armv7a.apk")
         }
-    }
+    })
 }
 
 dependencies {
-    // Standard Kotatsu-Redo Parsers
     implementation("com.github.clquwu:kotatsu-parsers-redo:master-SNAPSHOT") {
         exclude group: 'org.json', module: 'json'
     }
 
-    // AVIF Decoder for your Xiaomi Box
     implementation "io.github.awxkee:avif-coder:2.2.0"
-
-    // Core Library Desugaring (Matches your .toml version)
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     
-    // UI & Core
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
     implementation libs.material
     implementation libs.androidx.activity
     implementation libs.androidx.fragment
 
-    // Room 3.0
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
 
-    // Hilt
     implementation libs.hilt.android
     ksp libs.hilt.compiler
 
-    // Coil 3.4
     implementation libs.coil.core
     implementation libs.coil.network
 }
