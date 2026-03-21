@@ -53,7 +53,6 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Explicitly unsigned for the Xiaomi Box
             
             packaging {
                 jniLibs {
