@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.room)
     alias(libs.plugins.kotlinx.serialization)
-}
+        }
 
 android {
     compileSdk 36
@@ -42,7 +42,6 @@ android {
         if (localPropertiesFile.exists()) {
             localProperties.load(new FileInputStream(localPropertiesFile))
         }
-        // This requires resValues = true in buildFeatures below
         resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
     }
 
@@ -63,8 +62,8 @@ android {
 
     buildFeatures {
         viewBinding true
-        buildConfig true   // Enabled for AGP 9.1 compatibility
-        resValues true     // FIXED: Required for custom resValue in defaultConfig
+        buildConfig true   
+        resValues true     
     }
 
     packaging {
