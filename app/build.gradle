@@ -2,14 +2,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-    // These must match the [plugins] section of your libs.versions.toml
-    id libs.plugins.android.application.get().pluginId
-    id libs.plugins.kotlin.android.get().pluginId
-    id libs.plugins.ksp.get().pluginId
-    id 'kotlin-parcelize'
-    id libs.plugins.hilt.get().pluginId
-    id libs.plugins.room.get().pluginId
-    id libs.plugins.serialization.get().pluginId
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "com.google.devtools.ksp"
+    id "kotlin-parcelize"
+    id "com.google.dagger.hilt.android"
+    id "androidx.room"
+    id "org.jetbrains.kotlin.plugin.serialization"
 }
 
 android {
@@ -21,7 +20,7 @@ android {
         minSdk 23
         targetSdk 36
         versionCode 2012
-        versionName '9.6.8-armv7a'
+        versionName '9.6.8-AVIF-armv7a'
         
         testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
         
@@ -29,28 +28,21 @@ android {
             arg('room.generateKotlin', 'true')
         }
 
-        // HARD LOCK: Strictly limit to armv7a for Xiaomi Box performance
         ndk {
             abiFilters.clear()
             abiFilters.add("armeabi-v7a")
         }
     }
 
-    // Disable splits as we are forcing a single architecture in the NDK filter
     splits {
-        abi {
-            enable false
-        }
+        abi { enable false }
     }
 
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
-            // R8 Full Mode requires the 'optimize' profile
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            
-            // Allow testing on TV without formal signing keys
             signingConfig signingConfigs.debug 
             
             packaging {
@@ -58,10 +50,6 @@ android {
                     useLegacyPackaging = true 
                 }
             }
-        }
-        nightly {
-            initWith release
-            applicationIdSuffix = '.nightly'
         }
     }
 
@@ -79,15 +67,14 @@ android {
         ]
     }
 
-    // Matches your 'room' plugin ID from .toml
+    // This block matches the 'androidx.room' plugin ID
     room {
         schemaDirectory "$projectDir/schemas"
     }
 
-    // Logic to rename the output APK specifically for armv7a
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            def abiMultiplier = 1 // Fixed for armv7a
+            def abiMultiplier = 1
             output.versionCodeOverride = (defaultConfig.versionCode * 10) + abiMultiplier
             outputFileName = "Kotatsu-Next-${variant.versionName}-armv7a.apk"
         }
@@ -95,33 +82,34 @@ android {
 }
 
 dependencies {
-    // Parser Logic - Using the latest master-SNAPSHOT for redo
+    // Standard Kotatsu-Redo Parsers
     implementation("com.github.clquwu:kotatsu-parsers-redo:master-SNAPSHOT") {
         exclude group: 'org.json', module: 'json'
     }
 
-    // Optimized AVIF Decoder for your Xiaomi Box
+    // AVIF Decoder for your Xiaomi Box
     implementation "io.github.awxkee:avif-coder:2.2.0"
 
-    // Core Desugaring (version from your .toml)
+    // Core Library Desugaring (Matches your .toml version)
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     
-    // UI & Core (Mapped from [libraries] in your .toml)
+    // UI & Core
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
-    implementation libs.androidx.activity
     implementation libs.material
+    implementation libs.androidx.activity
+    implementation libs.androidx.fragment
 
-    // Room 3.0 (Mapped from [libraries] in your .toml)
+    // Room 3.0
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
 
-    // Hilt (Mapped from [libraries] in your .toml)
+    // Hilt
     implementation libs.hilt.android
     ksp libs.hilt.compiler
 
-    // Coil 3.4 (Mapped from [libraries] in your .toml)
+    // Coil 3.4
     implementation libs.coil.core
     implementation libs.coil.network
 }
