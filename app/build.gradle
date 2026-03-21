@@ -2,9 +2,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
+    // These must match the [plugins] section of your libs.versions.toml
     id libs.plugins.android.application.get().pluginId
     id libs.plugins.kotlin.android.get().pluginId
-    id libs.plugins.google.devtools.ksp.get().pluginId
+    id libs.plugins.ksp.get().pluginId
     id 'kotlin-parcelize'
     id libs.plugins.hilt.get().pluginId
     id libs.plugins.room.get().pluginId
@@ -20,7 +21,7 @@ android {
         minSdk 23
         targetSdk 36
         versionCode 2012
-        versionName '9.6.8-AVIF-armv7a'
+        versionName '9.6.8-armv7a'
         
         testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
         
@@ -35,7 +36,7 @@ android {
         }
     }
 
-    // Disable splits - we are forcing a single targeted build
+    // Disable splits as we are forcing a single architecture in the NDK filter
     splits {
         abi {
             enable false
@@ -46,9 +47,10 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-            // Using 'proguard-android-optimize.txt' is required for R8 Full Mode
+            // R8 Full Mode requires the 'optimize' profile
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             
+            // Allow testing on TV without formal signing keys
             signingConfig signingConfigs.debug 
             
             packaging {
@@ -77,53 +79,49 @@ android {
         ]
     }
 
+    // Matches your 'room' plugin ID from .toml
     room {
         schemaDirectory "$projectDir/schemas"
     }
 
-    // Versioning logic optimized for single armv7a output
+    // Logic to rename the output APK specifically for armv7a
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
             def abiMultiplier = 1 // Fixed for armv7a
-
-            if (variant.name == 'nightly') {
-                def now = LocalDateTime.now()
-                output.versionCodeOverride = (now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInteger() * 10) + abiMultiplier
-                output.versionNameOverride = 'N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-            } else {
-                output.versionCodeOverride = (defaultConfig.versionCode * 10) + abiMultiplier
-            }
-
+            output.versionCodeOverride = (defaultConfig.versionCode * 10) + abiMultiplier
             outputFileName = "Kotatsu-Next-${variant.versionName}-armv7a.apk"
         }
     }
 }
 
 dependencies {
-    // Parser Logic
-    def parsersVersion = libs.versions.parsers.get()
-    implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
+    // Parser Logic - Using the latest master-SNAPSHOT for redo
+    implementation("com.github.clquwu:kotatsu-parsers-redo:master-SNAPSHOT") {
         exclude group: 'org.json', module: 'json'
     }
 
-    coreLibraryDesugaring libs.desugar.jdk.libs
+    // Optimized AVIF Decoder for your Xiaomi Box
+    implementation "io.github.awxkee:avif-coder:2.2.0"
+
+    // Core Desugaring (version from your .toml)
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
     
-    // Core Dependencies (Mapped from your Version Catalog)
+    // UI & Core (Mapped from [libraries] in your .toml)
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
     implementation libs.androidx.activity
-    implementation libs.androidx.fragment
     implementation libs.material
 
-    // Database & DI
+    // Room 3.0 (Mapped from [libraries] in your .toml)
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
+
+    // Hilt (Mapped from [libraries] in your .toml)
     implementation libs.hilt.android
     ksp libs.hilt.compiler
 
-    // Image Loading + AVIF Decoder
+    // Coil 3.4 (Mapped from [libraries] in your .toml)
     implementation libs.coil.core
     implementation libs.coil.network
-    implementation "io.github.awxkee:avif-coder:2.2.0"
 }
