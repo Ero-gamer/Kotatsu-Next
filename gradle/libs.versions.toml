@@ -2,7 +2,7 @@
 # Core Infrastructure
 gradle = "9.1.0"
 kotlin = "2.3.20"
-ksp = "2.3.20-1.0.35"
+ksp = "2.3.6"
 dagger = "2.59.2"
 
 # AndroidX & Lifecycle
@@ -40,16 +40,16 @@ junit = "4.13.2"
 leakcanary = "3.0"
 
 [libraries]
-# (Note: Use the 'androidx.room3' group for Room 3.0)
-androidx-room-runtime = { module = "androidx.room3:room3-runtime", version.ref = "room3" }
-androidx-room-ktx = { module = "androidx.room3:room3-ktx", version.ref = "room3" }
-androidx-room-compiler = { module = "androidx.room3:room3-compiler", version.ref = "room3" }
-androidx-room-testing = { module = "androidx.room3:room3-testing", version.ref = "room3" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room3" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room3" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room3" }
+androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room3" }
 
 # Common AndroidX
 androidx-activity = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-fragment = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 
 # Networking
@@ -63,9 +63,8 @@ hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "dag
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "gradle" }
-# AGP 9.1 handles Kotlin via built-in support, but plugin ID is still used for KSP alignment
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
-room = { id = "androidx.room3", version.ref = "room3" }
+room = { id = "androidx.room", version.ref = "room3" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
