@@ -1,6 +1,6 @@
 [versions]
 # Core Tooling
-gradle = "8.13.0"
+gradle = "8.13.2"
 kotlin = "2.3.10"
 ksp = "2.3.10-1.0.35" # KSP must match Kotlin major/minor
 dagger = "2.59.2"
