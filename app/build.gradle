@@ -1,10 +1,6 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-configurations.all {
-    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
-}
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.ksp)
@@ -13,6 +9,10 @@ plugins {
     alias(libs.plugins.room)
     alias(libs.plugins.kotlinx.serialization)
     // Note: kotlin-android is now managed by AGP 9.1's internal handlers
+}
+
+configurations.all {
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
 }
 
 android {
