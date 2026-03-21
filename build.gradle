@@ -1,15 +1,12 @@
 plugins {
-    // In Groovy DSL, use 'libs.plugins.name.get().pluginId' 
-    // or just 'id libs.plugins.xxx.get().pluginId'
-    id libs.plugins.android.application.get().pluginId apply false
-    id libs.plugins.kotlin.get().pluginId apply false
-    id libs.plugins.hilt.get().pluginId apply false
-    id libs.plugins.ksp.get().pluginId apply false
-    id libs.plugins.room.get().pluginId apply false
-    id libs.plugins.kotlinx.serialization.get().pluginId apply false
+    id "com.android.application" version "9.1.0" apply false
+    id "org.jetbrains.kotlin.android" version "2.3.20" apply false
+    id "com.google.dagger.hilt.android" version "2.59.2" apply false
+    id "com.google.devtools.ksp" version "2.3.20-1.0.35" apply false
+    id "androidx.room" version "3.0.0" apply false
+    id "org.jetbrains.kotlin.plugin.serialization" version "2.3.20" apply false
 }
 
-// Ensure repositories are defined for the whole project
 allprojects {
     repositories {
         google()
