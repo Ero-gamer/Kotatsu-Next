@@ -3,6 +3,7 @@ package org.koitharu.kotatsu.core.image
 import android.graphics.Bitmap
 import androidx.core.graphics.scale
 import coil3.ImageLoader
+import coil3.BitmapImage
 import coil3.asImage
 import coil3.decode.DecodeResult
 import coil3.decode.DecodeUtils
@@ -14,7 +15,7 @@ import coil3.request.maxBitmapSize
 import coil3.util.component1
 import coil3.util.component2
 import com.davemorrissey.labs.subscaleview.decoder.ImageDecodeException
-import com.radzivon.vicvane.android.avif.HeifCoder // Updated Import
+import com.github.awxkee.avifcoder.HeifCoder // FIXED: Updated Import path
 import kotlinx.coroutines.runInterruptible
 import org.koitharu.kotatsu.core.util.ext.readByteBuffer
 
@@ -44,7 +45,6 @@ class AvifImageDecoder(
         )
 
         try {
-            // Downscaling logic (Kept same as original for quality/performance balance)
             val (dstWidth, dstHeight) = DecodeUtils.computeDstSize(
                 srcWidth = bitmap.width,
                 srcHeight = bitmap.height,
@@ -57,12 +57,13 @@ class AvifImageDecoder(
                 val scaled = bitmap.scale(dstWidth, dstHeight)
                 bitmap.recycle()
                 DecodeResult(
-                    image = scaled.asImage(),
+                    // FIXED: Explicitly call Bitmap.asImage to resolve ambiguity
+                    image = (scaled as Bitmap).asImage(),
                     isSampled = true,
                 )
             } else {
                 DecodeResult(
-                    image = bitmap.asImage(),
+                    image = (bitmap as Bitmap).asImage(),
                     isSampled = false,
                 )
             }
