@@ -1,9 +1,19 @@
 plugins {
-	alias(libs.plugins.android.application) apply false
-	alias(libs.plugins.kotlin) apply false
-	alias(libs.plugins.hilt) apply false
-	alias(libs.plugins.ksp) apply false
-	alias(libs.plugins.room) apply false
-	alias(libs.plugins.kotlinx.serizliation) apply false
-//	alias(libs.plugins.decoroutinator) apply false
+    // In Groovy DSL, use 'libs.plugins.name.get().pluginId' 
+    // or just 'id libs.plugins.xxx.get().pluginId'
+    id libs.plugins.android.application.get().pluginId apply false
+    id libs.plugins.kotlin.get().pluginId apply false
+    id libs.plugins.hilt.get().pluginId apply false
+    id libs.plugins.ksp.get().pluginId apply false
+    id libs.plugins.room.get().pluginId apply false
+    id libs.plugins.kotlinx.serialization.get().pluginId apply false
+}
+
+// Ensure repositories are defined for the whole project
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+    }
 }
