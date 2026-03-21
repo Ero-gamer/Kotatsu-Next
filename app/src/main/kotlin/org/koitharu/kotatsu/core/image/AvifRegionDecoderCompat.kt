@@ -2,28 +2,37 @@ package org.koitharu.kotatsu.core.image
 
 import android.graphics.Bitmap
 import android.graphics.Rect
-import com.radzivon.vicvane.android.avif.HeifCoder
+import com.github.awxkee.avifcoder.HeifCoder // FIXED: Updated Import
 
 class AvifRegionDecoderCompat(private val bytes: ByteArray) {
     private val heifCoder = HeifCoder()
     
-    // Get full image size without loading whole bitmap if possible
-    // Note: avif-coder usually needs a full decode for now, but we'll optimize
-    private val info = heifCoder.decode(bytes) 
-    val width: Int = info?.width ?: 0
-    val height: Int = info?.height ?: 0
+    // In avif-coder 2.x, sizing is now handled via getSize() for efficiency
+    private val size = heifCoder.getSize(bytes)
+    val width: Int = size?.width ?: 0
+    val height: Int = size?.height ?: 0
+
+    // Cache the decoded bitmap for actual region extraction
+    private var fullBitmap: Bitmap? = null
 
     fun decodeRegion(rect: Rect, sampleSize: Int): Bitmap? {
-        val fullBitmap = info ?: return null
+        if (fullBitmap == null) {
+            fullBitmap = heifCoder.decode(bytes)
+        }
         
-        // Create the cropped region
-        val region = Bitmap.createBitmap(fullBitmap, rect.left, rect.top, rect.width(), rect.height())
+        val bitmap = fullBitmap ?: return null
+        
+        // Ensure rect bounds are within the actual bitmap dimensions to prevent crash
+        val safeWidth = rect.width().coerceAtMost(bitmap.width - rect.left)
+        val safeHeight = rect.height().coerceAtMost(bitmap.height - rect.top)
+        
+        val region = Bitmap.createBitmap(bitmap, rect.left, rect.top, safeWidth, safeHeight)
         
         return if (sampleSize > 1) {
             val scaled = Bitmap.createScaledBitmap(
                 region, 
-                rect.width() / sampleSize, 
-                rect.height() / sampleSize, 
+                safeWidth / sampleSize, 
+                safeHeight / sampleSize, 
                 true
             )
             region.recycle()
@@ -34,6 +43,7 @@ class AvifRegionDecoderCompat(private val bytes: ByteArray) {
     }
 
     fun recycle() {
-        info?.recycle()
+        fullBitmap?.recycle()
+        fullBitmap = null
     }
 }
