@@ -1,4 +1,4 @@
-name: Build armv7a Test APK
+name: Build
 
 on:
   push:
