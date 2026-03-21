@@ -8,7 +8,8 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.room)
     alias(libs.plugins.kotlinx.serialization)
-        }
+    // Note: kotlin-android is now managed by AGP 9.1's internal handlers
+}
 
 android {
     compileSdk 36
@@ -119,16 +120,17 @@ android {
     }
 }
 
+// FIXED: Using the required AGP 9.1 Provider API for outputs
 androidComponents {
     onVariants(selector().all(), { variant ->
         variant.outputs.forEach { output ->
             if (variant.name == "nightly") {
                 def now = LocalDateTime.now()
-                output.versionCode.set(android.defaultConfig.versionCode)
-                output.versionNameOverride.set('N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                def nightlyVersion = 'N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                // In AGP 9.1, use .versionName.set() instead of .versionNameOverride
+                output.versionName.set(nightlyVersion)
                 output.outputFileName.set("Kotatsu-Next-Nightly-armv7a-unsigned.apk")
             } else {
-                output.versionCode.set(android.defaultConfig.versionCode)
                 output.outputFileName.set("Kotatsu-Next-${variant.name}-armv7a-unsigned.apk")
             }
         }
