@@ -2,25 +2,25 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.google.devtools.ksp)
+    id libs.plugins.android.application.get().pluginId
+    id libs.plugins.kotlin.android.get().pluginId
+    id libs.plugins.google.devtools.ksp.get().pluginId
     id 'kotlin-parcelize'
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.room)
-    alias(libs.plugins.serialization)
+    id libs.plugins.hilt.get().pluginId
+    id libs.plugins.room.get().pluginId
+    id libs.plugins.serialization.get().pluginId
 }
 
 android {
-    compileSdk = 36
-    namespace = 'org.koitharu.kotatsu'
+    compileSdk 36
+    namespace 'org.koitharu.kotatsu'
 
     defaultConfig {
         applicationId 'io.github.kotatsuredo.kotatsu'
-        minSdk = 23
-        targetSdk = 36
-        versionCode = 2012
-        versionName = '9.6.8-AVIF-armv7a' // Tagged for your specific build
+        minSdk 23
+        targetSdk 36
+        versionCode 2012
+        versionName '9.6.8-AVIF-armv7a'
         
         testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
         
@@ -28,14 +28,14 @@ android {
             arg('room.generateKotlin', 'true')
         }
 
-        // CRITICAL: Strictly limit to armv7a to keep APK small and fast
+        // HARD LOCK: Strictly limit to armv7a for Xiaomi Box performance
         ndk {
             abiFilters.clear()
             abiFilters.add("armeabi-v7a")
         }
     }
 
-    // Disable splits because we are filtering at the NDK level for a single APK
+    // Disable splits - we are forcing a single targeted build
     splits {
         abi {
             enable false
@@ -49,11 +49,10 @@ android {
             // Using 'proguard-android-optimize.txt' is required for R8 Full Mode
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             
-            signingConfig signingConfigs.debug // Uses debug key so you can install without setting up secrets
+            signingConfig signingConfigs.debug 
             
             packaging {
                 jniLibs {
-                    // Optimization: Keep symbols for your dav1d debugging but compress the libs
                     useLegacyPackaging = true 
                 }
             }
@@ -74,8 +73,7 @@ android {
         jvmTarget = "21"
         freeCompilerArgs += [
             '-opt-in=kotlin.ExperimentalStdlibApi',
-            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
-            '-Xjvm-default=all' // Performance boost for interface calls
+            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi'
         ]
     }
 
@@ -83,10 +81,10 @@ android {
         schemaDirectory "$projectDir/schemas"
     }
 
-    // Simplified armv7a versioning
-    applicationVariants.configureEach { variant ->
-        variant.outputs.configureEach { output ->
-            def abiMultiplier = 1 // Fixed at 1 for armv7a
+    // Versioning logic optimized for single armv7a output
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def abiMultiplier = 1 // Fixed for armv7a
 
             if (variant.name == 'nightly') {
                 def now = LocalDateTime.now()
@@ -102,7 +100,7 @@ android {
 }
 
 dependencies {
-    // Force latest parsers
+    // Parser Logic
     def parsersVersion = libs.versions.parsers.get()
     implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
         exclude group: 'org.json', module: 'json'
@@ -110,22 +108,22 @@ dependencies {
 
     coreLibraryDesugaring libs.desugar.jdk.libs
     
-    // Core Dependencies
+    // Core Dependencies (Mapped from your Version Catalog)
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
     implementation libs.androidx.activity
     implementation libs.androidx.fragment
     implementation libs.material
 
-    // Room & Hilt
+    // Database & DI
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
     implementation libs.hilt.android
     ksp libs.hilt.compiler
 
-    // Coil 3.4 + Your added AVIF Coder
+    // Image Loading + AVIF Decoder
     implementation libs.coil.core
     implementation libs.coil.network
-    implementation "com.github.awxkee:avif-coder:2.2.0" // Ensure this is in your catalog or add directly
+    implementation "io.github.awxkee:avif-coder:2.2.0"
 }
