@@ -1,14 +1,11 @@
 [versions]
-# Core Infrastructure (Latest March 2026)
-gradle = "9.1.0"
+gradle = "9.3.1"
 kotlin = "2.3.20"
 ksp = "2.3.6"
 dagger = "2.59.2"
-
-# Room
 room = "2.7.2"
 
-# Original App Versions
+# App Versions
 acra = "5.13.1"
 activity = "1.11.0"
 adapterdelegates = "4.3.2"
@@ -55,11 +52,8 @@ avifCoder = "2.2.0"
 ssiv = "376930523c"
 
 [libraries]
-# AVIF & SSIV
 avif-coder = { module = "io.github.awxkee:avif-coder", version.ref = "avifCoder" }
 ssiv = { module = "com.github.KotatsuApp:subsampling-scale-image-view", version.ref = "ssiv" }
-
-# Standard Libraries
 acra-dialog = { module = "ch.acra:acra-dialog", version.ref = "acra" }
 acra-http = { module = "ch.acra:acra-http", version.ref = "acra" }
 adapterdelegates = { module = "com.hannesdorfmann:adapterdelegates4-kotlin-dsl", version.ref = "adapterdelegates" }
@@ -95,7 +89,7 @@ coil-gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
 coil-network = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 coil-svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil" }
 conscrypt-android = { module = "org.conscrypt:conscrypt-android", version.ref = "conscrypt" }
-desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
+desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
 disk-lru-cache = { module = "com.github.solkin:disk-lru-cache", version.ref = "diskLruCache" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "dagger" }
