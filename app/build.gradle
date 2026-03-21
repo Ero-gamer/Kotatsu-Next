@@ -1,5 +1,6 @@
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -25,7 +26,6 @@ android {
 
     defaultConfig {
         applicationId 'io.github.kotatsuredo.kotatsu'
-        // BUMPED to 24 because avif-coder requires it
         minSdk 24 
         targetSdk 36
         versionCode 2012
@@ -73,7 +73,6 @@ android {
 
     packaging {
         jniLibs {
-            // This replaces the android:extractNativeLibs attribute in Manifest
             useLegacyPackaging = true 
         }
         resources {
@@ -108,6 +107,7 @@ android {
                 '-opt-in=coil3.annotation.ExperimentalCoilApi',
                 '-opt-in=coil3.annotation.InternalCoilApi',
                 '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
+                '-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi',
                 '-Xjspecify-annotations=strict',
                 '-Xannotation-default-target=first-only',
                 '-Xtype-enhancement-improvements-strict-mode'
@@ -120,7 +120,7 @@ android {
     }
 
     lint {
-        abortOnError false // Allow build to continue despite translation format issues
+        abortOnError false 
         checkReleaseBuilds false
         disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat', 'StringFormatMatches', 'StringFormatInvalid'
     }
@@ -139,6 +139,13 @@ androidComponents {
             }
         }
     })
+}
+
+// Global opt-in for internal APIs across all modules
+tasks.withType(KotlinCompile).configureEach {
+    compilerOptions {
+        freeCompilerArgs.add("-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi")
+    }
 }
 
 dependencies {
