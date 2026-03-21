@@ -1,23 +1,32 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
-    id "kotlin-parcelize"
+    id 'kotlin-parcelize'
     alias(libs.plugins.hilt)
     alias(libs.plugins.room)
-    alias(libs.plugins.serialization)
+    alias(libs.plugins.kotlinx.serialization)
+    // alias(libs.plugins.decoroutinator) // Enable if needed
 }
 
 android {
     compileSdk 36
     namespace 'org.koitharu.kotatsu'
 
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     defaultConfig {
         applicationId 'io.github.kotatsuredo.kotatsu'
         minSdk 23
         targetSdk 36
         versionCode 2012
-        versionName '9.6.8-AVIF-armv7a'
+        versionName '9.6.8'
         
         testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
         
@@ -29,15 +38,25 @@ android {
             abiFilters.clear()
             abiFilters.add("armeabi-v7a")
         }
+
+        // Local properties for Telegram Backup Bot
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localProperties.load(new FileInputStream(localPropertiesFile))
+        }
+        resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = '.debug'
+        }
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Warning: Using debug config for release is only for testing!
-            signingConfig signingConfigs.debug 
+            signingConfig signingConfigs.debug // For your Xiaomi Box testing
             
             packaging {
                 jniLibs {
@@ -45,6 +64,29 @@ android {
                 }
             }
         }
+        nightly {
+            initWith release
+            applicationIdSuffix = '.nightly'
+        }
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                'META-INF/README.md',
+                'META-INF/NOTICE.md'
+            ]
+        }
+    }
+
+    sourceSets {
+        getByName("androidTest").assets.srcDirs += files("$projectDir/schemas")
+        getByName("main").java.srcDirs += 'src/main/kotlin/'
     }
 
     compileOptions {
@@ -57,47 +99,152 @@ android {
         jvmTarget = "21"
         freeCompilerArgs += [
             '-opt-in=kotlin.ExperimentalStdlibApi',
-            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi'
+            '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
+            '-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
+            '-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
+            '-opt-in=kotlinx.coroutines.FlowPreview',
+            '-opt-in=kotlin.contracts.ExperimentalContracts',
+            '-opt-in=coil3.annotation.ExperimentalCoilApi',
+            '-opt-in=coil3.annotation.InternalCoilApi',
+            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
+            '-Xjspecify-annotations=strict',
+            '-Xannotation-default-target=first-only',
+            '-Xtype-enhancement-improvements-strict-mode'
         ]
     }
 
     room {
         schemaDirectory "$projectDir/schemas"
     }
+
+    lint {
+        abortOnError true
+        disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat'
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources true
+        unitTests.returnDefaultValues false
+    }
 }
 
-// Modern way to handle APK naming in Gradle 9.x / AGP 9.x
+/**
+ * MODERN GRADLE 9.1 VARIANT CONFIGURATION
+ * Replaces applicationVariants.configureEach to avoid "Value not yet set" errors
+ */
 androidComponents {
     onVariants(selector().all(), { variant ->
         variant.outputs.forEach { output ->
-            def abiMultiplier = 1
-            output.versionCode.set((android.defaultConfig.versionCode * 10) + abiMultiplier)
-            output.outputFileName.set("Kotatsu-Next-${android.defaultConfig.versionName}-armv7a.apk")
+            def abiMultiplier = 1 // Logic for armv7a
+            
+            if (variant.name == "nightly") {
+                def now = LocalDateTime.now()
+                output.versionCode.set((now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInteger() * 10) + abiMultiplier)
+                output.versionNameOverride.set('N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
+                output.outputFileName.set("Kotatsu-Nightly-${now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))}-armv7a.apk")
+            } else {
+                output.versionCode.set((android.defaultConfig.versionCode * 10) + abiMultiplier)
+                output.outputFileName.set("Kotatsu-${variant.name}-${android.defaultConfig.versionName}-armv7a.apk")
+            }
         }
     })
 }
 
 dependencies {
-    implementation("com.github.clquwu:kotatsu-parsers-redo:master-SNAPSHOT") {
+    // Dynamic Parser Version Override logic
+    def parsersVersion = libs.versions.parsers.get()
+    if (System.properties.containsKey('parsersVersionOverride')) {
+        parsersVersion = System.getProperty('parsersVersionOverride')
+    }
+    implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
         exclude group: 'org.json', module: 'json'
     }
 
-    implementation "io.github.awxkee:avif-coder:2.2.0"
-    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
-    
+    // Core Tooling
+    coreLibraryDesugaring libs.desugar_jdk_libs
+    implementation libs.kotlin.stdlib
+    implementation libs.kotlinx.coroutines.android
+    implementation libs.kotlinx.coroutines.guava
+
+    // UI & Navigation
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
-    implementation libs.material
     implementation libs.androidx.activity
     implementation libs.androidx.fragment
+    implementation libs.androidx.transition
+    implementation libs.androidx.collection
+    implementation libs.lifecycle.viewmodel
+    implementation libs.lifecycle.service
+    implementation libs.lifecycle.process
+    implementation libs.androidx.constraintlayout
+    implementation libs.androidx.documentfile
+    implementation libs.androidx.swiperefreshlayout
+    implementation libs.androidx.recyclerview
+    implementation libs.androidx.viewpager2
+    implementation libs.androidx.preference
+    implementation libs.androidx.biometric
+    implementation libs.material
+    implementation libs.androidx.lifecycle.common.java8
+    implementation libs.androidx.webkit
+    implementation libs.androidx.window
 
+    // Room Database
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
 
+    // Background Tasks & Networking
+    implementation libs.androidx.work.runtime
+    implementation libs.guava
+    implementation libs.okhttp
+    implementation libs.okhttp.tls
+    implementation libs.okhttp.dnsoverhttps
+    implementation libs.okio
+    implementation libs.kotlinx.serialization.json
+
+    // List Handling
+    implementation libs.adapterdelegates
+    implementation libs.adapterdelegates.viewbinding
+
+    // Dependency Injection (Hilt)
     implementation libs.hilt.android
     ksp libs.hilt.compiler
+    implementation libs.androidx.hilt.work
+    ksp libs.androidx.hilt.compiler
 
+    // Media Loading (AVIF + SSIV)
     implementation libs.coil.core
     implementation libs.coil.network
+    implementation libs.coil.gif
+    implementation libs.coil.svg
+    implementation libs.avif.coder // Updated for your Xiaomi Mi Box
+    implementation libs.ssiv
+    implementation libs.disk.lru.cache
+    implementation libs.markwon
+    implementation libs.kizzyrpc
+
+    // Crash Reporting & Security
+    implementation libs.acra.http
+    implementation libs.acra.dialog
+    implementation libs.conscrypt.android
+
+    // Debug Tools
+    debugImplementation libs.leakcanary.android
+    nightlyImplementation libs.leakcanary.android
+    debugImplementation libs.workinspector
+
+    // Testing
+    testImplementation libs.junit
+    testImplementation libs.json
+    testImplementation libs.kotlinx.coroutines.test
+
+    androidTestImplementation libs.androidx.runner
+    androidTestImplementation libs.androidx.rules
+    androidTestImplementation libs.androidx.test.core
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.kotlinx.coroutines.test
+    androidTestImplementation libs.androidx.room.testing
+    androidTestImplementation libs.moshi.kotlin
+    androidTestImplementation libs.hilt.android.testing
+    kspAndroidTest libs.hilt.android.compiler
 }
