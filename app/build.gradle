@@ -20,7 +20,7 @@ android {
         minSdk = 23
         targetSdk = 36
         versionCode = 2012
-        versionName = '9.6.8'
+        versionName = '9.6.8-AVIF-armv7a' // Tagged for your specific build
         
         testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
         
@@ -28,19 +28,17 @@ android {
             arg('room.generateKotlin', 'true')
         }
 
-        // Standard NDK filter
+        // CRITICAL: Strictly limit to armv7a to keep APK small and fast
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            abiFilters.clear()
+            abiFilters.add("armeabi-v7a")
         }
     }
 
-    // ABI Splitting: This generates the separate ARMv7a APK
+    // Disable splits because we are filtering at the NDK level for a single APK
     splits {
         abi {
-            enable true
-            reset()
-            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
-            universalApk true 
+            enable false
         }
     }
 
@@ -48,7 +46,17 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
+            // Using 'proguard-android-optimize.txt' is required for R8 Full Mode
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            signingConfig signingConfigs.debug // Uses debug key so you can install without setting up secrets
+            
+            packaging {
+                jniLibs {
+                    // Optimization: Keep symbols for your dav1d debugging but compress the libs
+                    useLegacyPackaging = true 
+                }
+            }
         }
         nightly {
             initWith release
@@ -66,71 +74,58 @@ android {
         jvmTarget = "21"
         freeCompilerArgs += [
             '-opt-in=kotlin.ExperimentalStdlibApi',
-            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi'
+            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
+            '-Xjvm-default=all' // Performance boost for interface calls
         ]
     }
 
-    // Room 3.0 Schema Config
     room {
         schemaDirectory "$projectDir/schemas"
     }
 
-    // Logic to fix ARMv7a APK building and Versioning
-    def abiCodes = ['armeabi-v7a': 1, 'arm64-v8a': 2, 'x86': 3, 'x86_64': 4]
-
+    // Simplified armv7a versioning
     applicationVariants.configureEach { variant ->
         variant.outputs.configureEach { output ->
-            def abiName = output.getFilter(com.android.build.OutputFile.ABI)
-            def abiMultiplier = abiCodes.get(abiName, 0)
+            def abiMultiplier = 1 // Fixed at 1 for armv7a
 
             if (variant.name == 'nightly') {
                 def now = LocalDateTime.now()
-                // Format: YYMMDD + ABI_ID
                 output.versionCodeOverride = (now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInteger() * 10) + abiMultiplier
                 output.versionNameOverride = 'N' + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
             } else {
-                // Shift base version code to allow ABI suffix
                 output.versionCodeOverride = (defaultConfig.versionCode * 10) + abiMultiplier
             }
 
-            // Custom filename for the APK
-            def name = abiName ?: "universal"
-            outputFileName = "Kotatsu-${variant.versionName}-${name}.apk"
+            outputFileName = "Kotatsu-Next-${variant.versionName}-armv7a.apk"
         }
     }
 }
 
 dependencies {
-    // Parser override logic
+    // Force latest parsers
     def parsersVersion = libs.versions.parsers.get()
-    if (System.properties.containsKey('parsersVersionOverride')) {
-        parsersVersion = System.getProperty('parsersVersionOverride')
-    }
     implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
         exclude group: 'org.json', module: 'json'
     }
 
     coreLibraryDesugaring libs.desugar.jdk.libs
     
-    // Core AndroidX
+    // Core Dependencies
     implementation libs.androidx.appcompat
     implementation libs.androidx.core
     implementation libs.androidx.activity
     implementation libs.androidx.fragment
     implementation libs.material
 
-    // Room 3.0 (KSP is now mandatory)
+    // Room & Hilt
     implementation libs.androidx.room.runtime
     implementation libs.androidx.room.ktx
     ksp libs.androidx.room.compiler
-
-    // Hilt
     implementation libs.hilt.android
     ksp libs.hilt.compiler
 
-    // Coil 3.4
+    // Coil 3.4 + Your added AVIF Coder
     implementation libs.coil.core
     implementation libs.coil.network
-    
-    // ... add your other standard libs from the catalog
+    implementation "com.github.awxkee:avif-coder:2.2.0" // Ensure this is in your catalog or add directly
 }
