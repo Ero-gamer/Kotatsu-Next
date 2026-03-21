@@ -23,10 +23,10 @@ import coil3.size.Scale
 import coil3.size.Size
 import coil3.size.isOriginal
 import coil3.size.pxOrElse
-import com.radzivon.vicvane.android.avif.HeifCoder // Added for dav1d support
+import com.github.awxkee.avifcoder.HeifCoder // FIXED: Updated Import
 import kotlinx.coroutines.runInterruptible
 import org.koitharu.kotatsu.core.util.ext.copyWithNewSource
-import org.koitharu.kotatsu.core.util.ext.readByteBuffer // Ensure this is available
+import org.koitharu.kotatsu.core.util.ext.readByteBuffer
 import kotlin.math.roundToInt
 
 class RegionBitmapDecoder(
@@ -41,8 +41,13 @@ class RegionBitmapDecoder(
         // --- START AVIF INTERCEPT ---
         if (fetchResult.mimeType == "image/avif") {
             val byteBuffer = fetchResult.source.source().readByteBuffer()
-            val bytes = ByteArray(byteBuffer.remaining())
-            byteBuffer.get(bytes)
+            val bytes = if (byteBuffer.hasArray()) {
+                byteBuffer.array()
+            } else {
+                val array = ByteArray(byteBuffer.remaining())
+                byteBuffer.get(array)
+                array
+            }
 
             val fullBitmap = heifCoder.decode(bytes) ?: return@runInterruptible null
             
@@ -50,7 +55,6 @@ class RegionBitmapDecoder(
                 val bitmapOptions = BitmapFactory.Options()
                 val rect = bitmapOptions.configureScale(fullBitmap.width, fullBitmap.height)
                 
-                // Extract the specific region requested (important for long-strip manhua)
                 val regionBitmap = Bitmap.createBitmap(
                     fullBitmap,
                     rect.left,
@@ -59,7 +63,6 @@ class RegionBitmapDecoder(
                     rect.height()
                 )
 
-                // Apply sampling/downscaling if needed
                 val finalBitmap = if (bitmapOptions.inSampleSize > 1) {
                     val dstWidth = rect.width() / bitmapOptions.inSampleSize
                     val dstHeight = rect.height() / bitmapOptions.inSampleSize
@@ -72,7 +75,8 @@ class RegionBitmapDecoder(
 
                 finalBitmap.density = options.context.resources.displayMetrics.densityDpi
                 DecodeResult(
-                    image = finalBitmap.asImage(),
+                    // FIXED: Explicitly cast to Bitmap for coil3 ambiguity
+                    image = (finalBitmap as Bitmap).asImage(),
                     isSampled = true,
                 )
             } finally {
@@ -81,12 +85,12 @@ class RegionBitmapDecoder(
         }
         // --- END AVIF INTERCEPT ---
 
-        // Original logic for JPEG/PNG/WebP
         val regionDecoder = BitmapDecoderCompat.createRegionDecoder(fetchResult.source.source().inputStream())
         if (regionDecoder == null) {
             val revivedFetchResult = fetchResult.copyWithNewSource()
             return@runInterruptible try {
-                val fallbackDecoder = imageLoader.components.newDecoder(
+                val components = imageLoader.components
+                val fallbackDecoder = components.newDecoder(
                     result = revivedFetchResult,
                     options = options,
                     imageLoader = imageLoader,
@@ -108,7 +112,7 @@ class RegionBitmapDecoder(
             val bitmap = regionDecoder.decodeRegion(rect, bitmapOptions)
             bitmap.density = options.context.resources.displayMetrics.densityDpi
             DecodeResult(
-                image = bitmap.asImage(),
+                image = (bitmap as Bitmap).asImage(), // FIXED: Cast for ambiguity
                 isSampled = true,
             )
         } finally {
@@ -116,7 +120,6 @@ class RegionBitmapDecoder(
         }
     }
 
-    /** Compute and set the scaling properties for [BitmapFactory.Options]. */
     private fun BitmapFactory.Options.configureScale(srcWidth: Int, srcHeight: Int): Rect {
         val dstWidth = options.size.widthPx(options.scale) { srcWidth }
         val dstHeight = options.size.heightPx(options.scale) { srcHeight }
