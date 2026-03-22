@@ -45,7 +45,7 @@ android {
         def localProperties = new Properties()
         def localPropertiesFile = rootProject.file('local.properties')
         if (localPropertiesFile.exists()) {
-            localProperties.load(new FileInputStream(localPropertiesFile))
+            localPropertiesFile.withInputStream { localProperties.load(it) }
         }
         resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
     }
@@ -78,7 +78,11 @@ android {
         resources {
             excludes += [
                 'META-INF/README.md',
-                'META-INF/NOTICE.md'
+                'META-INF/NOTICE.md',
+                'META-INF/LICENSE*',
+                'META-INF/DEPENDENCIES',
+                'META-INF/*.kotlin_module',
+                'META-INF/versions/9/previous-compilation-data.bin'
             ]
         }
     }
@@ -98,19 +102,23 @@ android {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
             freeCompilerArgs.addAll(
-                '-opt-in=kotlin.ExperimentalStdlibApi',
-                '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
-                '-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
-                '-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
-                '-opt-in=kotlinx.coroutines.FlowPreview',
-                '-opt-in=kotlin.contracts.ExperimentalContracts',
-                '-opt-in=coil3.annotation.ExperimentalCoilApi',
-                '-opt-in=coil3.annotation.InternalCoilApi',
-                '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
-                '-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi',
-                '-Xjspecify-annotations=strict',
-                '-Xannotation-default-target=first-only',
-                '-Xtype-enhancement-improvements-strict-mode'
+                // The missing flag you pointed out
+                "-P", "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true",
+                "-Xcontext-receivers",
+                "-Xjvm-default=all",
+                "-opt-in=kotlin.ExperimentalStdlibApi",
+                "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+                "-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi",
+                "-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi",
+                "-opt-in=kotlinx.coroutines.FlowPreview",
+                "-opt-in=kotlin.contracts.ExperimentalContracts",
+                "-opt-in=coil3.annotation.ExperimentalCoilApi",
+                "-opt-in=coil3.annotation.InternalCoilApi",
+                "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
+                "-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi",
+                "-Xjspecify-annotations=strict",
+                "-Xannotation-default-target=first-only",
+                "-Xtype-enhancement-improvements-strict-mode"
             )
         }
     }
@@ -141,7 +149,6 @@ androidComponents {
     })
 }
 
-// Global opt-in for internal APIs across all modules
 tasks.withType(KotlinCompile).configureEach {
     compilerOptions {
         freeCompilerArgs.add("-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi")
