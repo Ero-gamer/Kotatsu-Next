@@ -14,6 +14,7 @@ import coil3.Image
 import coil3.ImageLoader
 import coil3.memory.MemoryCache
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
 import coil3.request.transformations
 import coil3.toBitmap
 import com.davemorrissey.labs.subscaleview.ImageSource
@@ -104,7 +105,10 @@ class PageLoader @Inject constructor(
 	private var repository: MangaRepository? = null
 	private val prefetchQueue = LinkedList<MangaPage>()
 	private val counter = AtomicInteger(0)
-	private var prefetchQueueLimit = PREFETCH_LIMIT_DEFAULT // TODO adaptive
+	
+	// Implementation of Adaptive Prefetch Limit
+	private val prefetchQueueLimit = getAdaptivePrefetchLimit(context)
+	
 	private val edgeDetector = EdgeDetector(context)
 
 	fun isPrefetchApplicable(): Boolean {
@@ -141,6 +145,8 @@ class PageLoader @Inject constructor(
 			.data(preview)
 			.mangaSourceExtra(page.source)
 			.transformations(TrimTransformation())
+			// Optimization for TV Box: Avoid hardware bitmaps if memory is tight
+			.allowHardware(!isLowRam())
 			.build()
 		return coil.execute(request).image?.toImageSource()
 	}
@@ -168,7 +174,7 @@ class PageLoader @Inject constructor(
 	}
 
 	fun loadPageAsync(page: MangaPage, force: Boolean): ProgressDeferred<Uri, Float> {
-		var task = tasks[page.id]?.takeIf { it.isValid() }
+		var task = synchronized(tasks) { tasks[page.id]?.takeIf { it.isValid() } }
 		if (force) {
 			task?.cancel()
 		} else if (task?.isCancelled == false) {
@@ -222,7 +228,7 @@ class PageLoader @Inject constructor(
 	}
 
 	suspend fun invalidate(clearCache: Boolean) {
-		tasks.clear()
+		synchronized(tasks) { tasks.clear() }
 		loaderScope.cancelChildrenAndJoin()
 		if (clearCache) {
 			cache.clear()
@@ -301,7 +307,9 @@ class PageLoader @Inject constructor(
 				val request = createPageRequest(pageUrl, page.source)
 				imageProxyInterceptor.interceptPageRequest(request, okHttp).ensureSuccess().use { response ->
 					response.requireBody().withProgress(progress).use {
-						cache.set(pageUrl, it.source(), it.contentType()?.toMimeType())
+						// Added fallback MimeType to avoid crashes on Coil 3 / OkHttp integration
+						val mime = it.contentType()?.toMimeType() ?: "image/jpeg"
+						cache.set(pageUrl, it.source(), mime)
 					}
 				}.toUri()
 			}
@@ -335,8 +343,17 @@ class PageLoader @Inject constructor(
 	companion object {
 
 		private const val PROGRESS_UNDEFINED = -1f
-		private const val PREFETCH_LIMIT_DEFAULT = 6
 		private const val PREFETCH_MIN_RAM_MB = 80L
+
+		// Logic for Adaptive Prefetching based on RAM
+		private fun getAdaptivePrefetchLimit(context: Context): Int {
+			val availableMb = context.ramAvailable / 1024 / 1024
+			return when {
+				availableMb >= 1500 -> 12 // High-end
+				availableMb >= 800  -> 8  // Mid
+				else -> 4                 // Low-end/TV
+			}
+		}
 
 		fun createPageRequest(pageUrl: String, mangaSource: MangaSource) = Request.Builder()
 			.url(pageUrl)
@@ -352,9 +369,10 @@ class PageLoader @Inject constructor(
 			isFileUri() -> toFile().exists()
 			isZipUri() -> {
 				val file = File(requireNotNull(schemeSpecificPart))
-				file.exists() && ZipFile(file).use { it.getEntry(fragment) != null }
+				runCatching { 
+					file.exists() && ZipFile(file).use { it.getEntry(fragment) != null }
+				}.getOrDefault(false)
 			}
-
 			else -> false
 		}
 
@@ -363,9 +381,10 @@ class PageLoader @Inject constructor(
 			isFileUri() -> toFile().isNotEmpty()
 			isZipUri() -> {
 				val file = File(requireNotNull(schemeSpecificPart))
-				file.exists() && ZipFile(file).use { (it.getEntry(fragment)?.size ?: 0L) != 0L }
+				runCatching {
+					file.exists() && ZipFile(file).use { (it.getEntry(fragment)?.size ?: 0L) != 0L }
+				}.getOrDefault(false)
 			}
-
 			else -> false
 		}
 	}
