@@ -1,7 +1,10 @@
-name: Debug
+name: Debug 2
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+  workflow_dispatch: # Allows manual trigger from the Actions tab
 
 jobs:
   build:
@@ -22,11 +25,12 @@ jobs:
       - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Clean and Build Debug APK
-        # assembleDebug is used to keep the logs verbose for the Gumlet crash
+      - name: Clean Cache and Build Debug
+        # Clean ensures no old UI indices or class files remain
+        # assembleDebug provides the necessary logs to find the Gumlet crash
         run: ./gradlew clean assembleDebug -Pandroid.bundle.enableUncompressedNativeLibs=false
 
-      - name: Filter ABI and Upload
+      - name: Upload ArmV7a Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: Kotatsu-Debug-ArmV7a
