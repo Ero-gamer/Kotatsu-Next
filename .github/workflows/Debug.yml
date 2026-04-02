@@ -1,4 +1,4 @@
-name: Debug 4
+name: Debug 5
 
 on:
   push:
@@ -13,7 +13,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          # Ensure we stay on the branch we actually want
           ref: ${{ github.event.ref }}
           fetch-depth: 0
 
@@ -22,14 +21,13 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Disabling cache temporarily to clear any Gradle 9 leftovers
           cache: gradle
 
-      - name: Force Gradle 8.1.3 Wrapper Permissions
+      - name: Fix Wrapper Permissions
         run: chmod +x gradlew
 
       - name: Clean and Build Debug
-        # Using ./gradlew ensures it downloads 8.1.3 as defined in the properties file
+        # Removed the problematic uncompressedNativeLibs flag
         run: ./gradlew clean assembleDebug --no-daemon
 
       - name: Upload ArmV7a Debug APK
