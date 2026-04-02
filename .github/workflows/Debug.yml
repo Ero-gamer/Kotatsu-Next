@@ -1,10 +1,11 @@
-name: Debug 2
+name: Debug 3
 
 on:
   push:
     branches:
-      - master
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+      - devel
+      - devel2
+  workflow_dispatch: # Important for manual runs
 
 jobs:
   build:
@@ -13,6 +14,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
+          # This ensures it fetches the specific branch you selected in the UI
+          ref: ${{ github.event.ref }}
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -25,10 +28,10 @@ jobs:
       - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Clean Cache and Build Debug
-        # Clean ensures no old UI indices or class files remain
-        # assembleDebug provides the necessary logs to find the Gumlet crash
-        run: ./gradlew clean assembleDebug -Pandroid.bundle.enableUncompressedNativeLibs=false
+      - name: Clean and Build Debug
+        # --no-daemon prevents Gradle 9.0 from hanging in CI environments
+        # We also remove the uncompressedNativeLibs flag if it's causing deprecation errors
+        run: ./gradlew clean assembleDebug --no-daemon
 
       - name: Upload ArmV7a Debug APK
         uses: actions/upload-artifact@v4
