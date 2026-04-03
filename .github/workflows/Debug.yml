@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: Debug
 
 on:
   push:
@@ -10,25 +10,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.ref }}
           fetch-depth: 0
 
-      - name: Set up JDK 17
+      - name: set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
 
-      - name: Fix Wrapper Permissions
-        run: chmod +x gradlew
-
-      - name: Clean and Build Debug
-        # Removed the problematic uncompressedNativeLibs flag
-        run: ./gradlew clean assembleDebug --no-daemon
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
 
       - name: Upload ArmV7a Debug APK
         uses: actions/upload-artifact@v4
