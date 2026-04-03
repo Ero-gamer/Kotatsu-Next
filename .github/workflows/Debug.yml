@@ -22,10 +22,6 @@ jobs:
           cache: gradle
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload ArmV7a Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kotatsu-Debug-ArmV7a
-          path: app/build/outputs/apk/debug/*-armeabi-v7a-debug.apk
+        # -U forces a refresh of the build environment 
+        # to get rid of that "ghost" property
+        run: ./gradlew assembleDebug -U
