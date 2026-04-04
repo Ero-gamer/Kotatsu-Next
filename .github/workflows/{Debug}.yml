@@ -2,7 +2,7 @@ name: (Debug)
 
 on:
   push:
-    branches: [ "master", "main", "devel" ]
+    branches: [ "devel" ]
   workflow_dispatch:
 
 jobs:
