@@ -1,41 +1,38 @@
-name: (Debug)
+name: Debug
 
 on:
   push:
-    branches: [ "devel" ]
+    branches:
+      - devel
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v6
         with:
-          submodules: 'recursive'
+          fetch-depth: 0
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
-          # We can let the setup-gradle action handle the cache instead
-          
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: wrapper # This ensures it uses your 9.3.1 wrapper
+          # Standard caching is safe now with updated libraries
+          cache: 'gradle' 
 
-      - name: Build armv7a debug
-        run: ./gradlew assembleDebug --no-daemon
-        env:
-          RELEASE_STORE_FILE: ""
-          RELEASE_STORE_PASSWORD: ""
-          RELEASE_KEY_ALIAS: ""
-          RELEASE_KEY_PASSWORD: ""
+      - name: Build Debug APK
+        # We run 'clean' to ensure no old 'debug' configs linger
+        # --no-build-cache ensures the APK is built fresh with new lib versions
+        run: ./gradlew clean assembleDebug --no-daemon --no-build-cache
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Upload Debug Artifacts
+        uses: actions/upload-artifact@v7
         with:
-          name: Kotatsu-Next-armv7a
-          path: app/build/outputs/apk/release/*.apk
+          name: Kotatsu-Debug-Build
+          path: app/build/outputs/apk/debug/*.apk
+          # v7 allows faster uploads by adjusting compression
+          compression-level: 6 
+          if-no-files-found: error
