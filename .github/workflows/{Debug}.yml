@@ -20,19 +20,16 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Standard caching is safe now with updated libraries
-          cache: 'gradle' 
+          cache: 'gradle'
 
       - name: Build Debug APK
-        # We run 'clean' to ensure no old 'debug' configs linger
-        # --no-build-cache ensures the APK is built fresh with new lib versions
-        run: ./gradlew clean assembleDebug --no-daemon --no-build-cache
+        # Adding --stacktrace so we can see exactly what's up if it fails
+        # Using --no-build-cache to ensure the new library versions are picked up
+        run: ./gradlew clean assembleDebug --no-daemon --no-build-cache --stacktrace
 
-      - name: Upload Debug Artifacts
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v7
         with:
           name: Kotatsu-Debug-Build
           path: app/build/outputs/apk/debug/*.apk
-          # v7 allows faster uploads by adjusting compression
-          compression-level: 6 
           if-no-files-found: error
