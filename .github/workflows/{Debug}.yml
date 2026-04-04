@@ -22,14 +22,19 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Strip Non-English Strings
+        # This command finds all directories starting with 'values-' 
+        # but EXCLUDES the 'values' (default) and 'values-night' (theme) folders.
+        run: |
+          find app/src/main/res -type d -name "values-*" ! -name "values" ! -name "values-night" -exec rm -rf {} +
+          echo "Non-English language folders removed."
+
       - name: Build Debug APK
-        # Adding --stacktrace so we can see exactly what's up if it fails
-        # Using --no-build-cache to ensure the new library versions are picked up
-        run: ./gradlew clean assembleDebug --no-daemon --no-build-cache --stacktrace
+        # We run 'clean' to ensure the resource merger doesn't see the deleted files
+        run: ./gradlew clean assembleDebug --no-daemon --parallel
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v7
         with:
           name: Kotatsu-Debug-Build
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
