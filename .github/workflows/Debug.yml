@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: Debug
 
 on:
   push:
@@ -19,9 +19,15 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+          # We disable the built-in cache to clear the bad property
+          cache: '' 
 
       - name: Build Debug APK
-        # -U forces a refresh of the build environment 
-        # to get rid of that "ghost" property
-        run: ./gradlew assembleDebug -U
+        # --no-build-cache is the "nuke" option for that deprecated error
+        run: ./gradlew assembleDebug --no-daemon --no-build-cache
+
+      - name: Upload ArmV7a Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kotatsu-Debug-ArmV7a
+          path: app/build/outputs/apk/debug/*-armeabi-v7a-debug.apk
