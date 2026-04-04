@@ -1,4 +1,4 @@
-name: Debug
+name: Build Debug APK
 
 on:
   push:
@@ -10,24 +10,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
-          # We disable the built-in cache to clear the bad property
+          # We disable internal caching to keep the environment pristine
           cache: '' 
 
       - name: Build Debug APK
-        # --no-build-cache is the "nuke" option for that deprecated error
-        run: ./gradlew assembleDebug --no-daemon --no-build-cache
+        # -g .gradle-home ensures we use a fresh config directory
+        # -D...= override forces the phantom property to be ignored
+        run: |
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --no-build-cache \
+            -g .gradle-home \
+            -Dorg.gradle.project.android.bundle.enableUncompressedNativeLibs=
 
       - name: Upload ArmV7a Debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Kotatsu-Debug-ArmV7a
           path: app/build/outputs/apk/debug/*-armeabi-v7a-debug.apk
