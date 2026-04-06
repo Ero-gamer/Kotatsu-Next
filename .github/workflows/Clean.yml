@@ -1,32 +1,40 @@
 name: Clean
 
 on:
-  push:
-    branches: [ "devel" ]
-  workflow_dispatch:
+  workflow_dispatch: # Allows you to run this manually from the Actions tab
 
 jobs:
-  build:
+  cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # CRITICAL: Allows the action to push changes back to your repo
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push back
+          fetch-depth: 0 
 
-      - name: Delete Localizations
+      - name: Delete Language Folders
         run: |
-          # Navigate to the resources directory
-          cd app/src/main/res/
+          TARGET_DIR="app/src/main/res"
           
-          # Find all directories starting with 'values-' 
-          # but NOT 'values-en' (if that is your specific en folder name)
-          # and delete them.
-          find . -maxdepth 1 -type d -name "values-*" ! -name "values" -exec rm -rf {} +
+          # Delete all 'values-*' folders (this keeps the base 'values' folder)
+          # The -v flag in rm will print exactly what is being deleted in your logs
+          rm -rfv $TARGET_DIR/values-*/
           
-          echo "Cleanup complete. Remaining folders:"
-          ls -d values*
+          # Check if there are actually changes to commit
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No folders found to delete. Repository is already clean."
+            exit 0
+          fi
 
-      - name: Verify and Continue Build
+      - name: Commit and Push Changes
         run: |
-          # Your subsequent build commands (e.g., ./gradlew assembleRelease)
-          echo "Proceeding with compilation without extra languages..."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add .
+          git commit -m "Automation: Permanently removed localized resource folders"
+          git push origin ${{ github.ref_name }}
