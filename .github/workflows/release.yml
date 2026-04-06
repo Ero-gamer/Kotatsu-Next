@@ -5,6 +5,9 @@ on:
     branches: [ "devel" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,9 +28,17 @@ jobs:
         with:
           gradle-version: wrapper
 
+      - name: Delete Non-English Localization Files
+        run: |
+          # Find all 'values-*' directories in the app module
+          # Exclude 'values-en' and 'values-night' (if you want to keep dark mode)
+          # Then delete them
+          find . -type d -name "values-*" ! -name "values-en" ! -name "values-night" -exec rm -rf {} +
+          echo "Non-English resource directories removed."
+
       - name: Build armv7a Release
-        # Filters for English-only resources AND forces 32-bit armv7a ABI
-        run: ./gradlew assembleRelease -Pandroid.res.filter=en -Pandroid.injected.build.abi=armeabi-v7a --no-daemon
+        # Using the ABI injection to ensure only 32-bit is compiled
+        run: ./gradlew assembleRelease -Pandroid.injected.build.abi=armeabi-v7a --no-daemon
         env:
           RELEASE_STORE_FILE: ""
           RELEASE_STORE_PASSWORD: ""
