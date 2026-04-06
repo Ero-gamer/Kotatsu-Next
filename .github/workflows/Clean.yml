@@ -1,0 +1,32 @@
+name: Clean
+
+on:
+  push:
+    branches: [ "devel" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Delete Localizations
+        run: |
+          # Navigate to the resources directory
+          cd app/src/main/res/
+          
+          # Find all directories starting with 'values-' 
+          # but NOT 'values-en' (if that is your specific en folder name)
+          # and delete them.
+          find . -maxdepth 1 -type d -name "values-*" ! -name "values" -exec rm -rf {} +
+          
+          echo "Cleanup complete. Remaining folders:"
+          ls -d values*
+
+      - name: Verify and Continue Build
+        run: |
+          # Your subsequent build commands (e.g., ./gradlew assembleRelease)
+          echo "Proceeding with compilation without extra languages..."
