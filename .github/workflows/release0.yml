@@ -1,8 +1,6 @@
-name: Release 0
+name: Release 00
 
 on:
-  push:
-    branches: [ "devel" ]
   workflow_dispatch:
 
 jobs:
