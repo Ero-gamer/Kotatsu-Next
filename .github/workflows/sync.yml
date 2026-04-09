@@ -1,0 +1,41 @@
+name: Force Sync (Ignore Upstream Workflows)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout devel2
+        uses: actions/checkout@v4
+        with:
+          ref: devel2
+          fetch-depth: 0
+
+      - name: Sync and Purge Upstream Workflows
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 1. Add and fetch upstream
+          git remote add upstream https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
+          git fetch upstream devel
+
+          # 2. Hard reset to upstream to get all the new code
+          git reset --hard upstream/devel
+
+          # 3. IMMEDIATELY restore your own .github folder
+          # This removes all upstream workflows and brings back yours
+          git checkout devel2@{1} -- .github/ || git checkout HEAD -- .github/
+
+          # 4. Clean up any leftover untracked files
+          git clean -fd
+
+          # 5. Force Push
+          git add .
+          git commit -m "Force sync: Code updated, upstream workflows discarded" || echo "No changes"
+          git push origin devel2 --force
