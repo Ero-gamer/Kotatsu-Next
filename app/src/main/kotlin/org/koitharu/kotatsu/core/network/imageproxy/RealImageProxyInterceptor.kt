@@ -37,6 +37,7 @@ class RealImageProxyInterceptor @Inject constructor(
 		-1 -> null
 		0 -> WsrvNlProxyInterceptor()
 		1 -> ZeroMsProxyInterceptor()
+		2 -> GumletProxyInterceptor()
 		else -> error("Unsupported images proxy $proxy")
 	}
 }
