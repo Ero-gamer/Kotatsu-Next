@@ -66,6 +66,7 @@
     <string name="text_file_not_supported">Either pick a ZIP or CBZ file.</string>
     <string name="no_description">No description</string>
     <string name="clear_pages_cache">Clear page cache</string>
+    <string name="image_proxy_cache_cleared">Image proxy changed. Page cache cleared.</string>
     <string name="text_file_sizes">B|kB|MB|GB|TB</string>
     <string name="standard">Standard</string>
     <string name="webtoon">Webtoon</string>
