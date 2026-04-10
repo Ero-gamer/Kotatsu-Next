@@ -1,15 +1,18 @@
 package org.koitharu.kotatsu.core.network.imageproxy
 
-import coil3.intercept.Interceptor
+import coil3.intercept.Interceptor as CoilInterceptor
 import coil3.request.ImageResult
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.plus
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.koitharu.kotatsu.core.prefs.AppSettings
-import org.koitharu.kotatsu.core.prefs.observeAsStateFlow
-import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
+import org.koitharu.kotatsu.core.util.ext.ensureSuccess
 import org.koitharu.kotatsu.parsers.util.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,25 +22,41 @@ class RealImageProxyInterceptor @Inject constructor(
 	private val settings: AppSettings,
 ) : ImageProxyInterceptor {
 
-	private val delegate = settings.observeAsStateFlow(
-		scope = processLifecycleScope + Dispatchers.Default,
-		key = AppSettings.KEY_IMAGES_PROXY,
-		valueProducer = { createDelegate() },
-	)
+	private val scope = CoroutineScope(Dispatchers.Default)
 
-	override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+	// settings.observe() filters to KEY_IMAGES_PROXY changes only, emits null on start
+	// so the delegate is always rebuilt fresh when the flow starts or the setting changes.
+	private val delegate: StateFlow<BaseImageProxyInterceptor?> = settings.observe(
+		AppSettings.KEY_IMAGES_PROXY,
+	)
+		.map { createDelegate() }
+		.stateIn(scope, SharingStarted.Eagerly, createDelegate())
+
+	/**
+	 * Called by Coil for thumbnail/cover image loading.
+	 * Delegates to the active proxy if one is selected, otherwise passes through.
+	 */
+	override suspend fun intercept(chain: CoilInterceptor.Chain): ImageResult {
 		return delegate.value?.intercept(chain) ?: chain.proceed()
 	}
 
+	/**
+	 * Called by PageLoader, MangaPageFetcher, DownloadWorker for raw page fetching.
+	 * Delegates to the active proxy if one is selected, otherwise direct OkHttp call.
+	 */
 	override suspend fun interceptPageRequest(request: Request, okHttp: OkHttpClient): Response {
-		return delegate.value?.interceptPageRequest(request, okHttp) ?: okHttp.newCall(request).await()
+		return delegate.value?.interceptPageRequest(request, okHttp)
+			?: okHttp.newCall(request).await().ensureSuccess()
 	}
 
-	private fun createDelegate(): ImageProxyInterceptor? = when (val proxy = settings.imagesProxy) {
-		-1 -> null
-		0 -> WsrvNlProxyInterceptor()
-		1 -> ZeroMsProxyInterceptor()
-		2 -> GumletProxyInterceptor()
-		else -> error("Unsupported images proxy $proxy")
+	private fun createDelegate(): BaseImageProxyInterceptor? {
+		// Values must match constants.xml values_image_proxies array:
+		// -1 = none, 0 = wsrv.nl, 1 = 0ms.dev, 2 = Gumlet
+		return when (settings.imagesProxy) {
+			0 -> WsrvNlProxyInterceptor()
+			1 -> ZeroMsProxyInterceptor()
+			2 -> GumletProxyInterceptor()
+			else -> null  // -1 = disabled, or any unknown/stale value
+		}
 	}
 }
