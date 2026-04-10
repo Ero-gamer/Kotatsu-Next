@@ -118,6 +118,14 @@ class PageSaveHelper @AssistedInject constructor(
 	}
 
 	private suspend fun getPageExtension(url: Uri, fileUri: Uri): String {
+		// Always probe the actual cached file content first. This ensures that when an
+		// image proxy (e.g. Gumlet) transcodes a .jpg to .webp, the saved file gets the
+		// correct .webp extension instead of the original URL's .jpg extension.
+		fileUri.toFileOrNull()?.let { file ->
+			getImageExtension(file)?.let { return it }
+		}
+		// Fallback: derive extension from the original URL (used for zip/local sources
+		// where probing the file is not applicable or the file is not accessible).
 		val name = requireNotNull(
 			if (url.isZipUri()) {
 				url.fragment?.substringAfterLast(File.separatorChar)
@@ -125,11 +133,8 @@ class PageSaveHelper @AssistedInject constructor(
 				url.lastPathSegment
 			},
 		) { "Invalid page url: $url" }
-		var extension = name.substringAfterLast('.', "")
-		if (extension.length !in 2..4) {
-			extension = fileUri.toFileOrNull()?.let { file -> getImageExtension(file) } ?: EXTENSION_FALLBACK
-		}
-		return extension
+		val extension = name.substringAfterLast('.', "")
+		return if (extension.length in 2..4) extension else EXTENSION_FALLBACK
 	}
 
 	private suspend fun <I> ActivityResultLauncher<I>.launchAndAwait(input: I): Uri {
