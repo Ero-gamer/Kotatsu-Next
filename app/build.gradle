@@ -8,8 +8,6 @@ plugins {
 	id 'dagger.hilt.android.plugin'
 	id 'androidx.room'
 	id 'org.jetbrains.kotlin.plugin.serialization'
-	// enable if needed
-	// id 'dev.reformator.stacktracedecoroutinator'
 }
 
 android {
@@ -18,9 +16,7 @@ android {
 	namespace = 'org.koitharu.kotatsu'
 
     dependenciesInfo {
-        // Disables dependency metadata when building APKs.
         includeInApk = false
-        // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
 
@@ -36,137 +32,104 @@ android {
 			arg('room.generateKotlin', 'true')
 		}
 		androidResources {
-			// https://issuetracker.google.com/issues/408030127
 			generateLocaleConfig false
 		}
 		def localProperties = new Properties()
 		def localPropertiesFile = rootProject.file('local.properties')
 		if (localPropertiesFile.exists()) {
-			localProperties.load(new FileInputStream(localPropertiesFile))
+			localProperties.load(localPropertiesFile.newDataInputStream())
 		}
-		resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
-	}
+    }
+
 	buildTypes {
 		debug {
-			applicationIdSuffix = '.debug'
+			applicationIdSuffix '.debug'
+			versionNameSuffix '-debug'
+		}
+		nightly {
+			initWith debug
+			applicationIdSuffix '.nightly'
+			versionNameSuffix "-nightly-${LocalDateTime.now().format('yyyyMMddHHmm')}"
 		}
 		release {
 			minifyEnabled true
 			shrinkResources true
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 		}
-		nightly {
-			initWith release
-			applicationIdSuffix = '.nightly'
-		}
 	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	kotlinOptions {
+		jvmTarget = JavaVersion.VERSION_17.toString()
+		freeCompilerArgs += [
+				'-opt-in=kotlin.RequiresOptIn',
+				'-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
+				'-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
+				'-opt-in=kotlinx.coroutines.FlowPreview',
+				'-opt-in=androidx.compose.material3.ExperimentalMaterial3Api',
+				'-opt-in=androidx.compose.foundation.ExperimentalFoundationApi',
+		]
+	}
+
 	buildFeatures {
 		viewBinding true
 		buildConfig true
 	}
-	packagingOptions {
+
+	packaging {
 		resources {
 			excludes += [
-				'META-INF/README.md',
-				'META-INF/NOTICE.md'
+					'META-INF/DEPENDENCIES',
+					'META-INF/LICENSE',
+					'META-INF/LICENSE.txt',
+					'META-INF/license.txt',
+					'META-INF/NOTICE',
+					'META-INF/NOTICE.txt',
+					'META-INF/notice.txt',
+					'META-INF/ASL2.0',
+					'META-INF/*.kotlin_module',
 			]
 		}
 	}
-	sourceSets {
-		androidTest.assets.srcDirs += files("$projectDir/schemas".toString())
-		main.java.srcDirs += 'src/main/kotlin/'
-	}
-	compileOptions {
-		coreLibraryDesugaringEnabled true
-		sourceCompatibility JavaVersion.VERSION_17
-		targetCompatibility JavaVersion.VERSION_17
-	}
-	kotlinOptions {
-		jvmTarget = JavaVersion.VERSION_17.toString()
-		freeCompilerArgs += [
-			'-opt-in=kotlin.ExperimentalStdlibApi',
-			'-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
-			'-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
-			'-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
-			'-opt-in=kotlinx.coroutines.FlowPreview',
-			'-opt-in=kotlin.contracts.ExperimentalContracts',
-			'-opt-in=coil3.annotation.ExperimentalCoilApi',
-			'-opt-in=coil3.annotation.InternalCoilApi',
-			'-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
-			'-Xjspecify-annotations=strict',
-			'-Xannotation-default-target=first-only',
-			'-Xtype-enhancement-improvements-strict-mode'
-		]
-	}
+
 	room {
-        schemaDirectory "$projectDir/schemas"
-	}
-	lint {
-		abortOnError true
-		disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat'
-	}
-	testOptions {
-		unitTests.includeAndroidResources true
-		unitTests.returnDefaultValues false
-		kotlinOptions {
-			freeCompilerArgs += ['-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi']
-		}
-	}
-	applicationVariants.configureEach { variant ->
-		if (variant.name == 'nightly') {
-			variant.outputs.each { output ->
-				def now = LocalDateTime.now()
-				output.versionCodeOverride = now.format("yyMMdd").toInteger()
-				output.versionNameOverride = 'N' + now.format("yyyyMMdd")
-			}
-		}
+		schemaArgCustomDir("$projectDir/schemas")
 	}
 }
+
+// Global exclusion to fix Duplicate class kotlinx.android.parcel errors
+configurations.all {
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
+}
+
 dependencies {
-	def parsersVersion = libs.versions.parsers.get()
-	if (System.properties.containsKey('parsersVersionOverride')) {
-		// usage:
-		// -DparsersVersionOverride=$(curl -s https://api.github.com/repos/kotatsuapp/kotatsu-parsers/commits/master -H "Accept: application/vnd.github.sha" | cut -c -10)
-		parsersVersion = System.getProperty('parsersVersionOverride')
-	}
-	//noinspection UseTomlInstead
-	implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
-		exclude group: 'org.json', module: 'json'
-	}
-
-	coreLibraryDesugaring libs.desugar.jdk.libs
-	implementation libs.kotlin.stdlib
-	implementation libs.kotlinx.coroutines.android
-	implementation libs.kotlinx.coroutines.guava
-
+	implementation libs.androidx.core.ktx
 	implementation libs.androidx.appcompat
-	implementation libs.androidx.core
-	implementation libs.androidx.activity
-	implementation libs.androidx.fragment
-	implementation libs.androidx.transition
-	implementation libs.androidx.collection
-	implementation libs.lifecycle.viewmodel
-	implementation libs.lifecycle.service
-	implementation libs.lifecycle.process
+	implementation libs.androidx.activity.ktx
+	implementation libs.androidx.fragment.ktx
 	implementation libs.androidx.constraintlayout
-	implementation libs.androidx.documentfile
 	implementation libs.androidx.swiperefreshlayout
-	implementation libs.androidx.recyclerview
+	implementation libs.androidx.preference.ktx
 	implementation libs.androidx.viewpager2
-	implementation libs.androidx.preference
-	implementation libs.androidx.biometric
-	implementation libs.material
+	implementation libs.androidx.recyclerview
+	implementation libs.androidx.browser
+	implementation libs.androidx.palette.ktx
+	implementation libs.androidx.exifinterface
+
+	implementation libs.androidx.lifecycle.viewmodel.ktx
+	implementation libs.androidx.lifecycle.livedata.ktx
+	implementation libs.androidx.lifecycle.runtime.ktx
 	implementation libs.androidx.lifecycle.common.java8
-	implementation libs.androidx.webkit
 
-	implementation libs.androidx.work.runtime
-	implementation libs.guava
-
-    // Foldable/Window layout
-    implementation libs.androidx.window
+	implementation libs.androidx.work.runtime.ktx
 
 	implementation libs.androidx.room.runtime
 	implementation libs.androidx.room.ktx
+	implementation libs.androidx.room.paging
 	ksp libs.androidx.room.compiler
 
 	implementation libs.okhttp
