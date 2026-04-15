@@ -55,7 +55,14 @@ class WebtoonReaderFragment : BaseReaderFragment<FragmentReaderWebtoonBinding>()
 	override fun onViewBindingCreated(binding: FragmentReaderWebtoonBinding, savedInstanceState: Bundle?) {
 		super.onViewBindingCreated(binding, savedInstanceState)
 		with(binding.recyclerView) {
-			setHasFixedSize(true)
+			// BUG 4 FIX: DO NOT call setHasFixedSize(true).
+			// WebtoonScalingFrame dynamically changes the RecyclerView's rendered size
+			// (via scaleY/translationY). Although we now use render transforms instead of
+			// layout changes, calling setHasFixedSize(true) can still cause the RecyclerView
+			// to skip necessary layout passes when adapter items have variable heights
+			// (which they do — each manga page has a different aspect ratio).
+			// setHasFixedSize(true) ← REMOVED (was causing ATV14 ghost-image artifact)
+
 			adapter = readerAdapter
 			addOnPageScrollListener(this@WebtoonReaderFragment)
 			recyclerLifecycleDispatcher = RecyclerViewLifecycleDispatcher().also {
