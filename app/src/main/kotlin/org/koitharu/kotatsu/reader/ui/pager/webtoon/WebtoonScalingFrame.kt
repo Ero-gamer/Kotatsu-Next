@@ -12,6 +12,7 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
+import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -54,7 +55,10 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 	private val translateBounds = RectF()
 	private val targetHitRect = Rect()
 	private var animator: ValueAnimator? = null
-	private var pendingScroll = 0
+
+	// BUG 4 FIX: removed 'pendingScroll' field — we no longer manipulate
+	// RecyclerView layoutParams.height (which caused the ATV14 ghost rendering).
+	// Instead we use pure render transforms (scaleX/scaleY/translationX/Y).
 
 	var isZoomEnable = false
 		set(value) {
@@ -75,6 +79,10 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 
 	init {
 		syncMatrixValues()
+		// BUG 4 FIX: ensure children are properly clipped so that transform
+		// changes don't cause hardware-layer ghost artifacts on ATV.
+		clipChildren = true
+		clipToPadding = true
 	}
 
 	override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
@@ -172,31 +180,59 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 		smoothScaleTo(scale * 0.9f)
 	}
 
+	// BUG 4 FIX: completely rewritten invalidateTarget().
+	// OLD: modified RecyclerView.layoutParams.height + requestLayout() + relayoutChildren()
+	//   → causes RecyclerView to relayout mid-scroll, corrupting HW display lists on ATV14,
+	//     producing "stuck" image strips at top/bottom.
+	// NEW: use pure render transforms (scaleX, scaleY, translationX, translationY) on the
+	//   RecyclerView child. These do NOT trigger layout, they only affect the render pass.
+	//   The RecyclerView's layout remains unchanged; only its visual appearance is scaled.
 	private fun invalidateTarget() {
 		val targetChild = findTargetChild()
 		adjustBounds()
-		targetChild.run {
-			if (!scale.isNaN()) {
-				scaleX = scale
-				scaleY = scale
-			}
-			translationX = transX
-			translationY = transY
-			if (pendingScroll != 0) {
-				nestedScrollBy(0, pendingScroll)
-				pendingScroll = 0
-			}
+
+		val currentScale = scale
+		val currentTransX = transX
+		val currentTransY = transY
+
+		// BUG 4 FIX: when scale is exactly 1, reset everything to identity to
+		// avoid any floating-point drift that could cause pixel-off rendering.
+		if (currentScale == 1f || currentScale.isNaN()) {
+			targetChild.scaleX = 1f
+			targetChild.scaleY = 1f
+			targetChild.translationX = 0f
+			targetChild.translationY = 0f
+			targetHitRect.setEmpty()
+			// BUG 4 FIX: force a hardware layer flush when returning to identity scale.
+			// This clears any stale GPU-cached content from previous scale states.
+			targetChild.setLayerType(View.LAYER_TYPE_NONE, null)
+			return
 		}
 
-		val newHeight = if (scale < 1f) (height / scale).toInt() else height
-		if (newHeight != targetChild.height) {
-			targetChild.layoutParams.height = newHeight
-			targetChild.requestLayout()
-			targetChild.relayoutChildren()
-		}
+		// Apply render-only transform. pivotX/pivotY default to the view's center,
+		// which is what we want — halfWidth/halfHeight are also the view's center.
+		targetChild.pivotX = halfWidth
+		targetChild.pivotY = halfHeight
+		targetChild.scaleX = currentScale
+		targetChild.scaleY = currentScale
+		targetChild.translationX = currentTransX / currentScale // compensate for pivot scaling
+		targetChild.translationY = currentTransY / currentScale
 
-		if (scale < 1) {
+		// BUG 4 FIX: update the hit-rect for below-1 scale (for touch event offsetting).
+		if (currentScale < 1f) {
 			targetChild.getHitRect(targetHitRect)
+		} else {
+			targetHitRect.setEmpty()
+		}
+
+		// BUG 4 FIX: Force the RecyclerView to use a software layer during active
+		// scale gestures. This prevents the GPU from caching intermediate states
+		// that cause the ghost-image artifact on ATV14.
+		// The layer is removed in onScaleEnd / smoothScaleTo's doOnEnd.
+		if (scaleDetector.isInProgress) {
+			if (targetChild.layerType != View.LAYER_TYPE_SOFTWARE) {
+				targetChild.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+			}
 		}
 	}
 
@@ -218,9 +254,14 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			else -> 0f
 		}
 
-		pendingScroll = if (scale > 1) (dy / scale).roundToInt() else 0
-		transformMatrix.postTranslate(dx, dy)
-		syncMatrixValues()
+		// BUG 4 FIX: removed the pendingScroll / nestedScrollBy call.
+		// Translating the RecyclerView during scroll via nestedScrollBy while
+		// simultaneously changing its transform caused double-scroll artifacts.
+		// The dy offset is now absorbed entirely by the translationY render property.
+		if (dx != 0f || dy != 0f) {
+			transformMatrix.postTranslate(dx, dy)
+			syncMatrixValues()
+		}
 	}
 
 	private fun scaleChild(
@@ -269,7 +310,10 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 
 	private fun onPostScale(invalidateLayout: Boolean) {
 		val target = findTargetChild()
+		// BUG 4 FIX: clear software layer after scale gesture ends so that
+		// normal scrolling uses hardware acceleration again.
 		target.post {
+			target.setLayerType(View.LAYER_TYPE_NONE, null)
 			target.updateChildrenScroll()
 			if (invalidateLayout) {
 				target.requestLayout()
@@ -284,7 +328,11 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			setDuration(context.getAnimationDuration(android.R.integer.config_shortAnimTime))
 			interpolator = DecelerateInterpolator()
 			addUpdateListener { scaleChild(it.animatedValue as Float, halfWidth, halfHeight) }
-			doOnEnd { onPostScale(invalidateLayout = false) }
+			doOnEnd {
+				onPostScale(invalidateLayout = false)
+				// BUG 4 FIX: ensure layer type is cleared after animation.
+				findTargetChild().setLayerType(View.LAYER_TYPE_NONE, null)
+			}
 			start()
 		}
 	}
@@ -313,6 +361,10 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 				duration = context.getAnimationDuration(R.integer.config_defaultAnimTime)
 				addUpdateListener {
 					scaleChild(it.animatedValue as Float, e.x, e.y)
+				}
+				doOnEnd {
+					// BUG 4 FIX: clear software layer after double-tap zoom.
+					findTargetChild().setLayerType(View.LAYER_TYPE_NONE, null)
 				}
 				start()
 			}
