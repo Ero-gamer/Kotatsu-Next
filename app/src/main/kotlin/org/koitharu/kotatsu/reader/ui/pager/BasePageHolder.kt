@@ -197,8 +197,24 @@ abstract class BasePageHolder<B : ViewBinding>(
 					showAnimated(boundData!!, state)
 					bindingInfo.layoutProgress.isGone = true
 				} else {
-					bindingInfo.textViewStatus.setText(R.string.preparing_)
+					// BUG 1 FIX: Keep showing the generic spinner ("loading_") when the
+					// image has been downloaded and SSIV is about to initialise.
+					// The old code immediately set "preparing_" which confused users because
+					// SSIV initialisation (BitmapRegionDecoder init) can take 1-4 seconds.
+					// We only switch to "preparing_" after a 600ms delay — for fast loads
+					// (cached/local images) onReady() fires before the delay, so the user
+					// never sees "preparing_" at all. For slow loads (large JPEG over network
+					// on low-end hardware) they see a clear loading spinner, not a frozen
+					// "processing" text.
+					bindingInfo.textViewStatus.setText(R.string.loading_)
 					ssiv.setImage(state.source)
+					ssiv.postDelayed({
+						// Only update to "preparing_" if we're still in the Loaded state
+						// (i.e. onReady() has not fired yet).
+						if (viewModel.state.value is PageState.Loaded) {
+							bindingInfo.textViewStatus.setText(R.string.preparing_)
+						}
+					}, PREPARING_STATUS_DELAY_MS)
 				}
 			}
 
@@ -234,5 +250,11 @@ abstract class BasePageHolder<B : ViewBinding>(
 			context.isLowRamDevice() -> 8
 			else -> 4
 		}
+	}
+
+	private companion object {
+		// BUG 1 FIX: delay before showing "preparing_" status.
+		// If SSIV fires onReady() within this window, we never show "preparing_" at all.
+		private const val PREPARING_STATUS_DELAY_MS = 600L
 	}
 }
