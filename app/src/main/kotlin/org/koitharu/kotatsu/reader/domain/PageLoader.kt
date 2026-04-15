@@ -74,6 +74,7 @@ import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 import java.io.File
 import java.util.LinkedList
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipFile
 import javax.inject.Inject
@@ -96,8 +97,22 @@ class PageLoader @Inject constructor(
 	val loaderScope = lifecycle.lifecycleScope + InternalErrorHandler() + Dispatchers.Default
 
 	private val tasks = LongSparseArray<ProgressDeferred<Uri, Float>>()
-	private val semaphore = Semaphore(3)
-	private val convertLock = Mutex()
+
+	// BUG 1 / PERF FIX: increased from 3 to 5 concurrent page downloads.
+	// With 3 permits, rapid chapter switches could saturate all permits with prefetch
+	// jobs, causing the user-triggered load to wait. 5 permits maintain throughput
+	// while still protecting against runaway parallel requests on slow connections.
+	private val semaphore = Semaphore(5)
+
+	// BUG 1 FIX: replaced single shared Mutex with a per-URI deduplication map.
+	// The original `convertLock = Mutex()` serialized ALL bitmap conversions globally:
+	// if page 1 was converting (WEBP→PNG, could take 2-3 seconds), page 2 would wait
+	// even though they're completely independent operations.
+	// ConcurrentHashMap<uriKey, Deferred<Uri>> deduplicates only same-URI calls
+	// (preventing double-conversion of the same file) while allowing different
+	// pages to convert concurrently.
+	private val conversionJobs = ConcurrentHashMap<String, Deferred<Uri>>()
+
 	private val prefetchLock = Mutex()
 
 	@Volatile
@@ -185,9 +200,37 @@ class PageLoader @Inject constructor(
 		return loadPageAsync(page, force).await()
 	}
 
+	// BUG 1 FIX: renamed from convertBimap (typo) to convertBitmap.
+	// Also switched from a global Mutex to a per-URI ConcurrentHashMap deduplication
+	// so that different pages can convert concurrently.
 	@CheckResult
-	suspend fun convertBimap(uri: Uri): Uri = convertLock.withLock {
-		if (uri.isZipUri()) {
+	suspend fun convertBitmap(uri: Uri): Uri {
+		val key = uri.toString()
+		// If an identical conversion is already in-flight (e.g., two holders requesting
+		// the same page), reuse the existing Deferred instead of starting a second one.
+		val existing = conversionJobs[key]
+		if (existing != null && !existing.isCompleted && !existing.isCancelled) {
+			return existing.await()
+		}
+		val deferred = loaderScope.async {
+			try {
+				doConvertBitmap(uri)
+			} finally {
+				conversionJobs.remove(key)
+			}
+		}
+		conversionJobs[key] = deferred
+		return deferred.await()
+	}
+
+	// BUG 1 FIX: kept the old name as a deprecated alias so that any callers using the
+	// original typo still compile without changes. They should migrate to convertBitmap.
+	@Deprecated("Typo in original name — use convertBitmap()", ReplaceWith("convertBitmap(uri)"))
+	@CheckResult
+	suspend fun convertBimap(uri: Uri): Uri = convertBitmap(uri)
+
+	private suspend fun doConvertBitmap(uri: Uri): Uri {
+		return if (uri.isZipUri()) {
 			runInterruptible(Dispatchers.IO) {
 				ZipFile(uri.schemeSpecificPart).use { zip ->
 					val entry = zip.getEntry(uri.fragment)
