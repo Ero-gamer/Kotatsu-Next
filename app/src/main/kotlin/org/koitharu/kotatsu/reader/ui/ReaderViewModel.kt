@@ -292,18 +292,49 @@ class ReaderViewModel @Inject constructor(
         }?.toMangaPage()
     }
 
+    // BUG 3 FIX: Don't emit ReaderContent(emptyList(), null) before loading new chapter.
+    //
+    // The old code did:
+    //   content.value = ReaderContent(emptyList(), null)   ← causes pager to jump to pos 0
+    //   chaptersLoader.loadSingleChapter(id)
+    //   content.value = ReaderContent(snapshot, newState)
+    //
+    // Emitting empty content first caused ViewPager2 / the RecyclerView to scroll back to
+    // position 0 — which, with a previous chapter's adapter still bound, displayed the first
+    // page of the PREVIOUS chapter momentarily, creating the "chapter 3 shows chapter 2 page 1"
+    // symptom. The fix is to load first, validate, then emit atomically.
     fun switchChapter(id: Long, page: Int) {
         val prevJob = loadingJob
         loadingJob = launchLoadingJob(Dispatchers.Default) {
             prevJob?.cancelAndJoin()
-            content.value = ReaderContent(emptyList(), null)
-            chaptersLoader.loadSingleChapter(id)
+
+            // Load pages first — do NOT emit empty content.
+            val loaded = chaptersLoader.loadSingleChapter(id)
+            if (!loaded) {
+                content.value = ReaderContent(emptyList(), null)
+                return@launchLoadingJob
+            }
+
+            // BUG 3 FIX: validate the snapshot actually contains pages for the
+            // requested chapter before publishing. Guards against stale repository
+            // caches returning pages from a different chapter.
+            val snapshot = chaptersLoader.snapshot()
+            if (snapshot.none { it.chapterId == id }) {
+                // Retry once — in case of a transient cache issue.
+                val retried = chaptersLoader.loadSingleChapter(id)
+                if (!retried || chaptersLoader.snapshot().none { it.chapterId == id }) {
+                    content.value = ReaderContent(emptyList(), null)
+                    return@launchLoadingJob
+                }
+            }
+
             val newState = ReaderState(id, page, 0)
             content.value = ReaderContent(chaptersLoader.snapshot(), newState)
             saveCurrentState(newState)
         }
     }
 
+    // BUG 3 FIX: same fix as switchChapter.
     fun switchChapterBy(delta: Int) {
         val prevJob = loadingJob
         loadingJob = launchLoadingJob(Dispatchers.Default) {
@@ -320,8 +351,23 @@ class ReaderViewModel @Inject constructor(
             } else {
                 prevState.chapterId
             }
-            content.value = ReaderContent(emptyList(), null)
-            chaptersLoader.loadSingleChapter(newChapterId)
+
+            // Load first, validate, then emit atomically.
+            val loaded = chaptersLoader.loadSingleChapter(newChapterId)
+            if (!loaded) {
+                content.value = ReaderContent(emptyList(), null)
+                return@launchLoadingJob
+            }
+
+            val snapshot = chaptersLoader.snapshot()
+            if (snapshot.none { it.chapterId == newChapterId }) {
+                val retried = chaptersLoader.loadSingleChapter(newChapterId)
+                if (!retried || chaptersLoader.snapshot().none { it.chapterId == newChapterId }) {
+                    content.value = ReaderContent(emptyList(), null)
+                    return@launchLoadingJob
+                }
+            }
+
             val newState = ReaderState(
                 chapterId = newChapterId,
                 page = if (delta == 0) prevState.page else 0,
