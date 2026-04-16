@@ -122,6 +122,19 @@ android {
 				def now = LocalDateTime.now()
 				output.versionCodeOverride = now.format("yyMMdd").toInteger()
 				output.versionNameOverride = 'N' + now.format("yyyyMMdd")
+    configurations.all {
+        resolutionStrategy {
+            // Force the entire dependency graph to use 2.3.20
+            force("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+            force("org.jetbrains.kotlin:kotlin-reflect:2.3.20")
+            force("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.3.20")
+            
+            // Redirect old jdk7/jdk8 references to the main stdlib
+            eachDependency {
+                if (requested.group == "org.jetbrains.kotlin" && 
+                   (requested.name == "kotlin-stdlib-jdk7" || requested.name == "kotlin-stdlib-jdk8")) {
+                    useTarget("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+                }
 			}
 		}
 	}
