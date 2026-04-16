@@ -10,7 +10,6 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization'
 }
 
-// Global configuration to force Kotlin 2.3.20 and resolve duplicate classes
 configurations.all {
     resolutionStrategy {
         force("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
@@ -207,7 +206,9 @@ dependencies {
     implementation libs.coil.gif
     implementation libs.coil.svg
     implementation libs.avif.decoder
-    implementation libs.ssiv
+    implementation(libs.ssiv) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
     implementation libs.disk.lru.cache
     implementation libs.markwon
     implementation(libs.kizzyrpc) {
