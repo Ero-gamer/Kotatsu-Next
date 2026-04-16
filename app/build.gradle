@@ -195,7 +195,7 @@ dependencies {
     implementation libs.kotlinx.serialization.json
 
     implementation libs.adapterdelegates
-    implementation libs.adapterdelegates.viewbinding [cite: 5]
+    implementation libs.adapterdelegates.viewbinding
 
     implementation libs.hilt.android
     ksp libs.hilt.compiler
