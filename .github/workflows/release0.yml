@@ -17,15 +17,15 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          # We can let the setup-gradle action handle the cache instead
-          
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: wrapper # This ensures it uses your 9.3.1 wrapper
+          # Uses the Gradle version declared in gradle/wrapper/gradle-wrapper.properties
+          gradle-version: wrapper
 
-      - name: Build armv7a Release
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
         env:
           RELEASE_STORE_FILE: ""
           RELEASE_STORE_PASSWORD: ""
@@ -35,5 +35,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: Kotatsu-Next-armv7a
+          name: Kotatsu-Next-release
           path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
