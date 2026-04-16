@@ -14,22 +14,26 @@ plugins {
 
 android {
 	compileSdk = 36
-	buildToolsVersion = '35.0.0'
+	// FIX: removed buildToolsVersion '35.0.0'.
+	// buildToolsVersion must match or exceed compileSdk. Setting it to 35 while
+	// compileSdk is 36 causes subtle tool mismatches (aapt2, d8, etc.).
+	// When omitted, AGP automatically selects the correct bundled build tools
+	// version for the compileSdk level — this is the recommended approach.
 	namespace = 'org.koitharu.kotatsu'
 
-    dependenciesInfo {
-        // Disables dependency metadata when building APKs.
-        includeInApk = false
-        // Disables dependency metadata when building Android App Bundles.
-        includeInBundle = false
-    }
+	dependenciesInfo {
+		// Disables dependency metadata when building APKs.
+		includeInApk = false
+		// Disables dependency metadata when building Android App Bundles.
+		includeInBundle = false
+	}
 
-    defaultConfig {
+	defaultConfig {
 		applicationId 'io.github.kotatsuredo.kotatsu'
 		minSdk = 23
 		targetSdk = 36
 		versionCode = 2020
-        versionName = '9.7.1'
+		versionName = '9.7.1'
 		generatedDensities = []
 		testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
 		ksp {
@@ -99,7 +103,7 @@ android {
 		]
 	}
 	room {
-        schemaDirectory "$projectDir/schemas"
+		schemaDirectory "$projectDir/schemas"
 	}
 	lint {
 		abortOnError true
@@ -122,6 +126,29 @@ android {
 		}
 	}
 }
+
+// FIX: Global exclusion for kotlin-android-extensions-runtime.
+//
+// Root cause of the "checkReleaseDuplicateClasses FAILED" build error:
+//   Duplicate class kotlinx.android.parcel.* found in:
+//     kotlin-android-extensions-runtime:1.5.31   (brought in transitively by
+//     KizzyRPC or kotatsu-parsers-redo which still reference the old monolithic
+//     kotlin-android-extensions artifact)
+//   AND
+//     kotlin-parcelize-runtime:2.3.20             (brought in by the kotlin-parcelize
+//     Gradle plugin and/or the SSIV library compiled with Kotlin 2.3.20)
+//
+// The old kotlin-android-extensions artifact was split into separate modules
+// (kotlin-parcelize, kotlin-synthetics, etc.) starting with Kotlin 1.6.
+// Any library still declaring a dependency on the unsplit runtime pulls in
+// duplicate class definitions that clash with the modern parcelize runtime.
+//
+// Fix: force-exclude the old runtime from ALL configurations so only the
+// modern kotlin-parcelize-runtime is on the classpath.
+configurations.configureEach {
+	exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
+}
+
 dependencies {
 	def parsersVersion = libs.versions.parsers.get()
 	if (System.properties.containsKey('parsersVersionOverride')) {
@@ -132,6 +159,9 @@ dependencies {
 	//noinspection UseTomlInstead
 	implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
 		exclude group: 'org.json', module: 'json'
+		// Belt-and-suspenders: also exclude at the declaration level in case
+		// the parsers library is the specific source of the old runtime.
+		exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
 	}
 
 	coreLibraryDesugaring libs.desugar.jdk.libs
@@ -162,8 +192,8 @@ dependencies {
 	implementation libs.androidx.work.runtime
 	implementation libs.guava
 
-    // Foldable/Window layout
-    implementation libs.androidx.window
+	// Foldable/Window layout
+	implementation libs.androidx.window
 
 	implementation libs.androidx.room.runtime
 	implementation libs.androidx.room.ktx
@@ -191,7 +221,12 @@ dependencies {
 	implementation libs.ssiv
 	implementation libs.disk.lru.cache
 	implementation libs.markwon
-	implementation libs.kizzyrpc
+	implementation(libs.kizzyrpc) {
+		// KizzyRPC depends on the old kotlin-android-extensions-runtime.
+		// The global configurations exclusion above covers this, but being
+		// explicit here documents the source of the conflict.
+		exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
+	}
 
 	implementation libs.acra.http
 	implementation libs.acra.dialog
