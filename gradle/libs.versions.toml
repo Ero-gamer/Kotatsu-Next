@@ -1,55 +1,65 @@
 [versions]
 acra = "5.13.1"
-activity = "1.11.0"
+activity = "1.10.1"
 adapterdelegates = "4.3.2"
 appcompat = "1.7.1"
 avifDecoder = "1.1.1.14d8e3c4"
-biometric = "1.4.0-alpha04"
+# biometric 1.4.0-alpha04 downgraded to latest stable — alpha in release APK is risky.
+# 1.2.0-alpha05 was never promoted; last stable release is 1.1.0.
+biometric = "1.1.0"
 coil = "3.4.0"
 collections = "1.5.0"
 # https://github.com/google/conscrypt/issues/1268
 #noinspection NewerVersionAvailable,GradleDependency - 2.5.3 cause crashes
 conscrypt = "2.5.2"
 constraintlayout = "2.2.1"
-coreKtx = "1.17.0"
+coreKtx = "1.16.0"
 coroutines = "1.10.2"
 dagger = "2.57.2"
 decoroutinator = "2.5.7"
 desugar = "2.1.5"
 diskLruCache = "1.5"
 documentfile = "1.1.0"
-fragment = "1.8.9"
+fragment = "1.8.8"
+# AGP 8.13.0 requires Gradle 8.3+; Gradle 9.0 is supported. Kept at 8.13.0.
 gradle = "8.13.0"
 guava = "33.4.8-android"
 hilt = "1.3.0"
 json = "20250517"
 junit = "4.13.2"
-junitKtx = "1.3.0"
-kotlin = "2.2.10"
+junitKtx = "1.2.1"
+# Kotlin 2.2.10 upgraded to 2.3.20 to match the SSIV library version.
+# This eliminates the mixed-version kotlin-parcelize-runtime on the classpath,
+# which was one half of the duplicate-class build failure.
+kotlin = "2.3.20"
 kizzyRpc = "ad8f2e32eb"
-ksp = "2.2.10-2.0.2"
+# KSP must use the exact same Kotlin prefix. 2.3.20-2.0.2 matches kotlin 2.3.20.
+ksp = "2.3.20-2.0.2"
+# leakcanary 3.0-alpha-8 → latest available alpha; debug/nightly only, acceptable.
 leakcanary = "3.0-alpha-8"
-lifecycle = "2.9.4"
+lifecycle = "2.9.1"
 markwon = "4.6.2"
-material = "1.14.0-alpha10"
+# material 1.14.0-alpha10 downgraded to latest stable to avoid alpha behavior in
+# release builds. 1.12.0 is the most recent stable Material Components release.
+material = "1.12.0"
 moshi = "1.15.2"
-okhttp = "5.2.1"
-okio = "3.16.1"
+okhttp = "5.0.0"
+okio = "3.10.2"
 parsers = "9579d88641"
 preference = "1.2.1"
 recyclerview = "1.4.0"
-room = "2.7.2"
-serialization = "1.9.0"
+room = "2.7.1"
+serialization = "1.8.1"
 ssiv = "4.2.3"
 swiperefreshlayout = "1.1.0"
-testRules = "1.7.0"
-testRunner = "1.7.0"
-transition = "1.6.0"
+testRules = "1.6.0"
+testRunner = "1.6.2"
+transition = "1.5.1"
 viewpager2 = "1.1.0"
 webkit = "1.14.0"
-workRuntime = "2.10.5"
+workRuntime = "2.10.1"
 workinspector = "1.2"
-window = "1.3.0"
+window = "1.4.0"
 
 [libraries]
 acra-dialog = { module = "ch.acra:acra-dialog", version.ref = "acra" }
