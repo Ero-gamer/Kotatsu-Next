@@ -1,269 +1,238 @@
 import java.time.LocalDateTime
 
 plugins {
-	id 'com.android.application'
-	id 'kotlin-android'
-	id 'com.google.devtools.ksp'
-	id 'kotlin-parcelize'
-	id 'dagger.hilt.android.plugin'
-	id 'androidx.room'
-	id 'org.jetbrains.kotlin.plugin.serialization'
-	// enable if needed
-	// id 'dev.reformator.stacktracedecoroutinator'
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'com.google.devtools.ksp'
+    id 'kotlin-parcelize'
+    id 'dagger.hilt.android.plugin'
+    id 'androidx.room'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+}
+
+// Global configuration to force Kotlin 2.3.20 and resolve duplicate classes
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+        force("org.jetbrains.kotlin:kotlin-reflect:2.3.20")
+        force("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.3.20")
+
+        eachDependency { details ->
+            if (details.requested.group == "org.jetbrains.kotlin" && 
+               (details.requested.name == "kotlin-stdlib-jdk7" || details.requested.name == "kotlin-stdlib-jdk8")) {
+                details.useTarget("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+            }
+        }
+    }
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
 }
 
 android {
-	compileSdk = 36
-	// FIX: removed buildToolsVersion '35.0.0'.
-	// buildToolsVersion must match or exceed compileSdk. Setting it to 35 while
-	// compileSdk is 36 causes subtle tool mismatches (aapt2, d8, etc.).
-	// When omitted, AGP automatically selects the correct bundled build tools
-	// version for the compileSdk level — this is the recommended approach.
-	namespace = 'org.koitharu.kotatsu'
+    compileSdk = 36
+    namespace = 'org.koitharu.kotatsu'
 
-	dependenciesInfo {
-		// Disables dependency metadata when building APKs.
-		includeInApk = false
-		// Disables dependency metadata when building Android App Bundles.
-		includeInBundle = false
-	}
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 
-	defaultConfig {
-		applicationId 'io.github.kotatsuredo.kotatsu'
-		minSdk = 23
-		targetSdk = 36
-		versionCode = 2020
-		versionName = '9.7.1'
-		generatedDensities = []
-		testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
-		ksp {
-			arg('room.generateKotlin', 'true')
-		}
-		androidResources {
-			// https://issuetracker.google.com/issues/408030127
-			generateLocaleConfig false
-		}
-		def localProperties = new Properties()
-		def localPropertiesFile = rootProject.file('local.properties')
-		if (localPropertiesFile.exists()) {
-			localProperties.load(new FileInputStream(localPropertiesFile))
-		}
-		resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
-	}
-	buildTypes {
-		debug {
-			applicationIdSuffix = '.debug'
-		}
-		release {
-			minifyEnabled true
-			shrinkResources true
-			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-		}
-		nightly {
-			initWith release
-			applicationIdSuffix = '.nightly'
-		}
-	}
-	buildFeatures {
-		viewBinding true
-		buildConfig true
-	}
-	packagingOptions {
-		resources {
-			excludes += [
-				'META-INF/README.md',
-				'META-INF/NOTICE.md'
-			]
-		}
-	}
-	sourceSets {
-		androidTest.assets.srcDirs += files("$projectDir/schemas".toString())
-		main.java.srcDirs += 'src/main/kotlin/'
-	}
-	compileOptions {
-		coreLibraryDesugaringEnabled true
-		sourceCompatibility JavaVersion.VERSION_17
-		targetCompatibility JavaVersion.VERSION_17
-	}
-	kotlinOptions {
-		jvmTarget = JavaVersion.VERSION_17.toString()
-		freeCompilerArgs += [
-			'-opt-in=kotlin.ExperimentalStdlibApi',
-			'-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
-			'-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
-			'-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
-			'-opt-in=kotlinx.coroutines.FlowPreview',
-			'-opt-in=kotlin.contracts.ExperimentalContracts',
-			'-opt-in=coil3.annotation.ExperimentalCoilApi',
-			'-opt-in=coil3.annotation.InternalCoilApi',
-			'-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
-			'-Xjspecify-annotations=strict',
-			'-Xannotation-default-target=first-only',
-			'-Xtype-enhancement-improvements-strict-mode'
-		]
-	}
-	room {
-		schemaDirectory "$projectDir/schemas"
-	}
-	lint {
-		abortOnError true
-		disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat'
-	}
-	testOptions {
-		unitTests.includeAndroidResources true
-		unitTests.returnDefaultValues false
-		kotlinOptions {
-			freeCompilerArgs += ['-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi']
-		}
-	}
-	applicationVariants.configureEach { variant ->
-		if (variant.name == 'nightly') {
-			variant.outputs.each { output ->
-				def now = LocalDateTime.now()
-				output.versionCodeOverride = now.format("yyMMdd").toInteger()
-				output.versionNameOverride = 'N' + now.format("yyyyMMdd")
-    configurations.all {
-        resolutionStrategy {
-            // Force the entire dependency graph to use 2.3.20
-            force("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
-            force("org.jetbrains.kotlin:kotlin-reflect:2.3.20")
-            force("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.3.20")
-            
-            // Redirect old jdk7/jdk8 references to the main stdlib
-            eachDependency {
-                if (requested.group == "org.jetbrains.kotlin" && 
-                   (requested.name == "kotlin-stdlib-jdk7" || requested.name == "kotlin-stdlib-jdk8")) {
-                    useTarget("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
-                }
-			}
-		}
-	}
-}
+    defaultConfig {
+        applicationId 'io.github.kotatsuredo.kotatsu'
+        minSdk = 23
+        targetSdk = 36
+        versionCode = 2020
+        versionName = '9.7.1'
+        generatedDensities = []
+        testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
+        ksp {
+            arg('room.generateKotlin', 'true')
+        }
+        androidResources {
+            generateLocaleConfig false
+        }
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localProperties.load(new FileInputStream(localPropertiesFile))
+        }
+        resValue 'string', 'tg_backup_bot_token', localProperties.getProperty('tg_backup_bot_token', '')
+    }
 
-// FIX: Global exclusion for kotlin-android-extensions-runtime.
-//
-// Root cause of the "checkReleaseDuplicateClasses FAILED" build error:
-//   Duplicate class kotlinx.android.parcel.* found in:
-//     kotlin-android-extensions-runtime:1.5.31   (brought in transitively by
-//     KizzyRPC or kotatsu-parsers-redo which still reference the old monolithic
-//     kotlin-android-extensions artifact)
-//   AND
-//     kotlin-parcelize-runtime:2.3.20             (brought in by the kotlin-parcelize
-//     Gradle plugin and/or the SSIV library compiled with Kotlin 2.3.20)
-//
-// The old kotlin-android-extensions artifact was split into separate modules
-// (kotlin-parcelize, kotlin-synthetics, etc.) starting with Kotlin 1.6.
-// Any library still declaring a dependency on the unsplit runtime pulls in
-// duplicate class definitions that clash with the modern parcelize runtime.
-//
-// Fix: force-exclude the old runtime from ALL configurations so only the
-// modern kotlin-parcelize-runtime is on the classpath.
-configurations.configureEach {
-	exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
+    buildTypes {
+        debug {
+            applicationIdSuffix = '.debug'
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        nightly {
+            initWith release
+            applicationIdSuffix = '.nightly'
+        }
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    packagingOptions {
+        resources {
+            excludes += [
+                'META-INF/README.md',
+                'META-INF/NOTICE.md'
+            ]
+        }
+    }
+
+    sourceSets {
+        androidTest.assets.srcDirs += files("$projectDir/schemas".toString())
+        main.java.srcDirs += 'src/main/kotlin/'
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+        freeCompilerArgs += [
+            '-opt-in=kotlin.ExperimentalStdlibApi',
+            '-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi',
+            '-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi',
+            '-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi',
+            '-opt-in=kotlinx.coroutines.FlowPreview',
+            '-opt-in=kotlin.contracts.ExperimentalContracts',
+            '-opt-in=coil3.annotation.ExperimentalCoilApi',
+            '-opt-in=coil3.annotation.InternalCoilApi',
+            '-opt-in=kotlinx.serialization.ExperimentalSerializationApi',
+            '-Xjspecify-annotations=strict',
+            '-Xannotation-default-target=first-only',
+            '-Xtype-enhancement-improvements-strict-mode'
+        ]
+    }
+
+    room {
+        schemaDirectory "$projectDir/schemas"
+    }
+
+    lint {
+        abortOnError true
+        disable 'MissingTranslation', 'PrivateResource', 'SetJavaScriptEnabled', 'SimpleDateFormat'
+    }
+
+    testOptions {
+        unitTests.includeAndroidResources true
+        unitTests.returnDefaultValues false
+        kotlinOptions {
+            freeCompilerArgs += ['-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi']
+        }
+    }
+
+    applicationVariants.configureEach { variant ->
+        if (variant.name == 'nightly') {
+            variant.outputs.each { output ->
+                def now = LocalDateTime.now()
+                output.versionCodeOverride = now.format("yyMMdd").toInteger()
+                output.versionNameOverride = 'N' + now.format("yyyyMMdd")
+            }
+        }
+    }
 }
 
 dependencies {
-	def parsersVersion = libs.versions.parsers.get()
-	if (System.properties.containsKey('parsersVersionOverride')) {
-		// usage:
-		// -DparsersVersionOverride=$(curl -s https://api.github.com/repos/kotatsuapp/kotatsu-parsers/commits/master -H "Accept: application/vnd.github.sha" | cut -c -10)
-		parsersVersion = System.getProperty('parsersVersionOverride')
-	}
-	//noinspection UseTomlInstead
-	implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
-		exclude group: 'org.json', module: 'json'
-		// Belt-and-suspenders: also exclude at the declaration level in case
-		// the parsers library is the specific source of the old runtime.
-		exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
-	}
+    def parsersVersion = libs.versions.parsers.get()
+    if (System.properties.containsKey('parsersVersionOverride')) {
+        parsersVersion = System.getProperty('parsersVersionOverride')
+    }
+    
+    implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
+        exclude group: 'org.json', module: 'json'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
+    }
 
-	coreLibraryDesugaring libs.desugar.jdk.libs
-	implementation libs.kotlin.stdlib
-	implementation libs.kotlinx.coroutines.android
-	implementation libs.kotlinx.coroutines.guava
+    coreLibraryDesugaring libs.desugar.jdk.libs
+    implementation libs.kotlin.stdlib
+    implementation libs.kotlinx.coroutines.android
+    implementation libs.kotlinx.coroutines.guava
 
-	implementation libs.androidx.appcompat
-	implementation libs.androidx.core
-	implementation libs.androidx.activity
-	implementation libs.androidx.fragment
-	implementation libs.androidx.transition
-	implementation libs.androidx.collection
-	implementation libs.lifecycle.viewmodel
-	implementation libs.lifecycle.service
-	implementation libs.lifecycle.process
-	implementation libs.androidx.constraintlayout
-	implementation libs.androidx.documentfile
-	implementation libs.androidx.swiperefreshlayout
-	implementation libs.androidx.recyclerview
-	implementation libs.androidx.viewpager2
-	implementation libs.androidx.preference
-	implementation libs.androidx.biometric
-	implementation libs.material
-	implementation libs.androidx.lifecycle.common.java8
-	implementation libs.androidx.webkit
+    implementation libs.androidx.appcompat
+    implementation libs.androidx.core
+    implementation libs.androidx.activity
+    implementation libs.androidx.fragment
+    implementation libs.androidx.transition
+    implementation libs.androidx.collection
+    implementation libs.lifecycle.viewmodel
+    implementation libs.lifecycle.service
+    implementation libs.lifecycle.process
+    implementation libs.androidx.constraintlayout
+    implementation libs.androidx.documentfile
+    implementation libs.androidx.swiperefreshlayout
+    implementation libs.androidx.recyclerview
+    implementation libs.androidx.viewpager2
+    implementation libs.androidx.preference
+    implementation libs.androidx.biometric
+    implementation libs.material
+    implementation libs.androidx.lifecycle.common.java8
+    implementation libs.androidx.webkit
 
-	implementation libs.androidx.work.runtime
-	implementation libs.guava
+    implementation libs.androidx.work.runtime
+    implementation libs.guava
+    implementation libs.androidx.window
 
-	// Foldable/Window layout
-	implementation libs.androidx.window
+    implementation libs.androidx.room.runtime
+    implementation libs.androidx.room.ktx
+    ksp libs.androidx.room.compiler
 
-	implementation libs.androidx.room.runtime
-	implementation libs.androidx.room.ktx
-	ksp libs.androidx.room.compiler
+    implementation libs.okhttp
+    implementation libs.okhttp.tls
+    implementation libs.okhttp.dnsoverhttps
+    implementation libs.okio
+    implementation libs.kotlinx.serialization.json
 
-	implementation libs.okhttp
-	implementation libs.okhttp.tls
-	implementation libs.okhttp.dnsoverhttps
-	implementation libs.okio
-	implementation libs.kotlinx.serialization.json
+    implementation libs.adapterdelegates
+    implementation libs.adapterdelegates.viewbinding [cite: 5]
 
-	implementation libs.adapterdelegates
-	implementation libs.adapterdelegates.viewbinding
+    implementation libs.hilt.android
+    ksp libs.hilt.compiler
+    implementation libs.androidx.hilt.work
+    ksp libs.androidx.hilt.compiler
 
-	implementation libs.hilt.android
-	ksp libs.hilt.compiler
-	implementation libs.androidx.hilt.work
-	ksp libs.androidx.hilt.compiler
+    implementation libs.coil.core
+    implementation libs.coil.network
+    implementation libs.coil.gif
+    implementation libs.coil.svg
+    implementation libs.avif.decoder
+    implementation libs.ssiv
+    implementation libs.disk.lru.cache
+    implementation libs.markwon
+    implementation(libs.kizzyrpc) {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
+    }
 
-	implementation libs.coil.core
-	implementation libs.coil.network
-	implementation libs.coil.gif
-	implementation libs.coil.svg
-	implementation libs.avif.decoder
-	implementation libs.ssiv
-	implementation libs.disk.lru.cache
-	implementation libs.markwon
-	implementation(libs.kizzyrpc) {
-		// KizzyRPC depends on the old kotlin-android-extensions-runtime.
-		// The global configurations exclusion above covers this, but being
-		// explicit here documents the source of the conflict.
-		exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
-	}
+    implementation libs.acra.http
+    implementation libs.acra.dialog
+    implementation libs.conscrypt.android
 
-	implementation libs.acra.http
-	implementation libs.acra.dialog
+    debugImplementation libs.leakcanary.android
+    nightlyImplementation libs.leakcanary.android
+    debugImplementation libs.workinspector
 
-	implementation libs.conscrypt.android
+    testImplementation libs.junit
+    testImplementation libs.json
+    testImplementation libs.kotlinx.coroutines.test
 
-	debugImplementation libs.leakcanary.android
-	nightlyImplementation libs.leakcanary.android
-	debugImplementation libs.workinspector
-
-	testImplementation libs.junit
-	testImplementation libs.json
-	testImplementation libs.kotlinx.coroutines.test
-
-	androidTestImplementation libs.androidx.runner
-	androidTestImplementation libs.androidx.rules
-	androidTestImplementation libs.androidx.test.core
-	androidTestImplementation libs.androidx.junit
-
-	androidTestImplementation libs.kotlinx.coroutines.test
-
-	androidTestImplementation libs.androidx.room.testing
-	androidTestImplementation libs.moshi.kotlin
-
-	androidTestImplementation libs.hilt.android.testing
-	kspAndroidTest libs.hilt.android.compiler
+    androidTestImplementation libs.androidx.runner
+    androidTestImplementation libs.androidx.rules
+    androidTestImplementation libs.androidx.test.core
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.kotlinx.coroutines.test
+    androidTestImplementation libs.androidx.room.testing
+    androidTestImplementation libs.moshi.kotlin
+    androidTestImplementation libs.hilt.android.testing
+    kspAndroidTest libs.hilt.android.compiler
 }
