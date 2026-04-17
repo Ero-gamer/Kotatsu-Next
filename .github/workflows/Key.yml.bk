@@ -6,7 +6,7 @@ on:
       keystore_password:
         description: 'Password for the keystore and key'
         required: true
-        default: '00799999004363900032'
+        default: ''
 
 jobs:
   generate:
