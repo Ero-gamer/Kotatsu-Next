@@ -49,7 +49,7 @@ viewpager2 = "1.1.0"
 webkit = "1.14.0"
 workRuntime = "2.10.5"
 workinspector = "1.2"
-window = "1.3.0"
+window = "1.5.1"
 
 [libraries]
 acra-dialog = { module = "ch.acra:acra-dialog", version.ref = "acra" }
