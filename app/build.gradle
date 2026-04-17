@@ -36,11 +36,11 @@ android {
     }
 
     defaultConfig {
-        applicationId 'io.github.kotatsuredo.kotatsu'
+        applicationId 'io.github.kotatsu.next'
         minSdk = 23
         targetSdk = 36
         versionCode = 2020
-        versionName = '9.7.1'
+        versionName = '9.7.1.1'
         generatedDensities = []
         testInstrumentationRunner 'org.koitharu.kotatsu.HiltTestRunner'
         ksp {
