@@ -1,0 +1,70 @@
+name: Release Build & Publish
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0 # Required for generating accurate release notes
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+
+      - name: Build Release APK
+        run: |
+          # Reconstruct the keystore from secrets
+          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > release.keystore
+          
+          # Build and sign using injected properties
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.RELEASE_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.RELEASE_KEY_PASSWORD }} \
+            --no-daemon --stacktrace
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Kotatsu-Next-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          archive: false # New in v7: Uploads files directly without a wrapper zip
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download APK from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: Kotatsu-Next-release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest-stable
+          name: "Latest Stable Build"
+          body: |
+            ### Automated Release
+            This APK was built and signed automatically for Android 14+ devices.
+          files: "**/*.apk"
+          generate_release_notes: true
+          draft: false
+          prerelease: false
