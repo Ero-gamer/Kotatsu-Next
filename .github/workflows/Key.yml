@@ -1,0 +1,3 @@
+- run: keytool -genkeypair -v -keystore release.keystore -alias my-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass mypassword -keypass mypassword -dname "CN=Radhouane, OU=EroGamer, O=Dev, L=Oran, ST=EsSenia, C=DZ"
+
+- run: base64 release.keystore
