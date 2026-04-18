@@ -11,8 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      # Note: Even with 'workflows: write', certain security restrictions apply.
-      # Deleting the offending file is the cleanest way to bypass this.
 
     steps:
       - name: Checkout Kotatsu-Next
@@ -27,19 +25,24 @@ jobs:
 
       - name: Fetch and Create Branch
         run: |
+          # 1. Add upstream and fetch
           git remote add upstream https://github.com/kotatsu-redo/kotatsu-redo.git
           git fetch upstream devel
+          
+          # 2. Create/Reset the 'devel2' branch locally based on upstream
           git checkout -B ${{ env.TARGET_BRANCH }} upstream/devel
 
-      - name: Remove Restricted Workflow Files
+      - name: Purge Upstream Workflows
         run: |
-          # Remove the specific file causing the permission error
-          rm -f .github/workflows/new-commit-discord.yml
+          # 3. Completely remove the upstream's workflow folder
+          # This prevents the "refusing to allow GitHub App to create/update workflow" error.
+          rm -rf .github/workflows
           
-          # Commit the deletion so the push is clean
-          git add .github/workflows/new-commit-discord.yml
-          git commit -m "Remove upstream Discord workflow to bypass permission restrictions" || echo "File already gone"
+          # 4. Commit the removal
+          git add -A
+          git commit -m "Remove all upstream workflows to avoid permission issues" || echo "No workflows found to remove"
 
       - name: Push to Origin
         run: |
+          # 5. Push the cleaned 'devel2' branch to your repo
           git push origin ${{ env.TARGET_BRANCH }} --force
