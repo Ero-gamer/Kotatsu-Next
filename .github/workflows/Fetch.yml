@@ -1,9 +1,8 @@
 name: Fetch Upstream Devel
 
 on:
-  workflow_dispatch: # Allows manual trigger from the Actions tab
+  workflow_dispatch:
 
-# Set the target branch name here to keep everything in sync
 env:
   TARGET_BRANCH: "devel2"
 
@@ -12,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Note: Even with 'workflows: write', certain security restrictions apply.
+      # Deleting the offending file is the cleanest way to bypass this.
 
     steps:
       - name: Checkout Kotatsu-Next
@@ -26,18 +27,19 @@ jobs:
 
       - name: Fetch and Create Branch
         run: |
-          # 1. Add the upstream repo
           git remote add upstream https://github.com/kotatsu-redo/kotatsu-redo.git
-          
-          # 2. Fetch the specific 'devel' branch from upstream
           git fetch upstream devel
-          
-          # 3. Create/Reset the local branch to match upstream/devel
-          # This uses the variable defined above
           git checkout -B ${{ env.TARGET_BRANCH }} upstream/devel
+
+      - name: Remove Restricted Workflow Files
+        run: |
+          # Remove the specific file causing the permission error
+          rm -f .github/workflows/new-commit-discord.yml
+          
+          # Commit the deletion so the push is clean
+          git add .github/workflows/new-commit-discord.yml
+          git commit -m "Remove upstream Discord workflow to bypass permission restrictions" || echo "File already gone"
 
       - name: Push to Origin
         run: |
-          # 4. Force push the new branch to your repository
-          # This matches the local branch created in the previous step
           git push origin ${{ env.TARGET_BRANCH }} --force
