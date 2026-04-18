@@ -1,0 +1,38 @@
+name: Fetch Upstream Devel
+
+on:
+  workflow_dispatch: # Allows you to trigger this manually from the Actions tab
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Essential for creating the new branch
+
+    steps:
+      - name: Checkout Kotatsu-Next
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch and Create Branch
+        run: |
+          # 1. Add the upstream repo
+          git remote add upstream https://github.com/kotatsu-redo/kotatsu-redo.git
+          
+          # 2. Fetch the specific 'devel' branch
+          git fetch upstream devel
+          
+          # 3. Create a local branch named 'upstream-devel' based on the fetched code
+          # If the branch already exists, this will reset it to the latest upstream state
+          git checkout -B devel2 upstream/devel
+
+      - name: Push to Origin
+        run: |
+          # Force push to ensure your repo's branch matches upstream exactly
+          git push origin upstream-devel --force
