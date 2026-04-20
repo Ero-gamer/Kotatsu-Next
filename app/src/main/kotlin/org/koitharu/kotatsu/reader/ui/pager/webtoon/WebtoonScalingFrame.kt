@@ -349,6 +349,33 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			distanceY: Float,
 		): Boolean {
 			if (scale <= 1f || scale.isNaN()) return false
+
+			// Sync matrix values so transX/transY are current.
+			syncMatrixValues()
+
+			// Determine whether we are at the vertical pan limits AND the user is trying
+			// to scroll PAST them in that direction.
+			//
+			// transY layout: translateBounds.top = minimum transY (zoomed-up limit),
+			//                translateBounds.bottom = maximum transY (zoomed-down limit)
+			// distanceY > 0 → user dragging UP   → content moves up   → transY decreases
+			// distanceY < 0 → user dragging DOWN  → content moves down → transY increases
+			val atTopLimit    = distanceY > 0f && transY <= translateBounds.top    + 1f
+			val atBottomLimit = distanceY < 0f && transY >= translateBounds.bottom - 1f
+
+			if (atTopLimit || atBottomLimit) {
+				// We have reached the vertical pan boundary. Pass the scroll gesture
+				// directly to the RecyclerView so the user can navigate to the previous
+				// or next webtoon strip page.
+				// Note: nestedScrollBy is safe to call from a touch handler — it simply
+				// queues a scroll on the RecyclerView, which processes it on the next frame.
+				// This does NOT cause the layoutParams-mutation bug that triggered the ATV14
+				// ghost-image artifact (that bug was from calling requestLayout() mid-frame).
+				findTargetChild().nestedScrollBy(0, distanceY.toInt())
+				return true  // Consume the gesture to prevent double-handling.
+			}
+
+			// Within the pan limits: move the zoomed content.
 			transformMatrix.postTranslate(-distanceX, -distanceY)
 			invalidateTarget()
 			return true
