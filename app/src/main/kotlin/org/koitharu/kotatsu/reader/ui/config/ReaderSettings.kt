@@ -45,10 +45,19 @@ data class ReaderSettings(
 		background = settings.readerBackground,
 		colorFilter = colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter,
 		isReaderOptimizationEnabled = settings.isReaderOptimizationEnabled,
-		bitmapConfig = if (settings.is32BitColorsEnabled) {
-			Bitmap.Config.ARGB_8888
-		} else {
+		// COLOR DEPTH FIX: ARGB_8888 is always the default. RGB_565 is only used when
+		// the user explicitly enables "Reduce memory usage" OR the device is a low-RAM device.
+		// Previously the logic was inverted: the setting defaulted to false → RGB_565,
+		// meaning all users got washed-out 16-bit colors unless they found the obscure setting.
+		// Note: "32-bit color mode" = ARGB_8888 (8 bits × 4 channels). They are the same
+		// thing — enabling that setting just ensures the correct format is used.
+		bitmapConfig = if (!settings.is32BitColorsEnabled && settings.isReaderOptimizationEnabled) {
+			// User explicitly chose memory saving mode.
 			Bitmap.Config.RGB_565
+		} else {
+			// Standard: full quality ARGB_8888. The low-RAM fallback is handled in
+			// applyBitmapConfig() where system RAM can be checked at apply-time.
+			Bitmap.Config.ARGB_8888
 		},
 		isPagesNumbersEnabled = settings.isPagesNumbersEnabled,
 		isPagesCropEnabledStandard = settings.isPagesCropEnabled(ReaderMode.STANDARD),
@@ -72,9 +81,17 @@ data class ReaderSettings(
 
 	@CheckResult
 	fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
-		val config = bitmapConfig
+		// Resolve the config: if ARGB_8888 was requested but the device is low-RAM,
+		// automatically fall back to RGB_565 to prevent OOM on large strip images.
+		// This is a runtime safety net; the setting itself defaults to ARGB_8888.
+		val isLowRam = ssiv.context.isLowRamDevice()
+		val config = if (bitmapConfig == Bitmap.Config.ARGB_8888 && isLowRam) {
+			Bitmap.Config.RGB_565
+		} else {
+			bitmapConfig
+		}
 		return if (ssiv.regionDecoderFactory.bitmapConfig != config) {
-			ssiv.regionDecoderFactory = if (ssiv.context.isLowRamDevice()) {
+			ssiv.regionDecoderFactory = if (isLowRam) {
 				SkiaImageRegionDecoder.Factory(config)
 			} else {
 				SkiaPooledImageRegionDecoder.Factory(config)
