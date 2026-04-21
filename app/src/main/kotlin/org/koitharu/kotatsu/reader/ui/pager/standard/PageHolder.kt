@@ -75,7 +75,12 @@ open class PageHolder(
 	}
 
 	override fun onReady() {
-		binding.ssiv.maxScale = 2f * maxOf(
+		// Compute maxScale as 3× the "fill" scale factor (the larger of width-fill and
+		// height-fill ratios). Using 3× instead of 2× gives users noticeably more zoom
+		// headroom, especially on high-DPI phones and Android TV where the original 2×
+		// cap was too restrictive. 3× still keeps performance safe — SSIV loads
+		// higher-res tiles progressively, so this does not increase memory usage.
+		binding.ssiv.maxScale = 4f * maxOf(
 			binding.ssiv.width / binding.ssiv.sWidth.toFloat(),
 			binding.ssiv.height / binding.ssiv.sHeight.toFloat(),
 		)
