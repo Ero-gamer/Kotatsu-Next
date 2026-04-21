@@ -25,7 +25,7 @@ import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
 import kotlin.math.roundToInt
 
-private const val MAX_SCALE = 2.5f
+private const val MAX_SCALE = 3.5f
 private const val MIN_SCALE = 0.5f
 
 private const val FLING_RANGE = 20_000
@@ -209,14 +209,21 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			return
 		}
 
-		// Apply render-only transform. pivotX/pivotY default to the view's center,
-		// which is what we want — halfWidth/halfHeight are also the view's center.
+		// Apply render-only transform. pivotX/pivotY are set to the view center
+		// (halfWidth/halfHeight). With pivot at center, the correct translationX/Y is
+		// exactly currentTransX/currentTransY — no division by scale.
+		//
+		// Proof: for pivot P, View maps x → P + scale*(x-P) + translation.
+		// We want this to equal transformMatrix(x) = MTRANS_X + scale*x.
+		// Solving: translation = transX  (see WebtoonScalingFrame.transX getter).
+		// Dividing by scale (the old code) incorrectly halved the pan range at 2×
+		// zoom, which caused the zoom-in-but-can't-pan bug in webtoon mode.
 		targetChild.pivotX = halfWidth
 		targetChild.pivotY = halfHeight
 		targetChild.scaleX = currentScale
 		targetChild.scaleY = currentScale
-		targetChild.translationX = currentTransX / currentScale // compensate for pivot scaling
-		targetChild.translationY = currentTransY / currentScale
+		targetChild.translationX = currentTransX
+		targetChild.translationY = currentTransY
 
 		// BUG 4 FIX: update the hit-rect for below-1 scale (for touch event offsetting).
 		if (currentScale < 1f) {
