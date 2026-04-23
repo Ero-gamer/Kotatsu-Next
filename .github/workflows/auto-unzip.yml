@@ -1,0 +1,40 @@
+name: Unzip and Commit
+
+on:
+  push:
+    paths:
+      - '**.zip' # Triggers only when a zip file is uploaded
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to commit the extracted files
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Extract zip
+        run: |
+          # Find the zip file
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          
+          # Unzip it, overwriting existing files
+          unzip -o "$ZIP_FILE" -d .
+          
+          # Remove the zip file after extraction
+          rm "$ZIP_FILE"
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Stage all extracted files
+          git add .
+          
+          # Commit the changes
+          git commit -m "Auto-extract: Decompressed $(basename "$ZIP_FILE")"
+          
+          # Push to the current branch
+          git push
