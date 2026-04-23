@@ -61,7 +61,7 @@ class LocalStorageCache(
 		}
 	}
 
-suspend operator fun set(url: String, source: Source, mimeType: MimeType?): File = withContext(Dispatchers.IO) {
+    suspend operator fun set(url: String, source: Source, mimeType: MimeType?): File = withContext(Dispatchers.IO) {
 	val file = createBufferFile(url, mimeType)
 	try {
 		val bytes = file.sink(append = false).buffer().use {
@@ -83,7 +83,7 @@ suspend operator fun set(url: String, source: Source, mimeType: MimeType?): File
 	}
 }
 
-suspend operator fun set(url: String, bitmap: Bitmap): File = withContext(Dispatchers.IO) {
+    suspend operator fun set(url: String, bitmap: Bitmap): File = withContext(Dispatchers.IO) {
 	val file = createBufferFile(url, MimeType("image/png"))
 	try {
 		bitmap.compressToPNG(file)
