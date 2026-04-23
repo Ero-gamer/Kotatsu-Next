@@ -61,36 +61,44 @@ class LocalStorageCache(
 		}
 	}
 
-	suspend operator fun set(url: String, source: Source, mimeType: MimeType?): File = withContext(Dispatchers.IO) {
-		val file = createBufferFile(url, mimeType)
-		try {
-			val bytes = file.sink(append = false).buffer().use {
-				it.writeAllCancellable(source)
-			}
-			if (bytes == 0L) {
-				throw NoDataReceivedException(url)
-			}
-			val cache = lruCache.get()
-			runInterruptible {
-				cache.put(url, file)
-			}
-		} finally {
-			file.delete()
+suspend operator fun set(url: String, source: Source, mimeType: MimeType?): File = withContext(Dispatchers.IO) {
+	val file = createBufferFile(url, mimeType)
+	try {
+		val bytes = file.sink(append = false).buffer().use {
+			it.writeAllCancellable(source)
 		}
+		if (bytes == 0L) {
+			throw NoDataReceivedException(url)
+		}
+		val cache = lruCache.get()
+		runInterruptible {
+			cache.edit(url)?.use { editor ->
+				file.inputStream().use { input ->
+					editor.set(0, okio.Okio.source(input).buffer())
+				}
+			}
+		}
+	} finally {
+		file.delete()
 	}
+}
 
-	suspend operator fun set(url: String, bitmap: Bitmap): File = withContext(Dispatchers.IO) {
-		val file = createBufferFile(url, MimeType("image/png"))
-		try {
-			bitmap.compressToPNG(file)
-			val cache = lruCache.get()
-			runInterruptible {
-				cache.put(url, file)
+suspend operator fun set(url: String, bitmap: Bitmap): File = withContext(Dispatchers.IO) {
+	val file = createBufferFile(url, MimeType("image/png"))
+	try {
+		bitmap.compressToPNG(file)
+		val cache = lruCache.get()
+		runInterruptible {
+			cache.edit(url)?.use { editor ->
+				file.inputStream().use { input ->
+					editor.set(0, okio.Okio.source(input).buffer())
+				}
 			}
-		} finally {
-			file.delete()
 		}
+	} finally {
+		file.delete()
 	}
+}
 
 	suspend fun clear() {
 		val cache = lruCache.get()
