@@ -94,8 +94,8 @@ class LocalStorageCache(
 
 	suspend fun clear() {
 		val cache = lruCache.get()
-		runInterruptible(Dispatchers.IO) {
-			cache.clearCache()
+		runInterruptible<Unit>(Dispatchers.IO) {
+			cache.clear()
 		}
 	}
 
