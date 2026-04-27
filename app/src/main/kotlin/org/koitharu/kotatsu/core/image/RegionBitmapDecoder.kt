@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.core.image
 
 import android.graphics.Bitmap
+import android.net.Uri
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.os.Build
@@ -56,32 +57,12 @@ class RegionBitmapDecoder(
 		return try {
 			val rect = bitmapOptions.configureScale(regionDecoder.width, regionDecoder.height)
 			bitmapOptions.configureConfig()
-			// Chroma-align the decode rect to 16-pixel MCU boundaries before decoding.
-			// JPEG/WebP-lossy encode chroma at 4:2:0 in 16×16 MCUs; requesting a region
-			// whose edges don't land on MCU boundaries causes BitmapRegionDecoder to read
-			// chroma from the adjacent MCU, producing green/blue tint bars in the preview.
-			val iw = regionDecoder.width
-			val ih = regionDecoder.height
-			val alignedRect = alignRect(rect, iw, ih)
-			val rawBitmap = regionDecoder.decodeRegion(alignedRect, bitmapOptions)
-			val bitmap = if (alignedRect == rect) {
-				rawBitmap
-			} else {
-				// Crop back to the originally requested region (in decoded-pixel space).
-				val sample = bitmapOptions.inSampleSize.coerceAtLeast(1)
-				val cropL = (rect.left - alignedRect.left) / sample
-				val cropT = (rect.top  - alignedRect.top)  / sample
-				val cropW = ((rect.width()  + sample - 1) / sample)
-					.coerceAtMost(rawBitmap.width  - cropL).coerceAtLeast(1)
-				val cropH = ((rect.height() + sample - 1) / sample)
-					.coerceAtMost(rawBitmap.height - cropT).coerceAtLeast(1)
-				if (cropL == 0 && cropT == 0 && cropW == rawBitmap.width && cropH == rawBitmap.height) {
-					rawBitmap
-				} else {
-					Bitmap.createBitmap(rawBitmap, cropL, cropT, cropW, cropH)
-						.also { if (it !== rawBitmap) rawBitmap.recycle() }
-				}
+			// Force software JPEG decoder on large strip images to avoid hardware chroma
+			// upsampler bug producing repeating coloured tint bands on some devices.
+			if (regionDecoder.height >= LARGE_JPEG_HEIGHT_THRESHOLD && isJpegUri(uri)) {
+				bitmapOptions.inPreferQualityOverSpeed = true
 			}
+			val bitmap = regionDecoder.decodeRegion(rect, bitmapOptions)
 			bitmap.density = options.context.resources.displayMetrics.densityDpi
 			DecodeResult(
 				image = bitmap.asImage(),
@@ -179,17 +160,12 @@ class RegionBitmapDecoder(
 		inPreferredConfig = config
 	}
 
-	/** Expand all four edges of [rect] outward to the nearest 16-px MCU boundary. */
-	private fun alignRect(rect: android.graphics.Rect, iw: Int, ih: Int): android.graphics.Rect {
-		val bs = 16
-		val al = (rect.left / bs) * bs
-		val at = (rect.top  / bs) * bs
-		val ar = minOf(((rect.right  + bs - 1) / bs) * bs, iw)
-		val ab = minOf(((rect.bottom + bs - 1) / bs) * bs, ih)
-		return if (al == rect.left && at == rect.top && ar == rect.right && ab == rect.bottom) {
-			rect
-		} else {
-			android.graphics.Rect(al, at, ar, ab)
+	private companion object {
+		private const val LARGE_JPEG_HEIGHT_THRESHOLD = 5000
+
+		private fun isJpegUri(uri: Uri): Boolean {
+			val path = uri.path?.lowercase() ?: return false
+			return path.endsWith(".jpg") || path.endsWith(".jpeg")
 		}
 	}
 
