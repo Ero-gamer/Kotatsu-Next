@@ -1,7 +1,6 @@
 package org.koitharu.kotatsu.core.image
 
 import android.graphics.Bitmap
-import android.net.Uri
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.os.Build
@@ -59,7 +58,8 @@ class RegionBitmapDecoder(
 			bitmapOptions.configureConfig()
 			// Force software JPEG decoder on large strip images to avoid hardware chroma
 			// upsampler bug producing repeating coloured tint bands on some devices.
-			if (regionDecoder.height >= LARGE_JPEG_HEIGHT_THRESHOLD && isJpegUri(uri)) {
+			if (regionDecoder.height >= LARGE_JPEG_HEIGHT_THRESHOLD &&
+				fetchResult.mimeType == "image/jpeg") {
 				bitmapOptions.inPreferQualityOverSpeed = true
 			}
 			val bitmap = regionDecoder.decodeRegion(rect, bitmapOptions)
@@ -160,15 +160,6 @@ class RegionBitmapDecoder(
 		inPreferredConfig = config
 	}
 
-	private companion object {
-		private const val LARGE_JPEG_HEIGHT_THRESHOLD = 5000
-
-		private fun isJpegUri(uri: Uri): Boolean {
-			val path = uri.path?.lowercase() ?: return false
-			return path.endsWith(".jpg") || path.endsWith(".jpeg")
-		}
-	}
-
 	object Factory : Decoder.Factory {
 
 		override fun create(
@@ -185,6 +176,8 @@ class RegionBitmapDecoder(
 	companion object {
 
 		const val SCROLL_UNDEFINED = -1
+
+		private const val LARGE_JPEG_HEIGHT_THRESHOLD = 5000
 		val regionScrollKey = Extras.Key(SCROLL_UNDEFINED)
 
 		private inline fun Size.widthPx(scale: Scale, original: () -> Int): Int {
