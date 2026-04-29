@@ -56,12 +56,6 @@ class RegionBitmapDecoder(
 		return try {
 			val rect = bitmapOptions.configureScale(regionDecoder.width, regionDecoder.height)
 			bitmapOptions.configureConfig()
-			// Force software JPEG decoder on large strip images to avoid hardware chroma
-			// upsampler bug producing repeating coloured tint bands on some devices.
-			if (regionDecoder.height >= LARGE_JPEG_HEIGHT_THRESHOLD &&
-				fetchResult.mimeType == "image/jpeg") {
-				bitmapOptions.inPreferQualityOverSpeed = true
-			}
 			val bitmap = regionDecoder.decodeRegion(rect, bitmapOptions)
 			bitmap.density = options.context.resources.displayMetrics.densityDpi
 			DecodeResult(
@@ -176,8 +170,6 @@ class RegionBitmapDecoder(
 	companion object {
 
 		const val SCROLL_UNDEFINED = -1
-
-		private const val LARGE_JPEG_HEIGHT_THRESHOLD = 5000
 		val regionScrollKey = Extras.Key(SCROLL_UNDEFINED)
 
 		private inline fun Size.widthPx(scale: Scale, original: () -> Int): Int {
