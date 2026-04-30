@@ -51,11 +51,10 @@ class RealImageProxyInterceptor @Inject constructor(
 
 	private fun createDelegate(): BaseImageProxyInterceptor? {
 		// Values must match constants.xml values_image_proxies array:
-		// -1 = none, 0 = wsrv.nl, 1 = 0ms.dev, 2 = Gumlet
+		// -1 = none, 0 = wsrv.nl, 1 = 0ms.dev
 		return when (settings.imagesProxy) {
 			0 -> WsrvNlProxyInterceptor()
 			1 -> ZeroMsProxyInterceptor()
-			2 -> GumletProxyInterceptor()
 			else -> null  // -1 = disabled, or any unknown/stale value
 		}
 	}
