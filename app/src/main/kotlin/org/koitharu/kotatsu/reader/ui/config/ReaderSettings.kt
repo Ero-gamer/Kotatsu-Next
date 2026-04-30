@@ -5,6 +5,8 @@ import android.view.View
 import androidx.annotation.CheckResult
 import androidx.collection.scatterSetOf
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import com.davemorrissey.labs.subscaleview.decoder.BitmapQuality
+import com.davemorrissey.labs.subscaleview.decoder.LiJpegTurboRegionDecoder
 import com.davemorrissey.labs.subscaleview.decoder.SkiaImageDecoder
 import com.davemorrissey.labs.subscaleview.decoder.SkiaImageRegionDecoder
 import com.davemorrissey.labs.subscaleview.decoder.SkiaPooledImageRegionDecoder
@@ -90,12 +92,17 @@ data class ReaderSettings(
 		} else {
 			bitmapConfig
 		}
+		val quality = if (config == Bitmap.Config.RGB_565) {
+			BitmapQuality.MEMORY_SAVING
+		} else {
+			BitmapQuality.STANDARD
+		}
+		// LiJpegTurboRegionDecoder uses libjpeg-turbo for all JPEG images
+		// (faster, lower memory, fixes hardware chroma tint bug on some devices)
+		// and falls back to BitmapRegionDecoder for non-JPEG (WebP, PNG, AVIF).
+		val newFactory = LiJpegTurboRegionDecoder.Factory(quality)
 		return if (ssiv.regionDecoderFactory.bitmapConfig != config) {
-			ssiv.regionDecoderFactory = if (isLowRam) {
-				SkiaImageRegionDecoder.Factory(config)
-			} else {
-				SkiaPooledImageRegionDecoder.Factory(config)
-			}
+			ssiv.regionDecoderFactory = newFactory
 			ssiv.bitmapDecoderFactory = SkiaImageDecoder.Factory(config)
 			true
 		} else {
