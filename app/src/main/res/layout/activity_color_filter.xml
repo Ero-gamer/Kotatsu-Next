@@ -34,8 +34,9 @@
 		<androidx.constraintlayout.widget.ConstraintLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:orientation="vertical"
 			android:padding="@dimen/margin_normal">
+
+			<!-- ── Preview images ── -->
 
 			<org.koitharu.kotatsu.image.ui.CoverImageView
 				android:id="@+id/imageView_before"
@@ -101,6 +102,8 @@
 				app:layout_constraintStart_toStartOf="@id/imageView_after"
 				app:layout_constraintTop_toTopOf="@id/imageView_after" />
 
+			<!-- ── Toggles ── -->
+
 			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switch_invert"
 				android:layout_width="0dp"
@@ -123,10 +126,12 @@
 				app:layout_constraintStart_toStartOf="parent"
 				app:layout_constraintTop_toBottomOf="@id/switch_invert" />
 
+			<!-- ── Brightness ── -->
+
 			<TextView
 				android:id="@+id/textView_brightness"
 				android:layout_width="0dp"
-				android:layout_height="match_parent"
+				android:layout_height="wrap_content"
 				android:layout_marginTop="@dimen/margin_normal"
 				android:text="@string/brightness"
 				android:textAppearance="?textAppearanceTitleMedium"
@@ -139,7 +144,6 @@
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_marginTop="@dimen/margin_small"
-				android:labelFor="@id/textView_brightness"
 				android:value="0.0"
 				android:valueFrom="-1.0"
 				android:valueTo="1.0"
@@ -147,10 +151,12 @@
 				app:layout_constraintStart_toStartOf="parent"
 				app:layout_constraintTop_toBottomOf="@id/textView_brightness" />
 
+			<!-- ── Contrast (GPU-powered) ── -->
+
 			<TextView
 				android:id="@+id/textView_contrast"
 				android:layout_width="0dp"
-				android:layout_height="match_parent"
+				android:layout_height="wrap_content"
 				android:layout_marginTop="@dimen/margin_small"
 				android:text="@string/contrast"
 				android:textAppearance="?textAppearanceTitleMedium"
@@ -170,6 +176,33 @@
 				app:layout_constraintStart_toStartOf="parent"
 				app:layout_constraintTop_toBottomOf="@id/textView_contrast" />
 
+			<!-- ── Vibrance (GPU-powered, replaces ColorMatrix saturation) ── -->
+
+			<TextView
+				android:id="@+id/textView_vibrance"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_small"
+				android:text="@string/vibrance"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_vibrance"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_small"
+				android:value="0.0"
+				android:valueFrom="-1.0"
+				android:valueTo="1.0"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/textView_vibrance" />
+
+			<!-- ── Book effect ── -->
+
 			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switch_book"
 				android:layout_width="0dp"
@@ -179,7 +212,34 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toStartOf="parent"
-				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
+				app:layout_constraintTop_toBottomOf="@id/slider_vibrance" />
+
+			<!-- ── Sharpening (GPU-powered) ── -->
+
+			<TextView
+				android:id="@+id/textView_sharpening"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/sharpening"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/switch_book" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_sharpening"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_small"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/textView_sharpening" />
+
+			<!-- ── Reset button ── -->
 
 			<Button
 				android:id="@+id/button_reset"
@@ -189,7 +249,7 @@
 				android:layout_marginTop="16dp"
 				android:text="@string/reset"
 				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintTop_toBottomOf="@id/switch_book" />
+				app:layout_constraintTop_toBottomOf="@id/slider_sharpening" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

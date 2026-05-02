@@ -142,9 +142,19 @@ class PageViewModel(
 		try {
 			val task = loader.loadPageAsync(data, force)
 			val progressObserver = observeProgress(this, task.progressAsFlow())
-			val uri = task.await()
+			val rawUri = task.await()
 			progressObserver.cancelAndJoin()
 			previewJob.cancel()
+
+			val contrast = settingsProducer.value.contrast
+			val sharpening = settingsProducer.value.sharpening
+			val vibrance = settingsProducer.value.vibrance
+			val uri = if (contrast != 0f || sharpening > 0.01f || vibrance < -0.01f || vibrance > 0.01f) {
+				loader.applyImageFilters(rawUri, contrast, sharpening, vibrance)
+			} else {
+				rawUri
+			}
+
 			cachedBounds = if (settingsProducer.value.isPagesCropEnabled(isWebtoon)) {
 				loader.getTrimmedBounds(uri)
 			} else {

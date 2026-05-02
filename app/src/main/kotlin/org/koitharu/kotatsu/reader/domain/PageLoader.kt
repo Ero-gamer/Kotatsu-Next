@@ -15,6 +15,7 @@ import coil3.ImageLoader
 import coil3.memory.MemoryCache
 import coil3.request.ImageRequest
 import coil3.request.transformations
+import coil3.size.Size
 import coil3.toBitmap
 import com.davemorrissey.labs.subscaleview.ImageSource
 import dagger.hilt.android.ActivityRetainedLifecycle
@@ -65,8 +66,11 @@ import org.koitharu.kotatsu.core.util.ext.use
 import org.koitharu.kotatsu.core.util.ext.withProgress
 import org.koitharu.kotatsu.core.util.progress.ProgressDeferred
 import org.koitharu.kotatsu.download.ui.worker.DownloadSlowdownDispatcher
+import org.koitharu.kotatsu.core.ui.image.ImageFiltersTransformation
 import org.koitharu.kotatsu.local.data.LocalStorageCache
 import org.koitharu.kotatsu.local.data.PageCache
+import org.koitharu.kotatsu.local.data.ProcessedPageCache
+import org.koitharu.kotatsu.parsers.util.md5
 import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.requireBody
@@ -87,6 +91,7 @@ class PageLoader @Inject constructor(
 	lifecycle: ActivityRetainedLifecycle,
 	@MangaHttpClient private val okHttp: OkHttpClient,
 	@PageCache private val cache: LocalStorageCache,
+	@ProcessedPageCache private val processedCache: LocalStorageCache,
 	private val coil: ImageLoader,
 	private val settings: AppSettings,
 	private val mangaRepositoryFactory: MangaRepository.Factory,
@@ -112,6 +117,8 @@ class PageLoader @Inject constructor(
 	// (preventing double-conversion of the same file) while allowing different
 	// pages to convert concurrently.
 	private val conversionJobs = ConcurrentHashMap<String, Deferred<Uri>>()
+
+	private val processingLocks = ConcurrentHashMap<String, Mutex>()
 
 	private val prefetchLock = Mutex()
 
@@ -259,6 +266,40 @@ class PageLoader @Inject constructor(
 	}.onFailure { error ->
 		error.printStackTraceDebug()
 	}.getOrNull()
+
+	/**
+	 * Applies GPU filters (contrast, sharpening, vibrance) to a page bitmap and caches the result.
+	 * If the processed version is already cached, returns its URI immediately.
+	 * Ported from Tsukimi (Tsukimi-devel).
+	 */
+	suspend fun applyImageFilters(uri: Uri, contrast: Float, sharpening: Float, vibrance: Float): Uri {
+		if (uri.isZipUri()) return uri
+
+		val rawFile = uri.toFile()
+		val cacheKey = "${rawFile.absolutePath}_c${contrast}_s${sharpening}_v${vibrance}".md5()
+
+		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
+
+		return lock.withLock {
+			processedCache.get(cacheKey)?.let { return@withLock it.toUri() }
+
+			withContext(Dispatchers.IO) {
+				val bitmap = runCatchingCancellable {
+					BitmapDecoderCompat.decode(rawFile)
+				}.getOrNull() ?: return@withContext
+
+				val filtered = ImageFiltersTransformation(context, contrast, sharpening, vibrance).transform(
+					bitmap,
+					Size.ORIGINAL,
+				)
+				processedCache.set(cacheKey, filtered)
+				filtered.recycle()
+				bitmap.recycle()
+			}
+
+			processedCache.get(cacheKey)?.toUri() ?: uri
+		}
+	}
 
 	suspend fun getPageUrl(page: MangaPage): String {
 		return getRepository(page.source).getPageUrl(page)

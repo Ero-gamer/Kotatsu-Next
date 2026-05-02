@@ -61,6 +61,10 @@ abstract class BasePageHolder<B : ViewBinding>(
 	protected val settings: ReaderSettings
 		get() = viewModel.settingsProducer.value
 
+	private var lastContrast = Float.MIN_VALUE
+	private var lastSharpening = Float.MIN_VALUE
+	private var lastVibrance = Float.MIN_VALUE
+
 	val context: Context
 		get() = itemView.context
 
@@ -91,8 +95,21 @@ abstract class BasePageHolder<B : ViewBinding>(
 	@CallSuper
 	protected open fun onConfigChanged(settings: ReaderSettings) {
 		settings.applyBackground(itemView)
-		if (settings.applyBitmapConfig(ssiv)) {
-			reloadImage()
+		val contrastChanged = lastContrast != Float.MIN_VALUE && lastContrast != settings.contrast
+		val sharpeningChanged = lastSharpening != Float.MIN_VALUE && lastSharpening != settings.sharpening
+		val vibranceChanged = lastVibrance != Float.MIN_VALUE && lastVibrance != settings.vibrance
+		lastContrast = settings.contrast
+		lastSharpening = settings.sharpening
+		lastVibrance = settings.vibrance
+
+		val gpuFilterChanged = contrastChanged || sharpeningChanged || vibranceChanged
+		if (settings.applyBitmapConfig(ssiv) || gpuFilterChanged) {
+			if (gpuFilterChanged) {
+				// GPU filter changed: clear processed cache and re-load from source
+				boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
+			} else {
+				reloadImage()
+			}
 		} else if (viewModel.state.value is PageState.Shown) {
 			onReady()
 		}

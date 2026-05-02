@@ -438,6 +438,8 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 			ReaderColorFilter(
 				brightness = prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness),
 				contrast = prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast),
+				sharpening = prefs.getFloat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening),
+				vibrance = prefs.getFloat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance),
 				isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
 				isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
 				isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
@@ -448,12 +450,16 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 				if (value != null) {
 					putFloat(KEY_CF_BRIGHTNESS, value.brightness)
 					putFloat(KEY_CF_CONTRAST, value.contrast)
+					putFloat(KEY_CF_SHARPENING, value.sharpening)
+					putFloat(KEY_CF_VIBRANCE, value.vibrance)
 					putBoolean(KEY_CF_INVERTED, value.isInverted)
 					putBoolean(KEY_CF_GRAYSCALE, value.isGrayscale)
 					putBoolean(KEY_CF_BOOK, value.isBookBackground)
 				} else {
 					remove(KEY_CF_BRIGHTNESS)
 					remove(KEY_CF_CONTRAST)
+					remove(KEY_CF_SHARPENING)
+					remove(KEY_CF_VIBRANCE)
 					remove(KEY_CF_INVERTED)
 					remove(KEY_CF_GRAYSCALE)
 					remove(KEY_CF_BOOK)
@@ -841,6 +847,8 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_SOURCES_CATALOG = "sources_catalog"
 		const val KEY_CF_BRIGHTNESS = "cf_brightness"
 		const val KEY_CF_CONTRAST = "cf_contrast"
+		const val KEY_CF_SHARPENING = "cf_sharpening"
+		const val KEY_CF_VIBRANCE = "cf_vibrance"
 		const val KEY_CF_INVERTED = "cf_inverted"
 		const val KEY_CF_GRAYSCALE = "cf_grayscale"
 		const val KEY_CF_BOOK = "cf_book"

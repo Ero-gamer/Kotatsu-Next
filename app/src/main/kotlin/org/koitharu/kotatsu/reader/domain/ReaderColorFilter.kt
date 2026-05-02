@@ -5,94 +5,120 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 
+/**
+ * Immutable snapshot of all image-adjustment parameters for a manga/chapter.
+ *
+ * GPU-baked filters (applied via [ImageFiltersTransformation] in PageLoader, cached to disk):
+ *   - [contrast]   → GPUImageContrastFilter
+ *   - [sharpening] → GPUImageSharpenFilter
+ *   - [vibrance]   → GPUImageVibranceFilter
+ *
+ * Real-time ColorMatrix filters (applied directly to the SSIV view via [toColorFilter]):
+ *   - [brightness], [isInverted], [isGrayscale], [isBookBackground]
+ *
+ * The preview in ColorFilterConfigActivity uses [toPreviewColorFilter] which also
+ * includes a ColorMatrix-approximation of contrast for immediate visual feedback.
+ */
 data class ReaderColorFilter(
-	val brightness: Float,
-	val contrast: Float,
-	val isInverted: Boolean,
-	val isGrayscale: Boolean,
-	val isBookBackground: Boolean,
+    val brightness: Float,
+    val contrast: Float,
+    val sharpening: Float,
+    val vibrance: Float,
+    val isInverted: Boolean,
+    val isGrayscale: Boolean,
+    val isBookBackground: Boolean,
 ) {
 
-	val isEmpty: Boolean
-		get() = !isGrayscale && !isInverted && !isBookBackground && brightness == 0f && contrast == 0f
+    val isEmpty: Boolean
+        get() = !isGrayscale && !isInverted && !isBookBackground &&
+            brightness == 0f && contrast == 0f && sharpening == 0f && vibrance == 0f
 
-	fun toColorFilter(): ColorMatrixColorFilter {
-		val cm = ColorMatrix()
-		if (isGrayscale) {
-			cm.grayscale()
-		}
-		if (isInverted) {
-			cm.inverted()
-		}
-		cm.setBrightness(brightness)
-		cm.setContrast(contrast)
-		if (isBookBackground) {
-			cm.addBookEffect()
-		}
-		return ColorMatrixColorFilter(cm)
-	}
+    /** Indicates whether any GPU-pipeline parameter is active. */
+    val hasGpuFilters: Boolean
+        get() = contrast != 0f || sharpening > 0.01f || vibrance < -0.01f || vibrance > 0.01f
 
-	fun getBackgroundTint(): ColorStateList? = if (isBookBackground) {
-		val color = Color.rgb(255, 255, (255 * BOOK_BLUE_FACTOR).toInt())
-		ColorStateList.valueOf(color)
-	} else {
-		null
-	}
+    /**
+     * ColorFilter applied to the SSIV view in the reader.
+     * Does NOT include contrast or vibrance — those are GPU-baked into the bitmap.
+     */
+    fun toColorFilter(): ColorMatrixColorFilter {
+        val cm = ColorMatrix()
+        if (isGrayscale) cm.setSaturation(0f)
+        if (isInverted) cm.postConcat(INVERT_MATRIX)
+        if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
+        if (isBookBackground) cm.postConcat(BOOK_MATRIX)
+        return ColorMatrixColorFilter(cm)
+    }
 
-	private fun ColorMatrix.setBrightness(brightness: Float) {
-		val scale = brightness + 1f
-		val matrix = ColorMatrix()
-		matrix.setScale(scale, scale, scale, 1f)
-		postConcat(matrix)
-	}
+    /**
+     * ColorFilter for the live preview pane in ColorFilterConfigActivity.
+     * Adds a ColorMatrix-approximation of contrast so the user sees immediate feedback
+     * (the actual render uses GPUImageContrastFilter for higher quality).
+     */
+    fun toPreviewColorFilter(): ColorMatrixColorFilter {
+        val cm = ColorMatrix()
+        if (isGrayscale) cm.setSaturation(0f)
+        if (isInverted) cm.postConcat(INVERT_MATRIX)
+        if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
+        if (contrast != 0f) cm.postConcat(contrastMatrix(contrast))
+        if (isBookBackground) cm.postConcat(BOOK_MATRIX)
+        return ColorMatrixColorFilter(cm)
+    }
 
-	private fun ColorMatrix.setContrast(contrast: Float) {
-		val scale = contrast + 1f
-		val translate = (-.5f * scale + .5f) * 255f
-		val array = floatArrayOf(
-			scale, 0f, 0f, 0f, translate,
-			0f, scale, 0f, 0f, translate,
-			0f, 0f, scale, 0f, translate,
-			0f, 0f, 0f, 1f, 0f,
-		)
-		val matrix = ColorMatrix(array)
-		postConcat(matrix)
-	}
+    fun getBackgroundTint(): ColorStateList? = if (isBookBackground) {
+        ColorStateList.valueOf(Color.rgb(255, 255, (255 * BOOK_BLUE_FACTOR).toInt()))
+    } else {
+        null
+    }
 
-	private fun ColorMatrix.inverted() {
-		val matrix = floatArrayOf(
-			-1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-			0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-			0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-			0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-		)
-		postConcat(ColorMatrix(matrix))
-	}
+    companion object {
 
-	private fun ColorMatrix.grayscale() {
-		setSaturation(0f)
-	}
+        private const val BOOK_BLUE_FACTOR = 0.92f
 
-	private fun ColorMatrix.addBookEffect() {
-		val removeBlueMatrix = floatArrayOf(
-			1f, 0f, 0f, 0f, 0f,
-			0f, 1f, 0f, 0f, 0f,
-			0f, 0f, BOOK_BLUE_FACTOR, 0f, 0f,
-			0f, 0f, 0f, 1f, 0f,
-		)
-		postConcat(ColorMatrix(removeBlueMatrix))
-	}
+        val EMPTY = ReaderColorFilter(
+            brightness = 0f,
+            contrast = 0f,
+            sharpening = 0f,
+            vibrance = 0f,
+            isInverted = false,
+            isGrayscale = false,
+            isBookBackground = false,
+        )
 
-	companion object {
+        private val INVERT_MATRIX = ColorMatrix(
+            floatArrayOf(
+                -1f, 0f, 0f, 1f, 255f,
+                0f, -1f, 0f, 1f, 255f,
+                0f, 0f, -1f, 1f, 255f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
 
-		private const val BOOK_BLUE_FACTOR = 0.92f
+        private val BOOK_MATRIX = ColorMatrix(
+            floatArrayOf(
+                1f, 0f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f, 0f,
+                0f, 0f, BOOK_BLUE_FACTOR, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
 
-		val EMPTY = ReaderColorFilter(
-			brightness = 0.0f,
-			contrast = 0.0f,
-			isInverted = false,
-			isGrayscale = false,
-			isBookBackground = false,
-		)
-	}
+        private fun brightnessMatrix(brightness: Float): ColorMatrix {
+            val s = brightness + 1f
+            return ColorMatrix().also { it.setScale(s, s, s, 1f) }
+        }
+
+        private fun contrastMatrix(contrast: Float): ColorMatrix {
+            val s = contrast + 1f
+            val t = (-0.5f * s + 0.5f) * 255f
+            return ColorMatrix(
+                floatArrayOf(
+                    s, 0f, 0f, 0f, t,
+                    0f, s, 0f, 0f, t,
+                    0f, 0f, s, 0f, t,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            )
+        }
+    }
 }
