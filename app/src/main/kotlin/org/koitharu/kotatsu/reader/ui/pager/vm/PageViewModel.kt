@@ -68,6 +68,18 @@ class PageViewModel(
 		}
 	}
 
+	/**
+	 * Re-applies sharpening to an already-loaded page without forcing a re-download.
+	 * Uses cached source file → avoids network + minimises RAM cost vs retry(force=true).
+	 */
+	fun reapplySharpening(page: MangaPage) {
+		val prevJob = job
+		job = scope.launch(Dispatchers.Default) {
+			prevJob?.cancelAndJoin()
+			doLoad(page, force = false)
+		}
+	}
+
 	fun showErrorDetails(url: String?) {
 		val e = (state.value as? PageState.Error)?.error ?: return
 		exceptionResolver.showErrorDetails(e, url)
@@ -146,11 +158,9 @@ class PageViewModel(
 			progressObserver.cancelAndJoin()
 			previewJob.cancel()
 
-			val contrast = settingsProducer.value.contrast
 			val sharpening = settingsProducer.value.sharpening
-			val vibrance = settingsProducer.value.vibrance
-			val uri = if (contrast != 0f || sharpening > 0.01f || vibrance < -0.01f || vibrance > 0.01f) {
-				loader.applyImageFilters(rawUri, contrast, sharpening, vibrance)
+			val uri = if (sharpening > 0.01f) {
+				loader.applyImageFilters(rawUri, sharpening)
 			} else {
 				rawUri
 			}

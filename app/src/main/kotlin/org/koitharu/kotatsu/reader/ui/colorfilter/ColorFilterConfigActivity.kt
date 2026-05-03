@@ -12,12 +12,14 @@ import coil3.asDrawable
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.transformations
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.LabelFormatter
 import com.google.android.material.slider.Slider
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.BaseActivity
+import org.koitharu.kotatsu.core.ui.image.ImageFiltersTransformation
 import org.koitharu.kotatsu.core.util.ext.consumeAllSystemBarsInsets
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
@@ -51,16 +53,15 @@ class ColorFilterConfigActivity :
         val percentFormatter = PercentLabelFormatter(resources)
         val signedFormatter = SignedPercentLabelFormatter(resources)
 
-        // Register all sliders
         viewBinding.sliderBrightness.addOnChangeListener(this)
         viewBinding.sliderContrast.addOnChangeListener(this)
-        viewBinding.sliderSharpening.addOnChangeListener(this)
-        viewBinding.sliderVibrance.addOnChangeListener(this)
+        viewBinding.sliderSharpening?.addOnChangeListener(this)
+        viewBinding.sliderVibrance?.addOnChangeListener(this)
 
         viewBinding.sliderBrightness.setLabelFormatter(percentFormatter)
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
-        viewBinding.sliderSharpening.setLabelFormatter(percentFormatter)
-        viewBinding.sliderVibrance.setLabelFormatter(signedFormatter)
+        viewBinding.sliderSharpening?.setLabelFormatter(percentFormatter)
+        viewBinding.sliderVibrance?.setLabelFormatter(signedFormatter)
 
         viewBinding.switchInvert.setOnCheckedChangeListener(this)
         viewBinding.switchGrayscale.setOnCheckedChangeListener(this)
@@ -121,13 +122,56 @@ class ColorFilterConfigActivity :
     private fun onColorFilterChanged(cf: ReaderColorFilter?) {
         viewBinding.sliderBrightness.setValueRounded(cf?.brightness ?: 0f)
         viewBinding.sliderContrast.setValueRounded(cf?.contrast ?: 0f)
-        viewBinding.sliderSharpening.setValueRounded(cf?.sharpening ?: 0f)
-        viewBinding.sliderVibrance.setValueRounded(cf?.vibrance ?: 0f)
+        viewBinding.sliderSharpening?.setValueRounded(cf?.sharpening ?: 0f)
+        viewBinding.sliderVibrance?.setValueRounded(cf?.vibrance ?: 0f)
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
         viewBinding.switchBook.setChecked(cf?.isBookBackground == true, false)
-        // Use toPreviewColorFilter() so the preview pane shows a contrast approximation
-        viewBinding.imageViewAfter.colorFilter = cf?.toPreviewColorFilter()
+        // Apply real-time ColorMatrix filters to the "after" preview image
+        viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
+        // Additionally load GPU-processed preview (contrast, sharpening, vibrance)
+        updateGpuPreview(cf)
+    }
+
+    /**
+     * Reloads the "after" preview through Coil with [ImageFiltersTransformation] applied so
+     * the user sees accurate GPU filter feedback (contrast, sharpening, vibrance) in real time.
+     * Coil's memory cache keyed by filter values avoids redundant GPU work.
+     */
+    /**
+     * Reloads the "after" preview through Coil with [ImageFiltersTransformation] applied
+     * so the sharpening preview is accurate. Coil caches the result by sharpening value.
+     *
+     * Contrast, vibrance, brightness, etc. are shown instantly via [imageViewAfter.colorFilter]
+     * in [onColorFilterChanged] — no Coil reload needed for those.
+     */
+    private fun updateGpuPreview(cf: ReaderColorFilter?) {
+        val sharpening = cf?.sharpening ?: 0f
+
+        val builder = ImageRequest.Builder(this)
+            .data(viewModel.preview)
+            .memoryCacheKey("cf_preview_s${sharpening}")
+            .target(
+                onStart = { placeholder ->
+                    viewBinding.imageViewAfter.setImageDrawable(
+                        placeholder?.asDrawable(resources),
+                    )
+                },
+                onSuccess = { result ->
+                    viewBinding.imageViewAfter.setImageDrawable(result.asDrawable(resources))
+                },
+                onError = { error ->
+                    viewBinding.imageViewAfter.setImageDrawable(
+                        error?.asDrawable(resources),
+                    )
+                },
+            )
+
+        if (sharpening > 0.01f) {
+            builder.transformations(ImageFiltersTransformation(applicationContext, sharpening))
+        }
+
+        coil.enqueue(builder.build())
     }
 
     private fun loadPreview(page: MangaPage) = with(viewBinding.imageViewBefore) {
@@ -139,25 +183,23 @@ class ColorFilterConfigActivity :
     }
 
     private fun onLoadingChanged(isLoading: Boolean) {
-        viewBinding.sliderBrightness.isEnabled = !isLoading
-        viewBinding.sliderContrast.isEnabled   = !isLoading
-        viewBinding.sliderSharpening.isEnabled = !isLoading
-        viewBinding.sliderVibrance.isEnabled   = !isLoading
-        viewBinding.switchInvert.isEnabled     = !isLoading
-        viewBinding.switchGrayscale.isEnabled  = !isLoading
-        viewBinding.buttonDone.isEnabled       = !isLoading
+        viewBinding.sliderBrightness.isEnabled  = !isLoading
+        viewBinding.sliderContrast.isEnabled    = !isLoading
+        viewBinding.sliderSharpening?.isEnabled = !isLoading
+        viewBinding.sliderVibrance?.isEnabled   = !isLoading
+        viewBinding.switchInvert.isEnabled      = !isLoading
+        viewBinding.switchGrayscale.isEnabled   = !isLoading
+        viewBinding.buttonDone.isEnabled        = !isLoading
     }
 
     // ─── Label formatters ────────────────────────────────────────────────────
 
-    /** Shows percentage relative to the slider range; 0% = "100%" (unchanged). */
     private class PercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)
         override fun getFormattedValue(value: Float): String =
             pattern.format(((value + 1f) * 100).format(0))
     }
 
-    /** Shows a signed delta percentage; 0 = "+0%", 0.5 = "+50%", -0.5 = "-50%". */
     private class SignedPercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)
         override fun getFormattedValue(value: Float): String {

@@ -273,12 +273,19 @@ class PageLoader @Inject constructor(
 	 * If the processed version is already cached, returns its URI immediately.
 	 * Ported from Tsukimi (Tsukimi-devel).
 	 */
-	suspend fun applyImageFilters(uri: Uri, contrast: Float, sharpening: Float, vibrance: Float): Uri {
-		if (uri.isZipUri()) return uri
+	/**
+	 * Applies GPU sharpening to a page bitmap and caches the result to [processedCache].
+	 *
+	 * Handles both plain file URIs (online/downloaded pages) and zip URIs (cbz/local archives)
+	 * by decoding the bitmap from the appropriate source before processing.
+	 *
+	 * Contrast and vibrance are no longer processed here — they are applied in real time
+	 * via [ReaderColorFilter.toColorFilter] as a paint ColorMatrix on the SSIV view.
+	 */
+	suspend fun applyImageFilters(uri: Uri, sharpening: Float): Uri {
+		if (sharpening <= 0.01f) return uri
 
-		val rawFile = uri.toFile()
-		val cacheKey = "${rawFile.absolutePath}_c${contrast}_s${sharpening}_v${vibrance}".md5()
-
+		val cacheKey = "${uri}_s${sharpening}".md5()
 		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
 
 		return lock.withLock {
@@ -286,16 +293,32 @@ class PageLoader @Inject constructor(
 
 			withContext(Dispatchers.IO) {
 				val bitmap = runCatchingCancellable {
-					BitmapDecoderCompat.decode(rawFile)
+					if (uri.isZipUri()) {
+						// Decode page from inside a zip/cbz archive
+						ZipFile(uri.schemeSpecificPart).use { zip ->
+							val entry = zip.getEntry(uri.fragment)
+								?: error("Zip entry not found: ${uri.fragment}")
+							context.ensureRamAtLeast(entry.size * 2)
+							zip.getInputStream(entry).use { stream ->
+								BitmapDecoderCompat.decode(
+									stream,
+									MimeTypes.getMimeTypeFromExtension(entry.name),
+								)
+							}
+						}
+					} else {
+						BitmapDecoderCompat.decode(uri.toFile())
+					}
 				}.getOrNull() ?: return@withContext
 
-				val filtered = ImageFiltersTransformation(context, contrast, sharpening, vibrance).transform(
+				val filtered = ImageFiltersTransformation(context, sharpening).transform(
 					bitmap,
 					Size.ORIGINAL,
 				)
+				// Only recycle the source bitmap if GPUImage produced a new one
+				if (filtered !== bitmap) bitmap.recycle()
 				processedCache.set(cacheKey, filtered)
 				filtered.recycle()
-				bitmap.recycle()
 			}
 
 			processedCache.get(cacheKey)?.toUri() ?: uri

@@ -6,18 +6,13 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 
 /**
- * Immutable snapshot of all image-adjustment parameters for a manga/chapter.
+ * All image-adjustment parameters for a manga.
  *
- * GPU-baked filters (applied via [ImageFiltersTransformation] in PageLoader, cached to disk):
- *   - [contrast]   → GPUImageContrastFilter
- *   - [sharpening] → GPUImageSharpenFilter
- *   - [vibrance]   → GPUImageVibranceFilter
+ * Real-time GPU paint filters (applied instantly to the SSIV view via [toColorFilter]):
+ *   [brightness], [contrast], [vibrance], [isInverted], [isGrayscale], [isBookBackground]
  *
- * Real-time ColorMatrix filters (applied directly to the SSIV view via [toColorFilter]):
- *   - [brightness], [isInverted], [isGrayscale], [isBookBackground]
- *
- * The preview in ColorFilterConfigActivity uses [toPreviewColorFilter] which also
- * includes a ColorMatrix-approximation of contrast for immediate visual feedback.
+ * Bitmap pre-processing filter (baked into page file at load, cached to disk):
+ *   [sharpening] — via GPUImageSharpenFilter in ImageFiltersTransformation / PageLoader
  */
 data class ReaderColorFilter(
     val brightness: Float,
@@ -33,34 +28,23 @@ data class ReaderColorFilter(
         get() = !isGrayscale && !isInverted && !isBookBackground &&
             brightness == 0f && contrast == 0f && sharpening == 0f && vibrance == 0f
 
-    /** Indicates whether any GPU-pipeline parameter is active. */
-    val hasGpuFilters: Boolean
-        get() = contrast != 0f || sharpening > 0.01f || vibrance < -0.01f || vibrance > 0.01f
+    val needsBitmapProcessing: Boolean
+        get() = sharpening > 0.01f
 
     /**
-     * ColorFilter applied to the SSIV view in the reader.
-     * Does NOT include contrast or vibrance — those are GPU-baked into the bitmap.
+     * ColorMatrixColorFilter applied directly to the SSIV paint — zero re-decode cost,
+     * works for every chapter type (online, offline, zip/cbz).
+     *
+     * Includes brightness, contrast (ColorMatrix approximation), vibrance
+     * (via saturation), invert, grayscale and book-background tint.
      */
     fun toColorFilter(): ColorMatrixColorFilter {
         val cm = ColorMatrix()
         if (isGrayscale) cm.setSaturation(0f)
         if (isInverted) cm.postConcat(INVERT_MATRIX)
         if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
-        if (isBookBackground) cm.postConcat(BOOK_MATRIX)
-        return ColorMatrixColorFilter(cm)
-    }
-
-    /**
-     * ColorFilter for the live preview pane in ColorFilterConfigActivity.
-     * Adds a ColorMatrix-approximation of contrast so the user sees immediate feedback
-     * (the actual render uses GPUImageContrastFilter for higher quality).
-     */
-    fun toPreviewColorFilter(): ColorMatrixColorFilter {
-        val cm = ColorMatrix()
-        if (isGrayscale) cm.setSaturation(0f)
-        if (isInverted) cm.postConcat(INVERT_MATRIX)
-        if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
         if (contrast != 0f) cm.postConcat(contrastMatrix(contrast))
+        if (vibrance != 0f) cm.postConcat(vibranceMatrix(vibrance))
         if (isBookBackground) cm.postConcat(BOOK_MATRIX)
         return ColorMatrixColorFilter(cm)
     }
@@ -103,13 +87,13 @@ data class ReaderColorFilter(
             ),
         )
 
-        private fun brightnessMatrix(brightness: Float): ColorMatrix {
-            val s = brightness + 1f
+        private fun brightnessMatrix(b: Float): ColorMatrix {
+            val s = b + 1f
             return ColorMatrix().also { it.setScale(s, s, s, 1f) }
         }
 
-        private fun contrastMatrix(contrast: Float): ColorMatrix {
-            val s = contrast + 1f
+        private fun contrastMatrix(c: Float): ColorMatrix {
+            val s = c + 1f
             val t = (-0.5f * s + 0.5f) * 255f
             return ColorMatrix(
                 floatArrayOf(
@@ -119,6 +103,17 @@ data class ReaderColorFilter(
                     0f, 0f, 0f, 1f, 0f,
                 ),
             )
+        }
+
+        /**
+         * Selective saturation boost: vivid colours become more vivid,
+         * near-grey colours are less affected. Approximated via saturation matrix.
+         * vibrance = -1..+1; 0 = unchanged.
+         */
+        private fun vibranceMatrix(v: Float): ColorMatrix {
+            // Boost: positive vibrance increases saturation, negative decreases.
+            // Using setSaturation gives a simple, quality approximation suitable for manga.
+            return ColorMatrix().also { it.setSaturation((v + 1f).coerceIn(0f, 4f)) }
         }
     }
 }
