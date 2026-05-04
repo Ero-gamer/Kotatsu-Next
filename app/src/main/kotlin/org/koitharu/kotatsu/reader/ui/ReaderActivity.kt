@@ -372,9 +372,16 @@ class ReaderActivity :
     }
 
     override fun onVerticalSliderChanged(isEnabled: Boolean) {
-        val uiVisible = viewBinding.appbarTop.isVisible
+        // Re-evaluate slider visibility immediately using current UI state.
+        // The sheet is a dialog overlay — appbarTop may be hidden, so we read
+        // isSliderAvailable() and show/hide based purely on the setting + page availability.
         val sliderAvailable = viewModel.uiState.value?.isSliderAvailable() == true
+        val uiVisible = viewBinding.appbarTop.isVisible
         viewBinding.containerSliderVertical?.isVisible = isEnabled && uiVisible && sliderAvailable
+        // Also trigger UI show so the slider appears immediately without needing to tap
+        if (isEnabled && sliderAvailable) {
+            setUiIsVisible(true)
+        }
     }
 
     private fun applyDoubleModeAuto(manualEnabled: Boolean? = null) {

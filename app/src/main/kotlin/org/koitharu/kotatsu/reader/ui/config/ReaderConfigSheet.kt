@@ -201,6 +201,11 @@ class ReaderConfigSheet :
                 settings.isReaderDoubleCoverPage = isChecked
                 findParentCallback(Callback::class.java)?.onDoubleModeChanged(settings.isReaderDoubleOnLandscape)
             }
+
+            R.id.switch_vertical_slider -> {
+                settings.isVerticalSliderEnabled = isChecked
+                findParentCallback(Callback::class.java)?.onVerticalSliderChanged(isChecked)
+            }
         }
     }
 
