@@ -276,14 +276,21 @@ class PageLoader @Inject constructor(
 	/**
 	 * Applies GPU sharpening to a page bitmap and caches the result to [processedCache].
 	 *
-	 * Handles both plain file URIs (online/downloaded pages) and zip URIs (cbz/local archives)
-	 * by decoding the bitmap from the appropriate source before processing.
+	 * Supports both plain file:// URIs (online/downloaded pages) and
+	 * file+zip:// / cbz:// URIs (local archives). Non-file/non-zip URIs (e.g. http://)
+	 * are returned unchanged — sharpening only applies to already-cached local files.
 	 *
-	 * Contrast and vibrance are no longer processed here — they are applied in real time
-	 * via [ReaderColorFilter.toColorFilter] as a paint ColorMatrix on the SSIV view.
+	 * RAM guard: if available RAM is less than 8× the compressed file size (a conservative
+	 * upper bound for decode + ARGB_8888 copy + GPUImage output bitmap), sharpening is
+	 * skipped and the original URI is returned to prevent OOM on low-end devices.
+	 *
+	 * Contrast, vibrance and brightness are real-time ColorMatrix operations on the SSIV
+	 * paint (see [ReaderColorFilter.toColorFilter]) — no bitmap processing needed there.
 	 */
 	suspend fun applyImageFilters(uri: Uri, sharpening: Float): Uri {
 		if (sharpening <= 0.01f) return uri
+		// Only process local files — skip network URIs entirely
+		if (!uri.isFileUri() && !uri.isZipUri()) return uri
 
 		val cacheKey = "${uri}_s${sharpening}".md5()
 		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
@@ -294,11 +301,11 @@ class PageLoader @Inject constructor(
 			withContext(Dispatchers.IO) {
 				val bitmap = runCatchingCancellable {
 					if (uri.isZipUri()) {
-						// Decode page from inside a zip/cbz archive
 						ZipFile(uri.schemeSpecificPart).use { zip ->
 							val entry = zip.getEntry(uri.fragment)
 								?: error("Zip entry not found: ${uri.fragment}")
-							context.ensureRamAtLeast(entry.size * 2)
+							// 8× compressed size ≈ worst-case RAM: decoded + ARGB copy + GPU output
+							context.ensureRamAtLeast(entry.size * 8)
 							zip.getInputStream(entry).use { stream ->
 								BitmapDecoderCompat.decode(
 									stream,
@@ -307,7 +314,9 @@ class PageLoader @Inject constructor(
 							}
 						}
 					} else {
-						BitmapDecoderCompat.decode(uri.toFile())
+						val file = uri.toFile()
+						context.ensureRamAtLeast(file.length() * 8)
+						BitmapDecoderCompat.decode(file)
 					}
 				}.getOrNull() ?: return@withContext
 
@@ -315,7 +324,6 @@ class PageLoader @Inject constructor(
 					bitmap,
 					Size.ORIGINAL,
 				)
-				// Only recycle the source bitmap if GPUImage produced a new one
 				if (filtered !== bitmap) bitmap.recycle()
 				processedCache.set(cacheKey, filtered)
 				filtered.recycle()
