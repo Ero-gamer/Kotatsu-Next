@@ -64,6 +64,13 @@ class ReaderActionsView @JvmOverloads constructor(
 			binding.slider.setThumbVisible(value)
 		}
 
+	/** Hides/shows the bottom page-position slider, freeing space for icon buttons. */
+	var isSliderVisible: Boolean
+		get() = binding.slider.isVisible
+		set(value) {
+			binding.slider.isVisible = value
+		}
+
 	var isNextEnabled: Boolean
 		get() = binding.buttonNext.isEnabled
 		set(value) {
