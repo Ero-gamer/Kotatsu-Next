@@ -132,6 +132,19 @@ class ReaderActivity :
         viewBinding.buttonTimer?.setOnClickListener(this)
         idlingDetector.bindToLifecycle(this)
         screenOrientationHelper.applySettings()
+
+        // Vertical page-switch slider
+        viewBinding.sliderVertical?.addOnChangeListener { slider, value, fromUser ->
+            if (fromUser) {
+                val newPage = value.toInt()
+                if (newPage != viewModel.uiState.value?.currentPage) {
+                    slider.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                    switchPageTo(newPage)
+                }
+            }
+        }
+        viewBinding.buttonPrevVertical?.setOnClickListener { switchChapterBy(-1) }
+        viewBinding.buttonNextVertical?.setOnClickListener { switchChapterBy(1) }
         viewModel.isBookmarkAdded.observe(this) { viewBinding.actionsView.isBookmarkAdded = it }
         scrollTimer.isActive.observe(this) {
             updateScrollTimerButton()
@@ -358,6 +371,12 @@ class ReaderActivity :
         applyDoubleModeAuto(isEnabled)
     }
 
+    override fun onVerticalSliderChanged(isEnabled: Boolean) {
+        val uiVisible = viewBinding.appbarTop.isVisible
+        val sliderAvailable = viewModel.uiState.value?.isSliderAvailable() == true
+        viewBinding.containerSliderVertical?.isVisible = isEnabled && uiVisible && sliderAvailable
+    }
+
     private fun applyDoubleModeAuto(manualEnabled: Boolean? = null) {
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         // Auto double-page on foldable when device is unfolded (half-opened or flat)
@@ -385,11 +404,16 @@ class ReaderActivity :
                 viewBinding.toolbarDocked?.let {
                     transition.addTransition(Slide(Gravity.BOTTOM).addTarget(it))
                 }
+                viewBinding.containerSliderVertical?.let {
+                    transition.addTransition(Slide(Gravity.END).addTarget(it))
+                }
                 TransitionManager.beginDelayedTransition(viewBinding.root, transition)
             }
             val isFullscreen = settings.isReaderFullscreenEnabled
             viewBinding.appbarTop.isVisible = isUiVisible
             viewBinding.toolbarDocked?.isVisible = isUiVisible
+            viewBinding.containerSliderVertical?.isVisible =
+                isUiVisible && settings.isVerticalSliderEnabled && (viewModel.uiState.value?.isSliderAvailable() == true)
             viewBinding.infoBar.isGone = isUiVisible || (!viewModel.isInfoBarEnabled.value)
             viewBinding.infoBar.isTimeVisible = isFullscreen
             updateScrollTimerButton()
@@ -504,6 +528,9 @@ class ReaderActivity :
             supportActionBar?.subtitle = null
             viewBinding.actionsView.setSliderValue(0, 1)
             viewBinding.actionsView.isSliderEnabled = false
+            viewBinding.sliderVertical?.valueTo = 1f
+            viewBinding.sliderVertical?.value = 0f
+            viewBinding.sliderVertical?.isEnabled = false
             return
         }
         val chapterTitle = uiState.getChapterTitle(resources)
@@ -523,12 +550,26 @@ class ReaderActivity :
                 value = uiState.currentPage,
                 max = uiState.totalPages - 1,
             )
+            viewBinding.sliderVertical?.valueTo = (uiState.totalPages - 1).toFloat()
+            viewBinding.sliderVertical?.value = uiState.currentPage.toFloat()
+            viewBinding.textViewCurrentPageVertical?.text = (uiState.currentPage + 1).toString()
+            viewBinding.textViewTotalPagesVertical?.text = uiState.totalPages.toString()
+            viewBinding.sliderVertical?.isEnabled = true
         } else {
             viewBinding.actionsView.setSliderValue(0, 1)
+            viewBinding.sliderVertical?.valueTo = 1f
+            viewBinding.sliderVertical?.value = 0f
+            viewBinding.textViewCurrentPageVertical?.text = (uiState.currentPage + 1).toString()
+            viewBinding.textViewTotalPagesVertical?.text = uiState.totalPages.toString()
+            viewBinding.sliderVertical?.isEnabled = false
         }
         viewBinding.actionsView.isSliderEnabled = uiState.isSliderAvailable()
         viewBinding.actionsView.isNextEnabled = uiState.hasNextChapter()
         viewBinding.actionsView.isPrevEnabled = uiState.hasPreviousChapter()
+        viewBinding.buttonPrevVertical?.isEnabled = uiState.hasPreviousChapter()
+        viewBinding.buttonNextVertical?.isEnabled = uiState.hasNextChapter()
+        viewBinding.containerSliderVertical?.isVisible =
+            viewBinding.appbarTop.isVisible && settings.isVerticalSliderEnabled && uiState.isSliderAvailable()
     }
 
     private fun updateScrollTimerButton() {

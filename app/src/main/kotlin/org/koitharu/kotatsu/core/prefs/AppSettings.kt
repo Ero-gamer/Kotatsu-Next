@@ -173,6 +173,10 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 	val isReaderNavigationInverted: Boolean
 		get() = prefs.getBoolean(KEY_READER_NAVIGATION_INVERTED, false)
 
+	var isVerticalSliderEnabled: Boolean
+		get() = prefs.getBoolean(KEY_READER_VERTICAL_SLIDER, false)
+		set(value) = prefs.edit { putBoolean(KEY_READER_VERTICAL_SLIDER, value) }
+
 	val isReaderFullscreenEnabled: Boolean
 		get() = prefs.getBoolean(KEY_READER_FULLSCREEN, true)
 
@@ -741,6 +745,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_READER_ZOOM_BUTTONS = "reader_zoom_buttons"
 		const val KEY_READER_CONTROL_LTR = "reader_taps_ltr"
 		const val KEY_READER_NAVIGATION_INVERTED = "reader_navigation_inverted"
+		const val KEY_READER_VERTICAL_SLIDER = "reader_vertical_slider"
 		const val KEY_READER_FULLSCREEN = "reader_fullscreen"
 		const val KEY_READER_VOLUME_BUTTONS = "reader_volume_buttons"
 		const val KEY_READER_ORIENTATION = "reader_orientation"
