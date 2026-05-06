@@ -44,7 +44,16 @@ class ColorFilterConfigActivity :
     lateinit var coil: ImageLoader
 
     private val viewModel: ColorFilterConfigViewModel by viewModels()
+
+    /** Tracks the in-flight Coil request for the sharpening preview so it can be cancelled. */
     private var gpuPreviewDisposable: coil3.request.Disposable? = null
+
+    /**
+     * True once the before-image has finished loading into [imageViewBefore].
+     * [updateGpuPreview] is deferred until this is true so we don't fire a Coil
+     * request before the source image is available in memory cache.
+     */
+    private var beforeImageReady = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +61,7 @@ class ColorFilterConfigActivity :
         setDisplayHomeAsUp(isEnabled = true, showUpAsClose = true)
 
         val percentFormatter = PercentLabelFormatter(resources)
-        val signedFormatter = SignedPercentLabelFormatter(resources)
+        val signedFormatter  = SignedPercentLabelFormatter(resources)
 
         viewBinding.sliderBrightness.addOnChangeListener(this)
         viewBinding.sliderContrast.addOnChangeListener(this)
@@ -72,7 +81,13 @@ class ColorFilterConfigActivity :
 
         onBackPressedDispatcher.addCallback(ColorFilterConfigBackPressedDispatcher(this, viewModel))
 
-        viewModel.colorFilter.observe(this, this::onColorFilterChanged)
+        // Wait for isReady before reacting to colorFilter — avoids the brief "all sliders at
+        // zero" flash that happens while the DB is loading the real filter value.
+        viewModel.isReady.observe(this) { ready ->
+            if (ready) {
+                viewModel.colorFilter.observe(this, this::onColorFilterChanged)
+            }
+        }
         viewModel.isLoading.observe(this, this::onLoadingChanged)
         viewModel.onDismiss.observeEvent(this) { finishAfterTransition() }
 
@@ -115,12 +130,13 @@ class ColorFilterConfigActivity :
             .setTitle(R.string.apply)
             .setMessage(R.string.color_correction_apply_text)
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.this_manga) { _, _ -> viewModel.save() }
-            .setNeutralButton(R.string.globally) { _, _ -> viewModel.saveGlobally() }
+            .setPositiveButton(R.string.this_manga)  { _, _ -> viewModel.save() }
+            .setNeutralButton(R.string.globally)     { _, _ -> viewModel.saveGlobally() }
             .show()
     }
 
     private fun onColorFilterChanged(cf: ReaderColorFilter?) {
+        // Update sliders and switches
         viewBinding.sliderBrightness.setValueRounded(cf?.brightness ?: 0f)
         viewBinding.sliderContrast.setValueRounded(cf?.contrast ?: 0f)
         viewBinding.sliderSharpening?.setValueRounded(cf?.sharpening ?: 0f)
@@ -128,38 +144,48 @@ class ColorFilterConfigActivity :
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
         viewBinding.switchBook.setChecked(cf?.isBookBackground == true, false)
-        // Apply real-time ColorMatrix filters to the "after" preview image
+
+        // Apply real-time ColorMatrix (brightness, contrast, vibrance, invert, etc.) directly
+        // to imageViewAfter as a paint colorFilter — instant, zero Coil overhead
         viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
-        // Additionally load GPU-processed preview (contrast, sharpening, vibrance)
-        updateGpuPreview(cf)
+
+        // Fire sharpening GPU preview only after before-image has loaded (avoids racing
+        // with ShadowImageListener which copies imageViewBefore → imageViewAfter)
+        if (beforeImageReady) {
+            updateSharpeningPreview(cf)
+        }
     }
 
     /**
-     * Reloads the "after" preview through Coil with [ImageFiltersTransformation] applied so
-     * the user sees accurate GPU filter feedback (contrast, sharpening, vibrance) in real time.
-     * Coil's memory cache keyed by filter values avoids redundant GPU work.
-     */
-    /**
-     * Reloads the "after" preview through Coil with [ImageFiltersTransformation] applied
-     * so the sharpening preview is accurate. Coil caches the result by sharpening value.
+     * Reloads [imageViewAfter] through Coil with [ImageFiltersTransformation] applied
+     * so sharpening is previewed accurately. All other filters (brightness, contrast, vibrance
+     * etc.) are shown instantly via [imageViewAfter]'s colorFilter paint — no Coil reload needed.
      *
-     * Contrast, vibrance, brightness, etc. are shown instantly via [imageViewAfter.colorFilter]
-     * in [onColorFilterChanged] — no Coil reload needed for those.
+     * The memory cache key includes the page URL so cached results are never shared across
+     * different manga/chapters.
      */
-    private fun updateGpuPreview(cf: ReaderColorFilter?) {
+    private fun updateSharpeningPreview(cf: ReaderColorFilter?) {
         val sharpening = cf?.sharpening ?: 0f
+        // Include page URL in the key — without it, Coil returns a cached result from a
+        // different manga that happened to have the same sharpening value (the original bug).
+        val cacheKey = "cf_preview_${viewModel.preview.url.hashCode()}_s${sharpening}"
 
         val builder = ImageRequest.Builder(this)
             .data(viewModel.preview)
-            .memoryCacheKey("cf_preview_s${sharpening}")
+            .memoryCacheKey(cacheKey)
             .target(
                 onStart = { placeholder ->
-                    viewBinding.imageViewAfter.setImageDrawable(
-                        placeholder?.asDrawable(resources),
-                    )
+                    // Only show placeholder if we have nothing yet; don't wipe a good preview
+                    if (viewBinding.imageViewAfter.drawable == null) {
+                        viewBinding.imageViewAfter.setImageDrawable(
+                            placeholder?.asDrawable(resources),
+                        )
+                    }
                 },
                 onSuccess = { result ->
                     viewBinding.imageViewAfter.setImageDrawable(result.asDrawable(resources))
+                    // Re-apply ColorMatrix paint after drawable swap so it's never lost
+                    viewBinding.imageViewAfter.colorFilter = viewModel.colorFilter.value?.toColorFilter()
                 },
                 onError = { error ->
                     viewBinding.imageViewAfter.setImageDrawable(
@@ -180,7 +206,7 @@ class ColorFilterConfigActivity :
         addImageRequestListener(
             ImageRequestIndicatorListener(listOf(viewBinding.progressBefore, viewBinding.progressAfter)),
         )
-        addImageRequestListener(ShadowImageListener(viewBinding.imageViewAfter))
+        addImageRequestListener(BeforeImageListener())
         setImageAsync(page)
     }
 
@@ -210,17 +236,30 @@ class ColorFilterConfigActivity :
         }
     }
 
-    // ─── Preview shadow ──────────────────────────────────────────────────────
+    // ─── Before-image listener ───────────────────────────────────────────────
 
-    private class ShadowImageListener(private val imageView: ImageView) : ImageRequest.Listener {
-        override fun onError(request: ImageRequest, result: ErrorResult) {
-            imageView.setImageDrawable(result.image?.asDrawable(imageView.resources))
-        }
-        override fun onStart(request: ImageRequest) {
-            imageView.setImageDrawable(request.placeholder()?.asDrawable(imageView.resources))
-        }
+    /**
+     * Listens for the before-image loading in [imageViewBefore].
+     * On success: copies the result to [imageViewAfter] (shadow image), then fires the
+     * sharpening preview and re-applies ColorMatrix so everything is in sync.
+     * Replaces the old [ShadowImageListener] + [updateGpuPreview] split that caused races.
+     */
+    private inner class BeforeImageListener : ImageRequest.Listener {
         override fun onSuccess(request: ImageRequest, result: SuccessResult) {
-            imageView.setImageDrawable(result.image.asDrawable(imageView.resources))
+            // Copy the unfiltered page to the "after" pane as the base image
+            viewBinding.imageViewAfter.setImageDrawable(result.image.asDrawable(resources))
+            beforeImageReady = true
+            // Now apply all filters on top
+            val cf = viewModel.colorFilter.value
+            viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
+            updateSharpeningPreview(cf)
+        }
+
+        override fun onError(request: ImageRequest, result: ErrorResult) {
+            viewBinding.imageViewAfter.setImageDrawable(
+                result.image?.asDrawable(resources),
+            )
+            beforeImageReady = true
         }
     }
 }

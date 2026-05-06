@@ -51,8 +51,10 @@ class ImageFiltersTransformation(
                 if (needsCopy) argbInput.recycle()
                 result
             } else {
-                // EGL failure — fall back to unfiltered, don't recycle argbInput as we return it
-                if (needsCopy) argbInput else input
+                // EGL failure — recycle the temporary ARGB copy and return the original input.
+                // Returning argbInput here would leak it since Coil only manages input's lifecycle.
+                if (needsCopy) argbInput.recycle()
+                input
             }
         } catch (e: Exception) {
             if (needsCopy) argbInput.recycle()

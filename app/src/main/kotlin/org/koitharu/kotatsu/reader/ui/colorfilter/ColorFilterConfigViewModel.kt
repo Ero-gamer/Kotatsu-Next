@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableManga
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableMangaPage
 import org.koitharu.kotatsu.core.nav.AppRouter
@@ -25,56 +26,65 @@ class ColorFilterConfigViewModel @Inject constructor(
 
     private val manga = savedStateHandle.require<ParcelableManga>(AppRouter.KEY_MANGA).manga
 
-    private var initialColorFilter: ReaderColorFilter? = null
-    val colorFilter = MutableStateFlow<ReaderColorFilter?>(null)
-    val onDismiss = MutableEventFlow<Unit>()
     val preview = savedStateHandle.require<ParcelableMangaPage>(AppRouter.KEY_PAGES).page
 
+    private var initialColorFilter: ReaderColorFilter? = null
+
+    /** null = not yet loaded from DB; use [isReady] to distinguish "loaded null" from "not yet loaded". */
+    private val _colorFilter = MutableStateFlow<ReaderColorFilter?>(null)
+    val colorFilter = _colorFilter.asStateFlow()
+
+    val onDismiss = MutableEventFlow<Unit>()
+
+    /**
+     * True once the initial color filter has been loaded from the DB.
+     * The Activity uses this to skip the initial null emission from [colorFilter],
+     * which would otherwise momentarily reset all sliders to zero.
+     */
+    private val _isReady = MutableStateFlow(false)
+    val isReady = _isReady.asStateFlow()
+
     val isChanged: Boolean
-        get() = colorFilter.value != initialColorFilter
+        get() = _colorFilter.value != initialColorFilter
 
     init {
         launchLoadingJob {
-            initialColorFilter = mangaDataRepository.getColorFilter(manga.id) ?: settings.readerColorFilter
-            colorFilter.value = initialColorFilter
+            initialColorFilter = mangaDataRepository.getColorFilter(manga.id)
+                ?: settings.readerColorFilter
+            _colorFilter.value = initialColorFilter
+            _isReady.value = true
         }
     }
 
     fun setBrightness(brightness: Float) = updateColorFilter { it.copy(brightness = brightness) }
-
-    fun setContrast(contrast: Float) = updateColorFilter { it.copy(contrast = contrast) }
-
+    fun setContrast(contrast: Float)     = updateColorFilter { it.copy(contrast = contrast) }
     fun setSharpening(sharpening: Float) = updateColorFilter { it.copy(sharpening = sharpening) }
-
-    fun setVibrance(vibrance: Float) = updateColorFilter { it.copy(vibrance = vibrance) }
-
-    fun setInversion(invert: Boolean) = updateColorFilter { it.copy(isInverted = invert) }
-
+    fun setVibrance(vibrance: Float)     = updateColorFilter { it.copy(vibrance = vibrance) }
+    fun setInversion(invert: Boolean)    = updateColorFilter { it.copy(isInverted = invert) }
     fun setGrayscale(grayscale: Boolean) = updateColorFilter { it.copy(isGrayscale = grayscale) }
-
-    fun setBookEffect(book: Boolean) = updateColorFilter { it.copy(isBookBackground = book) }
+    fun setBookEffect(book: Boolean)     = updateColorFilter { it.copy(isBookBackground = book) }
 
     fun reset() {
-        colorFilter.value = null
+        _colorFilter.value = null
     }
 
     fun save() {
         launchLoadingJob(Dispatchers.Default) {
-            mangaDataRepository.saveColorFilter(manga, colorFilter.value)
+            mangaDataRepository.saveColorFilter(manga, _colorFilter.value)
             onDismiss.call(Unit)
         }
     }
 
     fun saveGlobally() {
         launchLoadingJob(Dispatchers.Default) {
-            settings.readerColorFilter = colorFilter.value
+            settings.readerColorFilter = _colorFilter.value
             mangaDataRepository.resetColorFilters()
             onDismiss.call(Unit)
         }
     }
 
     private inline fun updateColorFilter(block: (ReaderColorFilter) -> ReaderColorFilter) {
-        colorFilter.value = block(colorFilter.value ?: ReaderColorFilter.EMPTY)
+        _colorFilter.value = block(_colorFilter.value ?: ReaderColorFilter.EMPTY)
             .takeUnless { it.isEmpty }
     }
 }
