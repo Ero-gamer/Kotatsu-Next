@@ -204,6 +204,21 @@
                 app:drawableStartCompat="@drawable/ic_screen_rotation_lock"
                 tools:visibility="visible" />
 
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switch_vertical_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:drawablePadding="?android:listPreferredItemPaddingStart"
+                android:ellipsize="end"
+                android:minHeight="?android:listPreferredItemHeightSmall"
+                android:paddingStart="?android:listPreferredItemPaddingStart"
+                android:paddingEnd="?android:listPreferredItemPaddingEnd"
+                android:singleLine="true"
+                android:text="@string/vertical_page_slider"
+                android:textAppearance="?textAppearanceListItem"
+                android:textColor="?colorOnSurfaceVariant"
+                app:drawableStartCompat="@drawable/ic_list" />
+
             <org.koitharu.kotatsu.core.ui.widgets.ListItemTextView
                 android:id="@+id/button_scroll_timer"
                 android:layout_width="match_parent"

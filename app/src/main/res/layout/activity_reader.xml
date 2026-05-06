@@ -12,6 +12,89 @@
 		android:layout_height="match_parent"
 		tools:background="@color/grey" />
 
+	<!-- Vertical page-switch slider on the right side, ported from Tsukimi -->
+	<LinearLayout
+		android:id="@+id/container_slider_vertical"
+		android:layout_width="56dp"
+		android:layout_height="match_parent"
+		android:layout_gravity="end|center_vertical"
+		android:layout_marginEnd="8dp"
+		android:layout_marginTop="100dp"
+		android:layout_marginBottom="100dp"
+		android:gravity="center_horizontal"
+		android:orientation="vertical"
+		android:paddingVertical="8dp"
+		android:visibility="gone">
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/button_prev_vertical"
+			style="?materialIconButtonStyle"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:backgroundTint="?attr/colorSurfaceContainerHigh"
+			android:contentDescription="@string/prev_chapter"
+			android:rotation="90"
+			app:icon="@drawable/ic_prev"
+			app:iconTint="?attr/colorPrimary" />
+
+		<LinearLayout
+			android:id="@+id/pill_vertical_slider"
+			android:layout_width="48dp"
+			android:layout_height="0dp"
+			android:layout_marginVertical="8dp"
+			android:layout_weight="1"
+			android:background="@drawable/bg_reader_vertical_controls"
+			android:backgroundTint="?attr/colorSurfaceContainerHigh"
+			android:gravity="center_horizontal"
+			android:orientation="vertical"
+			android:paddingVertical="16dp">
+
+			<TextView
+				android:id="@+id/textView_current_page_vertical"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:textAppearance="?attr/textAppearanceBodySmall"
+				android:textColor="?attr/colorOnSurface" />
+
+			<org.koitharu.kotatsu.reader.ui.widgets.VerticalSliderWrapper
+				android:layout_width="match_parent"
+				android:layout_height="0dp"
+				android:layout_marginVertical="8dp"
+				android:layout_weight="1">
+
+				<com.google.android.material.slider.Slider
+					android:id="@+id/slider_vertical"
+					android:layout_width="wrap_content"
+					android:layout_height="match_parent"
+					android:rotation="90"
+					android:valueFrom="0"
+					android:valueTo="1"
+					app:labelBehavior="gone" />
+
+			</org.koitharu.kotatsu.reader.ui.widgets.VerticalSliderWrapper>
+
+			<TextView
+				android:id="@+id/textView_total_pages_vertical"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:textAppearance="?attr/textAppearanceBodySmall"
+				android:textColor="?attr/colorOnSurface" />
+
+		</LinearLayout>
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/button_next_vertical"
+			style="?materialIconButtonStyle"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:backgroundTint="?attr/colorSurfaceContainerHigh"
+			android:contentDescription="@string/next_chapter"
+			android:rotation="90"
+			app:icon="@drawable/ic_next"
+			app:iconTint="?attr/colorPrimary" />
+
+	</LinearLayout>
+
 	<com.google.android.material.button.MaterialButton
 		android:id="@+id/button_timer"
 		style="?materialIconButtonOutlinedStyle"

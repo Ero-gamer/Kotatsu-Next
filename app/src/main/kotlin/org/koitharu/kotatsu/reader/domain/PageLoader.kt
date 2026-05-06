@@ -15,6 +15,7 @@ import coil3.ImageLoader
 import coil3.memory.MemoryCache
 import coil3.request.ImageRequest
 import coil3.request.transformations
+import coil3.size.Size
 import coil3.toBitmap
 import com.davemorrissey.labs.subscaleview.ImageSource
 import dagger.hilt.android.ActivityRetainedLifecycle
@@ -29,6 +30,7 @@ import kotlinx.coroutines.plus
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import okhttp3.OkHttpClient
@@ -65,8 +67,11 @@ import org.koitharu.kotatsu.core.util.ext.use
 import org.koitharu.kotatsu.core.util.ext.withProgress
 import org.koitharu.kotatsu.core.util.progress.ProgressDeferred
 import org.koitharu.kotatsu.download.ui.worker.DownloadSlowdownDispatcher
+import org.koitharu.kotatsu.core.ui.image.ImageFiltersTransformation
 import org.koitharu.kotatsu.local.data.LocalStorageCache
 import org.koitharu.kotatsu.local.data.PageCache
+import org.koitharu.kotatsu.local.data.ProcessedPageCache
+import org.koitharu.kotatsu.parsers.util.md5
 import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.requireBody
@@ -87,6 +92,7 @@ class PageLoader @Inject constructor(
 	lifecycle: ActivityRetainedLifecycle,
 	@MangaHttpClient private val okHttp: OkHttpClient,
 	@PageCache private val cache: LocalStorageCache,
+	@ProcessedPageCache private val processedCache: LocalStorageCache,
 	private val coil: ImageLoader,
 	private val settings: AppSettings,
 	private val mangaRepositoryFactory: MangaRepository.Factory,
@@ -112,6 +118,8 @@ class PageLoader @Inject constructor(
 	// (preventing double-conversion of the same file) while allowing different
 	// pages to convert concurrently.
 	private val conversionJobs = ConcurrentHashMap<String, Deferred<Uri>>()
+
+	private val processingLocks = ConcurrentHashMap<String, Mutex>()
 
 	private val prefetchLock = Mutex()
 
@@ -259,6 +267,71 @@ class PageLoader @Inject constructor(
 	}.onFailure { error ->
 		error.printStackTraceDebug()
 	}.getOrNull()
+
+	/**
+	 * Applies GPU filters (contrast, sharpening, vibrance) to a page bitmap and caches the result.
+	 * If the processed version is already cached, returns its URI immediately.
+	 * Ported from Tsukimi (Tsukimi-devel).
+	 */
+	/**
+	 * Applies GPU sharpening to a page bitmap and caches the result to [processedCache].
+	 *
+	 * Supports both plain file:// URIs (online/downloaded pages) and
+	 * file+zip:// / cbz:// URIs (local archives). Non-file/non-zip URIs (e.g. http://)
+	 * are returned unchanged — sharpening only applies to already-cached local files.
+	 *
+	 * RAM guard: if available RAM is less than 8× the compressed file size (a conservative
+	 * upper bound for decode + ARGB_8888 copy + GPUImage output bitmap), sharpening is
+	 * skipped and the original URI is returned to prevent OOM on low-end devices.
+	 *
+	 * Contrast, vibrance and brightness are real-time ColorMatrix operations on the SSIV
+	 * paint (see [ReaderColorFilter.toColorFilter]) — no bitmap processing needed there.
+	 */
+	suspend fun applyImageFilters(uri: Uri, sharpening: Float): Uri {
+		if (sharpening <= 0.01f) return uri
+		// Only process local files — skip network URIs entirely
+		if (!uri.isFileUri() && !uri.isZipUri()) return uri
+
+		val cacheKey = "${uri}_s${sharpening}".md5()
+		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
+
+		return lock.withLock {
+			processedCache.get(cacheKey)?.let { return@withLock it.toUri() }
+
+			withContext(Dispatchers.IO) {
+				val bitmap = runCatchingCancellable {
+					if (uri.isZipUri()) {
+						ZipFile(uri.schemeSpecificPart).use { zip ->
+							val entry = zip.getEntry(uri.fragment)
+								?: error("Zip entry not found: ${uri.fragment}")
+							// 8× compressed size ≈ worst-case RAM: decoded + ARGB copy + GPU output
+							context.ensureRamAtLeast(entry.size * 8)
+							zip.getInputStream(entry).use { stream ->
+								BitmapDecoderCompat.decode(
+									stream,
+									MimeTypes.getMimeTypeFromExtension(entry.name),
+								)
+							}
+						}
+					} else {
+						val file = uri.toFile()
+						context.ensureRamAtLeast(file.length() * 8)
+						BitmapDecoderCompat.decode(file)
+					}
+				}.getOrNull() ?: return@withContext
+
+				val filtered = ImageFiltersTransformation(context, sharpening).transform(
+					bitmap,
+					Size.ORIGINAL,
+				)
+				if (filtered !== bitmap) bitmap.recycle()
+				processedCache.set(cacheKey, filtered)
+				filtered.recycle()
+			}
+
+			processedCache.get(cacheKey)?.toUri() ?: uri
+		}
+	}
 
 	suspend fun getPageUrl(page: MangaPage): String {
 		return getRepository(page.source).getPageUrl(page)

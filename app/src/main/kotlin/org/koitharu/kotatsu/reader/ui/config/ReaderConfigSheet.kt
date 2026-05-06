@@ -96,6 +96,8 @@ class ReaderConfigSheet :
         binding.switchDoubleCoverPage.isChecked = settings.isReaderDoubleCoverPage
         binding.switchDoubleCoverPage.isEnabled = binding.switchDoubleReader.isEnabled
         binding.sliderDoubleSensitivity.setValueRounded(settings.readerDoublePagesSensitivity * 100f)
+        binding.switchVerticalSlider.isChecked = settings.isVerticalSliderEnabled
+        binding.switchVerticalSlider.setOnCheckedChangeListener(this)
         binding.sliderDoubleSensitivity.setLabelFormatter(IntPercentLabelFormatter(binding.root.context))
         binding.adjustSensitivitySlider(withAnimation = false)
 
@@ -199,6 +201,11 @@ class ReaderConfigSheet :
                 settings.isReaderDoubleCoverPage = isChecked
                 findParentCallback(Callback::class.java)?.onDoubleModeChanged(settings.isReaderDoubleOnLandscape)
             }
+
+            R.id.switch_vertical_slider -> {
+                settings.isVerticalSliderEnabled = isChecked
+                findParentCallback(Callback::class.java)?.onVerticalSliderChanged(isChecked)
+            }
         }
     }
 
@@ -281,6 +288,8 @@ class ReaderConfigSheet :
         fun onReaderModeChanged(mode: ReaderMode)
 
         fun onDoubleModeChanged(isEnabled: Boolean)
+
+        fun onVerticalSliderChanged(isEnabled: Boolean)
 
         fun onSavePageClick()
 

@@ -61,6 +61,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 	protected val settings: ReaderSettings
 		get() = viewModel.settingsProducer.value
 
+	private var lastSharpening = Float.MIN_VALUE
+
 	val context: Context
 		get() = itemView.context
 
@@ -91,10 +93,20 @@ abstract class BasePageHolder<B : ViewBinding>(
 	@CallSuper
 	protected open fun onConfigChanged(settings: ReaderSettings) {
 		settings.applyBackground(itemView)
-		if (settings.applyBitmapConfig(ssiv)) {
-			reloadImage()
-		} else if (viewModel.state.value is PageState.Shown) {
-			onReady()
+		val sharpeningChanged = lastSharpening != Float.MIN_VALUE && lastSharpening != settings.sharpening
+		lastSharpening = settings.sharpening
+
+		when {
+			// Sharpening changed: re-process bitmap using cached source file (no re-download).
+			// Uses force=false so the page cache is reused — avoids network + limits RAM pressure.
+			sharpeningChanged -> boundData?.let { viewModel.reapplySharpening(it.toMangaPage()) }
+
+			// BitmapConfig changed: reload SSIV tiles with new config.
+			settings.applyBitmapConfig(ssiv) -> reloadImage()
+
+			// Any other setting (brightness, contrast, vibrance, invert, grayscale, book) changed:
+			// re-apply ColorMatrix paint filter to SSIV — instant, zero re-decode cost.
+			viewModel.state.value is PageState.Shown -> onReady()
 		}
 		ssiv.applyDownSampling(isResumed())
 	}

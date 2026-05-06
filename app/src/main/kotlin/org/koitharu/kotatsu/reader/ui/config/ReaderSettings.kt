@@ -35,6 +35,7 @@ data class ReaderSettings(
 	val zoomMode: ZoomMode,
 	val background: ReaderBackground,
 	val colorFilter: ReaderColorFilter?,
+	val sharpening: Float,
 	val isReaderOptimizationEnabled: Boolean,
 	val bitmapConfig: Bitmap.Config,
 	val isPagesNumbersEnabled: Boolean,
@@ -46,6 +47,7 @@ data class ReaderSettings(
 		zoomMode = settings.zoomMode,
 		background = settings.readerBackground,
 		colorFilter = colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter,
+		sharpening = colorFilterOverride?.sharpening ?: settings.readerColorFilter?.sharpening ?: 0f,
 		isReaderOptimizationEnabled = settings.isReaderOptimizationEnabled,
 		// COLOR DEPTH FIX: ARGB_8888 is always the default. RGB_565 is only used when
 		// the user explicitly enables "Reduce memory usage" OR the device is a low-RAM device.
@@ -126,6 +128,9 @@ data class ReaderSettings(
 			AppSettings.KEY_CF_BRIGHTNESS,
 			AppSettings.KEY_CF_INVERTED,
 			AppSettings.KEY_CF_GRAYSCALE,
+			AppSettings.KEY_CF_SHARPENING,
+			AppSettings.KEY_CF_VIBRANCE,
+			AppSettings.KEY_CF_BOOK,
 			AppSettings.KEY_READER_CROP,
 		)
 		private var job: Job? = null
