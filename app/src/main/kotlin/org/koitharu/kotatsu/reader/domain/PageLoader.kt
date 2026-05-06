@@ -299,7 +299,11 @@ class PageLoader @Inject constructor(
 
 		return try {
 			lock.withLock {
-				processedCache.get(cacheKey)?.let { return@withLock it.toUri() }
+				// Validate the cached file is non-empty — a crash mid-write leaves a zero-byte
+				// or partial PNG that passes takeIfReadable() but cannot be decoded by SSIV.
+				processedCache.get(cacheKey)?.takeIf { it.length() > 0L }?.let {
+					return@withLock it.toUri()
+				}
 
 				withContext(Dispatchers.IO) {
 					val bitmap = runCatchingCancellable {

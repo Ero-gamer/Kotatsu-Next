@@ -13,6 +13,7 @@ import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.transformations
+import coil3.request.CachePolicy
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.LabelFormatter
 import com.google.android.material.slider.Slider
@@ -173,6 +174,11 @@ class ColorFilterConfigActivity :
         val builder = ImageRequest.Builder(this)
             .data(viewModel.preview)
             .memoryCacheKey(cacheKey)
+            // Never write the sharpening-transformed preview to Coil's disk or memory cache.
+            // Without this, the sharpened result can be served to gallery thumbnail requests
+            // for the same page URL, causing visible color/sharpening artifacts in the gallery.
+            .diskCachePolicy(CachePolicy.DISABLED)
+            .memoryCachePolicy(CachePolicy.READ_ONLY)
             .target(
                 onStart = { placeholder ->
                     // Only show placeholder if we have nothing yet; don't wipe a good preview
