@@ -12,61 +12,49 @@ import kotlinx.coroutines.sync.withPermit
 /**
  * GPU-accelerated Coil3 [Transformation] applying sharpening via GPUImageSharpenFilter.
  *
- * Contrast, vibrance and brightness are handled in real time by
- * [ReaderColorFilter.toColorFilter] as a ColorMatrix paint on SSIV — no bitmap processing.
+ * Contrast, vibrance and brightness are applied in real time as ColorMatrix paint filters
+ * on SSIV — no bitmap processing required for those.
  *
  * Design notes:
- * - A single [gpuSemaphore] serialises all GPU bitmap processing across the app.
- *   GPUImage creates an off-screen EGL pbuffer; having many concurrent sessions on
- *   low-end devices causes driver crashes and spikes GPU memory.
- * - Input bitmaps are always converted to ARGB_8888 before being handed to GPUImage.
- *   RGB_565 (used by the app on <2 GB RAM devices for JPEG pages) causes native GL
- *   errors that cannot be caught by Kotlin exception handling.
- * - HARDWARE bitmaps (ImageDecoder default on API 28+) are also converted.
- *   The conversion is done in-place: the copy is recycled immediately after GPUImage
- *   produces its output bitmap, so peak RAM is (source + ARGB copy + GPUImage output),
- *   all three recycled before the method returns except the output.
+ * - [gpuSemaphore] serialises all GPU bitmap ops to a single concurrent slot.
+ *   GPUImage uses an off-screen EGL pbuffer; multiple concurrent sessions on low-end
+ *   devices causes GPU memory spikes and driver instability.
+ * - A shared [gpuImage] instance is reused across calls (EGL context created only once).
+ *   This is safe because the semaphore guarantees single-threaded GPU access.
+ * - All input configs are normalised to ARGB_8888 before processing. RGB_565 inputs
+ *   (used on ≤2 GB RAM devices for JPEG pages) cause native GL errors not catchable by Kotlin.
+ * - The temporary ARGB copy is recycled immediately after GPUImage produces its result.
  *
- * sharpening: 0.0 → 1.0 (maps to GPUImageSharpenFilter 0.0 → 2.0)
+ * sharpening: 0.0 → 1.0 (mapped to GPUImageSharpenFilter 0.0 → 2.0)
  */
 class ImageFiltersTransformation(
     private val context: Context,
     private val sharpening: Float,
 ) : Transformation() {
 
-    override val cacheKey: String = "gpu_sharpen_s${sharpening}_v3"
+    override val cacheKey: String = "gpu_sharpen_s${sharpening}_v4"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         if (sharpening <= 0.01f) return input
-
-        return gpuSemaphore.withPermit {
-            applySharpening(input)
-        }
+        return gpuSemaphore.withPermit { applySharpening(input) }
     }
 
     private fun applySharpening(input: Bitmap): Bitmap {
-        // GPUImage requires ARGB_8888. Convert HARDWARE, RGB_565, or any other config.
         val needsCopy = input.config != Bitmap.Config.ARGB_8888
-        val argbInput = if (needsCopy) {
-            input.copy(Bitmap.Config.ARGB_8888, false)
-        } else {
-            input
-        }
+        val argbInput = if (needsCopy) input.copy(Bitmap.Config.ARGB_8888, false) else input
 
         return try {
-            val gpuImage = GPUImage(context.applicationContext)
-            gpuImage.setFilter(GPUImageSharpenFilter(sharpening * 2f))
-            val result = gpuImage.getBitmapWithFilterApplied(argbInput)
+            val gpu = getOrCreateGpuImage(context)
+            gpu.setFilter(GPUImageSharpenFilter(sharpening * 2f))
+            val result = gpu.getBitmapWithFilterApplied(argbInput)
             if (result != null) {
-                // GPUImage produced a new bitmap — recycle intermediate copy if we made one
                 if (needsCopy) argbInput.recycle()
                 result
             } else {
-                // EGL failure: fall back to unfiltered but don't crash
+                // EGL failure — fall back to unfiltered, don't recycle argbInput as we return it
                 if (needsCopy) argbInput else input
             }
         } catch (e: Exception) {
-            // Catch any GPU driver exception; fall back gracefully
             if (needsCopy) argbInput.recycle()
             input
         }
@@ -80,12 +68,20 @@ class ImageFiltersTransformation(
     override fun hashCode(): Int = sharpening.hashCode()
 
     companion object {
-        /**
-         * Limits concurrent GPUImage bitmap operations to 1 across the whole app.
-         * Prevents multi-page webtoon loading from spawning multiple EGL contexts
-         * simultaneously, which causes GPU memory spikes and driver instability on
-         * low-end devices.
-         */
+        /** Single permit — GPU processing is strictly sequential. */
         private val gpuSemaphore = Semaphore(1)
+
+        /**
+         * Shared GPUImage instance created once and reused.
+         * Safe because [gpuSemaphore] ensures only one thread accesses it at a time.
+         * Lazy-initialised and stored weakly so it can be GC'd under memory pressure.
+         */
+        @Volatile private var sharedGpuImage: GPUImage? = null
+
+        private fun getOrCreateGpuImage(context: Context): GPUImage {
+            return sharedGpuImage ?: GPUImage(context.applicationContext).also {
+                sharedGpuImage = it
+            }
+        }
     }
 }

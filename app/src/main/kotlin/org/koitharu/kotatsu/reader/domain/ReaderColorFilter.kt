@@ -28,9 +28,6 @@ data class ReaderColorFilter(
         get() = !isGrayscale && !isInverted && !isBookBackground &&
             brightness == 0f && contrast == 0f && sharpening == 0f && vibrance == 0f
 
-    val needsBitmapProcessing: Boolean
-        get() = sharpening > 0.01f
-
     /**
      * ColorMatrixColorFilter applied directly to the SSIV paint — zero re-decode cost,
      * works for every chapter type (online, offline, zip/cbz).
@@ -71,9 +68,9 @@ data class ReaderColorFilter(
 
         private val INVERT_MATRIX = ColorMatrix(
             floatArrayOf(
-                -1f, 0f, 0f, 1f, 255f,
-                0f, -1f, 0f, 1f, 255f,
-                0f, 0f, -1f, 1f, 255f,
+                -1f, 0f, 0f, 0f, 255f,
+                0f, -1f, 0f, 0f, 255f,
+                0f, 0f, -1f, 0f, 255f,
                 0f, 0f, 0f, 1f, 0f,
             ),
         )

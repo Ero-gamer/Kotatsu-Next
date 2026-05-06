@@ -64,12 +64,23 @@ class ReaderActionsView @JvmOverloads constructor(
 			binding.slider.setThumbVisible(value)
 		}
 
-	/** Hides/shows the bottom page-position slider, freeing space for icon buttons. */
-	var isSliderVisible: Boolean
-		get() = binding.slider.isVisible
+	/**
+	 * When true the vertical side-slider is active; [applySettings] will keep the
+	 * bottom slider hidden regardless of the user's ReaderControl preferences.
+	 * Set from ReaderActivity whenever the user toggles the vertical slider option.
+	 */
+	var isVerticalSliderActive: Boolean = false
 		set(value) {
-			binding.slider.isVisible = value
+			if (field != value) {
+				field = value
+				binding.slider.isVisible = !value
+				adjustLayoutParams()
+			}
 		}
+
+	/** Current visibility of the bottom slider (read-only from outside). */
+	val isSliderVisible: Boolean
+		get() = binding.slider.isVisible
 
 	var isNextEnabled: Boolean
 		get() = binding.buttonNext.isEnabled
@@ -205,7 +216,7 @@ class ReaderActionsView @JvmOverloads constructor(
 		binding.buttonSave.isVisible = ReaderControl.SAVE_PAGE in controls
 		binding.buttonTimer.isVisible = ReaderControl.TIMER in controls
 		binding.buttonBookmark.isVisible = ReaderControl.BOOKMARK in controls
-		binding.slider.isVisible = ReaderControl.SLIDER in controls
+		binding.slider.isVisible = ReaderControl.SLIDER in controls && !isVerticalSliderActive
 		adjustLayoutParams()
 	}
 

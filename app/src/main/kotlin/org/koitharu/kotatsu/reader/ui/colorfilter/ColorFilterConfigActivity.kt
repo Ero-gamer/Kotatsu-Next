@@ -44,6 +44,7 @@ class ColorFilterConfigActivity :
     lateinit var coil: ImageLoader
 
     private val viewModel: ColorFilterConfigViewModel by viewModels()
+    private var gpuPreviewDisposable: coil3.request.Disposable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -171,7 +172,8 @@ class ColorFilterConfigActivity :
             builder.transformations(ImageFiltersTransformation(applicationContext, sharpening))
         }
 
-        coil.enqueue(builder.build())
+        gpuPreviewDisposable?.dispose()
+        gpuPreviewDisposable = coil.enqueue(builder.build())
     }
 
     private fun loadPreview(page: MangaPage) = with(viewBinding.imageViewBefore) {

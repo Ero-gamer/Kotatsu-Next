@@ -339,6 +339,7 @@ class PageLoader @Inject constructor(
 
 	suspend fun invalidate(clearCache: Boolean) {
 		tasks.clear()
+		processingLocks.clear()
 		loaderScope.cancelChildrenAndJoin()
 		if (clearCache) {
 			cache.clear()
