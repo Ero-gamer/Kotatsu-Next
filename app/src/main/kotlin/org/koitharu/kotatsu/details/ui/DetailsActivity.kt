@@ -560,6 +560,7 @@ class DetailsActivity :
 			intArrayOf(surfaceColor, halfAlpha, Color.TRANSPARENT, Color.TRANSPARENT, halfAlpha, surfaceColor),
 		)
 		configureTransparentAppBar()
+		bgView.translationY = -viewBinding.scrollView.scrollY.toFloat()
 		viewBinding.scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
 			bgView.translationY = -scrollY.toFloat()
 		}

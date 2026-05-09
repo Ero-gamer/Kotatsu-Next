@@ -8,6 +8,7 @@ import jp.co.cyberagent.android.gpuimage.GPUImage
 import jp.co.cyberagent.android.gpuimage.filter.GPUImageSharpenFilter
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.lang.ref.WeakReference
 
 /**
  * GPU-accelerated Coil3 [Transformation] applying sharpening via GPUImageSharpenFilter.
@@ -51,12 +52,15 @@ class ImageFiltersTransformation(
                 if (needsCopy) argbInput.recycle()
                 result
             } else {
-                // EGL failure — recycle the temporary ARGB copy and return the original input.
+                // EGL failure — clear the cache so a fresh GPUImage/EGL context is created next time.
+                // Recycle the temporary ARGB copy and return the original input.
                 // Returning argbInput here would leak it since Coil only manages input's lifecycle.
+                sharedGpuImage = null
                 if (needsCopy) argbInput.recycle()
                 input
             }
         } catch (e: Exception) {
+            sharedGpuImage = null
             if (needsCopy) argbInput.recycle()
             input
         }
@@ -76,13 +80,13 @@ class ImageFiltersTransformation(
         /**
          * Shared GPUImage instance created once and reused.
          * Safe because [gpuSemaphore] ensures only one thread accesses it at a time.
-         * Lazy-initialised and stored weakly so it can be GC'd under memory pressure.
+         * Stored weakly so it can be GC'd under memory pressure and recreated after EGL failures.
          */
-        @Volatile private var sharedGpuImage: GPUImage? = null
+        @Volatile private var sharedGpuImage: WeakReference<GPUImage>? = null
 
         private fun getOrCreateGpuImage(context: Context): GPUImage {
-            return sharedGpuImage ?: GPUImage(context.applicationContext).also {
-                sharedGpuImage = it
+            return sharedGpuImage?.get() ?: GPUImage(context.applicationContext).also {
+                sharedGpuImage = WeakReference(it)
             }
         }
     }
