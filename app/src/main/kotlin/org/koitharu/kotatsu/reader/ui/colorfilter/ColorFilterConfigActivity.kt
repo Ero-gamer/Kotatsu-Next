@@ -192,7 +192,6 @@ class ColorFilterConfigActivity :
         sharpenJob?.cancel()
         sharpenJob = lifecycleScope.launch(Dispatchers.Default) {
             var result: Bitmap? = null
-            var ownedByImageView = false
             try {
                 result = runCatching {
                     ImageFiltersTransformation(applicationContext, sharpening)
@@ -203,7 +202,6 @@ class ColorFilterConfigActivity :
                 withContext(Dispatchers.Main) {
                     if (!isDestroyed) {
                         viewBinding.imageViewAfter.setImageBitmap(sharpenedBitmap)
-                        ownedByImageView = true
                         // Re-apply ColorMatrix paint after bitmap swap so it's never lost.
                         viewBinding.imageViewAfter.colorFilter =
                             viewModel.colorFilter.value?.toColorFilter()
@@ -215,7 +213,7 @@ class ColorFilterConfigActivity :
                 // unless it was successfully handed to the ImageView (which retains it).
                 // We can safely recycle if the job was cancelled — the ImageView still
                 // holds `source` (set above) so the panel shows the unsharpened preview.
-                if (!isActive && result != null && result !== source && !ownedByImageView) {
+                if (!isActive && result != null && result !== source) {
                     result.recycle()
                 }
             }
