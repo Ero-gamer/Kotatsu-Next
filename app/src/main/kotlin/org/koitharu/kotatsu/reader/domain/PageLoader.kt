@@ -293,43 +293,61 @@ class PageLoader @Inject constructor(
 		if (!uri.isFileUri() && !uri.isZipUri()) return uri
 
 		val cacheKey = "${uri}_s${sharpening}".md5()
+		// computeIfAbsent is intentional: concurrent callers for the same key share one Mutex,
+		// preventing redundant GPU work. The entry is removed in the finally block below.
 		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
 
-		return lock.withLock {
-			processedCache.get(cacheKey)?.let { return@withLock it.toUri() }
+		return try {
+			lock.withLock {
+				// Validate the cached file is non-empty — a crash mid-write leaves a zero-byte
+				// or partial PNG that passes takeIfReadable() but cannot be decoded by SSIV.
+				processedCache.get(cacheKey)?.takeIf { it.length() > 0L }?.let {
+					return@withLock it.toUri()
+				}
 
-			withContext(Dispatchers.IO) {
-				val bitmap = runCatchingCancellable {
-					if (uri.isZipUri()) {
-						ZipFile(uri.schemeSpecificPart).use { zip ->
-							val entry = zip.getEntry(uri.fragment)
-								?: error("Zip entry not found: ${uri.fragment}")
-							// 8× compressed size ≈ worst-case RAM: decoded + ARGB copy + GPU output
-							context.ensureRamAtLeast(entry.size * 8)
-							zip.getInputStream(entry).use { stream ->
-								BitmapDecoderCompat.decode(
-									stream,
-									MimeTypes.getMimeTypeFromExtension(entry.name),
-								)
+				withContext(Dispatchers.IO) {
+					val bitmap = runCatchingCancellable {
+						if (uri.isZipUri()) {
+							ZipFile(uri.schemeSpecificPart).use { zip ->
+								val entry = zip.getEntry(uri.fragment)
+									?: error("Zip entry not found: ${uri.fragment}")
+								// Guard: skip if size unknown/zero to avoid bypass of RAM check.
+								// Prevent overflow: coerce before multiplying.
+								val entrySize = entry.size
+								if (entrySize <= 0L) return@withContext
+								context.ensureRamAtLeast(entrySize.coerceAtMost(Long.MAX_VALUE / 8L) * 8L)
+								zip.getInputStream(entry).use { stream ->
+									BitmapDecoderCompat.decode(
+										stream,
+										MimeTypes.getMimeTypeFromExtension(entry.name),
+									)
+								}
 							}
+						} else {
+							val file = uri.toFile()
+							// Guard: skip if file size unknown/zero (e.g. special file, not yet written).
+							val fileSize = file.length()
+							if (fileSize <= 0L) return@withContext
+							context.ensureRamAtLeast(fileSize.coerceAtMost(Long.MAX_VALUE / 8L) * 8L)
+							BitmapDecoderCompat.decode(file)
 						}
-					} else {
-						val file = uri.toFile()
-						context.ensureRamAtLeast(file.length() * 8)
-						BitmapDecoderCompat.decode(file)
-					}
-				}.getOrNull() ?: return@withContext
+					}.getOrNull() ?: return@withContext
 
-				val filtered = ImageFiltersTransformation(context, sharpening).transform(
-					bitmap,
-					Size.ORIGINAL,
-				)
-				if (filtered !== bitmap) bitmap.recycle()
-				processedCache.set(cacheKey, filtered)
-				filtered.recycle()
+					val filtered = ImageFiltersTransformation(context, sharpening).transform(
+						bitmap,
+						Size.ORIGINAL,
+					)
+					if (filtered !== bitmap) bitmap.recycle()
+					processedCache.set(cacheKey, filtered)
+					filtered.recycle()
+				}
+
+				processedCache.get(cacheKey)?.toUri() ?: uri
 			}
-
-			processedCache.get(cacheKey)?.toUri() ?: uri
+		} finally {
+			// Remove only if this exact Mutex instance is still the one registered,
+			// so a concurrent caller that raced in with a new lock is not evicted.
+			processingLocks.remove(cacheKey, lock)
 		}
 	}
 
@@ -339,6 +357,7 @@ class PageLoader @Inject constructor(
 
 	suspend fun invalidate(clearCache: Boolean) {
 		tasks.clear()
+		processingLocks.clear()
 		loaderScope.cancelChildrenAndJoin()
 		if (clearCache) {
 			cache.clear()

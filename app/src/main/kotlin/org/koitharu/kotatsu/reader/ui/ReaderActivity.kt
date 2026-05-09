@@ -129,7 +129,7 @@ class ReaderActivity :
         controlDelegate = ReaderControlDelegate(resources, settings, tapGridSettings, this)
         viewBinding.zoomControl.listener = this
         viewBinding.actionsView.listener = this
-        viewBinding.actionsView.isSliderVisible = !settings.isVerticalSliderEnabled
+        viewBinding.actionsView.isVerticalSliderActive = settings.isVerticalSliderEnabled
         viewBinding.buttonTimer?.setOnClickListener(this)
         idlingDetector.bindToLifecycle(this)
         screenOrientationHelper.applySettings()
@@ -373,18 +373,14 @@ class ReaderActivity :
     }
 
     override fun onVerticalSliderChanged(isEnabled: Boolean) {
-        // Hide/show bottom slider immediately
-        viewBinding.actionsView.isSliderVisible = !isEnabled
+        viewBinding.actionsView.isVerticalSliderActive = isEnabled
         viewBinding.actionsView.isSliderEnabled = !isEnabled && (viewModel.uiState.value?.isSliderAvailable() == true)
-        // Show UI + vertical slider immediately so user sees it without tapping again
         val sliderAvailable = viewModel.uiState.value?.isSliderAvailable() == true
         if (isEnabled && sliderAvailable) {
             setUiIsVisible(true)
         } else {
-            val uiVisible = viewBinding.appbarTop.isVisible
             viewBinding.containerSliderVertical?.isVisible = false
-            // Force visibility re-evaluation on next UI show
-            if (uiVisible) setUiIsVisible(false)
+            if (viewBinding.appbarTop.isVisible) setUiIsVisible(false)
         }
     }
 
@@ -539,7 +535,7 @@ class ReaderActivity :
             supportActionBar?.subtitle = null
             viewBinding.actionsView.setSliderValue(0, 1)
             viewBinding.actionsView.isSliderEnabled = false
-            viewBinding.actionsView.isSliderVisible = !settings.isVerticalSliderEnabled
+            viewBinding.actionsView.isVerticalSliderActive = settings.isVerticalSliderEnabled
             viewBinding.sliderVertical?.valueTo = 1f
             viewBinding.sliderVertical?.value = 0f
             viewBinding.sliderVertical?.isEnabled = false
@@ -577,7 +573,7 @@ class ReaderActivity :
         }
         val useVertical = settings.isVerticalSliderEnabled
         viewBinding.actionsView.isSliderEnabled = uiState.isSliderAvailable() && !useVertical
-        viewBinding.actionsView.isSliderVisible = !useVertical
+        viewBinding.actionsView.isVerticalSliderActive = useVertical
         viewBinding.actionsView.isNextEnabled = uiState.hasNextChapter()
         viewBinding.actionsView.isPrevEnabled = uiState.hasPreviousChapter()
         viewBinding.buttonPrevVertical?.isEnabled = uiState.hasPreviousChapter()

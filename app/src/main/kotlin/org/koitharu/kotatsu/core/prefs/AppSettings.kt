@@ -450,7 +450,10 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 			).takeUnless { it.isEmpty }
 		}.getOrNull()
 		set(value) {
-			prefs.edit {
+			// Use commit=true (synchronous write) so the value is persisted to disk before this
+			// setter returns. apply() is async — if the process is killed by an OOM crash while
+			// the write is pending, the filter settings are permanently lost.
+			prefs.edit(commit = true) {
 				if (value != null) {
 					putFloat(KEY_CF_BRIGHTNESS, value.brightness)
 					putFloat(KEY_CF_CONTRAST, value.contrast)

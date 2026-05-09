@@ -2,6 +2,9 @@ name: Revert TOML File
 on:
   workflow_dispatch: # Allows you to run this manually
 
+permissions:
+  contents: write
+
 jobs:
   revert-file:
     runs-on: ubuntu-latest
