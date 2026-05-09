@@ -7,6 +7,9 @@ on:
         required: true
         default: 'b81c174021e76dfd9d62aee830f1143eb0a38280'
 
+permissions:
+  contents: write
+
 jobs:
   selective-sync:
     runs-on: ubuntu-latest
