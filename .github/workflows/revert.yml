@@ -1,0 +1,35 @@
+name: Revert TOML File
+on:
+  workflow_dispatch: # Allows you to run this manually
+
+jobs:
+  revert-file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: dev
+          fetch-depth: 0 # Fetch all history to find the old commit
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Restore File from Good Commit
+        run: |
+          # Use the hash you provided to extract just the one file
+          git checkout 0ede08a2bcc83754e7bde440268b854e34255770 -- gradle/libs.versions.toml
+          
+      - name: Commit and Push Restoration
+        run: |
+          git add gradle/libs.versions.toml
+          # Check if there's actually a difference to commit
+          if ! git diff --cached --quiet; then
+            git commit -m "Restore libs.versions.toml to known good state (0ede08a)"
+            git push origin dev
+          else
+            echo "File is already identical to the target commit. No changes made."
+          fi
