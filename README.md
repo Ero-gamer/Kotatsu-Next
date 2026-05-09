@@ -47,16 +47,6 @@ online content sources. The main goal of this fork is to maintain existing featu
 **📌 Pull requests are welcome, if you want:
 See [CONTRIBUTING.md](https://github.com/Ero-gamer/Kotatsu-Next/blob/devel/CONTRIBUTING.md) for the guidelines**
 
-### Certificate fingerprints
-
-```plaintext
-70:BD:84:07:13:01:84:5E:A3:D0:A4:E5:F3:3A:D2:41:0D:C9:FC:EB
-```
-
-```plaintext
-FF:D9:C9:91:06:64:07:69:3C:F4:6E:46:9F:EA:DB:88:8D:33:FB:B2:FB:A7:7E:A3:79:B0:CA:12:A3:5C:66:1A
-```
-
 ### License
 
 [![GNU GPLv3 Image](https://www.gnu.org/graphics/gplv3-127x51.png)](http://www.gnu.org/licenses/gpl-3.0.en.html)
@@ -77,5 +67,26 @@ The developers of this application do not have any affiliation with the content 
 or distribute any content. This application should be considered a web browser, all content that can be found using this
 application is freely available on the Internet. All DMCA takedown requests should be sent to the owners of the website
 where the content is hosted.
+
+</div>
+
+### Acknowledgments
+
+<div align="left">
+
+**Kotatsu Next is built upon the exceptional work of the [Kotatsu](https://github.com/KotatsuApp/Kotatsu) project, this fork wouldn't exist without it.**
+
+We are deeply grateful to:
+
+* **The original Kotatsu developers** for creating such an outstanding manga reader and making it open source
+* **The Kotatsu community** for their contributions, testing, and support
+* **All translators** who helped localize Kotatsu through [Weblate](https://hosted.weblate.org/engage/kotatsu/)
+* **[Kotatsu-Redo](https://github.com/Kotatsu-Redo/kotatsu-parsers-redo)** for continuing parser development and maintenance
+
+This project stands on the shoulders of giants. The Kotatsu team's dedication to creating a feature-rich, user-friendly manga reader has provided an incredible foundation for Kotatsu Next to build upon.
+
+**Thanks to everyone who contributed to Kotatsu — your work continues to benefit the manga/webtoon reading FOSS community!**
+
+For the original Kotatsu project, please visit: [github.com/KotatsuApp/Kotatsu](https://github.com/KotatsuApp/Kotatsu)
 
 </div>
