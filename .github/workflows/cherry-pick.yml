@@ -1,0 +1,40 @@
+name: Cherry-pick Commit
+on:
+  workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: 'The full SHA of the commit to cherry-pick'
+        required: true
+        default: 'b81c174021e76dfd9d62aee830f1143eb0a38280'
+
+jobs:
+  cherry-pick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0 # Essential to have full history for cherry-picking
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add Source Remote and Fetch
+        run: |
+          git remote add source https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
+          git fetch source ${{ github.event.inputs.commit_hash }}
+
+      - name: Execute Cherry-pick
+        id: cp
+        run: |
+          # The -x flag adds a note "(cherry picked from commit...)" to the message
+          git cherry-pick -x ${{ github.event.inputs.commit_hash }}
+
+      - name: Push Changes
+        if: success()
+        run: |
+          git push origin dev
