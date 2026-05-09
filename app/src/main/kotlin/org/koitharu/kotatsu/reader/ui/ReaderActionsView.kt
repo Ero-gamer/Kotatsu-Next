@@ -73,7 +73,7 @@ class ReaderActionsView @JvmOverloads constructor(
 		set(value) {
 			if (field != value) {
 				field = value
-				binding.slider.isVisible = !value
+				binding.slider.isVisible = ReaderControl.SLIDER in settings.readerControls && !value
 				adjustLayoutParams()
 			}
 		}
