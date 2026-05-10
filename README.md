@@ -1,6 +1,6 @@
 <div align="center">
 
-**[Kotatsu Next](https://github.com/Ero-gamer/Kotatsu-Next) is a FOSS, lightweight and adfree manga/webtoon reader app for Android based on [Kotatsu Redo](https://github.com/Kotatsu-Redo) with built-in
+**[Kotatsu Next](https://github.com/Ero-gamer/Kotatsu-Next) is a FOSS, lightweight and adfree manga/webtoon/manhua reader app for Android based on [Kotatsu Redo](https://github.com/Kotatsu-Redo) with built-in
 online content sources. The main goal of this fork is to maintain existing features and sources from upstream while including additional fixes, optimizations and features.**
 
 ![Android 6.0](https://img.shields.io/badge/android-6.0+-brightgreen) [![License](https://img.shields.io/github/license/KotatsuApp/Kotatsu)](https://github.com/KotatsuApp/Kotatsu/blob/devel/LICENSE)
