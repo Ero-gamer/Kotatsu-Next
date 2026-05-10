@@ -42,6 +42,13 @@ online content sources. The main goal of this fork is to maintain existing featu
     <img src="./metadata/en-US/images/tenInchScreenshots/2.png" alt="Tablet view" width="400"/>
 </div>
 
+# ☕ Buy me a coffee
+
+This application is completely free, but if you want to support the project development, you can
+send a donation to the crypto wallets below:
+
+| </br> ![Bitcoin](https://img.shields.io/badge/Bitcoin-EAB300?style=for-the-badge&logo=Bitcoin%20SV&logoColor=white) <br/> <br/> `19Zks5VmhPtPPiZNHQUv71vfLyEeCtec2T` <br/> <br/> | </br> ![Tether](https://img.shields.io/badge/USDT%20(TRC20)-168363?style=for-the-badge&logo=tether&logoColor=white) <br/> <br/> `TAxmtUbhiWEgY9bDQbgaaTPcmoS8EfJkKR` <br/> <br/> |
+
 ### Contributing
 
 **📌 Pull requests are welcome, if you want:
