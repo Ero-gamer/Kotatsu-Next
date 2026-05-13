@@ -1,4 +1,10 @@
 <div align="center">
+  <a href="https://github.com/Ero-gamer/support-palestine-banner/blob/master/Markdown-pages/Support.md">
+    <img src="https://raw.githubusercontent.com/Ero-gamer/support-palestine-banner/master/banner-project.svg" alt="Support Palestine" style="width: 100%;" />
+  </a>
+</div>
+
+<div align="center">
 
 **[Kotatsu Next](https://github.com/Ero-gamer/Kotatsu-Next) is a FOSS, lightweight and adfree manga/webtoon/manhua full featured reader app for Android based on [Kotatsu Redo](https://github.com/Kotatsu-Redo/Kotatsu-redo) with built-in
 online content sources. The main goal of this fork is to maintain existing features and sources from upstream while including additional fixes, optimizations and features.**
@@ -50,7 +56,12 @@ send a donation to the crypto wallets below:
 TON:
 `UQAN5OUU7YjxFPEPP0-LC62lWL_CF_LqgVhz9qjbvzLhb74F`
 
-Binance ID (UID): 583622748
+Binance ID (UID): `583622748`
+
+Donations are optional but it will help in supporting project for faster updates, optimizations and new features. Any amount of donations is welcome and it will make a big difference. Thank you.
+
+> [!CAUTION]
+> Free and Open-Source Android is under threat. Google will turn Android into a locked-down platform, restricting your essential freedom to install apps of your choice. Make your voice heard – [keepandroidopen.org](https://keepandroidopen.org/).
 
 ### Contributing
 
