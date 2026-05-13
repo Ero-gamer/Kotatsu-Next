@@ -107,8 +107,6 @@ We are deeply grateful to:
 
 This project stands on the shoulders of giants. The Kotatsu team's dedication to creating a feature-rich, user-friendly manga reader has provided an incredible foundation for Kotatsu Next to build upon.
 
-**Thanks to everyone who contributed to Kotatsu — your work continues to benefit the manga/webtoon reading FOSS community!**
-
 For the original Kotatsu project, please visit: [github.com/KotatsuApp/Kotatsu](https://github.com/KotatsuApp/Kotatsu)
 
 </div>
