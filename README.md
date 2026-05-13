@@ -1,112 +1,197 @@
 <div align="center">
   <a href="https://github.com/Ero-gamer/support-palestine-banner/blob/master/Markdown-pages/Support.md">
-    <img src="https://raw.githubusercontent.com/Ero-gamer/support-palestine-banner/master/banner-project.svg" alt="Support Palestine" style="width: 100%;" />
+    <img src="https://raw.githubusercontent.com/Ero-gamer/support-palestine-banner/master/banner-project.svg" alt="Support Palestine" width="100%" />
   </a>
-</div>
-
-<div align="center">
-
-**[Kotatsu Next](https://github.com/Ero-gamer/Kotatsu-Next) is a FOSS, lightweight and adfree manga/webtoon/manhua full featured reader app for Android based on [Kotatsu Redo](https://github.com/Kotatsu-Redo/Kotatsu-redo) with built-in
-online content sources. The main goal of this fork is to maintain existing features and sources from upstream while including additional fixes, optimizations and features.**
-
-![Android 6.0](https://img.shields.io/badge/android-6.0+-brightgreen) [![License](https://img.shields.io/github/license/KotatsuApp/Kotatsu)](https://github.com/KotatsuApp/Kotatsu/blob/devel/LICENSE)
-
-### Kotatsu Main Features:
-
-<div align="left">
-
--   Online [manga catalogues](https://github.com/Ero-gamer/Kotatsu-Next) (with 1200+ manga sources)
--   Search manga by name, genres and more filters
--   Favorites organized by user-defined categories
--   Reading history, bookmarks and incognito mode support
--   Download manga and read it offline. Third-party CBZ archives are also supported
--   Clean and convenient Material You UI, optimized for phones, tablets and desktop
--   Standard and Webtoon-optimized customizable reader, gesture support on reading interface
--   Notifications about new chapters with updates feed, manga recommendations (with filters)
--   Integration with manga tracking services: Shikimori, AniList, MyAnimeList, Kitsu
--   Password / fingerprint-protected access to the app
--   Automatically sync app data with other devices on the same account
--   Support for older devices running Android 6.0+
-
-</div>
-
-### In-App Screenshots
-
-<div align="center">
-    <img src="./metadata/en-US/images/phoneScreenshots/1.png" alt="Mobile view" width="250"/>
-    <img src="./metadata/en-US/images/phoneScreenshots/2.png" alt="Mobile view" width="250"/>
 </div>
 
 <br>
 
 <div align="center">
-    <img src="./metadata/en-US/images/tenInchScreenshots/1.png" alt="Tablet view" width="400"/>
-    <img src="./metadata/en-US/images/tenInchScreenshots/2.png" alt="Tablet view" width="400"/>
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=28&pause=1000&color=C792EA&center=true&vCenter=true&width=600&lines=Kotatsu+Next;Your+manga+universe%2C+FOSS+%26+free;11200%2B+sources+%7C+No+ads+%7C+Material+You" alt="Typing SVG" />
 </div>
 
-# ☕ Buy me a coffee
+<br>
 
-This application is completely free, but if you want to support the project development, you can
-send a donation to the crypto wallets below:
+<div align="center">
 
-| </br> ![Bitcoin](https://img.shields.io/badge/Bitcoin-EAB300?style=for-the-badge&logo=Bitcoin%20SV&logoColor=white) <br/> <br/> `19Zks5VmhPtPPiZNHQUv71vfLyEeCtec2T` <br/> <br/> | </br> ![Tether](https://img.shields.io/badge/USDT%20(TRC20)-168363?style=for-the-badge&logo=tether&logoColor=white) <br/> <br/> `TAxmtUbhiWEgY9bDQbgaaTPcmoS8EfJkKR` <br/> <br/>
+[![Android](https://img.shields.io/badge/Android-6.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Ero-gamer/Kotatsu-Next)
+[![License](https://img.shields.io/github/license/KotatsuApp/Kotatsu?style=for-the-badge&color=blue)](https://github.com/KotatsuApp/Kotatsu/blob/devel/LICENSE)
+[![FOSS](https://img.shields.io/badge/FOSS-100%25-success?style=for-the-badge)](https://github.com/Ero-gamer/Kotatsu-Next)
+[![Stars](https://img.shields.io/github/stars/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=yellow)](https://github.com/Ero-gamer/Kotatsu-Next/stargazers)
+[![Forks](https://img.shields.io/github/forks/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=orange)](https://github.com/Ero-gamer/Kotatsu-Next/network)
 
-| </br> ![Ethereum](https://img.shields.io/badge/Ethereum-3C3C3D?logo=ethereum&logoColor=white) <br/> <br/> `0x7f92c4a838286a48f007419c9707f9096dc6675d` <br/> <br/> | </br> ![Solana](https://img.shields.io/badge/Solana-9945FF?logo=solana&logoColor=fff) <br/> <br/> `5KCKZtKtYd9J5UB4VW3HJny4cBWKAJktmGUkfxsdsh9S` <br/> <br/> |
+</div>
 
-TON:
-`UQAN5OUU7YjxFPEPP0-LC62lWL_CF_LqgVhz9qjbvzLhb74F`
+<br>
 
-Binance ID (UID): `583622748`
+<div align="center">
 
-Donations are optional but it will help in supporting project for faster updates, optimizations and new features.
-Any amount of donations is welcome and it will make a big difference. Thank you.
+> **Kotatsu Next** is a free, open-source manga · webtoon · manhua reader for Android,
+> forked from [Kotatsu Redo](https://github.com/Kotatsu-Redo/Kotatsu-redo) with 1200+ built-in sources.
+> The goal: preserve everything upstream does well, then make it better.
+
+</div>
+
+---
+
+## ✨ Features at a Glance
+
+<div align="center">
+
+| 📚 Content | 🎨 Experience | 🔧 Utility |
+|:---:|:---:|:---:|
+| 1200+ manga sources | Material You UI | Cross-device sync |
+| Search by name & genre | Standard + Webtoon reader | Password / fingerprint lock |
+| Favorites & categories | Gesture controls | Offline downloads + CBZ |
+| Reading history | Tablet & desktop optimized | Android 6.0+ support |
+| Incognito mode | New chapter notifications | Tracker integrations |
+
+</div>
+
+<details>
+<summary>📋 Full feature list</summary>
+<br>
+
+- 📚 **1200+ manga sources** — online catalogues with search by name, genre and more
+- ⭐ **Favorites & history** — user-defined categories, bookmarks and incognito mode
+- 📥 **Offline reading** — download manga; CBZ archives supported
+- 🎨 **Material You UI** — optimized for phones, tablets and desktop
+- 📖 **Customizable reader** — standard & webtoon modes with full gesture support
+- 🔔 **Notifications** — new chapter alerts, updates feed and filtered recommendations
+- 🔗 **Tracker integration** — Shikimori, AniList, MyAnimeList, Kitsu
+- 🔒 **Privacy** — password / fingerprint protection
+- 🔄 **Cross-device sync** — automatic sync across devices on the same account
+- 📱 **Legacy support** — Android 6.0+
+
+</details>
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+### 📱 Phone
+
+<img src="./metadata/en-US/images/phoneScreenshots/1.png" alt="Phone 1" width="240"/>
+<img src="./metadata/en-US/images/phoneScreenshots/2.png" alt="Phone 2" width="240"/>
+
+### 🖥️ Tablet
+
+<img src="./metadata/en-US/images/tenInchScreenshots/1.png" alt="Tablet 1" width="380"/>
+<img src="./metadata/en-US/images/tenInchScreenshots/2.png" alt="Tablet 2" width="380"/>
+
+</div>
+
+---
+
+## ☕ Support the Project
+
+<div align="center">
+
+*Kotatsu Next is and always will be 100% free.*
+*If you'd like to fuel development, any donation is deeply appreciated* 🙏
+
+</div>
+
+<br>
+
+![Bitcoin](https://img.shields.io/badge/Bitcoin-EAB300?style=for-the-badge&logo=Bitcoin%20SV&logoColor=white)
+```
+19Zks5VmhPtPPiZNHQUv71vfLyEeCtec2T
+```
+
+![Tether](https://img.shields.io/badge/USDT%20(TRC20)-168363?style=for-the-badge&logo=tether&logoColor=white)
+```
+TAxmtUbhiWEgY9bDQbgaaTPcmoS8EfJkKR
+```
+
+![Ethereum](https://img.shields.io/badge/Ethereum-3C3C3D?style=for-the-badge&logo=ethereum&logoColor=white)
+```
+0x7f92c4a838286a48f007419c9707f9096dc6675d
+```
+
+![Solana](https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&logo=solana&logoColor=white)
+```
+5KCKZtKtYd9J5UB4VW3HJny4cBWKAJktmGUkfxsdsh9S
+```
+
+![TON](https://img.shields.io/badge/TON-0098EA?style=for-the-badge&logo=telegram&logoColor=white)
+```
+UQAN5OUU7YjxFPEPP0-LC62lWL_CF_LqgVhz9qjbvzLhb74F
+```
+
+![Binance](https://img.shields.io/badge/Binance%20ID%20(UID)-F0B90B?style=for-the-badge&logo=binance&logoColor=white)
+```
+583622748
+```
+
+---
 
 > [!CAUTION]
-> Free and Open-Source Android is under threat. Google will turn Android into a locked-down platform, restricting your essential freedom to install apps of your choice. Make your voice heard – [keepandroidopen.org](https://keepandroidopen.org/).
+> **Free and Open-Source Android is under threat.** Google will turn Android into a locked-down platform, restricting your freedom to install apps of your choice.
+> Make your voice heard → [keepandroidopen.org](https://keepandroidopen.org/)
 
-### Contributing
+---
 
-**📌 Pull requests are welcome, if you want:
-See [CONTRIBUTING.md](https://github.com/Ero-gamer/Kotatsu-Next/blob/devel/CONTRIBUTING.md) for the guidelines**
+## 🤝 Contributing
 
-### License
+<div align="center">
 
-[![GNU GPLv3 Image](https://www.gnu.org/graphics/gplv3-127x51.png)](http://www.gnu.org/licenses/gpl-3.0.en.html)
-
-<div align="left">
-
-You may copy, distribute and modify the software as long as you track changes/dates in source files. Any modifications
-to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build &
-install instructions.
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge&logo=github)](https://github.com/Ero-gamer/Kotatsu-Next/blob/devel/CONTRIBUTING.md)
 
 </div>
 
-### DMCA disclaimer
+Have an idea or a fix? Pull requests are welcome!
+Please read [CONTRIBUTING.md](https://github.com/Ero-gamer/Kotatsu-Next/blob/devel/CONTRIBUTING.md) before submitting.
 
-<div align="left">
+---
 
-The developers of this application do not have any affiliation with the content available in the app and does not store
-or distribute any content. This application should be considered a web browser, all content that can be found using this
-application is freely available on the Internet. All DMCA takedown requests should be sent to the owners of the website
-where the content is hosted.
+## 📄 License
+
+<div align="center">
+
+[![GNU GPLv3](https://www.gnu.org/graphics/gplv3-127x51.png)](http://www.gnu.org/licenses/gpl-3.0.en.html)
 
 </div>
 
-### Acknowledgments
+You may copy, distribute and modify this software as long as you track changes/dates in source files. Any modifications to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build & install instructions.
 
-<div align="left">
+---
 
-**Kotatsu Next is built upon the exceptional work of the [Kotatsu](https://github.com/KotatsuApp/Kotatsu) project, this fork wouldn't exist without it.**
+<details>
+<summary>⚠️ DMCA Disclaimer</summary>
+<br>
 
-We are deeply grateful to:
+The developers of this application have no affiliation with the content available in the app and do not store or distribute any content. This application should be considered a web browser — all content accessible through it is freely available on the Internet. All DMCA takedown requests should be sent to the owners of the website where the content is hosted.
 
-* **The original Kotatsu developers** for creating such an outstanding manga reader and making it open source
-* **The Kotatsu community** for their contributions, testing, and support
-* **All translators** who helped localize Kotatsu through [Weblate](https://hosted.weblate.org/engage/kotatsu/)
-* **[Kotatsu-Redo](https://github.com/Kotatsu-Redo/kotatsu-parsers-redo)** for continuing parser development and maintenance
+</details>
 
-This project stands on the shoulders of giants. The Kotatsu team's dedication to creating a feature-rich, user-friendly manga reader has provided an incredible foundation for Kotatsu Next to build upon.
+---
 
-For the original Kotatsu project, please visit: [github.com/KotatsuApp/Kotatsu](https://github.com/KotatsuApp/Kotatsu)
+## 🙏 Acknowledgments
+
+<div align="center">
+
+*Kotatsu Next stands on the shoulders of giants.*
+
+</div>
+
+Kotatsu Next is built upon the exceptional work of the [Kotatsu](https://github.com/KotatsuApp/Kotatsu) project — this fork wouldn't exist without it. Huge thanks to:
+
+| Who | Why |
+|---|---|
+| [Kotatsu developers](https://github.com/KotatsuApp/Kotatsu) | For the outstanding open-source manga reader foundation |
+| Kotatsu community | Contributions, testing and ongoing support |
+| [Weblate translators](https://hosted.weblate.org/engage/kotatsu/) | Localizing Kotatsu for the world |
+| [Kotatsu-Redo](https://github.com/Kotatsu-Redo/kotatsu-parsers-redo) | Continued parser development and maintenance |
+
+<br>
+
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/footers/gray0_ctp_on_line.svg?sanitize=true" width="100%" alt="footer"/>
+
+*Made with ❤️ by [Ero-gamer](https://github.com/Ero-gamer)*
 
 </div>
