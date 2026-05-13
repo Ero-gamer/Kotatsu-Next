@@ -58,7 +58,8 @@ TON:
 
 Binance ID (UID): `583622748`
 
-Donations are optional but it will help in supporting project for faster updates, optimizations and new features. Any amount of donations is welcome and it will make a big difference. Thank you.
+Donations are optional but it will help in supporting project for faster updates, optimizations and new features.
+Any amount of donations is welcome and it will make a big difference. Thank you.
 
 > [!CAUTION]
 > Free and Open-Source Android is under threat. Google will turn Android into a locked-down platform, restricting your essential freedom to install apps of your choice. Make your voice heard – [keepandroidopen.org](https://keepandroidopen.org/).
