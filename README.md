@@ -192,6 +192,4 @@ Kotatsu Next is built upon the exceptional work of the [Kotatsu](https://github.
 
 <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/footers/gray0_ctp_on_line.svg?sanitize=true" width="100%" alt="footer"/>
 
-*Made with ❤️ by [Ero-gamer](https://github.com/Ero-gamer)*
-
 </div>
