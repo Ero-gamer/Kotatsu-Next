@@ -1,0 +1,11 @@
+- name: Create ZIP of changed files only
+        run: |
+          # Grabs only the file names modified in this commit and archives them
+          git archive --format=zip --output=changed_files.zip eb2dd236d3f665d240aed2e3277c77b1d50a077b $(git diff-tree --no-commit-id --name-only -r eb2dd236d3f665d240aed2e3277c77b1d50a077b)
+
+      - name: Upload ZIP as Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: commit-changed-files
+          path: changed_files.zip
+          retention-days: 7
