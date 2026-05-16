@@ -15,7 +15,7 @@ jobs:
 
       - name: Create ZIP of changed files only
         run: |
-          COMMIT_SHA="eb2dd236d3f665d240aed2e3277c77b1d50a077b"
+          COMMIT_SHA="d4bb9aff61eec34929f13da999247f27827a1f4d"
           
           # Get list of changed files in that commit
           CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r $COMMIT_SHA)
