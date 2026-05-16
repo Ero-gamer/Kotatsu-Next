@@ -1,43 +1,27 @@
-name: DL Committed files
+name: Download Commit Files Only
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  sync:
+  download-files:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout dev2 branch
+      - name: Clone upstream repository
         uses: actions/checkout@v6
         with:
-          ref: dev2
+          repository: Kotatsu-Redo/Kotatsu-Redo
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Add upstream repository
-        run: |
-          git remote add upstream https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
-          git fetch upstream eb2dd236d3f665d240aed2e3277c77b1d50a077b
-
-      - name: Cherry-pick commit
-        run: |
-          git cherry-pick eb2dd236d3f665d240aed2e3277c77b1d50a077b
 
       - name: Create ZIP of changed files only
         run: |
-          # Store the files list in a variable first to avoid YAML token parsing issues
-          CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r eb2dd236d3f665d240aed2e3277c77b1d50a077b)
+          COMMIT_SHA="eb2dd236d3f665d240aed2e3277c77b1d50a077b"
           
-          # Run the archive tool using the variable
-          git archive --format=zip --output=changed_files.zip eb2dd236d3f665d240aed2e3277c77b1d50a077b $CHANGED_FILES
+          # Get list of changed files in that commit
+          CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r $COMMIT_SHA)
+          
+          # Create zip containing only those files
+          git archive --format=zip --output=changed_files.zip $COMMIT_SHA $CHANGED_FILES
 
       - name: Upload ZIP as Artifact
         uses: actions/upload-artifact@v7
@@ -45,7 +29,3 @@ jobs:
           name: commit-changed-files
           path: changed_files.zip
           retention-days: 7
-
-      - name: Push changes
-        run: |
-          git push origin dev2 --force
