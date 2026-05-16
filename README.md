@@ -69,6 +69,9 @@
 
 ## 📸 Screenshots
 
+<details>
+<summary>Click to show/hide screenshots</summary>
+
 <div align="center">
 
 ### 📱 Phone
@@ -82,6 +85,8 @@
 <img src="./metadata/en-US/images/tenInchScreenshots/2.png" alt="Tablet 2" width="380"/>
 
 </div>
+
+</details>
 
 ---
 
