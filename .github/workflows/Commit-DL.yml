@@ -15,7 +15,7 @@ jobs:
 
       - name: Create ZIP of changed files only
         run: |
-          COMMIT_SHA="d4bb9aff61eec34929f13da999247f27827a1f4d"
+          COMMIT_SHA="c24bd1bb08613fd259acea19a07ff1dcba27867d"
           
           # 1. Log deleted files to the console and save them to a text file
           echo "=== DELETED FILES IN THIS COMMIT ==="
