@@ -17,18 +17,25 @@ jobs:
         run: |
           COMMIT_SHA="d4bb9aff61eec34929f13da999247f27827a1f4d"
           
-          # Added --diff-filter=ACMRT to ignore Deleted (D) files
+          # 1. Log deleted files to the console and save them to a text file
+          echo "=== DELETED FILES IN THIS COMMIT ==="
+          git diff-tree --no-commit-id --name-only -r --diff-filter=D $COMMIT_SHA | tee deleted_files.txt
+          echo "===================================="
+          
+          # 2. Get the list of added/modified files for the ZIP
           CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=ACMRT $COMMIT_SHA)
           
-          # Check if there are any remaining files to archive (in case a commit ONLY deletes files)
+          # 3. Create the ZIP archive
           if [ -z "$CHANGED_FILES" ]; then
-            echo "No files to archive (all files in this commit were deleted)."
-            echo "Creating a dummy file so the archive step doesn't fail."
-            touch deleted_only.txt
-            git archive --format=zip --output=changed_files.zip $COMMIT_SHA deleted_only.txt
+            echo "No active files to archive (all changes were deletions)."
+            # Archive just the log of deleted files
+            git archive --format=zip --output=changed_files.zip HEAD deleted_files.txt
           else
-            # Create zip containing only the existing files
+            # Archive the active files
             git archive --format=zip --output=changed_files.zip $COMMIT_SHA $CHANGED_FILES
+            
+            # Add the deleted_files.txt into the existing ZIP archive for convenience
+            zip -g changed_files.zip deleted_files.txt
           fi
 
       - name: Upload ZIP as Artifact
