@@ -939,4 +939,10 @@
 	<string name="select_languages">Select languages</string>
 	<string name="manage_preset_sources">Manage sources</string>
 	<string name="default_sources">Default</string>
+
+    <string name="donate">Donate</string>
+    <string name="donate_summary">Support development via crypto</string>
+    <string name="donate_dialog_title">Support Kotatsu Next</string>
+    <string name="donate_close">Close</string>
+    <string name="donate_copy_address">Address copied</string>
 </resources>
