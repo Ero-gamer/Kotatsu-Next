@@ -1,62 +1,40 @@
-name: Selective Cherry-pick (Skip Conflicts)
-on:
-  workflow_dispatch:
-    inputs:
-      commit_hash:
-        description: 'SHA of the commit'
-        required: true
-        default: 'b81c174021e76dfd9d62aee830f1143eb0a38280'
+name: Merge Upstream Commit
 
-permissions:
-  contents: write
+on:
+  workflow_dispatch: # Allows you to run this manually from the Actions tab
 
 jobs:
-  selective-sync:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Dev Branch
+      - name: Checkout dev2 branch
         uses: actions/checkout@v6
         with:
-          ref: dev
+          ref: dev2
+          fetch-depth: 0 # Fetch all history so git can find merge bases
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Add Source Remote
+      - name: Add upstream repository
         run: |
-          git remote add source https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
-          git fetch source ${{ github.event.inputs.commit_hash }}
+          git remote add upstream https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
+          git fetch upstream eb2dd236d3f665d240aed2e3277c77b1d50a077b
 
-      - name: Process Files Individually
+      # OPTION A: Apply only the changes from that commit (Cherry-pick)
+      - name: Cherry-pick commit
         run: |
-          SHA=${{ github.event.inputs.commit_hash }}
-          
-          # Get list of files changed in that commit
-          FILES=$(git diff-tree --no-commit-id --name-only -r $SHA)
-          
-          for FILE in $FILES; do
-            echo "Processing $FILE..."
-            # Try to checkout the file from the source commit
-            if git checkout $SHA -- "$FILE" 2>/dev/null; then
-              echo "Successfully updated $FILE"
-              git add "$FILE"
-            else
-              echo "Conflict or error on $FILE - Skipping."
-              # Reset any partial changes to this specific file to stay on 'dev' version
-              git checkout HEAD -- "$FILE" 2>/dev/null || true
-            fi
-          done
+          git cherry-pick eb2dd236d3f665d240aed2e3277c77b1d50a077b
 
-      - name: Commit and Push
+      # OPTION B: Replace dev2 completely with that commit (Uncomment if needed, comment out Option A)
+      # - name: Hard reset to commit
+      #   run: |
+      #     git reset --hard eb2dd236d3f665d240aed2e3277c77b1d50a077b
+
+      - name: Push changes
         run: |
-          # Only commit if there are actually changes to push
-          if ! git diff --cached --quiet; then
-            git commit -m "Selective sync from commit ${{ github.event.inputs.commit_hash }} (skipping conflicts)"
-            git push origin dev
-          else
-            echo "No files could be updated without conflicts. Nothing to push."
-          fi
+          # Use --force if you chose Option B (Hard reset)
+          git push origin dev2
