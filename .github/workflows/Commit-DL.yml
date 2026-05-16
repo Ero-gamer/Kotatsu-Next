@@ -1,4 +1,4 @@
-name: Merge Upstream Commit
+name: DL Committed files
 
 on:
   workflow_dispatch:
