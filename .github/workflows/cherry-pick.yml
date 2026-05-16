@@ -25,14 +25,14 @@ jobs:
           git fetch upstream eb2dd236d3f665d240aed2e3277c77b1d50a077b
 
       # OPTION A: Apply only the changes from that commit (Cherry-pick)
-      - name: Cherry-pick commit
-        run: |
-          git cherry-pick eb2dd236d3f665d240aed2e3277c77b1d50a077b
+      #- name: Cherry-pick commit
+      # run: |
+      #   git cherry-pick eb2dd236d3f665d240aed2e3277c77b1d50a077b
 
       # OPTION B: Replace dev2 completely with that commit (Uncomment if needed, comment out Option A)
-      # - name: Hard reset to commit
-      #   run: |
-      #     git reset --hard eb2dd236d3f665d240aed2e3277c77b1d50a077b
+      - name: Hard reset to commit
+         run: |
+           git reset --hard eb2dd236d3f665d240aed2e3277c77b1d50a077b
 
       - name: Push changes
         run: |
