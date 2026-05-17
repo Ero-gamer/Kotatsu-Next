@@ -295,13 +295,16 @@ class BackupRepository @Inject constructor(
     }
 
     private suspend inline fun <T> Sequence<T>.restoreToDb(crossinline block: suspend MangaDatabase.(T) -> Unit): CompositeResult {
-        return fold(CompositeResult.EMPTY) { result, item ->
-            result + runCatchingCancellable {
-                database.withTransaction {
-                    database.block(item)
-                }
+        val items = toList()
+        if (items.isEmpty()) return CompositeResult.EMPTY
+        return runCatchingCancellable {
+            database.withTransaction {
+                items.forEach { item -> database.block(item) }
             }
-        }
+        }.fold(
+            onSuccess = { CompositeResult.success() },
+            onFailure = { CompositeResult.failure(it) },
+        )
     }
 
     private suspend inline fun <T> Sequence<T>.restoreWithoutTransaction(crossinline block: suspend (T) -> Unit): CompositeResult {

@@ -25,6 +25,7 @@ import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.withPartialWakeLock
 import org.koitharu.kotatsu.core.util.progress.Progress
+import java.io.BufferedInputStream
 import java.io.FileNotFoundException
 import java.util.zip.ZipInputStream
 import javax.inject.Inject
@@ -61,7 +62,7 @@ class RestoreService : BaseBackupRestoreService() {
 			} else {
 				null
 			}
-			val result = ZipInputStream(contentResolver.openInputStream(source)).use { input ->
+			val result = ZipInputStream(BufferedInputStream(contentResolver.openInputStream(source))).use { input ->
 				repository.restoreBackup(input, sections, progress)
 			}
 			progressUpdateJob?.cancelAndJoin()
