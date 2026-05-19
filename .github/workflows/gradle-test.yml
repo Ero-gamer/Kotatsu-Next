@@ -34,6 +34,10 @@ on:
   # Allow manual trigger for debugging
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 # Cancel older runs when new commits are pushed to the same PR/branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
