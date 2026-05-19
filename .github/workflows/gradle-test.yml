@@ -1,0 +1,201 @@
+name: Gradle Test
+
+on:
+  # Run tests on PRs to verify code doesn't break before merge
+  pull_request:
+    types: [opened, synchronize]
+    # Your production branch. If not the default, update here and set Target Branch at https://gitauto.ai/dashboard/rules to match
+    branches: [devel]
+    paths:
+      - '**/*.kt'
+      - '**/*.java'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'settings.gradle'
+      - '!.github/workflows/**'
+  # Run tests after merge and collect coverage as canonical source of truth
+  push:
+    # Your production branch. If not the default, update here and set Target Branch at https://gitauto.ai/dashboard/rules to match
+    branches: [devel]
+    paths:
+      - '**/*.kt'
+      - '**/*.java'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'settings.gradle'
+  # Allow manual trigger for debugging
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+# Cancel older runs when new commits are pushed to the same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          submodules: 'recursive'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: wrapper
+
+      - name: Run unit tests (PR)
+        if: github.event_name == 'pull_request'
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Enable JaCoCo for coverage run
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p .ci
+          cat > .ci/coverage.init.gradle <<'EOF'
+          allprojects {
+              plugins.withId("com.android.application") {
+                  android {
+                      buildTypes {
+                          debug {
+                              testCoverageEnabled = true
+                          }
+                      }
+                  }
+              }
+              plugins.withId("com.android.library") {
+                  android {
+                      buildTypes {
+                          debug {
+                              testCoverageEnabled = true
+                          }
+                      }
+                  }
+              }
+              afterEvaluate {
+                  if (!plugins.hasPlugin("jacoco")) {
+                      pluginManager.apply("jacoco")
+                  }
+                  jacoco {
+                      toolVersion = "0.8.11"
+                  }
+                  tasks.matching { it.name == "testDebugUnitTest" }.configureEach {
+                      if (it.hasProperty("extensions")) {
+                          def jext = it.extensions.findByName("jacoco")
+                          if (jext != null) {
+                              jext.includeNoLocationClasses = true
+                              jext.excludes = ["jdk.internal.*"]
+                          }
+                      }
+                  }
+                  tasks.register("jacocoTestReportCI", JacocoReport) {
+                      dependsOn "testDebugUnitTest"
+                      reports {
+                          xml.required = true
+                          html.required = true
+                      }
+                      def fileFilter = [
+                          "**/R.class", "**/R\$*.class", "**/BuildConfig.*",
+                          "**/Manifest*.*", "**/*Test*.*", "android/**/*.*",
+                          "**/*_Hilt*.*", "**/Hilt_*.*", "**/*_Factory*.*",
+                          "**/*_MembersInjector*.*", "**/Dagger*.*", "**/*Module_*Factory*.*"
+                      ]
+                      def debugTree = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug", excludes: fileFilter)
+                      def javaTree = fileTree(dir: "${buildDir}/intermediates/javac/debug/classes", excludes: fileFilter)
+                      classDirectories.setFrom(files([debugTree, javaTree]))
+                      sourceDirectories.setFrom(files([
+                          "src/main/java", "src/main/kotlin", "src/debug/java", "src/debug/kotlin"
+                      ]))
+                      executionData.setFrom(fileTree(dir: buildDir, includes: [
+                          "jacoco/testDebugUnitTest.exec",
+                          "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+                      ]))
+                  }
+              }
+          }
+          EOF
+
+      - name: Run unit tests with coverage
+        if: github.event_name != 'pull_request'
+        run: ./gradlew --init-script .ci/coverage.init.gradle testDebugUnitTest jacocoTestReportCI --no-daemon --stacktrace
+
+      - name: Convert JaCoCo XML to lcov
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p coverage
+          # Locate the generated jacoco XML report
+          REPORT=$(find . -type f -path "*/reports/jacoco/jacocoTestReportCI/*.xml" | head -n 1)
+          if [ -z "$REPORT" ]; then
+            REPORT=$(find . -type f -name "jacocoTestReportCI.xml" | head -n 1)
+          fi
+          if [ -z "$REPORT" ]; then
+            echo "No JaCoCo XML report found; emitting empty lcov file"
+            : > coverage/lcov.info
+            exit 0
+          fi
+          echo "Using JaCoCo report: $REPORT"
+          npm install -g @cvrg-report/jacoco-to-lcov@latest || npm install -g jacoco2lcov || true
+          if command -v jacoco-to-lcov >/dev/null 2>&1; then
+            jacoco-to-lcov --input "$REPORT" --output coverage/lcov.info || true
+          fi
+          if [ ! -s coverage/lcov.info ] && command -v jacoco2lcov >/dev/null 2>&1; then
+            jacoco2lcov -i "$REPORT" -o coverage/lcov.info || true
+          fi
+          if [ ! -s coverage/lcov.info ]; then
+            # Fallback: minimal converter using python
+            python3 - "$REPORT" coverage/lcov.info <<'PY'
+          import sys, xml.etree.ElementTree as ET, os
+          report_path, out_path = sys.argv[1], sys.argv[2]
+          tree = ET.parse(report_path)
+          root = tree.getroot()
+          lines_out = []
+          for pkg in root.findall("package"):
+              pkg_path = pkg.get("name", "").replace(".", "/")
+              for sf in pkg.findall("sourcefile"):
+                  fname = sf.get("name")
+                  src = f"{pkg_path}/{fname}" if pkg_path else fname
+                  lines_out.append(f"SF:{src}")
+                  for ln in sf.findall("line"):
+                      nr = ln.get("nr")
+                      ci = int(ln.get("ci", "0"))
+                      mi = int(ln.get("mi", "0"))
+                      hits = 1 if ci > 0 else 0
+                      if ci > 0 or mi > 0:
+                          lines_out.append(f"DA:{nr},{hits}")
+                  lines_out.append("end_of_record")
+          os.makedirs(os.path.dirname(out_path), exist_ok=True)
+          with open(out_path, "w") as f:
+              f.write("\n".join(lines_out) + "\n")
+          PY
+          fi
+          echo "lcov.info size: $(wc -c < coverage/lcov.info) bytes"
+
+      - name: Upload coverage report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
+          if-no-files-found: warn
