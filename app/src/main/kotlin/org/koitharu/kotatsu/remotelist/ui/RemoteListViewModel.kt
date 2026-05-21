@@ -1,8 +1,10 @@
 package org.koitharu.kotatsu.remotelist.ui
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -19,14 +21,18 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.plus
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.exceptions.CloudFlareException
+import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.model.MangaSource
 import org.koitharu.kotatsu.core.model.distinctById
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
 import org.koitharu.kotatsu.core.parser.MangaRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ListMode
+import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.util.ext.MutableEventFlow
 import org.koitharu.kotatsu.core.util.ext.call
+import org.koitharu.kotatsu.core.util.ext.findCloudFlareException
 import org.koitharu.kotatsu.core.util.ext.getCauseUrl
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
@@ -60,6 +66,7 @@ open class RemoteListViewModel @Inject constructor(
 	private val exploreRepository: ExploreRepository,
 	sourcesRepository: MangaSourcesRepository,
 	mangaDataRepository: MangaDataRepository,
+	@ApplicationContext private val appContext: Context,
 	@LocalStorageChanges localStorageChanges: SharedFlow<LocalManga?>
 ) : MangaListViewModel(settings, mangaDataRepository, localStorageChanges), FilterCoordinator.Owner {
 
@@ -67,11 +74,13 @@ open class RemoteListViewModel @Inject constructor(
 	val isRandomLoading = MutableStateFlow(false)
 	val onOpenManga = MutableEventFlow<Manga>()
     val onSourceBroken = MutableEventFlow<Unit>()
+	val onCaptchaRequired = MutableEventFlow<CloudFlareProtectedException>()
 
 	protected val repository = mangaRepositoryFactory.create(source)
 	private val mangaList = MutableStateFlow<List<Manga>?>(null)
 	private val hasNextPage = MutableStateFlow(false)
 	private val listError = MutableStateFlow<Throwable?>(null)
+	private val isResolvingCaptcha = MutableStateFlow(false)
 	private var loadingJob: Job? = null
 	private var randomJob: Job? = null
 
@@ -80,9 +89,15 @@ open class RemoteListViewModel @Inject constructor(
 		observeListModeWithTriggers(),
 		listError,
 		hasNextPage,
-	) { list, mode, error, hasNext ->
+		isResolvingCaptcha,
+	) { list, mode, error, hasNext, resolvingCaptcha ->
 		buildList(list?.size?.plus(2) ?: 2) {
 			when {
+				// While the silent CAPTCHA solve is in progress, suppress the error state and keep showing
+				// the loading spinner with the "Solving captcha automatically…" text instead.
+				resolvingCaptcha && list.isNullOrEmpty() ->
+					add(LoadingState(R.string.captcha_solving))
+
 				list.isNullOrEmpty() && error != null -> add(
 					error.toErrorState(
 						canRetry = true,
@@ -90,7 +105,7 @@ open class RemoteListViewModel @Inject constructor(
 					),
 				)
 
-				list == null -> add(LoadingState)
+				list == null -> add(LoadingState())
 				list.isEmpty() -> add(createEmptyState(canResetFilter = filterCoordinator.isFilterApplied))
 				else -> {
 					mapMangaList(this, list, mode)
@@ -103,7 +118,7 @@ open class RemoteListViewModel @Inject constructor(
 			}
 			onBuildList(this)
 		}
-	}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, listOf(LoadingState))
+	}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, listOf(LoadingState()))
 
 	init {
 		filterCoordinator.observe()
@@ -140,6 +155,12 @@ open class RemoteListViewModel @Inject constructor(
 		}
 	}
 
+	/** Flipped by the Fragment around an `exceptionResolver.resolve(...)` call so the list can show
+	 *  the "Solving captcha automatically…" text instead of the error state while it runs. */
+	fun setCaptchaResolving(resolving: Boolean) {
+		isResolvingCaptcha.value = resolving
+	}
+
 	protected fun loadList(filterState: FilterCoordinator.Snapshot, append: Boolean): Job {
 		loadingJob?.let {
 			if (it.isActive) return it
@@ -147,11 +168,7 @@ open class RemoteListViewModel @Inject constructor(
 		return launchLoadingJob(Dispatchers.Default) {
 			try {
 				listError.value = null
-				val list = repository.getList(
-					offset = if (append) mangaList.value.sizeOrZero() else 0,
-					order = filterState.sortOrder,
-					filter = filterState.listFilter,
-				)
+				val list = getListResolvingCaptcha(filterState, append)
 				val prevList = mangaList.value.orEmpty()
 				if (!append) {
 					mangaList.value = list.distinctById()
@@ -175,6 +192,40 @@ open class RemoteListViewModel @Inject constructor(
 			}
 		}.also { loadingJob = it }
 	}
+
+	/**
+	 * Loads a page and, on a CloudFlare captcha, hands off the resolve to the Fragment which launches
+	 * `CloudFlareActivity` (hidden first, falling back to visible). The exception is rethrown so the
+	 * standard error state is shown while the resolve runs; a successful resolve triggers `onRetry`.
+	 */
+	private suspend fun getListResolvingCaptcha(
+		filterState: FilterCoordinator.Snapshot,
+		append: Boolean,
+	): List<Manga> {
+		val offset = if (append) mangaList.value.sizeOrZero() else 0
+		return try {
+			repository.getList(offset = offset, order = filterState.sortOrder, filter = filterState.listFilter)
+		} catch (e: Exception) {
+			val cfException = e.findCloudFlareException() ?: throw e
+			// Only fire the auto-resolve handoff if the per-source "Disable automatic CAPTCHA solving"
+			// setting is OFF. When it's on we just throw, the standard error state shows, and the user
+			// goes through the normal "Solve" → visible CloudFlareActivity flow.
+			//
+			// Also skip the event if a resolve is already in progress for this source — otherwise rapid
+			// successive loadList calls (filter coordinator emissions, retries, …) would each spawn
+			// their own Fragment-observer coroutine, all of which would award the same in-flight resolve
+			// but pile up toasts/UI churn on the way there.
+			if (
+				cfException is CloudFlareProtectedException &&
+				!isResolvingCaptcha.value &&
+				!SourceSettings(appContext, source).isCaptchaAutoResolveDisabled
+			) {
+				onCaptchaRequired.call(cfException)
+			}
+			throw cfException
+		}
+	}
+
 
 	protected open fun createEmptyState(canResetFilter: Boolean) = EmptyState(
 		icon = R.drawable.ic_empty_common,

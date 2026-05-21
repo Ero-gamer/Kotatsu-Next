@@ -8,7 +8,6 @@ import android.webkit.WebView
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
-import org.koitharu.kotatsu.core.network.webview.adblock.AdBlock
 import java.net.URI
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -22,9 +21,8 @@ private const val TAG = "CFInterceptClient"
 class CloudFlareInterceptClient(
 	private val cookieJar: MutableCookieJar,
 	callback: CloudFlareCallback,
-	adBlock: AdBlock,
 	targetUrl: String,
-) : CloudFlareClient(cookieJar, callback, adBlock, targetUrl) {
+) : CloudFlareClient(cookieJar, callback, targetUrl) {
 
 	private val targetUri = runCatching { URI(targetUrl) }.getOrNull()
 

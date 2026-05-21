@@ -59,13 +59,6 @@ class StorageAndNetworkSettingsFragment :
             AppSettings.KEY_PROXY_PORT -> {
                 bindProxySummary()
             }
-
-            AppSettings.KEY_IMAGES_PROXY -> {
-                // Clear the page cache so all pages are re-fetched through the new proxy.
-                // Without this, previously cached pages bypass the proxy entirely.
-                viewModel.clearPagesCache()
-                Snackbar.make(listView, R.string.image_proxy_cache_cleared, Snackbar.LENGTH_SHORT).show()
-            }
         }
     }
 
@@ -81,4 +74,4 @@ class StorageAndNetworkSettingsFragment :
             }
         }
     }
-    }
+}

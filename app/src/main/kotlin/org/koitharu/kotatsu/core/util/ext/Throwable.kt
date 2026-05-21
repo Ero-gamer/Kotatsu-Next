@@ -52,6 +52,7 @@ import java.net.HttpURLConnection
 import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import org.koitharu.kotatsu.core.exceptions.CloudFlareException
 import java.net.UnknownHostException
 import java.util.Locale
 import java.util.zip.ZipException
@@ -279,3 +280,8 @@ fun FileNotFoundException.parseMessage(resources: Resources): String? {
     }
 }
 
+/** Walks the exception cause chain and returns the first [CloudFlareException] found, or `null`. */
+fun Throwable.findCloudFlareException(): CloudFlareException? =
+    generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
+        .filterIsInstance<CloudFlareException>()
+        .firstOrNull()

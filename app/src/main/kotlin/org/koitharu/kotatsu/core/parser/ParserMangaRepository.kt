@@ -110,6 +110,8 @@ class ParserMangaRepository(
 
 	fun getConfig() = parser.config as SourceSettings
 
+	fun isUpdatesDisabled() = getConfig().isUpdatesDisabled
+
 	private suspend fun <T : Any> withMirrors(block: suspend () -> T): T {
 		if (!mirrorSwitcher.isEnabled) {
 			return block()

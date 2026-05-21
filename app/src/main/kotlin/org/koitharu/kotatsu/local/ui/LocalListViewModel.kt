@@ -1,8 +1,10 @@
 package org.koitharu.kotatsu.local.ui
 
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharedFlow
 import org.koitharu.kotatsu.R
@@ -49,6 +51,7 @@ class LocalListViewModel @Inject constructor(
 	private val localStorageManager: LocalStorageManager,
 	sourcesRepository: MangaSourcesRepository,
 	mangaDataRepository: MangaDataRepository,
+	@ApplicationContext appContext: Context,
 ) : RemoteListViewModel(
 	savedStateHandle = savedStateHandle,
 	mangaRepositoryFactory = mangaRepositoryFactory,
@@ -58,6 +61,7 @@ class LocalListViewModel @Inject constructor(
 	exploreRepository = exploreRepository,
 	sourcesRepository = sourcesRepository,
 	mangaDataRepository = mangaDataRepository,
+	appContext = appContext,
 	localStorageChanges = localStorageChanges,
 ), SharedPreferences.OnSharedPreferenceChangeListener, QuickFilterListener {
 

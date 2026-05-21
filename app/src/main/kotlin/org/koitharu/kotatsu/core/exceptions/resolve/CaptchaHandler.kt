@@ -74,10 +74,11 @@ class CaptchaHandler @Inject constructor(
 	private val mutex = Mutex()
 
 	@CheckResult
-	suspend fun handle(exception: CloudFlareException): Boolean = handleException(exception.source, exception, true)
+	suspend fun handle(exception: CloudFlareException, tryAutoResolve: Boolean = true): Boolean =
+		handleException(exception.source, exception, notify = true, tryAutoResolve = tryAutoResolve)
 
 	suspend fun discard(source: MangaSource) {
-		handleException(source, null, true)
+		handleException(source, null, notify = true, tryAutoResolve = false)
 	}
 
 	override fun onError(request: ImageRequest, result: ErrorResult) {
@@ -86,15 +87,16 @@ class CaptchaHandler @Inject constructor(
 		if (e is CloudFlareException) {
 			val scope = request.lifecycle?.coroutineScope ?: processLifecycleScope
 			scope.launch {
-				if (
-					handleException(
-						source = e.source,
-						exception = e,
-						notify = request.extras[suppressCaptchaKey] != true,
-					)
-				) {
-					coilProvider.get().enqueue(request) // TODO check if ok
-				}
+				// Don't run the silent auto-resolve from coil's error path: failed favicon / cover loads
+				// would each queue up an attempt and (now that the WebView is window-attached) flash a
+				// full-screen overlay on the user. Auto-resolve only happens for explicit interactions
+				// (opening a source, opening a manga, reading) via ExceptionResolver / the hidden activity.
+				handleException(
+					source = e.source,
+					exception = e,
+					notify = request.extras[suppressCaptchaKey] != true,
+					tryAutoResolve = false,
+				)
 			}
 		}
 	}
@@ -103,11 +105,17 @@ class CaptchaHandler @Inject constructor(
 		source: MangaSource,
 		exception: CloudFlareException?,
 		notify: Boolean,
+		tryAutoResolve: Boolean = true,
 	): Boolean = withContext(Dispatchers.Default) {
 		if (source == UnknownMangaSource) {
 			return@withContext false
 		}
-		if (exception != null && webViewExecutor.tryResolveCaptcha(exception, RESOLVE_TIMEOUT)) {
+		if (
+			tryAutoResolve &&
+			exception != null &&
+			!SourceSettings(context, source).isCaptchaAutoResolveDisabled &&
+			webViewExecutor.tryResolveCaptcha(exception, RESOLVE_TIMEOUT)
+		) {
 			return@withContext true
 		}
 		mutex.withLock {
@@ -287,6 +295,6 @@ class CaptchaHandler @Inject constructor(
 		private const val GROUP_NOTIFICATION_ID = 34
 		private const val SETTINGS_ACTION_CODE = 3
 		private const val ACTION_DISCARD = "org.koitharu.kotatsu.CAPTCHA_DISCARD"
-		private const val RESOLVE_TIMEOUT = 20_000L
+		private const val RESOLVE_TIMEOUT = 12_000L
 	}
 }

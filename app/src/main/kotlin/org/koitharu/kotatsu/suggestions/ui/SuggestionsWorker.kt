@@ -53,6 +53,7 @@ import org.koitharu.kotatsu.core.model.isNsfw
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.nav.ReaderIntent
 import org.koitharu.kotatsu.core.parser.MangaRepository
+import org.koitharu.kotatsu.core.parser.ParserMangaRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.LocaleComparator
 import org.koitharu.kotatsu.core.util.ext.asArrayList
@@ -264,6 +265,9 @@ class SuggestionsWorker @AssistedInject constructor(
 		blacklist: TagsBlacklist,
 	): List<Manga> = runCatchingCancellable {
 		val repository = mangaRepositoryFactory.create(source)
+		if (repository is ParserMangaRepository && repository.isUpdatesDisabled()) {
+			return@runCatchingCancellable emptyList()
+		}
 		val availableOrders = repository.sortOrders
 		val order = preferredSortOrders.first { it in availableOrders }
 		val availableTags = repository.getFilterOptions().availableTags

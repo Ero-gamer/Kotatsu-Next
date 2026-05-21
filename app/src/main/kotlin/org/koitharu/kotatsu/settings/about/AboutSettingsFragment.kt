@@ -75,12 +75,6 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
 				true
 			}
 
-			KEY_DONATE -> {
-				DonateDialogFragment.newInstance()
-					.show(childFragmentManager, DonateDialogFragment.TAG)
-				true
-			}
-
 			else -> super.onPreferenceTreeClick(preference)
 		}
 	}
@@ -101,9 +95,5 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
 	} else {
 		Snackbar.make(listView, R.string.operation_not_supported, Snackbar.LENGTH_SHORT).show()
 		false
-	}
-
-	companion object {
-		private const val KEY_DONATE = "about_donate"
 	}
 }

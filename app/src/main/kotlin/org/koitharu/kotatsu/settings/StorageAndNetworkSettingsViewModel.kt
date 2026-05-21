@@ -24,17 +24,6 @@ class StorageAndNetworkSettingsViewModel @Inject constructor(
     }.withErrorHandling()
         .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.WhileSubscribed(1000), null)
 
-    /**
-     * Clears the on-disk page cache so that the next read will re-fetch all pages
-     * through the newly selected image proxy instead of serving stale cached content
-     * that was downloaded without any proxy (or a different proxy).
-     */
-    fun clearPagesCache() {
-        launchJob(Dispatchers.Default) {
-            storageManager.clearCache(CacheDir.PAGES)
-        }
-    }
-
     private suspend fun loadStorageUsage(): StorageUsage {
         val pagesCacheSize = storageManager.computeCacheSize(CacheDir.PAGES)
         val otherCacheSize = storageManager.computeCacheSize() - pagesCacheSize
