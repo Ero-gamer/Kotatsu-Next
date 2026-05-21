@@ -89,45 +89,38 @@ jobs:
                       }
                   }
               }
-              afterEvaluate {
-                  if (!plugins.hasPlugin("jacoco")) {
-                      pluginManager.apply("jacoco")
+          }
+
+          rootProject.afterEvaluate {
+              if (!plugins.hasPlugin("jacoco")) {
+                  pluginManager.apply("jacoco")
+              }
+              jacoco {
+                  toolVersion = "0.8.11"
+              }
+
+              tasks.register("jacocoTestReportCI", JacocoReport) {
+                  dependsOn tasks.getByPath(":testDebugUnitTest")
+                  reports {
+                      xml.required = true
+                      html.required = true
                   }
-                  jacoco {
-                      toolVersion = "0.8.11"
-                  }
-                  tasks.matching { it.name == "testDebugUnitTest" }.configureEach {
-                      if (it.hasProperty("extensions")) {
-                          def jext = it.extensions.findByName("jacoco")
-                          if (jext != null) {
-                              jext.includeNoLocationClasses = true
-                              jext.excludes = ["jdk.internal.*"]
-                          }
-                      }
-                  }
-                  tasks.register("jacocoTestReportCI", JacocoReport) {
-                      dependsOn "testDebugUnitTest"
-                      reports {
-                          xml.required = true
-                          html.required = true
-                      }
-                      def fileFilter = [
-                          "**/R.class", "**/R\$*.class", "**/BuildConfig.*",
-                          "**/Manifest*.*", "**/*Test*.*", "android/**/*.*",
-                          "**/*_Hilt*.*", "**/Hilt_*.*", "**/*_Factory*.*",
-                          "**/*_MembersInjector*.*", "**/Dagger*.*", "**/*Module_*Factory*.*"
-                      ]
-                      def debugTree = fileTree(dir: "${buildDir}/tmp/kotlin-classes/debug", excludes: fileFilter)
-                      def javaTree = fileTree(dir: "${buildDir}/intermediates/javac/debug/classes", excludes: fileFilter)
-                      classDirectories.setFrom(files([debugTree, javaTree]))
-                      sourceDirectories.setFrom(files([
-                          "src/main/java", "src/main/kotlin", "src/debug/java", "src/debug/kotlin"
-                      ]))
-                      executionData.setFrom(fileTree(dir: buildDir, includes: [
-                          "jacoco/testDebugUnitTest.exec",
-                          "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
-                      ]))
-                  }
+                  def fileFilter = [
+                      "**/R.class", "**/R\$*.class", "**/BuildConfig.*",
+                      "**/Manifest*.*", "**/*Test*.*", "android/**/*.*",
+                      "**/*_Hilt*.*", "**/Hilt_*.*", "**/*_Factory*.*",
+                      "**/*_MembersInjector*.*", "**/Dagger*.*", "**/*Module_*Factory*.*"
+                  ]
+                  def debugTree = fileTree(dir: "${rootProject.buildDir}/tmp/kotlin-classes/debug", excludes: fileFilter)
+                  def javaTree = fileTree(dir: "${rootProject.buildDir}/intermediates/javac/debug/classes", excludes: fileFilter)
+                  classDirectories.setFrom(files([debugTree, javaTree]))
+                  sourceDirectories.setFrom(files([
+                      "src/main/java", "src/main/kotlin", "src/debug/java", "src/debug/kotlin"
+                  ]))
+                  executionData.setFrom(fileTree(dir: rootProject.buildDir, includes: [
+                      "jacoco/testDebugUnitTest.exec",
+                      "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+                  ]))
               }
           }
           EOF
