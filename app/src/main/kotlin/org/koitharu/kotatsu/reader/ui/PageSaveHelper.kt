@@ -119,7 +119,7 @@ class PageSaveHelper @AssistedInject constructor(
 
 	private suspend fun getPageExtension(url: Uri, fileUri: Uri): String {
 		// Always probe the actual cached file content first. This ensures that when an
-		// image proxy (e.g. Gumlet) transcodes a .jpg to .webp, the saved file gets the
+		// image proxy transcodes a .jpg to .webp, the saved file gets the
 		// correct .webp extension instead of the original URL's .jpg extension.
 		fileUri.toFileOrNull()?.let { file ->
 			getImageExtension(file)?.let { return it }
