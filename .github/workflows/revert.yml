@@ -21,7 +21,7 @@ jobs:
       - name: Reset and Force Push to Commit
         run: |
           # Hard reset the local branch to your target commit
-          git reset --hard 4f19ed566a2bbd7f47d48d485d22e8cf88409c73
+          git reset --hard ff24ee9483f139ba966dcb16257eacc7872942a2
           
           # Force push to overwrite the remote history
           git push origin ${{ github.ref_name }} --force
