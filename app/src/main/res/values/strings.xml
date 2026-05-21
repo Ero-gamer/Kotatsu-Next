@@ -165,6 +165,9 @@
     <string name="silent">Silent</string>
     <string name="captcha_required">CAPTCHA required</string>
     <string name="captcha_solve">Solve</string>
+    <string name="captcha_solving">Solving captcha automatically…</string>
+    <string name="disable_captcha_auto_solve">Disable automatic CAPTCHA solving</string>
+    <string name="disable_captcha_auto_solve_summary">When enabled, CloudFlare challenges will not be solved automatically in the background</string>
     <string name="clear_cookies">Clear cookies</string>
     <string name="cookies_cleared">All cookies were removed</string>
     <string name="clear_feed">Clear feed</string>
@@ -939,4 +942,10 @@
 	<string name="select_languages">Select languages</string>
 	<string name="manage_preset_sources">Manage sources</string>
 	<string name="default_sources">Default</string>
+
+    <string name="donate">Donate</string>
+    <string name="donate_summary">Support development via crypto</string>
+    <string name="donate_dialog_title">Support Kotatsu Next</string>
+    <string name="donate_close">Close</string>
+    <string name="donate_copy_address">Address copied</string>
 </resources>
