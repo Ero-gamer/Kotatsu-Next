@@ -18,7 +18,6 @@
 [![License](https://img.shields.io/github/license/KotatsuApp/Kotatsu?style=for-the-badge&color=blue)](https://github.com/KotatsuApp/Kotatsu/blob/devel/LICENSE)
 [![FOSS](https://img.shields.io/badge/FOSS-100%25-success?style=for-the-badge)](https://github.com/Ero-gamer/Kotatsu-Next)
 [![Stars](https://img.shields.io/github/stars/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=yellow)](https://github.com/Ero-gamer/Kotatsu-Next/stargazers)
-[![Forks](https://img.shields.io/github/forks/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=orange)](https://github.com/Ero-gamer/Kotatsu-Next/network)
 
 </div>
 
