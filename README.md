@@ -49,7 +49,21 @@
 </div>
 
 <details>
-<summary>📋 Full feature list</summary>
+<summary>📋 Kotatsu Next exclusive features</summary>
+<br>
+
+**°Vibrance and Sharpening image filters** - Vibrance restore full washed out colors and pop them out while preserving natural colors, perfect for manhua, webtoons and colored manga, while sharpening filter make blurry, bad scans look crisp and detailed (use with caution, still experimental and it's resources intensive)
+
+**°Vertical Slider as extra customization**
+
+**°Replaced default jpeg image decoder with JPEG Turbo lib** Best optimized jpeg image decoder for errors-free decoding even for large long strip images (bigger than 10000x5000 res Images that get decoded with visible bad tints in default jpeg decoder) and 2x to 6x faster than other jpeg decoders while using same resources overhead and even lower in certain cases.
+
+**°Optimized Backup & Restore feature**
+
+</details>
+
+<details>
+<summary>📋 Original Kotatsu Full features list</summary>
 <br>
 
 - 📚 **1200+ manga sources** — online catalogues with search by name, genre and more
