@@ -63,20 +63,29 @@ open class PageHolder(
 		// Intercept SSIV double-tap to implement our 3-step zoom cycle.
 		// The detector is created inside init{} (not as a property) so `this` is
 		// guaranteed to be fully initialized before the lambda capturing it is created.
+		// Flag set in onDoubleTap (fires on 2nd tap DOWN) and cleared on ACTION_UP.
+		// The onTouchListener returns true only while this flag is set, which blocks
+		// SSIV from seeing the second tap without eating every other touch event.
+		var consumingDoubleTap = false
 		val doubleTapDetector = GestureDetector(
 			binding.root.context,
 			object : GestureDetector.SimpleOnGestureListener() {
 				override fun onDoubleTap(e: MotionEvent): Boolean {
+					consumingDoubleTap = true
 					performSteppedZoom(e)
 					return true
 				}
 			},
 		)
 		binding.ssiv.setOnTouchListener { _, event ->
-			// Return the detector's result: true when it consumed a double-tap event,
-			// false otherwise. This prevents SSIV's internal GestureDetector from seeing
-			// the second tap DOWN and firing its own zoom on top of ours.
 			doubleTapDetector.onTouchEvent(event)
+			if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+				val wasConsuming = consumingDoubleTap
+				consumingDoubleTap = false
+				wasConsuming
+			} else {
+				consumingDoubleTap
+			}
 		}
 	}
 
