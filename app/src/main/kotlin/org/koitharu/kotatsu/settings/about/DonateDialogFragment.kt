@@ -104,7 +104,8 @@ class DonateDialogFragment : BottomSheetDialogFragment() {
 			textSize = 12f
 			setTextColor(0xCCFFFFFF.toInt())
 			isSingleLine = false
-			setTextIsSelectable(true)
+			// Do NOT set textIsSelectable — it intercepts touch events, requiring 3 taps
+			// before the card's onClickListener fires. Address is copied via card click.
 		}
 
 		inner.addView(nameView)

@@ -73,8 +73,10 @@ open class PageHolder(
 			},
 		)
 		binding.ssiv.setOnTouchListener { _, event ->
+			// Return the detector's result: true when it consumed a double-tap event,
+			// false otherwise. This prevents SSIV's internal GestureDetector from seeing
+			// the second tap DOWN and firing its own zoom on top of ours.
 			doubleTapDetector.onTouchEvent(event)
-			false
 		}
 	}
 
