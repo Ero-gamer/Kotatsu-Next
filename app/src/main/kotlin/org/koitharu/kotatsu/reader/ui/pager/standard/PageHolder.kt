@@ -28,6 +28,7 @@ import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
 import org.koitharu.kotatsu.reader.ui.pager.BasePageHolder
 import android.view.GestureDetector
+import android.view.MotionEvent
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 
 open class PageHolder(
@@ -57,26 +58,22 @@ open class PageHolder(
 	 * GestureDetector from seeing that event, suppressing its native double-tap zoom.
 	 * All other events return false so SSIV handles pan/pinch/single-tap normally.
 	 */
-	private val doubleTapDetector = GestureDetector(
-		binding.root.context,
-		object : GestureDetector.SimpleOnGestureListener() {
-			override fun onDoubleTap(e: MotionEvent): Boolean {
-				performSteppedZoom(e)
-				return true
-			}
-		},
-	)
-
 	init {
 		ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
-		// Intercept touch events on the SSIV so we can override its built-in double-tap.
+		// Intercept SSIV double-tap to implement our 3-step zoom cycle.
+		// The detector is created inside init{} (not as a property) so `this` is
+		// guaranteed to be fully initialized before the lambda capturing it is created.
+		val doubleTapDetector = GestureDetector(
+			binding.root.context,
+			object : GestureDetector.SimpleOnGestureListener() {
+				override fun onDoubleTap(e: MotionEvent): Boolean {
+					performSteppedZoom(e)
+					return true
+				}
+			},
+		)
 		binding.ssiv.setOnTouchListener { _, event ->
 			doubleTapDetector.onTouchEvent(event)
-			// Return false so SSIV still processes pan/pinch/single-tap.
-			// Our GestureDetector only needs to "consume" the double tap by having
-			// called performSteppedZoom() — SSIV's GestureDetector won't fire because
-			// the second tap DOWN is delivered here first (onTouchListener takes priority)
-			// and SSIV won't recognize the two-tap pattern as a double tap.
 			false
 		}
 	}

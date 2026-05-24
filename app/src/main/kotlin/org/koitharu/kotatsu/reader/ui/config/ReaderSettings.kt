@@ -47,11 +47,7 @@ data class ReaderSettings(
 	private constructor(settings: AppSettings, colorFilterOverride: ReaderColorFilter?) : this(
 		zoomMode = settings.zoomMode,
 		background = settings.readerBackground,
-		colorFilter = (colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter).also { effective ->
-			// sharpening is stored here as a side-channel for PageLoader; it must mirror
-			// the EFFECTIVE colorFilter source (not colorFilterOverride before isEmpty check),
-			// otherwise a per-manga empty-override would zero out the global sharpening setting.
-		},
+		colorFilter = colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter,
 		sharpening = run {
 			val effectiveOverride = colorFilterOverride?.takeUnless { it.isEmpty }
 			effectiveOverride?.sharpening ?: settings.readerColorFilter?.sharpening ?: 0f
