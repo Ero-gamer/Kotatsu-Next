@@ -233,7 +233,12 @@ class DoublePageScalingFrame @JvmOverloads constructor(
 		}
 
 		override fun onDoubleTap(e: MotionEvent): Boolean {
-			val newScale = if (scale != 1f) 1f else MAX_SCALE * 0.8f
+			// 3-step zoom cycle: 100% → 150% → 200% → 100% → …
+			val newScale = when {
+				scale < 1f + 0.05f -> 1.5f           // at/near 100%: go to 150%
+				scale < 1.5f + 0.05f -> MAX_SCALE * 0.8f  // at/near 150%: go to max
+				else -> 1f                             // at max or beyond: reset to 100%
+			}
 			animator?.cancel()
 			animator = ValueAnimator.ofFloat(scale, newScale).apply {
 				interpolator = AccelerateDecelerateInterpolator()

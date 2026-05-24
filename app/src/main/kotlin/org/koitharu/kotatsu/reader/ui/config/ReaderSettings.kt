@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
@@ -46,8 +47,15 @@ data class ReaderSettings(
 	private constructor(settings: AppSettings, colorFilterOverride: ReaderColorFilter?) : this(
 		zoomMode = settings.zoomMode,
 		background = settings.readerBackground,
-		colorFilter = colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter,
-		sharpening = colorFilterOverride?.sharpening ?: settings.readerColorFilter?.sharpening ?: 0f,
+		colorFilter = (colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter).also { effective ->
+			// sharpening is stored here as a side-channel for PageLoader; it must mirror
+			// the EFFECTIVE colorFilter source (not colorFilterOverride before isEmpty check),
+			// otherwise a per-manga empty-override would zero out the global sharpening setting.
+		},
+		sharpening = run {
+			val effectiveOverride = colorFilterOverride?.takeUnless { it.isEmpty }
+			effectiveOverride?.sharpening ?: settings.readerColorFilter?.sharpening ?: 0f
+		},
 		isReaderOptimizationEnabled = settings.isReaderOptimizationEnabled,
 		// COLOR DEPTH FIX: ARGB_8888 is always the default. RGB_565 is only used when
 		// the user explicitly enables "Reduce memory usage" OR the device is a low-RAM device.
@@ -138,6 +146,12 @@ data class ReaderSettings(
 		override fun onActive() {
 			assert(job?.isActive != true)
 			job?.cancel()
+			// Eagerly re-publish a fresh value so there is zero stale-value window between
+			// re-subscription and the first emission from observeImpl(). Without this,
+			// a colorFilter change made while inactive (e.g. during orientation change or
+			// RecyclerView rebind) would briefly serve the old frozen StateFlow value,
+			// causing contrast/vibrance to appear reset until the first DB query completes.
+			publishValue(ReaderSettings(settings, value.colorFilter))
 			job = processLifecycleScope.launch(Dispatchers.Default) {
 				observeImpl()
 			}
@@ -150,9 +164,22 @@ data class ReaderSettings(
 
 		private suspend fun observeImpl() {
 			combine(
-				mangaId.flatMapLatest { mangaDataRepository.observeColorFilter(it) },
-				settings.observeChanges().filter { x -> x == null || x in settingsKeys }.onStart { emit(null) },
-			) { mangaCf, settingsKey ->
+				// onStart emits the last-known colorFilter immediately so combine() fires
+				// without waiting for Room's async query. This eliminates the brief visual
+				// reset flash (colorFilter=null) that appears on process restart or
+				// RecyclerView rebind when the manga has a per-manga filter but no global one.
+				// Room's real value arrives shortly after and corrects any stale per-manga state.
+				mangaId.flatMapLatest { mangaDataRepository.observeColorFilter(it) }
+					.onStart { emit(value.colorFilter) },
+				// conflate() collapses multiple rapid settings-change events into one.
+				// When readerColorFilter setter writes 7 keys atomically (commit=true), the
+				// SharedPreferences listener fires once per key. Without conflate(), combine()
+				// would rebuild ReaderSettings 7 times for a single logical CF change.
+				settings.observeChanges()
+					.filter { x -> x == null || x in settingsKeys }
+					.conflate()
+					.onStart { emit(null) },
+			) { mangaCf, _ ->
 				ReaderSettings(settings, mangaCf)
 			}.collect {
 				publishValue(it)

@@ -446,17 +446,24 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getBoolean(KEY_READER_SCREEN_ON, true)
 
 	var readerColorFilter: ReaderColorFilter?
-		get() = runCatching {
-			ReaderColorFilter(
-				brightness = prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness),
-				contrast = prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast),
-				sharpening = prefs.getFloat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening),
-				vibrance = prefs.getFloat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance),
-				isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
-				isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
-				isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
-			).takeUnless { it.isEmpty }
-		}.getOrNull()
+		get() {
+			// Read each key individually with its own safe fallback.
+			// A single broad runCatching {} would silently drop ALL filter values
+			// if any one key has a type mismatch (e.g. after a prefs migration error).
+			return try {
+				ReaderColorFilter(
+					brightness = runCatching { prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness) }.getOrDefault(ReaderColorFilter.EMPTY.brightness),
+					contrast = runCatching { prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast) }.getOrDefault(ReaderColorFilter.EMPTY.contrast),
+					sharpening = runCatching { prefs.getFloat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening) }.getOrDefault(ReaderColorFilter.EMPTY.sharpening),
+					vibrance = runCatching { prefs.getFloat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance) }.getOrDefault(ReaderColorFilter.EMPTY.vibrance),
+					isInverted = runCatching { prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted) }.getOrDefault(ReaderColorFilter.EMPTY.isInverted),
+					isGrayscale = runCatching { prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale) }.getOrDefault(ReaderColorFilter.EMPTY.isGrayscale),
+					isBookBackground = runCatching { prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground) }.getOrDefault(ReaderColorFilter.EMPTY.isBookBackground),
+				).takeUnless { it.isEmpty }
+			} catch (e: Exception) {
+				null
+			}
+		}
 		set(value) {
 			// Use commit=true (synchronous write) so the value is persisted to disk before this
 			// setter returns. apply() is async — if the process is killed by an OOM crash while

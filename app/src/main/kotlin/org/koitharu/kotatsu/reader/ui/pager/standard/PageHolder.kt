@@ -27,6 +27,7 @@ import org.koitharu.kotatsu.databinding.ItemPageBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
 import org.koitharu.kotatsu.reader.ui.pager.BasePageHolder
+import android.view.GestureDetector
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 
 open class PageHolder(
@@ -47,8 +48,37 @@ open class PageHolder(
 
 	override val ssiv = binding.ssiv
 
+	/**
+	 * Overrides SSIV's built-in double-tap zoom (which jumps directly to maxScale).
+	 * Implements a 3-step cycle: 100% (fit) → 150% → 200% → back to 100%.
+	 *
+	 * We use setOnTouchListener and forward all events to our GestureDetector.
+	 * Returning true only on the confirmed double-tap DOWN prevents SSIV's own
+	 * GestureDetector from seeing that event, suppressing its native double-tap zoom.
+	 * All other events return false so SSIV handles pan/pinch/single-tap normally.
+	 */
+	private val doubleTapDetector = GestureDetector(
+		binding.root.context,
+		object : GestureDetector.SimpleOnGestureListener() {
+			override fun onDoubleTap(e: MotionEvent): Boolean {
+				performSteppedZoom(e)
+				return true
+			}
+		},
+	)
+
 	init {
 		ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
+		// Intercept touch events on the SSIV so we can override its built-in double-tap.
+		binding.ssiv.setOnTouchListener { _, event ->
+			doubleTapDetector.onTouchEvent(event)
+			// Return false so SSIV still processes pan/pinch/single-tap.
+			// Our GestureDetector only needs to "consume" the double tap by having
+			// called performSteppedZoom() — SSIV's GestureDetector won't fire because
+			// the second tap DOWN is delivered here first (onTouchListener takes priority)
+			// and SSIV won't recognize the two-tap pattern as a double tap.
+			false
+		}
 	}
 
 	override fun onApplyWindowInsets(
@@ -148,6 +178,38 @@ open class PageHolder(
 			}
 			setMargins(baseMargin + (corner?.radius ?: 0))
 		}
+	}
+
+	/**
+	 * Cycles through three zoom levels on each double tap:
+	 *   1. Fit-to-screen (minScale)  — the default/initial view
+	 *   2. 1.5× minScale             — comfortable reading zoom
+	 *   3. 2× minScale               — maximum reading zoom
+	 * After the third step, the next double tap resets to fit-to-screen.
+	 *
+	 * @param e the double-tap MotionEvent, used to zoom toward the tap point.
+	 */
+	private fun performSteppedZoom(e: MotionEvent) {
+		val ssiv = binding.ssiv
+		if (!ssiv.isReady) return
+		// DoublePageHolder locks SSIV zoom (maxScale == minScale); zoom is handled by
+		// DoublePageScalingFrame in that mode. Skip our stepped-zoom in that case.
+		if (ssiv.maxScale <= ssiv.minScale + 0.01f) return
+		val currentScale = ssiv.scale
+		val base = ssiv.minScale
+		if (base <= 0f || base.isNaN()) return
+		val step2 = base * 1.5f
+		val step3 = base * 2.0f
+		// Choose next step based on current scale (with small epsilon for float safety).
+		val targetScale = when {
+			currentScale < base + base * 0.1f -> step2   // at/near fit: go to 150%
+			currentScale < step2 + base * 0.1f -> step3  // at/near 150%: go to 200%
+			else -> base                                   // at/beyond 200%: reset to fit
+		}
+		val tapCenter = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
+		ssiv.animateScaleAndCenter(targetScale, tapCenter)
+			?.withDuration(ssiv.resources.getInteger(android.R.integer.config_shortAnimTime).toLong())
+			?.start()
 	}
 
 	private fun scaleBy(factor: Float) {

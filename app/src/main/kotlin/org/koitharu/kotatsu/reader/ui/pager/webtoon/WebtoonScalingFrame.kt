@@ -389,7 +389,16 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 		}
 
 		override fun onDoubleTap(e: MotionEvent): Boolean {
-			val newScale = if (scale != 1f) 1f else MAX_SCALE * 0.8f
+			// 3-step zoom cycle: 100% → 150% → 200% → 100% → …
+			// Thresholds use small epsilon to avoid float equality issues.
+			val step1 = 1f        // 100% — fit/default
+			val step2 = 1.5f      // 150% — first zoom
+			val step3 = MAX_SCALE * 0.8f  // ~200% — second zoom (matches prior behaviour)
+			val newScale = when {
+				scale < step1 + 0.05f -> step2   // at/near 100%: go to 150%
+				scale < step2 + 0.05f -> step3   // at/near 150%: go to max
+				else -> step1                     // at max or beyond: reset to 100%
+			}
 			ValueAnimator.ofFloat(scale, newScale).run {
 				interpolator = AccelerateDecelerateInterpolator()
 				duration = context.getAnimationDuration(R.integer.config_defaultAnimTime)

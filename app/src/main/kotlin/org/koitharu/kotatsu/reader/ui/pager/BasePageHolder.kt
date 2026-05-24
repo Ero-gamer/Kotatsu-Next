@@ -62,6 +62,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 		get() = viewModel.settingsProducer.value
 
 	private var lastSharpening = Float.MIN_VALUE
+	/** Sentinel: MIN_VALUE means "not yet applied", distinguishing from a legitimate null filter. */
+	private var lastColorFilter: Any? = UNSET_SENTINEL
 
 	val context: Context
 		get() = itemView.context
@@ -96,6 +98,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 		val sharpeningChanged = lastSharpening != Float.MIN_VALUE && lastSharpening != settings.sharpening
 		lastSharpening = settings.sharpening
 
+		val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
+		lastColorFilter = settings.colorFilter
 		when {
 			// Sharpening changed: re-process bitmap using cached source file (no re-download).
 			// Uses force=false so the page cache is reused — avoids network + limits RAM pressure.
@@ -104,9 +108,11 @@ abstract class BasePageHolder<B : ViewBinding>(
 			// BitmapConfig changed: reload SSIV tiles with new config.
 			settings.applyBitmapConfig(ssiv) -> reloadImage()
 
-			// Any other setting (brightness, contrast, vibrance, invert, grayscale, book) changed:
+			// ColorFilter (contrast/vibrance/brightness/etc) changed while page is displayed:
 			// re-apply ColorMatrix paint filter to SSIV — instant, zero re-decode cost.
-			viewModel.state.value is PageState.Shown -> onReady()
+			// Guard: only call onReady() if colorFilter actually changed, so a transient
+			// stale null emission from the settings flow doesn't flash the SSIV to unfiltered.
+			colorFilterChanged && viewModel.state.value is PageState.Shown -> onReady()
 		}
 		ssiv.applyDownSampling(isResumed())
 	}
@@ -162,6 +168,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 		viewModel.onRecycle()
 		ssiv.recycle()
 		animatedView?.disposeImage()
+		// Reset sentinels so the next bind treats settings as fresh and applies all filters.
+		lastSharpening = Float.MIN_VALUE
+		lastColorFilter = UNSET_SENTINEL
 	}
 
 	override fun onTrimMemory(level: Int) {
@@ -268,5 +277,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 		// BUG 1 FIX: delay before showing "preparing_" status.
 		// If SSIV fires onReady() within this window, we never show "preparing_" at all.
 		private const val PREPARING_STATUS_DELAY_MS = 600L
+		/** Sentinel used by lastColorFilter to distinguish "not yet set" from a legitimate null filter. */
+		private val UNSET_SENTINEL = Any()
 	}
 }

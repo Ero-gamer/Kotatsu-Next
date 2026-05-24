@@ -51,12 +51,17 @@ class ImageFiltersTransformation(
                 if (needsCopy) argbInput.recycle()
                 result
             } else {
-                // EGL failure — recycle the temporary ARGB copy and return the original input.
-                // Returning argbInput here would leak it since Coil only manages input's lifecycle.
+                // EGL failure (getBitmapWithFilterApplied returned null).
+                // Invalidate the shared context so it is rebuilt fresh next call,
+                // preventing the filter from being silently stuck at "no sharpening"
+                // after GPU context loss (e.g. app backgrounding on low-end devices).
+                invalidateGpuContext()
                 if (needsCopy) argbInput.recycle()
                 input
             }
         } catch (e: Exception) {
+            // Any GPU/EGL exception — invalidate context so next call rebuilds it cleanly.
+            invalidateGpuContext()
             if (needsCopy) argbInput.recycle()
             input
         }
@@ -76,7 +81,10 @@ class ImageFiltersTransformation(
         /**
          * Shared GPUImage instance created once and reused.
          * Safe because [gpuSemaphore] ensures only one thread accesses it at a time.
-         * Lazy-initialised and stored weakly so it can be GC'd under memory pressure.
+         *
+         * Nulled on EGL failure so a fresh context is created on the next call,
+         * preventing silent "filter stuck at 0" when the EGL surface is invalidated
+         * (e.g. after app backgrounding on low-end devices or OOM recovery).
          */
         @Volatile private var sharedGpuImage: GPUImage? = null
 
@@ -84,6 +92,12 @@ class ImageFiltersTransformation(
             return sharedGpuImage ?: GPUImage(context.applicationContext).also {
                 sharedGpuImage = it
             }
+        }
+
+        /** Clears the shared GPU context so it is recreated on the next filter call.
+         *  Called after any EGL/GPU failure to ensure the filter is not silently skipped. */
+        internal fun invalidateGpuContext() {
+            sharedGpuImage = null
         }
     }
 }

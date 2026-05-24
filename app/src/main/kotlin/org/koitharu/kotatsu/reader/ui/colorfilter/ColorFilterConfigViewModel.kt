@@ -49,9 +49,16 @@ class ColorFilterConfigViewModel @Inject constructor(
 
     init {
         launchLoadingJob {
-            initialColorFilter = mangaDataRepository.getColorFilter(manga.id)
-                ?: settings.readerColorFilter
-            _colorFilter.value = initialColorFilter
+            val loaded = runCatching {
+                mangaDataRepository.getColorFilter(manga.id)
+                    ?: settings.readerColorFilter
+            }.getOrElse {
+                // Fallback to SharedPrefs on DB error so the UI is never stuck in
+                // a "not ready" state with all sliders locked.
+                settings.readerColorFilter
+            }
+            initialColorFilter = loaded
+            _colorFilter.value = loaded
             _isReady.value = true
         }
     }
