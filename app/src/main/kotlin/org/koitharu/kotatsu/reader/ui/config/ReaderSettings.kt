@@ -48,10 +48,8 @@ data class ReaderSettings(
 		zoomMode = settings.zoomMode,
 		background = settings.readerBackground,
 		colorFilter = colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter,
-		sharpening = run {
-			val effectiveOverride = colorFilterOverride?.takeUnless { it.isEmpty }
-			effectiveOverride?.sharpening ?: settings.readerColorFilter?.sharpening ?: 0f
-		},
+		sharpening = (colorFilterOverride?.takeUnless { it.isEmpty })?.sharpening
+			?: settings.readerColorFilter?.sharpening ?: 0f,
 		isReaderOptimizationEnabled = settings.isReaderOptimizationEnabled,
 		// COLOR DEPTH FIX: ARGB_8888 is always the default. RGB_565 is only used when
 		// the user explicitly enables "Reduce memory usage" OR the device is a low-RAM device.
