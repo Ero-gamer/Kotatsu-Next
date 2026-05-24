@@ -7,7 +7,7 @@
 <br>
 
 <div align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=28&pause=1000&color=C792EA&center=true&vCenter=true&width=600&lines=Kotatsu+Next;Your+Manga+Manhua+Webtoons+universe;%2C+FOSS+%26+free;11200%2B+sources+%7C+No+ads+%7C+Material+You" alt="Typing SVG" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=28&pause=1000&color=C792EA&center=true&vCenter=true&width=600&lines=Kotatsu+Next;Your+manga+universe%2C+FOSS+%26+free;11200%2B+sources+%7C+No+ads+%7C+Material+You" alt="Typing SVG" />
 </div>
 
 <br>
@@ -18,6 +18,9 @@
 [![License](https://img.shields.io/github/license/KotatsuApp/Kotatsu?style=for-the-badge&color=blue)](https://github.com/KotatsuApp/Kotatsu/blob/devel/LICENSE)
 [![FOSS](https://img.shields.io/badge/FOSS-100%25-success?style=for-the-badge)](https://github.com/Ero-gamer/Kotatsu-Next)
 [![Stars](https://img.shields.io/github/stars/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=yellow)](https://github.com/Ero-gamer/Kotatsu-Next/stargazers)
+[![Forks](https://img.shields.io/github/forks/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=orange)](https://github.com/Ero-gamer/Kotatsu-Next/network)
+[![Total Downloads](https://img.shields.io/github/downloads/Ero-gamer/Kotatsu-Next/total?style=for-the-badge&color=blue&label=Downloads)](https://github.com/Ero-gamer/Kotatsu-Next/releases)
+[![Latest Release](https://img.shields.io/github/v/release/Ero-gamer/Kotatsu-Next?style=for-the-badge&color=green&label=Latest)](https://github.com/Ero-gamer/Kotatsu-Next/releases/latest)
 
 </div>
 
@@ -48,23 +51,7 @@
 </div>
 
 <details>
-<summary>📋 Kotatsu Next exclusive features</summary>
-<br>
-
-**°Vibrance and Sharpening image filters** - Vibrance restore full washed out colors and pop them out while preserving natural colors, perfect for manhua, webtoons and colored manga, while sharpening filter make blurry, bad scans look crisp and detailed (use with caution, still experimental and it's resources intensive)
-
-**°Increased Max default zoom by 100% (2x)** Perfect for high resolution Manhua, webtoons and scans, now you can zoom and see small details in better clarity/visibility on your big screen.
-
-**°Vertical Slider as extra customization**
-
-**°Replaced default jpeg image decoder with JPEG Turbo lib** Best optimized jpeg image decoder for errors-free decoding even for large long strip images (bigger than 10000x5000 res Images that get decoded with visible bad tints in default jpeg decoder) and 2x to 6x faster than other jpeg decoders while using same resources overhead and even lower in certain cases.
-
-**°Optimized Backup & Restore feature**
-
-</details>
-
-<details>
-<summary>📋 Original Kotatsu Full features list</summary>
+<summary>📋 Full feature list</summary>
 <br>
 
 - 📚 **1200+ manga sources** — online catalogues with search by name, genre and more
