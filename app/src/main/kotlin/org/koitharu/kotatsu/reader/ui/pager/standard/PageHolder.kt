@@ -206,13 +206,15 @@ open class PageHolder(
 		val currentScale = ssiv.scale
 		val base = ssiv.minScale
 		if (base <= 0f || base.isNaN()) return
-		val step2 = base * 1.5f
-		val step3 = base * 2.0f
+		val step2 = base * 1.2f
+		val step3 = base * 1.5f
+		val step4 = base * 2.0f
 		// Choose next step based on current scale (with small epsilon for float safety).
 		val targetScale = when {
-			currentScale < base + base * 0.1f -> step2   // at/near fit: go to 150%
-			currentScale < step2 + base * 0.1f -> step3  // at/near 150%: go to 200%
-			else -> base                                   // at/beyond 200%: reset to fit
+			currentScale < base + base * 0.1f -> step2   // at/near 100%: go to 120%
+			currentScale < step2 + base * 0.1f -> step3  // at/near 120%: go to 150%
+			currentScale < step3 + base * 0.1f -> step4  // at/near 150%: go to 200%
+			else -> base                                   // at/beyond 200%: reset to 100%
 		}
 		val tapCenter = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
 		ssiv.animateScaleAndCenter(targetScale, tapCenter)
