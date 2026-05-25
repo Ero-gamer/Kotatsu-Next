@@ -27,6 +27,7 @@ import org.koitharu.kotatsu.browser.cloudflare.CloudFlareInterceptClient
 import org.koitharu.kotatsu.core.exceptions.CloudFlareException
 import org.koitharu.kotatsu.core.network.CommonHeaders
 import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.network.proxy.ProxyProvider
 import org.koitharu.kotatsu.core.parser.MangaRepository
 import org.koitharu.kotatsu.core.parser.ParserMangaRepository
@@ -57,6 +58,7 @@ class WebViewExecutor @Inject constructor(
 	private val cookieJar: MutableCookieJar,
 	private val foregroundActivityHolder: ForegroundActivityHolder,
 	private val mangaRepositoryFactoryProvider: Provider<MangaRepository.Factory>,
+	private val settings: AppSettings,
 ) {
 
 	private var webViewCached: WeakReference<WebView>? = null
@@ -362,12 +364,16 @@ class WebViewExecutor @Inject constructor(
 		}
 	}
 
-	private fun needsCloudFlareInterception(source: MangaSource): Boolean = runCatching {
-		val repository = mangaRepositoryFactoryProvider.get().create(source) as? ParserMangaRepository ?: return false
-		repository.getConfigKeys().filterIsInstance<ConfigKey.InterceptCloudflare>().firstOrNull()?.defaultValue == true
-	}.onFailure {
-		it.printStackTraceDebug()
-	}.getOrDefault(false)
+	private fun needsCloudFlareInterception(source: MangaSource): Boolean {
+		// Global kill-switch: user can disable CF auto-solve for all sources at once.
+		if (settings.isCfAutoSolveDisabled) return false
+		return runCatching {
+			val repository = mangaRepositoryFactoryProvider.get().create(source) as? ParserMangaRepository ?: return false
+			repository.getConfigKeys().filterIsInstance<ConfigKey.InterceptCloudflare>().firstOrNull()?.defaultValue == true
+		}.onFailure {
+			it.printStackTraceDebug()
+		}.getOrDefault(false)
+	}
 
 	@MainThread
 	private suspend fun dumpPageHtml(webView: WebView) {

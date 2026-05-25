@@ -63,30 +63,18 @@ open class PageHolder(
 		// Intercept SSIV double-tap to implement our 3-step zoom cycle.
 		// The detector is created inside init{} (not as a property) so `this` is
 		// guaranteed to be fully initialized before the lambda capturing it is created.
-		// Flag set in onDoubleTap (fires on 2nd tap DOWN) and cleared on ACTION_UP.
-		// The onTouchListener returns true only while this flag is set, which blocks
-		// SSIV from seeing the second tap without eating every other touch event.
-		var consumingDoubleTap = false
-		val doubleTapDetector = GestureDetector(
-			binding.root.context,
-			object : GestureDetector.SimpleOnGestureListener() {
-				override fun onDoubleTap(e: MotionEvent): Boolean {
-					consumingDoubleTap = true
-					performSteppedZoom(e)
-					return true
-				}
-			},
-		)
-		binding.ssiv.setOnTouchListener { _, event ->
-			doubleTapDetector.onTouchEvent(event)
-			if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
-				val wasConsuming = consumingDoubleTap
-				consumingDoubleTap = false
-				wasConsuming
-			} else {
-				consumingDoubleTap
+		// Replace SSIV's built-in double-tap zoom (single toggle to maxScale) with our
+		// 4-step cycle. setOnDoubleTapListener is the standard SSIV API for this:
+		// when set, SSIV calls the listener instead of its own onDoubleTap handler,
+		// so there is zero leakage to SSIV's internal GestureDetector.
+		binding.ssiv.setOnDoubleTapListener(object : GestureDetector.OnDoubleTapListener {
+			override fun onSingleTapConfirmed(e: MotionEvent) = false
+			override fun onDoubleTap(e: MotionEvent): Boolean {
+				performSteppedZoom(e)
+				return true
 			}
-		}
+			override fun onDoubleTapEvent(e: MotionEvent) = false
+		})
 	}
 
 	override fun onApplyWindowInsets(
@@ -198,33 +186,37 @@ open class PageHolder(
 	 * We compensate by shifting the source center by (viewMid − tapPos) / targetScale,
 	 * which exactly cancels the pan-to-center effect and anchors zoom to the tap.
 	 */
+	/**
+	 * 4-step zoom cycle: 100% → 130% → 160% → 200% → reset to 100%.
+	 *
+	 * Pivot math: animateScaleAndCenter(scale, center) pans so `center` (source-space)
+	 * lands at the VIEW MIDPOINT. We compensate by shifting center by
+	 * (viewMid - tapPos) / targetScale so the tapped pixel stays fixed instead.
+	 */
 	private fun performSteppedZoom(e: MotionEvent) {
 		val ssiv = binding.ssiv
 		if (!ssiv.isReady) return
-		// DoublePageHolder locks SSIV zoom (maxScale == minScale); handled by DoublePageScalingFrame.
+		// DoublePageHolder locks SSIV zoom (maxScale == minScale); DoublePageScalingFrame handles it.
 		if (ssiv.maxScale <= ssiv.minScale + 0.01f) return
-		val currentScale = ssiv.scale
 		val base = ssiv.minScale
 		if (base <= 0f || base.isNaN()) return
+		val current = ssiv.scale
 		val eps = base * 0.05f
-		val step2 = base * 1.2f
-		val step3 = base * 1.5f
-		val step4 = base * 2.0f
-		val targetScale = when {
-			currentScale < base  + eps -> step2  // 100% → 120%
-			currentScale < step2 + eps -> step3  // 120% → 150%
-			currentScale < step3 + eps -> step4  // 150% → 200%
-			else                       -> base   // 200%+ → reset to 100%
+		val s130 = base * 1.3f
+		val s160 = base * 1.6f
+		val s200 = base * 2.0f
+		val target = when {
+			current < base + eps -> s130  // 100% → 130%
+			current < s130 + eps -> s160  // 130% → 160%
+			current < s160 + eps -> s200  // 160% → 200%
+			else                 -> base  // 200%+ → reset to 100%
 		}
-		// Source point currently under the tap position.
-		val sourceUnderTap = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
-		// Shift the center so the tapped pixel stays at the tap position rather than
-		// being pulled to the view midpoint (matching WebtoonScalingFrame's pivot behaviour).
-		val compensatedCenter = android.graphics.PointF(
-			sourceUnderTap.x + (ssiv.width  / 2f - e.x) / targetScale,
-			sourceUnderTap.y + (ssiv.height / 2f - e.y) / targetScale,
+		val src = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
+		val center = android.graphics.PointF(
+			src.x + (ssiv.width  / 2f - e.x) / target,
+			src.y + (ssiv.height / 2f - e.y) / target,
 		)
-		ssiv.animateScaleAndCenter(targetScale, compensatedCenter)
+		ssiv.animateScaleAndCenter(target, center)
 			?.withDuration(ssiv.resources.getInteger(android.R.integer.config_shortAnimTime).toLong())
 			?.withInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
 			?.start()
