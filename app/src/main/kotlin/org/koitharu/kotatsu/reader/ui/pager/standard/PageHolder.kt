@@ -189,36 +189,44 @@ open class PageHolder(
 	}
 
 	/**
-	 * Cycles through three zoom levels on each double tap:
-	 *   1. Fit-to-screen (minScale)  — the default/initial view
-	 *   2. 1.5× minScale             — comfortable reading zoom
-	 *   3. 2× minScale               — maximum reading zoom
-	 * After the third step, the next double tap resets to fit-to-screen.
+	 * Cycles through four zoom levels on each double tap:
+	 *   100% (fit) → 120% → 150% → 200% → reset to 100%
 	 *
-	 * @param e the double-tap MotionEvent, used to zoom toward the tap point.
+	 * Uses the same pivot-point zoom math as WebtoonScalingFrame so the tapped
+	 * pixel stays visually fixed during zoom. SSIV's animateScaleAndCenter() pans
+	 * so the given source point ends up at the VIEW CENTER — not at the tap point.
+	 * We compensate by shifting the source center by (viewMid − tapPos) / targetScale,
+	 * which exactly cancels the pan-to-center effect and anchors zoom to the tap.
 	 */
 	private fun performSteppedZoom(e: MotionEvent) {
 		val ssiv = binding.ssiv
 		if (!ssiv.isReady) return
-		// DoublePageHolder locks SSIV zoom (maxScale == minScale); zoom is handled by
-		// DoublePageScalingFrame in that mode. Skip our stepped-zoom in that case.
+		// DoublePageHolder locks SSIV zoom (maxScale == minScale); handled by DoublePageScalingFrame.
 		if (ssiv.maxScale <= ssiv.minScale + 0.01f) return
 		val currentScale = ssiv.scale
 		val base = ssiv.minScale
 		if (base <= 0f || base.isNaN()) return
+		val eps = base * 0.05f
 		val step2 = base * 1.2f
 		val step3 = base * 1.5f
 		val step4 = base * 2.0f
-		// Choose next step based on current scale (with small epsilon for float safety).
 		val targetScale = when {
-			currentScale < base + base * 0.1f -> step2   // at/near 100%: go to 120%
-			currentScale < step2 + base * 0.1f -> step3  // at/near 120%: go to 150%
-			currentScale < step3 + base * 0.1f -> step4  // at/near 150%: go to 200%
-			else -> base                                   // at/beyond 200%: reset to 100%
+			currentScale < base  + eps -> step2  // 100% → 120%
+			currentScale < step2 + eps -> step3  // 120% → 150%
+			currentScale < step3 + eps -> step4  // 150% → 200%
+			else                       -> base   // 200%+ → reset to 100%
 		}
-		val tapCenter = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
-		ssiv.animateScaleAndCenter(targetScale, tapCenter)
+		// Source point currently under the tap position.
+		val sourceUnderTap = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
+		// Shift the center so the tapped pixel stays at the tap position rather than
+		// being pulled to the view midpoint (matching WebtoonScalingFrame's pivot behaviour).
+		val compensatedCenter = android.graphics.PointF(
+			sourceUnderTap.x + (ssiv.width  / 2f - e.x) / targetScale,
+			sourceUnderTap.y + (ssiv.height / 2f - e.y) / targetScale,
+		)
+		ssiv.animateScaleAndCenter(targetScale, compensatedCenter)
 			?.withDuration(ssiv.resources.getInteger(android.R.integer.config_shortAnimTime).toLong())
+			?.withInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
 			?.start()
 	}
 
