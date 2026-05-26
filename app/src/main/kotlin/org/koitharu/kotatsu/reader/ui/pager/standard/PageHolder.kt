@@ -27,7 +27,6 @@ import org.koitharu.kotatsu.databinding.ItemPageBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
 import org.koitharu.kotatsu.reader.ui.pager.BasePageHolder
-import android.view.GestureDetector
 import android.view.MotionEvent
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 
@@ -49,32 +48,8 @@ open class PageHolder(
 
 	override val ssiv = binding.ssiv
 
-	/**
-	 * Overrides SSIV's built-in double-tap zoom (which jumps directly to maxScale).
-	 * Implements a 3-step cycle: 100% (fit) → 150% → 200% → back to 100%.
-	 *
-	 * We use setOnTouchListener and forward all events to our GestureDetector.
-	 * Returning true only on the confirmed double-tap DOWN prevents SSIV's own
-	 * GestureDetector from seeing that event, suppressing its native double-tap zoom.
-	 * All other events return false so SSIV handles pan/pinch/single-tap normally.
-	 */
 	init {
 		ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
-		// Intercept SSIV double-tap to implement our 3-step zoom cycle.
-		// The detector is created inside init{} (not as a property) so `this` is
-		// guaranteed to be fully initialized before the lambda capturing it is created.
-		// Replace SSIV's built-in double-tap zoom (single toggle to maxScale) with our
-		// 4-step cycle. setOnDoubleTapListener is the standard SSIV API for this:
-		// when set, SSIV calls the listener instead of its own onDoubleTap handler,
-		// so there is zero leakage to SSIV's internal GestureDetector.
-		binding.ssiv.setOnDoubleTapListener(object : GestureDetector.OnDoubleTapListener {
-			override fun onSingleTapConfirmed(e: MotionEvent) = false
-			override fun onDoubleTap(e: MotionEvent): Boolean {
-				performSteppedZoom(e)
-				return true
-			}
-			override fun onDoubleTapEvent(e: MotionEvent) = false
-		})
 	}
 
 	override fun onApplyWindowInsets(
@@ -110,6 +85,18 @@ open class PageHolder(
 			binding.ssiv.width / binding.ssiv.sWidth.toFloat(),
 			binding.ssiv.height / binding.ssiv.sHeight.toFloat(),
 		)
+		// 4-step double-tap cycle: 100% → 130% → 160% → 200% → reset.
+		// ZOOM_FOCUS_FIXED keeps the tapped pixel anchored (pivot = tap point), giving
+		// the same natural feel as WebtoonScalingFrame's postScale(factor, focusX, focusY).
+		// We drive the cycle by updating doubleTapZoomScale to the NEXT step each time
+		// SSIV reports a scale change via onStateChangedListener.
+		binding.ssiv.doubleTapZoomStyle = SubsamplingScaleImageView.ZOOM_FOCUS_FIXED
+		updateDoubleTapTarget(binding.ssiv.scale, binding.ssiv.minScale)
+		binding.ssiv.onStateChangedListener = object : DefaultOnStateChangedListener() {
+			override fun onScaleChanged(view: SubsamplingScaleImageView, newScale: Float, origin: Int) {
+				updateDoubleTapTarget(newScale, view.minScale)
+			}
+		}
 		binding.ssiv.colorFilter = settings.colorFilter?.toColorFilter()
 		when (settings.zoomMode) {
 			ZoomMode.FIT_CENTER -> {
@@ -187,39 +174,23 @@ open class PageHolder(
 	 * which exactly cancels the pan-to-center effect and anchors zoom to the tap.
 	 */
 	/**
-	 * 4-step zoom cycle: 100% → 130% → 160% → 200% → reset to 100%.
-	 *
-	 * Pivot math: animateScaleAndCenter(scale, center) pans so `center` (source-space)
-	 * lands at the VIEW MIDPOINT. We compensate by shifting center by
-	 * (viewMid - tapPos) / targetScale so the tapped pixel stays fixed instead.
+	 * Sets [SubsamplingScaleImageView.doubleTapZoomScale] to the next step in the
+	 * 100% → 130% → 160% → 200% → 100% cycle based on [currentScale].
+	 * Called from [onReady] and from the onScaleChanged listener so SSIV always
+	 * knows the correct target before the user double-taps.
 	 */
-	private fun performSteppedZoom(e: MotionEvent) {
-		val ssiv = binding.ssiv
-		if (!ssiv.isReady) return
-		// DoublePageHolder locks SSIV zoom (maxScale == minScale); DoublePageScalingFrame handles it.
-		if (ssiv.maxScale <= ssiv.minScale + 0.01f) return
-		val base = ssiv.minScale
-		if (base <= 0f || base.isNaN()) return
-		val current = ssiv.scale
-		val eps = base * 0.05f
-		val s130 = base * 1.3f
-		val s160 = base * 1.6f
-		val s200 = base * 2.0f
-		val target = when {
-			current < base + eps -> s130  // 100% → 130%
-			current < s130 + eps -> s160  // 130% → 160%
-			current < s160 + eps -> s200  // 160% → 200%
-			else                 -> base  // 200%+ → reset to 100%
+	private fun updateDoubleTapTarget(currentScale: Float, minScale: Float) {
+		if (minScale <= 0f || minScale.isNaN()) return
+		val eps = minScale * 0.05f
+		val s130 = minScale * 1.3f
+		val s160 = minScale * 1.6f
+		val s200 = minScale * 2.0f
+		binding.ssiv.doubleTapZoomScale = when {
+			currentScale < minScale + eps -> s130  // at 100%: next tap goes to 130%
+			currentScale < s130   + eps   -> s160  // at 130%: next tap goes to 160%
+			currentScale < s160   + eps   -> s200  // at 160%: next tap goes to 200%
+			else -> minScale               // at 200%+: next tap resets to 100%
 		}
-		val src = ssiv.viewToSourceCoord(e.x, e.y) ?: ssiv.getCenter() ?: return
-		val center = android.graphics.PointF(
-			src.x + (ssiv.width  / 2f - e.x) / target,
-			src.y + (ssiv.height / 2f - e.y) / target,
-		)
-		ssiv.animateScaleAndCenter(target, center)
-			?.withDuration(ssiv.resources.getInteger(android.R.integer.config_shortAnimTime).toLong())
-			?.withInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
-			?.start()
 	}
 
 	private fun scaleBy(factor: Float) {
