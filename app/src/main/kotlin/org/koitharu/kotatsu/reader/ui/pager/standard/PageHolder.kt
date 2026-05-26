@@ -85,11 +85,10 @@ open class PageHolder(
 			binding.ssiv.width / binding.ssiv.sWidth.toFloat(),
 			binding.ssiv.height / binding.ssiv.sHeight.toFloat(),
 		)
-		// 4-step double-tap cycle: 100% → 130% → 160% → 200% → reset.
-		// ZOOM_FOCUS_FIXED (already the fork default) anchors zoom to the tap pivot.
-		// After each tap SSIV runs a 500ms animation; we post-update doubleTapZoomScale
-		// once it completes so the next tap always zooms to the correct step.
-		updateDoubleTapTarget()
+		// Mirror webtoon double-tap: fit ↔ 80% of maxScale, anchored at tap point.
+		// ZOOM_FOCUS_FIXED (fork default) keeps the tapped pixel fixed during zoom.
+		// SSIV toggles between minScale and doubleTapZoomScale automatically.
+		binding.ssiv.doubleTapZoomScale = binding.ssiv.maxScale * 0.8f
 		binding.ssiv.colorFilter = settings.colorFilter?.toColorFilter()
 		when (settings.zoomMode) {
 			ZoomMode.FIT_CENTER -> {
@@ -166,33 +165,7 @@ open class PageHolder(
 	 * We compensate by shifting the source center by (viewMid − tapPos) / targetScale,
 	 * which exactly cancels the pan-to-center effect and anchors zoom to the tap.
 	 */
-	/**
-	 * Sets [SubsamplingScaleImageView.doubleTapZoomScale] to the correct next step
-	 * of the 100% → 130% → 160% → 200% → reset cycle, based on the current scale.
-	 * Called from [onReady] and posted after each double-tap animation (500 ms) so
-	 * the target is always primed before the next tap.
-	 */
-	private fun updateDoubleTapTarget() {
-		val ssiv = binding.ssiv
-		if (!ssiv.isReady) return
-		val base = ssiv.minScale
-		if (base <= 0f || base.isNaN()) return
-		val current = ssiv.scale
-		val eps = base * 0.05f
-		val s130 = base * 1.3f
-		val s160 = base * 1.6f
-		val s200 = base * 2.0f
-		ssiv.doubleTapZoomScale = when {
-			current < base + eps -> s130  // at 100%: next tap → 130%
-			current < s130 + eps -> s160  // at 130%: next tap → 160%
-			current < s160 + eps -> s200  // at 160%: next tap → 200%
-			else                 -> base  // at 200%+: next tap resets
-		}
-		// Re-prime after the double-tap animation completes (SSIV default: 500 ms).
-		// Using postDelayed ensures we read the settled scale, not the in-flight one.
-		ssiv.removeCallbacks(::updateDoubleTapTarget)
-		ssiv.postDelayed(::updateDoubleTapTarget, DOUBLE_TAP_ZOOM_DURATION_MS + 50L)
-	}
+
 
 	private fun scaleBy(factor: Float) {
 		val ssiv = binding.ssiv
@@ -205,8 +178,4 @@ open class PageHolder(
 		}
 	}
 
-	private companion object {
-		/** Must match SubsamplingScaleImageView.doubleTapZoomDuration (default 500 ms). */
-		private const val DOUBLE_TAP_ZOOM_DURATION_MS = 500L
-	}
 }
