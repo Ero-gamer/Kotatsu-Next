@@ -85,10 +85,29 @@ open class PageHolder(
 			binding.ssiv.width / binding.ssiv.sWidth.toFloat(),
 			binding.ssiv.height / binding.ssiv.sHeight.toFloat(),
 		)
-		// Mirror webtoon double-tap: fit ↔ 80% of maxScale, anchored at tap point.
-		// ZOOM_FOCUS_FIXED (fork default) keeps the tapped pixel fixed during zoom.
-		// SSIV toggles between minScale and doubleTapZoomScale automatically.
-		binding.ssiv.doubleTapZoomScale = binding.ssiv.maxScale * 0.8f
+		val maxScale = binding.ssiv.maxScale
+		// 3-state double-tap: fit → 50% of max → 100% of max → reset to fit.
+		// ZOOM_FOCUS_FIXED anchors zoom to the tap point (same as webtoon).
+		// After each 500ms animation, postDelayed reads the settled scale and primes
+		// doubleTapZoomScale for the next tap.
+		binding.ssiv.doubleTapZoomScale = maxScale * 0.5f
+		val scheduleNextTarget = object : Runnable {
+			override fun run() {
+				val ssiv = binding.ssiv
+				if (!ssiv.isReady) return
+				val half = maxScale * 0.5f
+				val eps = ssiv.minScale * 0.05f
+				// At half-zoom → next tap should go to full; anywhere else → go to half.
+				ssiv.doubleTapZoomScale = if (ssiv.scale >= half - eps) maxScale else half
+			}
+		}
+		binding.ssiv.setOnTouchListener { v, event ->
+			if (event.action == MotionEvent.ACTION_UP) {
+				v.removeCallbacks(scheduleNextTarget)
+				v.postDelayed(scheduleNextTarget, 550L)
+			}
+			false
+		}
 		binding.ssiv.colorFilter = settings.colorFilter?.toColorFilter()
 		when (settings.zoomMode) {
 			ZoomMode.FIT_CENTER -> {
