@@ -92,7 +92,10 @@ open class PageHolder(
 		// SSIV reports a scale change via onStateChangedListener.
 		binding.ssiv.doubleTapZoomStyle = SubsamplingScaleImageView.ZOOM_FOCUS_FIXED
 		updateDoubleTapTarget(binding.ssiv.scale, binding.ssiv.minScale)
-		binding.ssiv.onStateChangedListener = object : DefaultOnStateChangedListener() {
+		binding.ssiv.onStateChangedListener = object : OnStateChangedListener {
+			override fun onScaleChanged(newScale: Float, origin: Int) = Unit
+			override fun onCenterChanged(newCenter: android.graphics.PointF, origin: Int) = Unit
+			override fun onCenterChanged(view: SubsamplingScaleImageView, newCenter: android.graphics.PointF, origin: Int) = Unit
 			override fun onScaleChanged(view: SubsamplingScaleImageView, newScale: Float, origin: Int) {
 				updateDoubleTapTarget(newScale, view.minScale)
 			}
