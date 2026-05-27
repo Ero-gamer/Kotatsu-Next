@@ -81,11 +81,14 @@ open class PageHolder(
 		// headroom, especially on high-DPI phones and Android TV where the original 2×
 		// cap was too restrictive. 3× still keeps performance safe — SSIV loads
 		// higher-res tiles progressively, so this does not increase memory usage.
-		binding.ssiv.maxScale = 4f * maxOf(
+		// Compute the natural dynamic max (4× fill scale) — used for double-tap levels.
+		// ssiv.maxScale (pinch/manual ceiling) is then capped at 6.0f to match webtoon mode.
+		val dynamicMaxScale = 4f * maxOf(
 			binding.ssiv.width / binding.ssiv.sWidth.toFloat(),
 			binding.ssiv.height / binding.ssiv.sHeight.toFloat(),
 		)
-		val maxScale = binding.ssiv.maxScale
+		binding.ssiv.maxScale = minOf(dynamicMaxScale, 6.0f)
+		val maxScale = dynamicMaxScale  // double-tap targets stay at natural dynamic levels
 		// 3-state double-tap: fit → 50% of max → 100% of max → reset to fit.
 		// ZOOM_FOCUS_FIXED anchors zoom to the tap point (same as webtoon).
 		// After each 500ms animation, postDelayed reads the settled scale and primes
