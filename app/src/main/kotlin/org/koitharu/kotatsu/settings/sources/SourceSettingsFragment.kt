@@ -38,6 +38,8 @@ class SourceSettingsFragment : BasePreferenceFragment(0), Preference.OnPreferenc
 			setTitle(viewModel.source.getTitle(ctx))
 		}
 		viewModel.onResume()
+		// Re-check in case global setting changed while this screen was in the back stack.
+		updateCfAutoSolvePrefState()
 	}
 
 	override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -55,6 +57,7 @@ class SourceSettingsFragment : BasePreferenceFragment(0), Preference.OnPreferenc
 			isVisible = authProvider != null
 		}
 		findPreference<Preference>(SourceSettings.KEY_SLOWDOWN)?.isVisible = isValidSource
+		updateCfAutoSolvePrefState()
 	}
 
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -159,6 +162,23 @@ class SourceSettingsFragment : BasePreferenceFragment(0), Preference.OnPreferenc
 
 			fun newInstance(key: String) = DomainDialogFragment().withArgs(1) {
 				putString(ARG_KEY, key)
+			}
+		}
+	}
+
+	/**
+	 * Grays out the per-source "disable CF auto-solve" toggle when the global
+	 * kill-switch in Settings → Network is ON, since the per-source setting
+	 * has no effect when the global flag is already disabling it for all sources.
+	 */
+	private fun updateCfAutoSolvePrefState() {
+		val globalDisabled = settings.isCfAutoSolveDisabled
+		findPreference<SwitchPreferenceCompat>(SourceSettings.KEY_NO_AUTO_CAPTCHA)?.apply {
+			isEnabled = !globalDisabled
+			summary = if (globalDisabled) {
+				context.getString(R.string.disable_captcha_auto_solve_global_hint)
+			} else {
+				context.getString(R.string.disable_captcha_auto_solve_summary)
 			}
 		}
 	}

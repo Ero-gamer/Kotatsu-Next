@@ -232,13 +232,13 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			targetHitRect.setEmpty()
 		}
 
-		// BUG 4 FIX: Force the RecyclerView to use a software layer during active
-		// scale gestures. This prevents the GPU from caching intermediate states
-		// that cause the ghost-image artifact on ATV14.
+		// Use HARDWARE layer during active scale — the GPU scales the cached texture
+		// without pixelation. SOFTWARE layer rasterised at the current pixel size and
+		// then upscaled, causing the pixelation visible during pinch zoom.
 		// The layer is removed in onScaleEnd / smoothScaleTo's doOnEnd.
 		if (scaleDetector.isInProgress) {
-			if (targetChild.layerType != View.LAYER_TYPE_SOFTWARE) {
-				targetChild.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+			if (targetChild.layerType != View.LAYER_TYPE_HARDWARE) {
+				targetChild.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 			}
 		}
 	}
