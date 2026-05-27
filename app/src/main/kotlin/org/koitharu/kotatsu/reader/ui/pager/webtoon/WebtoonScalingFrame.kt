@@ -25,7 +25,8 @@ import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
 import kotlin.math.roundToInt
 
-private const val MAX_SCALE = 3.5f
+private const val MAX_SCALE = 6.0f
+private const val DOUBLE_TAP_MAX_SCALE = 3.5f
 private const val MIN_SCALE = 0.5f
 
 private const val FLING_RANGE = 20_000
@@ -389,14 +390,14 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 		}
 
 		override fun onDoubleTap(e: MotionEvent): Boolean {
-			// 2-tap cycle matching standard mode: fit → 50% of MAX_SCALE → MAX_SCALE → fit.
-			// scaleChild(newScale, e.x, e.y) pivots exactly at the tap point.
-			val half = MAX_SCALE * 0.5f
+			// 2-tap cycle matching standard mode: fit → 50% of DOUBLE_TAP_MAX_SCALE → DOUBLE_TAP_MAX_SCALE → fit.
+			// Manual/pinch zoom uses MAX_SCALE (higher ceiling). Double-tap levels are independent.
+			val half = DOUBLE_TAP_MAX_SCALE * 0.5f
 			val eps = 0.05f
 			val newScale = when {
-				scale < 1f    + eps -> half       // at fit: go to 50% of max
-				scale < half  + eps -> MAX_SCALE  // at 50%: go to full max
-				else                -> 1f         // at max: reset to fit
+				scale < 1f    + eps -> half                // at fit: go to 50% of double-tap max
+				scale < half  + eps -> DOUBLE_TAP_MAX_SCALE // at 50%: go to double-tap max
+				else                -> 1f                  // at max or above: reset to fit
 			}
 			ValueAnimator.ofFloat(scale, newScale).run {
 				interpolator = AccelerateDecelerateInterpolator()
