@@ -18,6 +18,7 @@ import org.koitharu.kotatsu.browser.cloudflare.CloudFlareActivity
 import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.model.UnknownMangaSource
 import org.koitharu.kotatsu.core.nav.AppRouter
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.util.ForegroundActivityHolder
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.parsers.model.MangaSource
@@ -40,6 +41,7 @@ import javax.inject.Singleton
 class CaptchaAutoResolveCoordinator @Inject constructor(
 	@ApplicationContext private val context: Context,
 	private val foregroundActivityHolder: ForegroundActivityHolder,
+	private val settings: AppSettings,
 ) {
 
 	private val mutex = Mutex()
@@ -71,6 +73,8 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
 	 * in-flight resolve's result instead of launching a duplicate — the first session stays alive.
 	 */
 	suspend fun resolve(source: MangaSource, exception: CloudFlareProtectedException): Boolean {
+		// Global kill-switch: if the user disabled auto-resolve in Settings → Network, bail immediately.
+		if (settings.isCfAutoSolveDisabled) return false
 		// Fast path: same-source resolve already in flight → just await its result.
 		inFlight[source]?.let { return it.await() }
 		// Loop-break: if we just successfully resolved this source, refuse a new auto-resolve so the

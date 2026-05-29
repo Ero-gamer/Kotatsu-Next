@@ -33,7 +33,7 @@ class DetailsErrorObserver(
 		// standard snackbar with the "Solve" action below.
 		val cf = value.findCloudFlareException()
 		if (cf is CloudFlareProtectedException && resolver != null) {
-			val autoDisabled = SourceSettings(host.context, cf.source).isCaptchaAutoResolveDisabled
+			val autoDisabled = activity.settings.isCfAutoSolveDisabled || SourceSettings(host.context, cf.source).isCaptchaAutoResolveDisabled
 			if (!autoDisabled) {
 				val resolved = resolver.resolve(cf, tryAutoResolve = true)
 				if (resolved) {

@@ -46,6 +46,7 @@ import org.koitharu.kotatsu.core.model.isNsfw
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.network.webview.WebViewExecutor
 import org.koitharu.kotatsu.core.parser.favicon.faviconUri
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.util.ext.checkNotificationPermission
 import org.koitharu.kotatsu.core.util.ext.getNotificationIconSize
@@ -68,6 +69,7 @@ class CaptchaHandler @Inject constructor(
 	private val databaseProvider: Provider<MangaDatabase>,
 	private val coilProvider: Provider<ImageLoader>,
 	private val webViewExecutor: WebViewExecutor,
+	private val settings: AppSettings,
 ) : EventListener() {
 
 	private val exceptionMap = MutableScatterMap<MangaSource, CloudFlareProtectedException>()
@@ -113,6 +115,7 @@ class CaptchaHandler @Inject constructor(
 		if (
 			tryAutoResolve &&
 			exception != null &&
+			!settings.isCfAutoSolveDisabled &&
 			!SourceSettings(context, source).isCaptchaAutoResolveDisabled &&
 			webViewExecutor.tryResolveCaptcha(exception, RESOLVE_TIMEOUT)
 		) {
