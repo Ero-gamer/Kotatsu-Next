@@ -12,7 +12,6 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
-import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -23,7 +22,6 @@ import androidx.core.view.ViewConfigurationCompat
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
-import kotlin.math.roundToInt
 
 private const val MAX_SCALE = 6.0f
 private const val DOUBLE_TAP_MAX_SCALE = 3.5f
@@ -80,10 +78,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 
 	init {
 		syncMatrixValues()
-		// BUG 4 FIX: ensure children are properly clipped so that transform
-		// changes don't cause hardware-layer ghost artifacts on ATV.
-		clipChildren = true
-		clipToPadding = true
 	}
 
 	override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
@@ -204,9 +198,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			targetChild.translationX = 0f
 			targetChild.translationY = 0f
 			targetHitRect.setEmpty()
-			// BUG 4 FIX: force a hardware layer flush when returning to identity scale.
-			// This clears any stale GPU-cached content from previous scale states.
-			targetChild.setLayerType(View.LAYER_TYPE_NONE, null)
 			return
 		}
 
@@ -233,15 +224,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			targetHitRect.setEmpty()
 		}
 
-		// Use HARDWARE layer during active scale — the GPU scales the cached texture
-		// without pixelation. SOFTWARE layer rasterised at the current pixel size and
-		// then upscaled, causing the pixelation visible during pinch zoom.
-		// The layer is removed in onScaleEnd / smoothScaleTo's doOnEnd.
-		if (scaleDetector.isInProgress) {
-			if (targetChild.layerType != View.LAYER_TYPE_HARDWARE) {
-				targetChild.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-			}
-		}
 	}
 
 	private fun syncMatrixValues() {
@@ -318,10 +300,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 
 	private fun onPostScale(invalidateLayout: Boolean) {
 		val target = findTargetChild()
-		// BUG 4 FIX: clear software layer after scale gesture ends so that
-		// normal scrolling uses hardware acceleration again.
 		target.post {
-			target.setLayerType(View.LAYER_TYPE_NONE, null)
 			target.updateChildrenScroll()
 			if (invalidateLayout) {
 				target.requestLayout()
@@ -338,8 +317,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			addUpdateListener { scaleChild(it.animatedValue as Float, halfWidth, halfHeight) }
 			doOnEnd {
 				onPostScale(invalidateLayout = false)
-				// BUG 4 FIX: ensure layer type is cleared after animation.
-				findTargetChild().setLayerType(View.LAYER_TYPE_NONE, null)
 			}
 			start()
 		}
@@ -405,10 +382,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 				addUpdateListener {
 					scaleChild(it.animatedValue as Float, e.x, e.y)
 				}
-				doOnEnd {
-					// BUG 4 FIX: clear software layer after double-tap zoom.
-					findTargetChild().setLayerType(View.LAYER_TYPE_NONE, null)
-				}
+				doOnEnd { /* no-op */ }
 				start()
 			}
 			return true
