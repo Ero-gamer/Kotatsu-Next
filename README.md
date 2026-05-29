@@ -113,8 +113,7 @@
 
 <div align="center">
 
-*Kotatsu Next is and always will be 100% free.*
-*If you'd like to fuel development, any donation is deeply appreciated* 🙏
+*Kotatsu Next is 100% free and always will be. If you'd like to fuel development, any donation is deeply appreciated.* 🙏
 
 </div>
 
