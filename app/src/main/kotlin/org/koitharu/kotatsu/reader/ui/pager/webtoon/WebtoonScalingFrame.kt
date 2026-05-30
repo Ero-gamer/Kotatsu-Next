@@ -22,9 +22,9 @@ import androidx.core.view.ViewConfigurationCompat
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
+import kotlin.math.roundToInt
 
-private const val MAX_SCALE = 6.0f
-private const val DOUBLE_TAP_MAX_SCALE = 3.5f
+private const val MAX_SCALE = 2.5f
 private const val MIN_SCALE = 0.5f
 
 private const val FLING_RANGE = 20_000
@@ -54,10 +54,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 	private val translateBounds = RectF()
 	private val targetHitRect = Rect()
 	private var animator: ValueAnimator? = null
-
-	// BUG 4 FIX: removed 'pendingScroll' field — we no longer manipulate
-	// RecyclerView layoutParams.height (which caused the ATV14 ghost rendering).
-	// Instead we use pure render transforms (scaleX/scaleY/translationX/Y).
+	private var pendingScroll = 0
 
 	var isZoomEnable = false
 		set(value) {
@@ -175,55 +172,32 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 		smoothScaleTo(scale * 0.9f)
 	}
 
-	// BUG 4 FIX: completely rewritten invalidateTarget().
-	// OLD: modified RecyclerView.layoutParams.height + requestLayout() + relayoutChildren()
-	//   → causes RecyclerView to relayout mid-scroll, corrupting HW display lists on ATV14,
-	//     producing "stuck" image strips at top/bottom.
-	// NEW: use pure render transforms (scaleX, scaleY, translationX, translationY) on the
-	//   RecyclerView child. These do NOT trigger layout, they only affect the render pass.
-	//   The RecyclerView's layout remains unchanged; only its visual appearance is scaled.
 	private fun invalidateTarget() {
 		val targetChild = findTargetChild()
 		adjustBounds()
-
-		val currentScale = scale
-		val currentTransX = transX
-		val currentTransY = transY
-
-		// BUG 4 FIX: when scale is exactly 1, reset everything to identity to
-		// avoid any floating-point drift that could cause pixel-off rendering.
-		if (currentScale == 1f || currentScale.isNaN()) {
-			targetChild.scaleX = 1f
-			targetChild.scaleY = 1f
-			targetChild.translationX = 0f
-			targetChild.translationY = 0f
-			targetHitRect.setEmpty()
-			return
+		targetChild.run {
+			if (!scale.isNaN()) {
+				scaleX = scale
+				scaleY = scale
+			}
+			translationX = transX
+			translationY = transY
+			if (pendingScroll != 0) {
+				nestedScrollBy(0, pendingScroll)
+				pendingScroll = 0
+			}
 		}
 
-		// Apply render-only transform. pivotX/pivotY are set to the view center
-		// (halfWidth/halfHeight). With pivot at center, the correct translationX/Y is
-		// exactly currentTransX/currentTransY — no division by scale.
-		//
-		// Proof: for pivot P, View maps x → P + scale*(x-P) + translation.
-		// We want this to equal transformMatrix(x) = MTRANS_X + scale*x.
-		// Solving: translation = transX  (see WebtoonScalingFrame.transX getter).
-		// Dividing by scale (the old code) incorrectly halved the pan range at 2×
-		// zoom, which caused the zoom-in-but-can't-pan bug in webtoon mode.
-		targetChild.pivotX = halfWidth
-		targetChild.pivotY = halfHeight
-		targetChild.scaleX = currentScale
-		targetChild.scaleY = currentScale
-		targetChild.translationX = currentTransX
-		targetChild.translationY = currentTransY
+		val newHeight = if (scale < 1f) (height / scale).toInt() else height
+		if (newHeight != targetChild.height) {
+			targetChild.layoutParams.height = newHeight
+			targetChild.requestLayout()
+			targetChild.relayoutChildren()
+		}
 
-		// BUG 4 FIX: update the hit-rect for below-1 scale (for touch event offsetting).
-		if (currentScale < 1f) {
+		if (scale < 1) {
 			targetChild.getHitRect(targetHitRect)
-		} else {
-			targetHitRect.setEmpty()
 		}
-
 	}
 
 	private fun syncMatrixValues() {
@@ -244,14 +218,9 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			else -> 0f
 		}
 
-		// BUG 4 FIX: removed the pendingScroll / nestedScrollBy call.
-		// Translating the RecyclerView during scroll via nestedScrollBy while
-		// simultaneously changing its transform caused double-scroll artifacts.
-		// The dy offset is now absorbed entirely by the translationY render property.
-		if (dx != 0f || dy != 0f) {
-			transformMatrix.postTranslate(dx, dy)
-			syncMatrixValues()
-		}
+		pendingScroll = if (scale > 1) (dy / scale).roundToInt() else 0
+		transformMatrix.postTranslate(dx, dy)
+		syncMatrixValues()
 	}
 
 	private fun scaleChild(
@@ -315,9 +284,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			setDuration(context.getAnimationDuration(android.R.integer.config_shortAnimTime))
 			interpolator = DecelerateInterpolator()
 			addUpdateListener { scaleChild(it.animatedValue as Float, halfWidth, halfHeight) }
-			doOnEnd {
-				onPostScale(invalidateLayout = false)
-			}
+			doOnEnd { onPostScale(invalidateLayout = false) }
 			start()
 		}
 	}
@@ -334,55 +301,19 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			distanceY: Float,
 		): Boolean {
 			if (scale <= 1f || scale.isNaN()) return false
-
-			// Sync matrix values so transX/transY are current.
-			syncMatrixValues()
-
-			// Determine whether we are at the vertical pan limits AND the user is trying
-			// to scroll PAST them in that direction.
-			//
-			// transY layout: translateBounds.top = minimum transY (zoomed-up limit),
-			//                translateBounds.bottom = maximum transY (zoomed-down limit)
-			// distanceY > 0 → user dragging UP   → content moves up   → transY decreases
-			// distanceY < 0 → user dragging DOWN  → content moves down → transY increases
-			val atTopLimit    = distanceY > 0f && transY <= translateBounds.top    + 1f
-			val atBottomLimit = distanceY < 0f && transY >= translateBounds.bottom - 1f
-
-			if (atTopLimit || atBottomLimit) {
-				// We have reached the vertical pan boundary. Pass the scroll gesture
-				// directly to the RecyclerView so the user can navigate to the previous
-				// or next webtoon strip page.
-				// Note: nestedScrollBy is safe to call from a touch handler — it simply
-				// queues a scroll on the RecyclerView, which processes it on the next frame.
-				// This does NOT cause the layoutParams-mutation bug that triggered the ATV14
-				// ghost-image artifact (that bug was from calling requestLayout() mid-frame).
-				findTargetChild().nestedScrollBy(0, distanceY.toInt())
-				return true  // Consume the gesture to prevent double-handling.
-			}
-
-			// Within the pan limits: move the zoomed content.
 			transformMatrix.postTranslate(-distanceX, -distanceY)
 			invalidateTarget()
 			return true
 		}
 
 		override fun onDoubleTap(e: MotionEvent): Boolean {
-			// 2-tap cycle matching standard mode: fit → 50% of DOUBLE_TAP_MAX_SCALE → DOUBLE_TAP_MAX_SCALE → fit.
-			// Manual/pinch zoom uses MAX_SCALE (higher ceiling). Double-tap levels are independent.
-			val half = DOUBLE_TAP_MAX_SCALE * 0.5f
-			val eps = 0.05f
-			val newScale = when {
-				scale < 1f    + eps -> half                // at fit: go to 50% of double-tap max
-				scale < half  + eps -> DOUBLE_TAP_MAX_SCALE // at 50%: go to double-tap max
-				else                -> 1f                  // at max or above: reset to fit
-			}
+			val newScale = if (scale != 1f) 1f else MAX_SCALE * 0.8f
 			ValueAnimator.ofFloat(scale, newScale).run {
 				interpolator = AccelerateDecelerateInterpolator()
 				duration = context.getAnimationDuration(R.integer.config_defaultAnimTime)
 				addUpdateListener {
 					scaleChild(it.animatedValue as Float, e.x, e.y)
 				}
-				doOnEnd { /* no-op */ }
 				start()
 			}
 			return true

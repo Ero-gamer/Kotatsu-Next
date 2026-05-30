@@ -21,21 +21,11 @@ class WebtoonImageView @JvmOverloads constructor(
 	private var scrollPos = 0
 	private var debugPaint: Paint? = null
 
-	// BUG 5 FIX: track whether we've been properly laid-out at least once
-	// so we don't apply scroll/scale calculations with zero dimensions.
-	private var isLayoutValid = false
-
 	override fun onDraw(canvas: Canvas) {
 		super.onDraw(canvas)
 		if (isDebugDrawingEnabled) {
 			drawDebug(canvas)
 		}
-	}
-
-	// BUG 5 FIX: mark layout as valid once we have real dimensions
-	override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-		super.onSizeChanged(w, h, oldw, oldh)
-		isLayoutValid = w > 0 && h > 0
 	}
 
 	fun scrollBy(delta: Int) {
@@ -48,11 +38,6 @@ class WebtoonImageView @JvmOverloads constructor(
 	}
 
 	fun scrollTo(y: Int) {
-		// BUG 5 FIX: bail if we don't have valid image dimensions yet.
-		// The caller (WebtoonHolder.onReady) will retry via scrollToRestore.
-		if (sWidth == 0 || !isLayoutValid) {
-			return
-		}
 		val maxScroll = getScrollRange()
 		if (maxScroll == 0) {
 			scrollToInternal(0)
@@ -64,7 +49,7 @@ class WebtoonImageView @JvmOverloads constructor(
 	fun getScroll() = scrollPos
 
 	fun getScrollRange(): Int {
-		if (!isReady || sWidth == 0 || width == 0) {
+		if (!isReady) {
 			return 0
 		}
 		val totalHeight = (sHeight * width / sWidth.toFloat()).roundToInt()
@@ -73,7 +58,6 @@ class WebtoonImageView @JvmOverloads constructor(
 
 	override fun recycle() {
 		scrollPos = 0
-		isLayoutValid = false
 		super.recycle()
 	}
 
@@ -112,12 +96,9 @@ class WebtoonImageView @JvmOverloads constructor(
 		setMeasuredDimension(desiredWidth, desiredHeight)
 	}
 
-	// BUG 5 FIX: only fire onReady from onDownSamplingChanged if the view is
-	// fully laid out. Previously this could fire with width==0, causing minScale=0
-	// → infinity in scrollToInternal.
 	override fun onDownSamplingChanged() {
 		super.onDownSamplingChanged()
-		if (isReady && isLayoutValid && width > 0 && sWidth > 0) {
+		if (isReady) {
 			adjustScale()
 			onImageEventListener.onReady()
 		}
@@ -125,43 +106,20 @@ class WebtoonImageView @JvmOverloads constructor(
 
 	override fun onReady() {
 		super.onReady()
-		// onReady is only called from onDraw → checkReady, so layout is valid here.
 		adjustScale()
 	}
 
 	private fun scrollToInternal(pos: Int) {
-		// BUG 5 FIX: guard against zero/invalid dimensions that would produce
-		// NaN or Infinity for minScale / center, causing extreme zoom.
-		if (width <= 0 || sWidth <= 0 || sHeight <= 0) {
-			// Save the position and wait for layout to be valid.
-			scrollPos = pos
-			return
-		}
-		val scale = width / sWidth.toFloat()
-		// Sanity check: if scale is still nonsensical, bail.
-		if (scale <= 0f || scale.isNaN() || scale.isInfinite()) {
-			scrollPos = pos
-			return
-		}
-		minScale = scale
-		maxScale = scale
+		minScale = width / sWidth.toFloat()
+		maxScale = minScale
 		scrollPos = pos
-		// Calculate the center Y in source coordinates:
-		// visible center in view = height/2; the scroll offset shifts the top of the image
-		// by (scrollPos * scale) pixels, so the source Y at the view center is:
-		//   (height/2 + scrollPos) / scale
-		// This is correct regardless of scroll position.
-		ct.set(sWidth / 2f, (height / 2f + pos.toFloat()) / scale)
-		setScaleAndCenter(scale, ct)
+		ct.set(sWidth / 2f, (height / 2f + pos.toFloat()) / minScale)
+		setScaleAndCenter(minScale, ct)
 	}
 
 	private fun adjustScale() {
-		// BUG 5 FIX: guard against invalid dimensions
-		if (width <= 0 || sWidth <= 0) return
-		val scale = width / sWidth.toFloat()
-		if (scale <= 0f || scale.isNaN() || scale.isInfinite()) return
-		minScale = scale
-		maxScale = scale
+		minScale = width / sWidth.toFloat()
+		maxScale = minScale
 		minimumScaleType = SCALE_TYPE_CUSTOM
 		requestLayout()
 	}
