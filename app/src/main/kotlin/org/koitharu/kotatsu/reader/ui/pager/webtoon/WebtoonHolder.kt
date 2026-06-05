@@ -36,14 +36,16 @@ class WebtoonHolder(
 	override fun onReady() {
 		binding.ssiv.colorFilter = settings.colorFilter?.toColorFilter()
 		with(binding.ssiv) {
-			scrollTo(
-				when {
-					scrollToRestore != 0 -> scrollToRestore
-					itemView.top < 0 -> getScrollRange()
-					else -> 0
-				},
-			)
+			val targetScroll = when {
+				scrollToRestore != 0 -> scrollToRestore
+				itemView.top < 0 -> getScrollRange()
+				else -> 0
+			}
 			scrollToRestore = 0
+			// Defer until after the layout pass triggered by adjustScale() → requestLayout(),
+			// otherwise onSizeChanged() resets pendingCenter and the first frame shows the
+			// wrong position (requiring two scroll-ups to recover).
+			scrollToAfterLayout(targetScroll)
 		}
 	}
 

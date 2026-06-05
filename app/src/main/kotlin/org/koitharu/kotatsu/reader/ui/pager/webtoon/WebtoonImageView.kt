@@ -19,6 +19,7 @@ class WebtoonImageView @JvmOverloads constructor(
 	private val ct = PointF()
 
 	private var scrollPos = 0
+	private var pendingScrollPos = -1
 	private var debugPaint: Paint? = null
 
 	override fun onDraw(canvas: Canvas) {
@@ -58,6 +59,7 @@ class WebtoonImageView @JvmOverloads constructor(
 
 	override fun recycle() {
 		scrollPos = 0
+		pendingScrollPos = -1
 		super.recycle()
 	}
 
@@ -96,6 +98,18 @@ class WebtoonImageView @JvmOverloads constructor(
 		setMeasuredDimension(desiredWidth, desiredHeight)
 	}
 
+	override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+		super.onLayout(changed, left, top, right, bottom)
+		// Apply any scroll deferred by scrollToAfterLayout(). This handles the race where
+		// adjustScale() → requestLayout() → onSizeChanged() overwrites the pendingCenter
+		// that scrollToInternal() had just set via setScaleAndCenter().
+		val pending = pendingScrollPos
+		if (pending >= 0) {
+			pendingScrollPos = -1
+			scrollToInternal(pending.coerceIn(0, getScrollRange()))
+		}
+	}
+
 	override fun onDownSamplingChanged() {
 		super.onDownSamplingChanged()
 		if (isReady) {
@@ -115,6 +129,19 @@ class WebtoonImageView @JvmOverloads constructor(
 		scrollPos = pos
 		ct.set(sWidth / 2f, (height / 2f + pos.toFloat()) / minScale)
 		setScaleAndCenter(minScale, ct)
+	}
+
+	/**
+	 * Defers a scroll to [pos] until after the next layout pass.
+	 * Use instead of [scrollTo] when called from [onReady], because [adjustScale] triggers
+	 * [requestLayout] which causes [onSizeChanged] to overwrite the pendingCenter set by
+	 * [scrollToInternal], resulting in the wrong position being shown until the user scrolls.
+	 */
+	fun scrollToAfterLayout(pos: Int) {
+		pendingScrollPos = pos
+		if (!isLayoutRequested) {
+			requestLayout()
+		}
 	}
 
 	private fun adjustScale() {

@@ -38,6 +38,7 @@ import org.koitharu.kotatsu.parsers.util.mapNotNullToSet
 import org.koitharu.kotatsu.parsers.util.mapToSet
 import org.koitharu.kotatsu.parsers.util.nullIfEmpty
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
+import org.koitharu.kotatsu.core.prefs.EInkFlashColor
 import java.io.File
 import java.net.Proxy
 import java.util.EnumSet
@@ -182,6 +183,18 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	val isReaderOptimizationEnabled: Boolean
 		get() = prefs.getBoolean(KEY_READER_OPTIMIZE, false)
+
+	val isEInkFlashEnabled: Boolean
+		get() = prefs.getBoolean(KEY_EINK_FLASH, false)
+
+	val eInkFlashDuration: Int
+		get() = prefs.getInt(KEY_EINK_FLASH_DURATION, 300).coerceIn(100, 1000)
+
+	val eInkFlashEvery: Int
+		get() = prefs.getInt(KEY_EINK_FLASH_EVERY, 1).coerceAtLeast(1)
+
+	val eInkFlashColor: EInkFlashColor
+		get() = prefs.getEnumValue(KEY_EINK_FLASH_COLOR, EInkFlashColor.WHITE)
 
 	val readerControls: Set<ReaderControl>
 		get() = prefs.getStringSet(KEY_READER_CONTROLS, null)?.mapNotNullTo(EnumSet.noneOf(ReaderControl::class.java)) {
@@ -839,6 +852,10 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_SHORTCUTS = "dynamic_shortcuts"
 		const val KEY_READER_TAP_ACTIONS = "reader_tap_actions"
 		const val KEY_READER_OPTIMIZE = "reader_optimize"
+		const val KEY_EINK_FLASH = "eink_flash"
+		const val KEY_EINK_FLASH_DURATION = "eink_flash_duration"
+		const val KEY_EINK_FLASH_EVERY = "eink_flash_every"
+		const val KEY_EINK_FLASH_COLOR = "eink_flash_color"
 		const val KEY_LOCAL_LIST_ORDER = "local_order"
 		const val KEY_HISTORY_ORDER = "history_order"
 		const val KEY_FAVORITES_ORDER = "fav_order"
