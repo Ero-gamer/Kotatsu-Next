@@ -131,6 +131,13 @@ class WebtoonImageView @JvmOverloads constructor(
 		setScaleAndCenter(minScale, ct)
 	}
 
+	private fun adjustScale() {
+		minScale = width / sWidth.toFloat()
+		maxScale = minScale
+		minimumScaleType = SCALE_TYPE_CUSTOM
+		requestLayout()
+	}
+
 	/**
 	 * Defers a scroll to [pos] until after the next layout pass.
 	 * Use instead of [scrollTo] when called from [onReady], because [adjustScale] triggers
@@ -142,13 +149,6 @@ class WebtoonImageView @JvmOverloads constructor(
 		if (!isLayoutRequested) {
 			requestLayout()
 		}
-	}
-
-	private fun adjustScale() {
-		minScale = width / sWidth.toFloat()
-		maxScale = minScale
-		minimumScaleType = SCALE_TYPE_CUSTOM
-		requestLayout()
 	}
 
 	private fun parentHeight(): Int {
