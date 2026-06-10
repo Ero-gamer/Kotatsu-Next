@@ -25,7 +25,8 @@ import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
 import kotlin.math.roundToInt
 
-private const val MAX_SCALE = 3.5f
+private const val MAX_SCALE = 3.5f       // double-tap zoom ceiling
+private const val MAX_PINCH_SCALE = 6.0f // manual pinch/keyboard zoom ceiling (matches manga mode)
 private const val MIN_SCALE = 0.5f
 
 private const val FLING_RANGE = 20_000
@@ -55,9 +56,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 	private val translateBounds = RectF()
 	private val targetHitRect = Rect()
 	private var animator: ValueAnimator? = null
-	// 3-state double-tap cycle: fit (1f) → half → full → fit
-	// Primed after each tap animation settles; reset to half on recycle/zoom-disable.
-	private var nextDoubleTapScale = MAX_SCALE * 0.5f
 
 	// BUG 4 FIX: removed 'pendingScroll' field — we no longer manipulate
 	// RecyclerView layoutParams.height (which caused the ATV14 ghost rendering).
@@ -69,7 +67,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 			if (scale != 1f) {
 				scaleChild(1f, halfWidth, halfHeight)
 			}
-			nextDoubleTapScale = MAX_SCALE * 0.5f
 		}
 
 	var zoom: Float
@@ -118,7 +115,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 						event.getAxisValue(MotionEvent.AXIS_VSCROLL) * ViewConfigurationCompat.getScaledVerticalScrollFactor(
 							ViewConfiguration.get(context), context,
 						)
-					val newScale = (scale + axisValue).coerceIn(MIN_SCALE, MAX_SCALE)
+					val newScale = (scale + axisValue).coerceIn(MIN_SCALE, MAX_PINCH_SCALE)
 					scaleChild(newScale, event.x, event.y)
 					return true
 				}
@@ -305,7 +302,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 	}
 
 	override fun onScale(detector: ScaleGestureDetector): Boolean {
-		val newScale = (scale * detector.scaleFactor).coerceIn(MIN_SCALE, MAX_SCALE)
+		val newScale = (scale * detector.scaleFactor).coerceIn(MIN_SCALE, MAX_PINCH_SCALE)
 		return scaleChild(newScale, detector.focusX, detector.focusY)
 	}
 
@@ -333,7 +330,7 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 	}
 
 	private fun smoothScaleTo(target: Float) {
-		val newScale = target.coerceIn(MIN_SCALE, MAX_SCALE)
+		val newScale = target.coerceIn(MIN_SCALE, MAX_PINCH_SCALE)
 		animator?.cancel()
 		animator = ValueAnimator.ofFloat(scale, newScale).apply {
 			setDuration(context.getAnimationDuration(android.R.integer.config_shortAnimTime))
@@ -343,8 +340,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 				onPostScale(invalidateLayout = false)
 				// BUG 4 FIX: ensure layer type is cleared after animation.
 				findTargetChild().setLayerType(View.LAYER_TYPE_NONE, null)
-				// Reset cycle if zoomed back to fit via keyboard/zoom buttons.
-				if (newScale <= 1f) nextDoubleTapScale = MAX_SCALE * 0.5f
 			}
 			start()
 		}
@@ -395,13 +390,8 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 		}
 
 		override fun onDoubleTap(e: MotionEvent): Boolean {
-			val targetScale = if (scale >= MAX_SCALE * 0.95f || scale > 1f && nextDoubleTapScale <= 1f) {
-				// At or near full zoom, or cycle completed → reset to fit
-				1f
-			} else {
-				nextDoubleTapScale
-			}
-			ValueAnimator.ofFloat(scale, targetScale).run {
+			val newScale = if (scale != 1f) 1f else MAX_SCALE * 0.8f
+			ValueAnimator.ofFloat(scale, newScale).run {
 				interpolator = AccelerateDecelerateInterpolator()
 				duration = context.getAnimationDuration(R.integer.config_defaultAnimTime)
 				addUpdateListener {
@@ -410,14 +400,6 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 				doOnEnd {
 					// BUG 4 FIX: clear software layer after double-tap zoom.
 					findTargetChild().setLayerType(View.LAYER_TYPE_NONE, null)
-					// Prime next tap target: fit→half→full→fit cycle
-					val half = MAX_SCALE * 0.5f
-					val eps = 0.05f
-					nextDoubleTapScale = when {
-						targetScale <= 1f + eps -> half          // just fit → next: half
-						targetScale >= half - eps && targetScale < MAX_SCALE * 0.95f -> MAX_SCALE  // just half → next: full
-						else -> 1f                               // just full → next: fit (resets)
-					}
 				}
 				start()
 			}
