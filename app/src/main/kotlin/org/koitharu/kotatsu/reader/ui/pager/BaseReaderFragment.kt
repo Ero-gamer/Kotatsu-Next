@@ -25,24 +25,18 @@ abstract class BaseReaderFragment<B : ViewBinding> : BaseFragment<B>(), ZoomCont
 		readerAdapter = onCreateAdapter()
 
 		viewModel.content.observe(viewLifecycleOwner) {
-			// Determine which state to use for restoring position:
-			// - content.state: explicitly set state (e.g., after mode switch or chapter change)
-			// - getCurrentState(): current reading position saved in SavedStateHandle
-			val currentState = viewModel.getCurrentState()
-			val pendingState = when {
-				// If content.state is null and we have pages, use getCurrentState
-				it.state == null
+			// content.state is explicitly set on chapter switch / mode switch — always prefer it.
+			// Only fall back to getCurrentState() on initial load (state == null, adapter empty)
+			// and only if getCurrentState() targets the same chapter as the incoming pages.
+			val pendingState = if (it.state != null) {
+				it.state
+			} else {
+				val currentState = viewModel.getCurrentState()
+				if (currentState != null
 					&& it.pages.isNotEmpty()
-					&& readerAdapter?.hasItems != true -> currentState
-
-				// use currentState only if it matches the current pages (to avoid the error message)
-				readerAdapter?.hasItems != true
-					&& it.state != currentState
-					&& currentState != null
-					&& it.pages.any { page -> page.chapterId == currentState.chapterId } -> currentState
-
-				// Otherwise, use content.state (normal flow, mode switch, chapter change)
-				else -> it.state
+					&& readerAdapter?.hasItems != true
+					&& it.pages.any { page -> page.chapterId == currentState.chapterId }
+				) currentState else it.state
 			}
 			onPagesChanged(it.pages, pendingState)
 		}
