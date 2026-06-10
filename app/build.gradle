@@ -149,7 +149,7 @@ dependencies {
         parsersVersion = System.getProperty('parsersVersionOverride')
     }
     
-    implementation("com.github.clquwu:kotatsu-parsers-redo:$parsersVersion") {
+    implementation("com.github.Ero-gamer:kotatsu-next-parsers:$parsersVersion") {
         exclude group: 'org.json', module: 'json'
         exclude group: 'org.jetbrains.kotlin', module: 'kotlin-android-extensions-runtime'
     }
