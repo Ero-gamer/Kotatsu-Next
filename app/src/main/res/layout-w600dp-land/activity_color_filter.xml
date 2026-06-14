@@ -196,6 +196,31 @@
 				app:layout_constraintTop_toBottomOf="@id/textView_contrast" />
 
 			<TextView
+				android:id="@+id/textView_saturation"
+				android:layout_width="0dp"
+				android:layout_height="match_parent"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_small"
+				android:text="@string/saturation"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_saturation"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_small"
+				android:value="0.0"
+				android:valueFrom="-1.0"
+				android:valueTo="1.0"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_saturation" />
+
+			<TextView
 				android:id="@+id/textView_vibrance"
 				android:layout_width="0dp"
 				android:layout_height="match_parent"
@@ -205,7 +230,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
+				app:layout_constraintTop_toBottomOf="@id/slider_saturation" />
 
 			<com.google.android.material.slider.Slider
 				android:id="@+id/slider_vibrance"

@@ -176,7 +176,32 @@
 				app:layout_constraintStart_toStartOf="parent"
 				app:layout_constraintTop_toBottomOf="@id/textView_contrast" />
 
-			<!-- ── Vibrance (GPU-powered, replaces ColorMatrix saturation) ── -->
+			<!-- ── Saturation (uniform, ColorMatrix real-time) ── -->
+
+			<TextView
+				android:id="@+id/textView_saturation"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_small"
+				android:text="@string/saturation"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_saturation"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_small"
+				android:value="0.0"
+				android:valueFrom="-1.0"
+				android:valueTo="1.0"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/textView_saturation" />
+
+			<!-- ── Vibrance (GLSL, selective boost, GPU bitmap pass) ── -->
 
 			<TextView
 				android:id="@+id/textView_vibrance"
@@ -187,7 +212,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toStartOf="parent"
-				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
+				app:layout_constraintTop_toBottomOf="@id/slider_saturation" />
 
 			<com.google.android.material.slider.Slider
 				android:id="@+id/slider_vibrance"

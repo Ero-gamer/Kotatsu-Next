@@ -287,12 +287,12 @@ class PageLoader @Inject constructor(
 	 * Contrast, vibrance and brightness are real-time ColorMatrix operations on the SSIV
 	 * paint (see [ReaderColorFilter.toColorFilter]) — no bitmap processing needed there.
 	 */
-	suspend fun applyImageFilters(uri: Uri, sharpening: Float): Uri {
-		if (sharpening <= 0.01f) return uri
+	suspend fun applyImageFilters(uri: Uri, sharpening: Float, vibrance: Float = 0f): Uri {
+		if (sharpening <= 0.01f && (vibrance <= 0.01f && vibrance >= -0.01f)) return uri
 		// Only process local files — skip network URIs entirely
 		if (!uri.isFileUri() && !uri.isZipUri()) return uri
 
-		val cacheKey = "${uri}_s${sharpening}".md5()
+		val cacheKey = "${uri}_s${sharpening}_gv${vibrance}".md5()
 		// computeIfAbsent is intentional: concurrent callers for the same key share one Mutex,
 		// preventing redundant GPU work. The entry is removed in the finally block below.
 		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
@@ -333,7 +333,7 @@ class PageLoader @Inject constructor(
 						}
 					}.getOrNull() ?: return@withContext
 
-					val filtered = ImageFiltersTransformation(context, sharpening).transform(
+					val filtered = ImageFiltersTransformation(context, sharpening, vibrance).transform(
 						bitmap,
 						Size.ORIGINAL,
 					)

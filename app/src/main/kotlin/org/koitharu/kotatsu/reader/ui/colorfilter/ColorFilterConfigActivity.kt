@@ -74,11 +74,13 @@ class ColorFilterConfigActivity :
         viewBinding.sliderBrightness.addOnChangeListener(this)
         viewBinding.sliderContrast.addOnChangeListener(this)
         viewBinding.sliderSharpening?.addOnChangeListener(this)
+        viewBinding.sliderSaturation?.addOnChangeListener(this)
         viewBinding.sliderVibrance?.addOnChangeListener(this)
 
         viewBinding.sliderBrightness.setLabelFormatter(percentFormatter)
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
         viewBinding.sliderSharpening?.setLabelFormatter(percentFormatter)
+        viewBinding.sliderSaturation?.setLabelFormatter(signedFormatter)
         viewBinding.sliderVibrance?.setLabelFormatter(signedFormatter)
 
         viewBinding.switchInvert.setOnCheckedChangeListener(this)
@@ -113,6 +115,7 @@ class ColorFilterConfigActivity :
             R.id.slider_brightness -> viewModel.setBrightness(value)
             R.id.slider_contrast   -> viewModel.setContrast(value)
             R.id.slider_sharpening -> viewModel.setSharpening(value)
+            R.id.slider_saturation -> viewModel.setSaturation(value)
             R.id.slider_vibrance   -> viewModel.setVibrance(value)
         }
     }
@@ -146,6 +149,7 @@ class ColorFilterConfigActivity :
         viewBinding.sliderBrightness.setValueRounded(cf?.brightness ?: 0f)
         viewBinding.sliderContrast.setValueRounded(cf?.contrast ?: 0f)
         viewBinding.sliderSharpening?.setValueRounded(cf?.sharpening ?: 0f)
+        viewBinding.sliderSaturation?.setValueRounded(cf?.saturation ?: 0f)
         viewBinding.sliderVibrance?.setValueRounded(cf?.vibrance ?: 0f)
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
@@ -232,6 +236,7 @@ class ColorFilterConfigActivity :
         viewBinding.sliderBrightness.isEnabled  = !isLoading
         viewBinding.sliderContrast.isEnabled    = !isLoading
         viewBinding.sliderSharpening?.isEnabled = !isLoading
+        viewBinding.sliderSaturation?.isEnabled = !isLoading
         viewBinding.sliderVibrance?.isEnabled   = !isLoading
         viewBinding.switchInvert.isEnabled      = !isLoading
         viewBinding.switchGrayscale.isEnabled   = !isLoading

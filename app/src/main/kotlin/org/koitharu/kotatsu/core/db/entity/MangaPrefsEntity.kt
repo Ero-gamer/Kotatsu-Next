@@ -25,7 +25,10 @@ data class MangaPrefsEntity(
     @ColumnInfo(name = "cf_brightness") val cfBrightness: Float,
     @ColumnInfo(name = "cf_contrast") val cfContrast: Float,
     @ColumnInfo(name = "cf_sharpening", defaultValue = "0") val cfSharpening: Float,
-    @ColumnInfo(name = "cf_vibrance", defaultValue = "0") val cfVibrance: Float,
+    /** Uniform saturation (ColorMatrix). Column name kept as cf_vibrance for DB compatibility. */
+    @ColumnInfo(name = "cf_vibrance", defaultValue = "0") val cfSaturation: Float,
+    /** GLSL vibrance (selective saturation boost, GPU bitmap pass). */
+    @ColumnInfo(name = "cf_vibrance2", defaultValue = "0") val cfVibrance: Float,
     @ColumnInfo(name = "cf_invert") val cfInvert: Boolean,
     @ColumnInfo(name = "cf_grayscale") val cfGrayscale: Boolean,
     @ColumnInfo(name = "cf_book") val cfBookEffect: Boolean,

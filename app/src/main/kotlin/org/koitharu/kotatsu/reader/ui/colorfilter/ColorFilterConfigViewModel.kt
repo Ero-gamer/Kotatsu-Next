@@ -66,7 +66,8 @@ class ColorFilterConfigViewModel @Inject constructor(
     fun setBrightness(brightness: Float) = updateColorFilter { it.copy(brightness = brightness) }
     fun setContrast(contrast: Float)     = updateColorFilter { it.copy(contrast = contrast) }
     fun setSharpening(sharpening: Float) = updateColorFilter { it.copy(sharpening = sharpening) }
-    fun setVibrance(vibrance: Float)     = updateColorFilter { it.copy(vibrance = vibrance) }
+    fun setSaturation(saturation: Float)  = updateColorFilter { it.copy(saturation = saturation) }
+    fun setVibrance(vibrance: Float)      = updateColorFilter { it.copy(vibrance = vibrance) }
     fun setInversion(invert: Boolean)    = updateColorFilter { it.copy(isInverted = invert) }
     fun setGrayscale(grayscale: Boolean) = updateColorFilter { it.copy(isGrayscale = grayscale) }
     fun setBookEffect(book: Boolean)     = updateColorFilter { it.copy(isBookBackground = book) }

@@ -159,8 +159,9 @@ class PageViewModel(
 			previewJob.cancel()
 
 			val sharpening = settingsProducer.value.sharpening
-			val uri = if (sharpening > 0.01f) {
-				loader.applyImageFilters(rawUri, sharpening)
+			val glslVibrance = settingsProducer.value.colorFilter?.vibrance ?: 0f
+			val uri = if (sharpening > 0.01f || glslVibrance > 0.01f || glslVibrance < -0.01f) {
+				loader.applyImageFilters(rawUri, sharpening, glslVibrance)
 			} else {
 				rawUri
 			}

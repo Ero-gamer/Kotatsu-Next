@@ -468,6 +468,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 					brightness = runCatching { prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness) }.getOrDefault(ReaderColorFilter.EMPTY.brightness),
 					contrast = runCatching { prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast) }.getOrDefault(ReaderColorFilter.EMPTY.contrast),
 					sharpening = runCatching { prefs.getFloat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening) }.getOrDefault(ReaderColorFilter.EMPTY.sharpening),
+					saturation = runCatching { prefs.getFloat(KEY_CF_SATURATION, ReaderColorFilter.EMPTY.saturation) }.getOrDefault(ReaderColorFilter.EMPTY.saturation),
 					vibrance = runCatching { prefs.getFloat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance) }.getOrDefault(ReaderColorFilter.EMPTY.vibrance),
 					isInverted = runCatching { prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted) }.getOrDefault(ReaderColorFilter.EMPTY.isInverted),
 					isGrayscale = runCatching { prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale) }.getOrDefault(ReaderColorFilter.EMPTY.isGrayscale),
@@ -486,6 +487,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 					putFloat(KEY_CF_BRIGHTNESS, value.brightness)
 					putFloat(KEY_CF_CONTRAST, value.contrast)
 					putFloat(KEY_CF_SHARPENING, value.sharpening)
+					putFloat(KEY_CF_SATURATION, value.saturation)
 					putFloat(KEY_CF_VIBRANCE, value.vibrance)
 					putBoolean(KEY_CF_INVERTED, value.isInverted)
 					putBoolean(KEY_CF_GRAYSCALE, value.isGrayscale)
@@ -494,6 +496,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 					remove(KEY_CF_BRIGHTNESS)
 					remove(KEY_CF_CONTRAST)
 					remove(KEY_CF_SHARPENING)
+					remove(KEY_CF_SATURATION)
 					remove(KEY_CF_VIBRANCE)
 					remove(KEY_CF_INVERTED)
 					remove(KEY_CF_GRAYSCALE)
@@ -895,7 +898,8 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_CF_BRIGHTNESS = "cf_brightness"
 		const val KEY_CF_CONTRAST = "cf_contrast"
 		const val KEY_CF_SHARPENING = "cf_sharpening"
-		const val KEY_CF_VIBRANCE = "cf_vibrance"
+		const val KEY_CF_SATURATION = "cf_vibrance"
+		const val KEY_CF_VIBRANCE = "cf_vibrance2"
 		const val KEY_CF_INVERTED = "cf_inverted"
 		const val KEY_CF_GRAYSCALE = "cf_grayscale"
 		const val KEY_CF_BOOK = "cf_book"
