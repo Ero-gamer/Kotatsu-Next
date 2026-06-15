@@ -126,7 +126,7 @@ data class ReaderColorFilter(
          * setSaturation() for manga/webtoon content.
          */
         private fun vibranceMatrix(v: Float): ColorMatrix {
-            val s = (v * 3f).coerceIn(-3f, 3f) // map -1..1 to a perceptible range
+            val s = v.coerceIn(-1f, 1f)
             val rw = 0.2126f; val gw = 0.7152f; val bw = 0.0722f
             // Each channel = luma + (channel - luma) * (1 + s)
             // = luma*(1 - (1+s)) + channel*(1+s)
