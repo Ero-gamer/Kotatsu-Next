@@ -296,7 +296,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 		// Need GPU processing — launch coroutine, cancel if holder goes off-screen
 		vibranceJob = lifecycleScope.launch(Dispatchers.IO) {
-			val result = VibranceProcessor.process(context, pageUri, vibrance, key)
+			val result = VibranceProcessor.process(pageUri, vibrance, key)
 				?: return@launch
 
 			launch(Dispatchers.Main) {

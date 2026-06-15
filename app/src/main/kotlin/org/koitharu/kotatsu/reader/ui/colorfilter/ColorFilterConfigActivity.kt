@@ -206,7 +206,7 @@ class ColorFilterConfigActivity :
                             .transform(source, Size.ORIGINAL)
                     } else source
                     if (vibrance != 0f) {
-                        val vibranced = VibranceProcessor.processBitmap(applicationContext, sharpened, vibrance)
+                        val vibranced = VibranceProcessor.processBitmap(sharpened, vibrance)
                         if (sharpened !== source) sharpened.recycle()
                         vibranced ?: sharpened
                     } else sharpened
