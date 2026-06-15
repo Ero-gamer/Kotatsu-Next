@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.BaseActivity
 import org.koitharu.kotatsu.core.ui.image.ImageFiltersTransformation
+import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.util.ext.consumeAllSystemBarsInsets
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
@@ -158,7 +159,8 @@ class ColorFilterConfigActivity :
         if (!beforeImageReady) return
 
         val sharpening = cf?.sharpening ?: 0f
-        if (sharpening > 0.01f) {
+        val vibrance = cf?.vibrance ?: 0f
+        if (sharpening > 0.01f || vibrance != 0f) {
             applyAfterFilter(cf)
         } else {
             sharpenJob?.cancel()
@@ -187,6 +189,7 @@ class ColorFilterConfigActivity :
      */
     private fun applyAfterFilter(cf: ReaderColorFilter?) {
         val sharpening = cf?.sharpening ?: 0f
+        val vibrance = cf?.vibrance ?: 0f
         val source = sourceBitmap ?: return
 
         // Show unfiltered + ColorMatrix immediately so the panel is never blank.
@@ -198,8 +201,15 @@ class ColorFilterConfigActivity :
             var result: Bitmap? = null
             try {
                 result = runCatching {
-                    ImageFiltersTransformation(applicationContext, sharpening)
-                        .transform(source, Size.ORIGINAL)
+                    val sharpened = if (sharpening > 0.01f) {
+                        ImageFiltersTransformation(applicationContext, sharpening)
+                            .transform(source, Size.ORIGINAL)
+                    } else source
+                    if (vibrance != 0f) {
+                        val vibranced = VibranceProcessor.processBitmap(applicationContext, sharpened, vibrance)
+                        if (sharpened !== source) sharpened.recycle()
+                        vibranced ?: sharpened
+                    } else sharpened
                 }.getOrNull() ?: return@launch
 
                 val sharpenedBitmap = result

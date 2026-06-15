@@ -2,7 +2,6 @@ package org.koitharu.kotatsu.reader.ui.pager
 
 import android.content.ComponentCallbacks2
 import android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE
-import android.content.Context
 import android.content.res.Configuration
 import android.view.View
 import androidx.annotation.CallSuper
@@ -12,8 +11,10 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.viewbinding.ViewBinding
 import com.davemorrissey.labs.subscaleview.DefaultOnImageEventListener
+import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koitharu.kotatsu.BuildConfig
@@ -21,6 +22,7 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.image.CoilImageView
 import org.koitharu.kotatsu.core.os.NetworkState
+import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
@@ -65,7 +67,13 @@ abstract class BasePageHolder<B : ViewBinding>(
 	/** Sentinel: MIN_VALUE means "not yet applied", distinguishing from a legitimate null filter. */
 	private var lastColorFilter: Any? = UNSET_SENTINEL
 
-	val context: Context
+	// ── Vibrance state ────────────────────────────────────────────────────────
+	/** Key of the vibrance bitmap currently applied to ssiv, or null if none. */
+	private var activeVibranceKey: String? = null
+	/** Running vibrance coroutine — cancelled if holder pauses before GPU finishes. */
+	private var vibranceJob: Job? = null
+
+	val context
 		get() = itemView.context
 
 	var boundData: ReaderPage? = null
@@ -102,17 +110,18 @@ abstract class BasePageHolder<B : ViewBinding>(
 		lastColorFilter = settings.colorFilter
 		when {
 			// Sharpening changed: re-process bitmap using cached source file (no re-download).
-			// Uses force=false so the page cache is reused — avoids network + limits RAM pressure.
 			sharpeningChanged -> boundData?.let { viewModel.reapplySharpening(it.toMangaPage()) }
 
 			// BitmapConfig changed: reload SSIV tiles with new config.
 			settings.applyBitmapConfig(ssiv) -> reloadImage()
 
-			// ColorFilter (contrast/vibrance/brightness/etc) changed while page is displayed:
+			// ColorFilter (contrast/saturation/brightness/etc) changed while page is displayed:
 			// re-apply ColorMatrix paint filter to SSIV — instant, zero re-decode cost.
-			// Guard: only call onReady() if colorFilter actually changed, so a transient
-			// stale null emission from the settings flow doesn't flash the SSIV to unfiltered.
 			colorFilterChanged && viewModel.state.value is PageState.Shown -> onReady()
+		}
+		// Vibrance slider changed while visible — re-apply
+		if (colorFilterChanged && isResumed()) {
+			reapplyVibrance()
 		}
 		ssiv.applyDownSampling(isResumed())
 	}
@@ -147,11 +156,15 @@ abstract class BasePageHolder<B : ViewBinding>(
 		if (viewModel.state.value is PageState.Error && !viewModel.isLoading()) {
 			boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
 		}
+		// Apply GLSL vibrance now that this page is on-screen
+		reapplyVibrance()
 	}
 
 	override fun onPause() {
 		super.onPause()
 		ssiv.applyDownSampling(isForeground = false)
+		// Cancel any in-progress GPU work and release vibrance bitmap
+		clearVibrance()
 	}
 
 	override fun onDestroy() {
@@ -165,6 +178,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	@CallSuper
 	open fun onRecycled() {
+		clearVibrance()
 		viewModel.onRecycle()
 		ssiv.recycle()
 		animatedView?.disposeImage()
@@ -174,7 +188,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 	}
 
 	override fun onTrimMemory(level: Int) {
-		// TODO
+		if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+			VibranceProcessor.trimMemory()
+		}
 	}
 
 	override fun onConfigurationChanged(newConfig: Configuration) = Unit
@@ -218,20 +234,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 					showAnimated(boundData!!, state)
 					bindingInfo.layoutProgress.isGone = true
 				} else {
-					// BUG 1 FIX: Keep showing the generic spinner ("loading_") when the
-					// image has been downloaded and SSIV is about to initialise.
-					// The old code immediately set "preparing_" which confused users because
-					// SSIV initialisation (BitmapRegionDecoder init) can take 1-4 seconds.
-					// We only switch to "preparing_" after a 600ms delay — for fast loads
-					// (cached/local images) onReady() fires before the delay, so the user
-					// never sees "preparing_" at all. For slow loads (large JPEG over network
-					// on low-end hardware) they see a clear loading spinner, not a frozen
-					// "processing" text.
 					bindingInfo.textViewStatus.setText(R.string.loading_)
 					ssiv.setImage(state.source)
 					ssiv.postDelayed({
-						// Only update to "preparing_" if we're still in the Loaded state
-						// (i.e. onReady() has not fired yet).
 						if (viewModel.state.value is PageState.Loaded) {
 							bindingInfo.textViewStatus.setText(R.string.preparing_)
 						}
@@ -245,7 +250,84 @@ abstract class BasePageHolder<B : ViewBinding>(
 				}
 			}
 
-			is PageState.Shown -> Unit
+			is PageState.Shown -> {
+				// Page just became fully shown — apply vibrance if holder is already on-screen
+				if (isResumed()) reapplyVibrance()
+			}
+		}
+	}
+
+	// ── Vibrance ──────────────────────────────────────────────────────────────
+
+	/**
+	 * Launches a coroutine to apply GLSL vibrance to the current page bitmap.
+	 * - Does nothing if vibrance == 0, page not yet shown, or already processing.
+	 * - Uses [VibranceProcessor] (Semaphore(1)) so only one page processes at a time.
+	 * - On success: swaps ssiv image to the vibrance bitmap (ColorMatrix filter still applied).
+	 * - On pause/recycle: job is cancelled, original source is restored from state.
+	 */
+	private fun reapplyVibrance() {
+		val vibrance = settings.colorFilter?.vibrance ?: 0f
+		val shownState = viewModel.state.value as? PageState.Shown
+
+		// Cancel stale job regardless
+		vibranceJob?.cancel()
+		vibranceJob = null
+
+		// Restore original source first (handles slider going back to 0)
+		if (vibrance == 0f || shownState == null) {
+			restoreOriginalSource(shownState)
+			activeVibranceKey?.let { VibranceProcessor.releaseEntry(it) }
+			activeVibranceKey = null
+			return
+		}
+
+		val pageUri = (shownState.source as? ImageSource.Uri)?.uri ?: return
+		val key = VibranceProcessor.cacheKey(pageUri.toString(), vibrance)
+
+		// Serve from cache immediately — no GPU work needed
+		val cached = VibranceProcessor.getCached(key)
+		if (cached != null && !cached.isRecycled) {
+			activeVibranceKey = key
+			ssiv.setImage(ImageSource.bitmap(cached))
+			ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+			return
+		}
+
+		// Need GPU processing — launch coroutine, cancel if holder goes off-screen
+		vibranceJob = lifecycleScope.launch(Dispatchers.IO) {
+			val result = VibranceProcessor.process(context, pageUri, vibrance, key)
+				?: return@launch
+
+			launch(Dispatchers.Main) {
+				if (!isResumed()) {
+					// Holder scrolled off-screen while GPU was processing — discard
+					VibranceProcessor.releaseEntry(key)
+					return@launch
+				}
+				activeVibranceKey = key
+				ssiv.setImage(ImageSource.bitmap(result))
+				ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+			}
+		}
+	}
+
+	private fun clearVibrance() {
+		vibranceJob?.cancel()
+		vibranceJob = null
+		val key = activeVibranceKey
+		if (key != null) {
+			activeVibranceKey = null
+			VibranceProcessor.releaseEntry(key)
+			// Restore original source so the page shows correctly if holder resumes
+			restoreOriginalSource(viewModel.state.value as? PageState.Shown)
+		}
+	}
+
+	private fun restoreOriginalSource(state: PageState.Shown?) {
+		if (state != null && ssiv.isReady) {
+			ssiv.setImage(state.source)
+			ssiv.colorFilter = settings.colorFilter?.toColorFilter()
 		}
 	}
 
@@ -274,10 +356,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 	}
 
 	private companion object {
-		// BUG 1 FIX: delay before showing "preparing_" status.
-		// If SSIV fires onReady() within this window, we never show "preparing_" at all.
 		private const val PREPARING_STATUS_DELAY_MS = 600L
-		/** Sentinel used by lastColorFilter to distinguish "not yet set" from a legitimate null filter. */
 		private val UNSET_SENTINEL = Any()
 	}
 }
