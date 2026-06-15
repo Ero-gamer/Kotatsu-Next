@@ -1,13 +1,14 @@
 package org.koitharu.kotatsu.core.ui.image
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.util.LruCache
 import androidx.core.net.toFile
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import org.koitharu.kotatsu.core.image.BitmapDecoderCompat
-import org.koitharu.kotatsu.core.util.MimeTypes
 import org.koitharu.kotatsu.core.util.ext.isFileUri
 import org.koitharu.kotatsu.core.util.ext.isZipUri
 import java.util.zip.ZipFile
@@ -132,39 +133,42 @@ object VibranceProcessor {
             val delta = cMax - cMin
             val l = (cMax + cMin) * 0.5f
 
-            if (delta < 0.0001f) {
-                // Achromatic — no hue/saturation, vibrance has no effect
-                continue
-            }
+            if (delta < 0.0001f) continue  // achromatic — skip
 
             val s = delta / (1f - Math.abs(2f * l - 1f))
 
-            // Selective boost: inversely proportional to existing saturation
-            val boost = v * (1f - s)
+            // Photoshop-style selective boost:
+            // (1-s)^2 ensures vivid pixels (s≈1) get near-zero boost,
+            // dull pixels (s≈0) get the full boost.
+            // Factor 0.4 caps the maximum saturation addition per unit of vibrance
+            // so even fully grey pixels can't overshoot to full saturation.
+            val selectivity = (1f - s) * (1f - s)
+            val boost = v * selectivity * 0.4f
             val sNew = (s + boost).coerceIn(0f, 1f)
 
-            if (Math.abs(sNew - s) < 0.0001f) continue  // no meaningful change
+            if (Math.abs(sNew - s) < 0.001f) continue  // no meaningful change
 
-            // Hue (0–6 sextants, no trig needed)
+            // Hue (0–6 sextants)
             val h6 = when (cMax) {
                 r    -> ((g - b) / delta).let { if (it < 0f) it + 6f else it }
                 g    -> (b - r) / delta + 2f
                 else -> (r - g) / delta + 4f
             }
 
-            // HSL → RGB  (C = chroma, X = second component, m = match lightness)
+            // HSL → RGB
             val c = (1f - Math.abs(2f * l - 1f)) * sNew
             val x = c * (1f - Math.abs(h6 % 2f - 1f))
             val m = l - c * 0.5f
 
-            val sxt = h6.toInt()  // 0..5
-            val (r1, g1, b1) = when (sxt) {
-                0    -> Triple(c, x, 0f)
-                1    -> Triple(x, c, 0f)
-                2    -> Triple(0f, c, x)
-                3    -> Triple(0f, x, c)
-                4    -> Triple(x, 0f, c)
-                else -> Triple(c, 0f, x)
+            val sxt = h6.toInt().coerceIn(0, 5)
+            val r1: Float; val g1: Float; val b1: Float
+            when (sxt) {
+                0    -> { r1=c; g1=x; b1=0f }
+                1    -> { r1=x; g1=c; b1=0f }
+                2    -> { r1=0f; g1=c; b1=x }
+                3    -> { r1=0f; g1=x; b1=c }
+                4    -> { r1=x; g1=0f; b1=c }
+                else -> { r1=c; g1=0f; b1=x }
             }
 
             val ri = ((r1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
@@ -181,16 +185,44 @@ object VibranceProcessor {
 
     // ── URI decode ────────────────────────────────────────────────────────────
 
+    /**
+     * Decodes the page at 1/[SAMPLE_SIZE] resolution.
+     * Vibrance is a colour-only operation — spatial detail is irrelevant.
+     * At 1/4 resolution a 1080×4000 strip decodes to 270×1000 = ~1 MB (ARGB_8888)
+     * instead of ~16 MB at full resolution. The vibrance result is then drawn back
+     * scaled to full size by SSIV, which applies its own sub-sampling anyway.
+     *
+     * For ZIP/CBZ entries we fall back to BitmapFactory directly (supports inSampleSize).
+     * For plain files on API 28+ we use ImageDecoder with a resize target.
+     */
     private fun decodeBitmap(uri: Uri): Bitmap? = runCatching {
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = SAMPLE_SIZE
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
         if (uri.isZipUri()) {
             ZipFile(uri.schemeSpecificPart).use { zip ->
                 val entry = zip.getEntry(uri.fragment) ?: return null
                 zip.getInputStream(entry).use { stream ->
-                    BitmapDecoderCompat.decode(stream, MimeTypes.getMimeTypeFromExtension(entry.name))
+                    BitmapFactory.decodeStream(stream, null, opts)
                 }
             }
         } else {
-            BitmapDecoderCompat.decode(uri.toFile())
+            val file = uri.toFile()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
+                    val (w, h) = info.size.width to info.size.height
+                    decoder.setTargetSize(w / SAMPLE_SIZE, h / SAMPLE_SIZE)
+                    decoder.setTargetColorSpace(android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB))
+                }
+            } else {
+                BitmapFactory.decodeFile(file.absolutePath, opts)
+            }
         }
     }.getOrNull()
+
+    private companion object {
+        /** Decode at 1/4 resolution — sufficient for colour processing. */
+        const val SAMPLE_SIZE = 4
+    }
 }

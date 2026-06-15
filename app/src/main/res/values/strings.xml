@@ -544,7 +544,7 @@
     <string name="grayscale">Grayscale</string>
     <string name="sharpening">Sharpening</string>
     <string name="saturation">Saturation</string>
-    <string name="vibrance">Vibrance (GLSL)</string>
+    <string name="vibrance">Vibrance (HSL)</string>
     <string name="vertical_page_slider">Vertical page slider</string>
     <string name="globally">Globally</string>
     <string name="this_manga">This manga</string>
