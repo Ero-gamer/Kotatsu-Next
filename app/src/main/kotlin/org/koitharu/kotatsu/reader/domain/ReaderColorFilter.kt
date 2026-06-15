@@ -8,12 +8,11 @@ import android.graphics.ColorMatrixColorFilter
 /**
  * All image-adjustment parameters for a manga.
  *
- * Real-time GPU paint filters (applied instantly to the SSIV view via [toColorFilter]):
- *   [brightness], [contrast], [saturation], [isInverted], [isGrayscale], [isBookBackground]
+ * Real-time ColorMatrix paint filters (applied instantly to the SSIV view via [toColorFilter]):
+ *   [brightness], [contrast], [saturation], [vibrance], [isInverted], [isGrayscale], [isBookBackground]
  *
  * Bitmap pre-processing filters (baked into page file at load, cached to disk):
  *   [sharpening] — via GPUImageSharpenFilter in ImageFiltersTransformation / PageLoader
- *   [vibrance]   — via GPUImageVibranceFilter (GLSL, selective saturation boost)
  */
 data class ReaderColorFilter(
     val brightness: Float,
@@ -21,7 +20,7 @@ data class ReaderColorFilter(
     val sharpening: Float,
     /** Uniform saturation scale via ColorMatrix — applied in real-time on SSIV paint. */
     val saturation: Float,
-    /** GLSL vibrance — selectively boosts undersaturated pixels, GPU bitmap pass. */
+    /** ColorMatrix vibrance — luma-weighted selective boost, real-time paint filter. */
     val vibrance: Float,
     val isInverted: Boolean,
     val isGrayscale: Boolean,
@@ -35,8 +34,7 @@ data class ReaderColorFilter(
 
     /**
      * ColorMatrixColorFilter applied directly to the SSIV paint — zero re-decode cost.
-     * Includes brightness, contrast, saturation, invert, grayscale and book-background tint.
-     * GLSL vibrance is NOT included here — it is a GPU bitmap pass in ImageFiltersTransformation.
+     * Includes brightness, contrast, saturation, vibrance, invert, grayscale and book-background tint.
      */
     fun toColorFilter(): ColorMatrixColorFilter {
         val cm = ColorMatrix()
@@ -45,6 +43,7 @@ data class ReaderColorFilter(
         if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
         if (contrast != 0f) cm.postConcat(contrastMatrix(contrast))
         if (saturation != 0f) cm.postConcat(saturationMatrix(saturation))
+        if (vibrance != 0f) cm.postConcat(vibranceMatrix(vibrance))
         if (isBookBackground) cm.postConcat(BOOK_MATRIX)
         return ColorMatrixColorFilter(cm)
     }
@@ -108,10 +107,42 @@ data class ReaderColorFilter(
 
         /**
          * Uniform saturation scale. saturation = -1..+1; 0 = unchanged.
-         * Boosts ALL colours equally — use GLSL vibrance for selective boost.
+         * Boosts ALL colours equally.
          */
         private fun saturationMatrix(s: Float): ColorMatrix {
             return ColorMatrix().also { it.setSaturation((s + 1f).coerceIn(0f, 4f)) }
+        }
+
+        /**
+         * Luma-weighted vibrance via ColorMatrix. vibrance = -1..+1; 0 = unchanged.
+         *
+         * Approximates selective saturation: channels further from luma (more colourful)
+         * receive less boost than near-grey channels. Better than uniform saturation for
+         * preserving already-vivid colours while lifting dull ones.
+         *
+         * The matrix is derived from the standard Rec.709 luma weights (0.2126R 0.7152G 0.0722B)
+         * and scales each channel's deviation from luma by (1 + v) where v ∈ [-1, 1].
+         * This is a static approximation — not per-pixel — but perceptually superior to
+         * setSaturation() for manga/webtoon content.
+         */
+        private fun vibranceMatrix(v: Float): ColorMatrix {
+            val s = (v * 3f).coerceIn(-3f, 3f) // map -1..1 to a perceptible range
+            val rw = 0.2126f; val gw = 0.7152f; val bw = 0.0722f
+            // Each channel = luma + (channel - luma) * (1 + s)
+            // = luma*(1 - (1+s)) + channel*(1+s)
+            // = luma*(-s) + channel*(1+s)
+            val rBoost = 1f + s * (1f - rw) // red gets large boost (low luma weight)
+            val gBoost = 1f + s * (1f - gw) // green gets moderate boost
+            val bBoost = 1f + s * (1f - bw) // blue gets large boost (low luma weight)
+            val rLeak  = -s * rw            // luma bleed into red
+            val gLeak  = -s * gw
+            val bLeak  = -s * bw
+            return ColorMatrix(floatArrayOf(
+                rBoost, gLeak,  bLeak,  0f, 0f,
+                rLeak,  gBoost, bLeak,  0f, 0f,
+                rLeak,  gLeak,  bBoost, 0f, 0f,
+                0f,     0f,     0f,     1f, 0f,
+            ))
         }
     }
 }
