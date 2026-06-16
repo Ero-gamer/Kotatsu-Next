@@ -194,7 +194,7 @@ class ColorFilterConfigActivity :
 
         // Show unfiltered + ColorMatrix immediately so the panel is never blank.
         viewBinding.imageViewAfter.setImageBitmap(source)
-        viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
+        viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter(0f)
 
         sharpenJob?.cancel()
         sharpenJob = lifecycleScope.launch(Dispatchers.Default) {
@@ -205,20 +205,19 @@ class ColorFilterConfigActivity :
                         ImageFiltersTransformation(applicationContext, sharpening)
                             .transform(source, Size.ORIGINAL)
                     } else source
-                    if (vibrance != 0f) {
-                        val vibranced = VibranceProcessor.processBitmap(sharpened, vibrance)
-                        if (sharpened !== source) sharpened.recycle()
-                        vibranced ?: sharpened
-                    } else sharpened
+                    sharpened  // vibrance applied separately as ColorFilter below
                 }.getOrNull() ?: return@launch
 
                 val sharpenedBitmap = result
+                val boost = if (vibrance != 0f) {
+                    VibranceProcessor.computeBoostForBitmap(sharpenedBitmap, vibrance) ?: 0f
+                } else 0f
                 withContext(Dispatchers.Main) {
                     if (!isDestroyed) {
                         viewBinding.imageViewAfter.setImageBitmap(sharpenedBitmap)
                         // Re-apply ColorMatrix paint after bitmap swap so it's never lost.
                         viewBinding.imageViewAfter.colorFilter =
-                            viewModel.colorFilter.value?.toColorFilter()
+                            viewModel.colorFilter.value?.toColorFilter(boost)
                     }
                 }
             } finally {

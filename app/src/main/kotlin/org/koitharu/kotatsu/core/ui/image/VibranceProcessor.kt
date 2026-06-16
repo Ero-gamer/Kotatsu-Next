@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
-import android.util.LruCache
 import androidx.core.net.toFile
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -16,187 +15,164 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Applies real per-pixel vibrance to page bitmaps entirely on the CPU (JVM).
+ * Computes a per-page vibrance saturation BOOST (Float) from a downsampled page decode.
  *
- * Why CPU instead of GPUImage / GLSL:
- *   GPUImage requires: decode bitmap → upload as GL texture → render to FBO → readback.
- *   Peak memory for a 1080×4000 webtoon strip ≈ 3× bitmap size = ~49 MB just for this
- *   operation, causing OOM crashes on 2 GB devices (Oppo A11k class).
- *   CPU approach needs only 1× additional bitmap (the output), ~16 MB for the same strip.
+ * Architecture:
+ *   SSIV's full-resolution tiled image source is NEVER replaced. Replacing it with a
+ *   downsampled bitmap causes permanent blurriness. Instead:
+ *   1. Decode the page at 1/[SAMPLE_SIZE] resolution (colour analysis only, ~1 MB).
+ *   2. Compute the page's average saturation distribution via HSL conversion.
+ *   3. Derive a ColorMatrix that approximates the selective saturation boost for this
+ *      specific page's colour profile.
+ *   4. Return the boost value so the caller can composite it into the full
+ *      ColorMatrix pipeline (ReaderColorFilter.toColorFilter) alongside all other
+ *      active filters, instead of replacing ssiv.colorFilter outright.
  *
- * Algorithm — per-pixel HSL selective saturation:
- *   For every pixel, the RGB values are converted to HSL. The saturation boost applied
- *   is scaled by (1 - currentSaturation) so already-vivid pixels receive almost no boost
- *   while near-grey pixels receive the full boost. This is what Photoshop's Vibrance slider
- *   actually does. No ColorMatrix approximation — each pixel is treated independently.
+ * Why not a global static matrix:
+ *   The boost factor in the ColorMatrix is tuned to the page's own average saturation.
+ *   A page of mostly grey tones gets a stronger matrix; a page of vivid colours gets
+ *   a gentler one. This per-page calibration is what makes it behave like real vibrance
+ *   (selective) rather than uniform saturation, within the limits of a static matrix.
  *
- * Optimisations:
- *   - [Semaphore](1): at most one page processes at a time, queued jobs are cancelled
- *     by BasePageHolder.onPause before they reach the semaphore.
- *   - [LruCache] (4 entries): re-scrolling to a visited page reuses the cached result.
- *   - Pixel array allocated once per call and reused for both read and write.
- *   - All arithmetic uses local Float vars — no boxing, no object allocation per pixel.
- *   - Inner loop written to minimise branch misprediction (hue sextant via Int division).
+ * Resource profile:
+ *   - Semaphore(1): one page analysed at a time, cancelled on scroll-off.
+ *   - In-memory cache(8): re-scrolling reuses the cached boost value — no re-decode.
+ *   - Decode at 1/4 res: ~1 MB peak per page, recycled immediately after analysis.
+ *   - No bitmap stored in cache — only a single Float per page.
  */
 object VibranceProcessor {
 
-    private const val MAX_CACHED_BITMAPS = 4
+    private const val MAX_CACHED_FILTERS = 8
     private const val SAMPLE_SIZE = 4
 
     private val semaphore = Semaphore(1)
 
-    private val cache = object : LruCache<String, Bitmap>(MAX_CACHED_BITMAPS) {
-        override fun sizeOf(key: String, value: Bitmap) = 1
-        override fun entryRemoved(evicted: Boolean, key: String, old: Bitmap, new: Bitmap?) {
-            if (evicted && !old.isRecycled) old.recycle()
-        }
-    }
+    /** Key → ColorMatrixColorFilter. Lightweight — no bitmap stored. */
+    private val cache = HashMap<String, Float>(MAX_CACHED_FILTERS)
+    private val cacheLock = Any()
 
     fun cacheKey(uri: String, vibrance: Float) = "$uri|v$vibrance"
 
-    fun getCached(key: String): Bitmap? = synchronized(cache) { cache.get(key) }
+    fun getCached(key: String): Float? = synchronized(cacheLock) { cache[key] }
 
     /**
-     * Decodes the page bitmap from [pageUri], applies CPU vibrance, caches and returns result.
-     * Suspends until the [Semaphore] is free — at most one page processes at a time.
+     * Decodes the page at low resolution, analyses its saturation distribution,
+     * and returns a [ColorMatrixColorFilter] that approximates HSL vibrance for
+     * this specific page. The filter is safe to set directly on ssiv.colorFilter.
+     *
+     * Returns null if the URI is unsupported, decode fails, or the job is cancelled.
      */
-    suspend fun process(pageUri: Uri, vibrance: Float, key: String): Bitmap? {
+    suspend fun computeBoost(
+        pageUri: Uri,
+        vibrance: Float,
+        key: String,
+    ): Float? {
         if (!pageUri.isFileUri() && !pageUri.isZipUri()) return null
+
+        getCached(key)?.let { return it }
+
         return semaphore.withPermit {
+            getCached(key)?.let { return@withPermit it }
+
             runCatching {
-                val src = decodeBitmap(pageUri) ?: return@runCatching null
-                val result = applyVibrance(src, vibrance)
-                src.recycle()
-                synchronized(cache) { cache.put(key, result) }
-                result
+                val bmp = decodeSampled(pageUri) ?: return@runCatching null
+                val avgSat = computeAverageSaturation(bmp)
+                bmp.recycle()
+
+                val boost = computeBoostValue(vibrance, avgSat)
+                synchronized(cacheLock) {
+                    if (cache.size >= MAX_CACHED_FILTERS) {
+                        cache.keys.firstOrNull()?.let { cache.remove(it) }
+                    }
+                    cache[key] = boost
+                }
+                boost
             }.getOrNull()
         }
     }
 
     /**
-     * Applies CPU vibrance to an in-memory [Bitmap] (used by color-correction preview).
-     * Uses the same [Semaphore] as [process] — at most one operation at a time.
+     * Computes a vibrance ColorFilter for the preview screen where we already
+     * have a bitmap in memory. Analyses the bitmap directly — no disk decode.
      */
-    suspend fun processBitmap(input: Bitmap, vibrance: Float): Bitmap? {
-        return semaphore.withPermit {
-            runCatching { applyVibrance(input, vibrance) }.getOrNull()
-        }
+    suspend fun computeBoostForBitmap(
+        bitmap: Bitmap,
+        vibrance: Float,
+    ): Float? = semaphore.withPermit {
+        runCatching {
+            val avgSat = computeAverageSaturation(bitmap)
+            computeBoostValue(vibrance, avgSat)
+        }.getOrNull()
     }
 
-    fun releaseEntry(key: String) {
-        synchronized(cache) { cache.remove(key) }
-        // Bitmap recycled via entryRemoved callback above
-    }
+    fun releaseEntry(key: String) = synchronized(cacheLock) { cache.remove(key) }
 
-    fun trimMemory() {
-        synchronized(cache) { cache.evictAll() }
-        // entryRemoved recycles each bitmap
-    }
+    fun trimMemory() = synchronized(cacheLock) { cache.clear() }
 
-    // ── Core algorithm ────────────────────────────────────────────────────────
+    // ── Core ──────────────────────────────────────────────────────────────────
 
     /**
-     * Returns a new ARGB_8888 bitmap with vibrance applied.
-     * [vibrance] range: -1.0 (remove colour) to +1.0 (maximum selective boost).
-     *
-     * Per-pixel steps:
-     *   1. Unpack ARGB integer → R, G, B floats in [0,1]
-     *   2. Compute HSL: H (hue), S (saturation 0–1), L (lightness 0–1)
-     *   3. Boost = vibrance * (1 - S)   ← near-grey pixels get full boost, vivid get none
-     *   4. S' = clamp(S + Boost, 0, 1)
-     *   5. Convert H, S', L back to RGB
-     *   6. Repack with original alpha
+     * Samples pixels from [bmp] and returns their mean HSL saturation in [0,1].
+     * Uses stride sampling (every 4th pixel) to keep cost low on the IO thread.
      */
-    private fun applyVibrance(src: Bitmap, vibrance: Float): Bitmap {
-        val w = src.width
-        val h = src.height
-        val pixels = IntArray(w * h)
+    private fun computeAverageSaturation(bmp: Bitmap): Float {
+        val w = bmp.width; val h = bmp.height
+        val stride = 4  // sample every 4th pixel
+        val pixels = IntArray((w / stride) * (h / stride))
+        var idx = 0
+        for (y in 0 until h step stride) {
+            for (x in 0 until w step stride) {
+                pixels[idx++] = bmp.getPixel(x, y)
+            }
+        }
 
-        // Ensure ARGB_8888 for reliable pixel format
-        val argb = if (src.config == Bitmap.Config.ARGB_8888) src
-                   else src.copy(Bitmap.Config.ARGB_8888, false)
-
-        argb.getPixels(pixels, 0, w, 0, 0, w, h)
-        if (argb !== src) argb.recycle()
-
-        val v = vibrance.coerceIn(-1f, 1f)
-
-        for (i in pixels.indices) {
+        var satSum = 0f
+        var count = 0
+        for (i in 0 until idx) {
             val px = pixels[i]
-            val a = px ushr 24
             val r = ((px shr 16) and 0xFF) / 255f
             val g = ((px shr 8)  and 0xFF) / 255f
             val b = (px          and 0xFF) / 255f
-
-            // RGB → HSL
             val cMax = max(r, max(g, b))
             val cMin = min(r, min(g, b))
             val delta = cMax - cMin
+            if (delta < 0.001f) continue  // achromatic — skip
             val l = (cMax + cMin) * 0.5f
-
-            if (delta < 0.0001f) continue  // achromatic — skip
-
-            val s = delta / (1f - Math.abs(2f * l - 1f))
-
-            // Photoshop-style selective boost:
-            // (1-s)^2 ensures vivid pixels (s≈1) get near-zero boost,
-            // dull pixels (s≈0) get the full boost.
-            // Factor 0.4 caps the maximum saturation addition per unit of vibrance
-            // so even fully grey pixels can't overshoot to full saturation.
-            val selectivity = (1f - s) * (1f - s)
-            val boost = v * selectivity * 0.4f
-            val sNew = (s + boost).coerceIn(0f, 1f)
-
-            if (Math.abs(sNew - s) < 0.001f) continue  // no meaningful change
-
-            // Hue (0–6 sextants)
-            val h6 = when (cMax) {
-                r    -> ((g - b) / delta).let { if (it < 0f) it + 6f else it }
-                g    -> (b - r) / delta + 2f
-                else -> (r - g) / delta + 4f
-            }
-
-            // HSL → RGB
-            val c = (1f - Math.abs(2f * l - 1f)) * sNew
-            val x = c * (1f - Math.abs(h6 % 2f - 1f))
-            val m = l - c * 0.5f
-
-            val sxt = h6.toInt().coerceIn(0, 5)
-            val r1: Float; val g1: Float; val b1: Float
-            when (sxt) {
-                0    -> { r1=c; g1=x; b1=0f }
-                1    -> { r1=x; g1=c; b1=0f }
-                2    -> { r1=0f; g1=c; b1=x }
-                3    -> { r1=0f; g1=x; b1=c }
-                4    -> { r1=x; g1=0f; b1=c }
-                else -> { r1=c; g1=0f; b1=x }
-            }
-
-            val ri = ((r1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
-            val gi = ((g1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
-            val bi = ((b1 + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
-
-            pixels[i] = (a shl 24) or (ri shl 16) or (gi shl 8) or bi
+            val denom = 1f - Math.abs(2f * l - 1f)
+            if (denom < 0.001f) continue
+            satSum += delta / denom
+            count++
         }
-
-        val result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        result.setPixels(pixels, 0, w, 0, 0, w, h)
-        return result
+        return if (count == 0) 0f else (satSum / count).coerceIn(0f, 1f)
     }
 
-    // ── URI decode ────────────────────────────────────────────────────────────
-
     /**
-     * Decodes the page at 1/[SAMPLE_SIZE] resolution.
-     * Vibrance is a colour-only operation — spatial detail is irrelevant.
-     * At 1/4 resolution a 1080×4000 strip decodes to 270×1000 = ~1 MB (ARGB_8888)
-     * instead of ~16 MB at full resolution. The vibrance result is then drawn back
-     * scaled to full size by SSIV, which applies its own sub-sampling anyway.
+     * Builds a [ColorMatrix] that approximates HSL vibrance for a page whose
+     * average saturation is [avgSat].
      *
-     * For ZIP/CBZ entries we fall back to BitmapFactory directly (supports inSampleSize).
-     * For plain files on API 28+ we use ImageDecoder with a resize target.
+     * The boost applied is proportional to (1 - avgSat)^2 — pages with mostly
+     * dull colours get a strong boost; pages already vivid get a gentle one.
+     * This is the per-page calibration that distinguishes vibrance from saturation.
+     *
+     * The matrix itself uses standard Rec.709 luma weights so the boost is
+     * perceptually uniform across hues (same formula as setSaturation internally,
+     * but with a vibrance-scaled coefficient instead of a fixed one).
      */
-    private fun decodeBitmap(uri: Uri): Bitmap? = runCatching {
+    /**
+     * Returns the additional saturation boost (NOT a final scale) for this page.
+     * Caller composites this into the full ColorMatrix pipeline via
+     * ReaderColorFilter.toColorFilter(vibranceBoost) so it combines correctly
+     * with brightness/contrast/saturation/grayscale/invert instead of replacing them.
+     */
+    private fun computeBoostValue(vibrance: Float, avgSat: Float): Float {
+        val v = vibrance.coerceIn(-1f, 1f)
+        val selectivity = (1f - avgSat) * (1f - avgSat)
+        return v * selectivity * 0.6f
+    }
+
+    // ── Decode ────────────────────────────────────────────────────────────────
+
+    private fun decodeSampled(uri: Uri): Bitmap? = runCatching {
         val opts = BitmapFactory.Options().apply {
             inSampleSize = SAMPLE_SIZE
             inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -212,14 +188,14 @@ object VibranceProcessor {
             val file = uri.toFile()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
-                    val (w, h) = info.size.width to info.size.height
-                    decoder.setTargetSize(w / SAMPLE_SIZE, h / SAMPLE_SIZE)
-                    decoder.setTargetColorSpace(android.graphics.ColorSpace.get(android.graphics.ColorSpace.Named.SRGB))
+                    decoder.setTargetSize(
+                        info.size.width / SAMPLE_SIZE,
+                        info.size.height / SAMPLE_SIZE,
+                    )
                 }
             } else {
                 BitmapFactory.decodeFile(file.absolutePath, opts)
             }
         }
     }.getOrNull()
-
 }

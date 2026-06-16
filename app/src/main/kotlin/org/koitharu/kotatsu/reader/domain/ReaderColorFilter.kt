@@ -38,15 +38,21 @@ data class ReaderColorFilter(
     /**
      * ColorMatrixColorFilter applied directly to the SSIV paint — zero re-decode cost.
      * Includes brightness, contrast, saturation, invert, grayscale and book-background tint.
-     * GLSL vibrance is NOT here — VibranceProcessor applies it per visible page in BasePageHolder.
+     *
+     * [vibranceBoost] is an optional per-page additional saturation boost computed by
+     * VibranceProcessor from the page's own colour distribution. Passing it here ensures
+     * vibrance is COMPOSITED with all other active filters rather than replacing them —
+     * fixes the bug where colored pages lost brightness/contrast/saturation/grayscale/invert
+     * whenever vibrance was non-zero.
      */
-    fun toColorFilter(): ColorMatrixColorFilter {
+    fun toColorFilter(vibranceBoost: Float = 0f): ColorMatrixColorFilter {
         val cm = ColorMatrix()
         if (isGrayscale) cm.setSaturation(0f)
         if (isInverted) cm.postConcat(INVERT_MATRIX)
         if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
         if (contrast != 0f) cm.postConcat(contrastMatrix(contrast))
-        if (saturation != 0f) cm.postConcat(saturationMatrix(saturation))
+        val totalSaturationBoost = saturation + vibranceBoost
+        if (totalSaturationBoost != 0f && !isGrayscale) cm.postConcat(saturationMatrix(totalSaturationBoost))
         if (isBookBackground) cm.postConcat(BOOK_MATRIX)
         return ColorMatrixColorFilter(cm)
     }

@@ -111,7 +111,7 @@ open class PageHolder(
 			}
 			false
 		}
-		binding.ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+		applyColorFilter()
 		when (settings.zoomMode) {
 			ZoomMode.FIT_CENTER -> {
 				binding.ssiv.minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE

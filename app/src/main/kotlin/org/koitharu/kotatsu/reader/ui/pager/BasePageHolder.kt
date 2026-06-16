@@ -258,56 +258,74 @@ abstract class BasePageHolder<B : ViewBinding>(
 	}
 
 	// ── Vibrance ──────────────────────────────────────────────────────────────
+	// Vibrance is never a standalone ColorFilter — it is always composited into
+	// ReaderColorFilter.toColorFilter(vibranceBoost) alongside brightness/contrast/
+	// saturation/grayscale/invert. ssiv.colorFilter is only ever set via [applyColorFilter]
+	// below so the full pipeline is always present together.
+
+	/** Most recently computed/cached vibrance boost for the currently shown page, or 0. */
+	private var currentVibranceBoost = 0f
+	private var activeVibranceKey: String? = null
+	private var vibranceJob: Job? = null
 
 	/**
-	 * Launches a coroutine to apply GLSL vibrance to the current page bitmap.
-	 * - Does nothing if vibrance == 0, page not yet shown, or already processing.
-	 * - Uses [VibranceProcessor] (Semaphore(1)) so only one page processes at a time.
-	 * - On success: swaps ssiv image to the vibrance bitmap (ColorMatrix filter still applied).
-	 * - On pause/recycle: job is cancelled, original source is restored from state.
+	 * Sets ssiv.colorFilter using the full ReaderColorFilter pipeline plus the current
+	 * vibrance boost. Call this any time either the base settings OR the vibrance boost
+	 * changes — never set ssiv.colorFilter directly elsewhere.
+	 */
+	protected fun applyColorFilter() {
+		if (ssiv.isReady) {
+			ssiv.colorFilter = settings.colorFilter?.toColorFilter(currentVibranceBoost)
+		}
+	}
+
+	/**
+	 * Computes/reuses the vibrance boost for the current page and re-applies the
+	 * full color filter pipeline. Does nothing if vibrance == 0 (boost reset to 0
+	 * and filter re-applied without it) or the page isn't yet shown.
+	 *
+	 * - Uses [VibranceProcessor] (Semaphore(1)) so only one page analyses at a time.
+	 * - On success: composites the boost into the SAME ColorMatrix as all other
+	 *   active filters — never replaces ssiv.colorFilter with vibrance alone.
+	 * - On pause/recycle: job is cancelled before reaching the semaphore.
 	 */
 	private fun reapplyVibrance() {
 		val vibrance = settings.colorFilter?.vibrance ?: 0f
 		val shownState = viewModel.state.value as? PageState.Shown
 
-		// Cancel stale job regardless
 		vibranceJob?.cancel()
 		vibranceJob = null
 
-		// Restore original source first (handles slider going back to 0)
 		if (vibrance == 0f || shownState == null) {
-			restoreOriginalSource(shownState)
-			activeVibranceKey?.let { VibranceProcessor.releaseEntry(it) }
-			activeVibranceKey = null
+			if (currentVibranceBoost != 0f || activeVibranceKey != null) {
+				activeVibranceKey?.let { VibranceProcessor.releaseEntry(it) }
+				activeVibranceKey = null
+				currentVibranceBoost = 0f
+				applyColorFilter()
+			}
 			return
 		}
 
 		val pageUri = (shownState.source as? ImageSource.Uri)?.uri ?: return
 		val key = VibranceProcessor.cacheKey(pageUri.toString(), vibrance)
 
-		// Serve from cache immediately — no GPU work needed
-		val cached = VibranceProcessor.getCached(key)
-		if (cached != null && !cached.isRecycled) {
+		if (activeVibranceKey == key) return  // already showing this exact boost
+
+		val cachedBoost = VibranceProcessor.getCached(key)
+		if (cachedBoost != null) {
 			activeVibranceKey = key
-			ssiv.setImage(ImageSource.bitmap(cached))
-			ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+			currentVibranceBoost = cachedBoost
+			applyColorFilter()
 			return
 		}
 
-		// Need GPU processing — launch coroutine, cancel if holder goes off-screen
+		activeVibranceKey = key
 		vibranceJob = lifecycleScope.launch(Dispatchers.IO) {
-			val result = VibranceProcessor.process(pageUri, vibrance, key)
-				?: return@launch
-
+			val boost = VibranceProcessor.computeBoost(pageUri, vibrance, key) ?: return@launch
 			launch(Dispatchers.Main) {
-				if (!isResumed()) {
-					// Holder scrolled off-screen while GPU was processing — discard
-					VibranceProcessor.releaseEntry(key)
-					return@launch
-				}
-				activeVibranceKey = key
-				ssiv.setImage(ImageSource.bitmap(result))
-				ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+				if (!isResumed() || activeVibranceKey != key) return@launch
+				currentVibranceBoost = boost
+				applyColorFilter()
 			}
 		}
 	}
@@ -315,19 +333,13 @@ abstract class BasePageHolder<B : ViewBinding>(
 	private fun clearVibrance() {
 		vibranceJob?.cancel()
 		vibranceJob = null
-		val key = activeVibranceKey
-		if (key != null) {
+		if (activeVibranceKey != null) {
+			VibranceProcessor.releaseEntry(activeVibranceKey!!)
 			activeVibranceKey = null
-			VibranceProcessor.releaseEntry(key)
-			// Restore original source so the page shows correctly if holder resumes
-			restoreOriginalSource(viewModel.state.value as? PageState.Shown)
 		}
-	}
-
-	private fun restoreOriginalSource(state: PageState.Shown?) {
-		if (state != null && ssiv.isReady) {
-			ssiv.setImage(state.source)
-			ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+		if (currentVibranceBoost != 0f) {
+			currentVibranceBoost = 0f
+			applyColorFilter()
 		}
 	}
 

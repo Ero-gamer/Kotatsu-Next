@@ -72,7 +72,7 @@ class DoublePageHolder(
 
 	override fun onReady() {
 		with(binding.ssiv) {
-			colorFilter = settings.colorFilter?.toColorFilter()
+			applyColorFilter()
 			minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
 			// Display-only: no individual zoom — global zoom is handled by DoublePageScalingFrame
 			maxScale = minScale

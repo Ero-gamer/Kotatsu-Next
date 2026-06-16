@@ -34,7 +34,7 @@ class WebtoonHolder(
 	}
 
 	override fun onReady() {
-		binding.ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+		applyColorFilter()
 		with(binding.ssiv) {
 			val targetScroll = when {
 				scrollToRestore != 0 -> scrollToRestore
