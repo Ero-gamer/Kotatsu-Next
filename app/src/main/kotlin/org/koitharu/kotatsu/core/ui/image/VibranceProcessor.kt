@@ -41,6 +41,7 @@ import kotlin.math.min
 object VibranceProcessor {
 
     private const val MAX_CACHED_BITMAPS = 4
+    private const val SAMPLE_SIZE = 4
 
     private val semaphore = Semaphore(1)
 
@@ -221,8 +222,4 @@ object VibranceProcessor {
         }
     }.getOrNull()
 
-    private companion object {
-        /** Decode at 1/4 resolution — sufficient for colour processing. */
-        const val SAMPLE_SIZE = 4
-    }
 }
