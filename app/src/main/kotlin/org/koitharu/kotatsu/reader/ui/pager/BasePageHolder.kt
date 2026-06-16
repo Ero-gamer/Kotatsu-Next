@@ -67,12 +67,6 @@ abstract class BasePageHolder<B : ViewBinding>(
 	/** Sentinel: MIN_VALUE means "not yet applied", distinguishing from a legitimate null filter. */
 	private var lastColorFilter: Any? = UNSET_SENTINEL
 
-	// ── Vibrance state ────────────────────────────────────────────────────────
-	/** Key of the vibrance bitmap currently applied to ssiv, or null if none. */
-	private var activeVibranceKey: String? = null
-	/** Running vibrance coroutine — cancelled if holder pauses before GPU finishes. */
-	private var vibranceJob: Job? = null
-
 	val context
 		get() = itemView.context
 
