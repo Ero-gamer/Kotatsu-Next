@@ -176,7 +176,7 @@ object VibranceProcessor {
     private fun computeBoostValue(vibrance: Float, avgSat: Float): Float {
         val v = vibrance.coerceIn(-1f, 1f)
         val selectivity = (1f - avgSat) * (1f - avgSat)
-        return v * selectivity * 0.6f
+        return v * selectivity * 1.5f
     }
 
     // ── Decode ────────────────────────────────────────────────────────────────
