@@ -118,30 +118,39 @@ object VibranceProcessor {
     private fun computeAverageSaturation(bmp: Bitmap): Float {
         val w = bmp.width; val h = bmp.height
         val stride = 4  // sample every 4th pixel
-        val pixels = IntArray((w / stride) * (h / stride))
-        var idx = 0
-        for (y in 0 until h step stride) {
-            for (x in 0 until w step stride) {
-                pixels[idx++] = bmp.getPixel(x, y)
-            }
-        }
 
+        // NOTE: pixels are read and accumulated inline (no IntArray buffer).
+        // A previous version pre-sized a buffer with (w/stride)*(h/stride) (floor),
+        // but the sampling loops below actually run ceil(w/stride)*ceil(h/stride)
+        // times whenever w or h isn't an exact multiple of `stride` — true for
+        // almost every real page — which overran the buffer, threw, and was
+        // silently swallowed by the caller's runCatching, always yielding a 0f
+        // boost. Accumulating directly avoids the sizing mismatch entirely and
+        // also skips an extra allocation.
         var satSum = 0f
         var count = 0
-        for (i in 0 until idx) {
-            val px = pixels[i]
-            val r = ((px shr 16) and 0xFF) / 255f
-            val g = ((px shr 8)  and 0xFF) / 255f
-            val b = (px          and 0xFF) / 255f
-            val cMax = max(r, max(g, b))
-            val cMin = min(r, min(g, b))
-            val delta = cMax - cMin
-            if (delta < 0.001f) continue  // achromatic — skip
-            val l = (cMax + cMin) * 0.5f
-            val denom = 1f - Math.abs(2f * l - 1f)
-            if (denom < 0.001f) continue
-            satSum += delta / denom
-            count++
+        var y = 0
+        while (y < h) {
+            var x = 0
+            while (x < w) {
+                val px = bmp.getPixel(x, y)
+                val r = ((px shr 16) and 0xFF) / 255f
+                val g = ((px shr 8)  and 0xFF) / 255f
+                val b = (px          and 0xFF) / 255f
+                val cMax = max(r, max(g, b))
+                val cMin = min(r, min(g, b))
+                val delta = cMax - cMin
+                if (delta >= 0.001f) {
+                    val l = (cMax + cMin) * 0.5f
+                    val denom = 1f - Math.abs(2f * l - 1f)
+                    if (denom >= 0.001f) {
+                        satSum += delta / denom
+                        count++
+                    }
+                }
+                x += stride
+            }
+            y += stride
         }
         return if (count == 0) 0f else (satSum / count).coerceIn(0f, 1f)
     }
