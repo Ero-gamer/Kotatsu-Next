@@ -269,30 +269,28 @@ class PageLoader @Inject constructor(
 	}.getOrNull()
 
 	/**
-	 * Applies GPU sharpening to a page bitmap and caches the result.
+	 * Applies sharpening and/or vibrance to a page bitmap and caches the result to [processedCache].
 	 * If the processed version is already cached, returns its URI immediately.
-	 * Ported from Tsukimi (Tsukimi-devel).
-	 */
-	/**
-	 * Applies GPU sharpening to a page bitmap and caches the result to [processedCache].
 	 *
 	 * Supports both plain file:// URIs (online/downloaded pages) and
 	 * file+zip:// / cbz:// URIs (local archives). Non-file/non-zip URIs (e.g. http://)
-	 * are returned unchanged — sharpening only applies to already-cached local files.
+	 * are returned unchanged — these filters only apply to already-cached local files.
 	 *
-	 * RAM guard: if available RAM is less than 8× the compressed file size (a conservative
-	 * upper bound for decode + ARGB_8888 copy + GPUImage output bitmap), sharpening is
-	 * skipped and the original URI is returned to prevent OOM on low-end devices.
+	 * RAM guard: if available RAM is less than 10× the compressed file size (a conservative
+	 * upper bound covering decode + ARGB_8888 copy + GPU sharpened output + the extra pixel
+	 * buffer vibrance's bulk getPixels()/setPixels() pass needs), processing is skipped and
+	 * the original URI is returned to prevent OOM on low-end devices.
 	 *
-	 * Contrast, vibrance and brightness are real-time ColorMatrix operations on the SSIV
+	 * Contrast, brightness and saturation remain real-time ColorMatrix operations on the SSIV
 	 * paint (see [ReaderColorFilter.toColorFilter]) — no bitmap processing needed there.
+	 * Vibrance, unlike those, MUST be a bitmap pass — see VibranceProcessor's doc comment.
 	 */
-	suspend fun applyImageFilters(uri: Uri, sharpening: Float): Uri {
-		if (sharpening <= 0.01f) return uri
+	suspend fun applyImageFilters(uri: Uri, sharpening: Float, vibrance: Float = 0f): Uri {
+		if (sharpening <= 0.01f && vibrance == 0f) return uri
 		// Only process local files — skip network URIs entirely
 		if (!uri.isFileUri() && !uri.isZipUri()) return uri
 
-		val cacheKey = "${uri}_s${sharpening}".md5()
+		val cacheKey = "${uri}_s${sharpening}_v${vibrance}".md5()
 		// computeIfAbsent is intentional: concurrent callers for the same key share one Mutex,
 		// preventing redundant GPU work. The entry is removed in the finally block below.
 		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
@@ -315,7 +313,7 @@ class PageLoader @Inject constructor(
 								// Prevent overflow: coerce before multiplying.
 								val entrySize = entry.size
 								if (entrySize <= 0L) return@withContext
-								context.ensureRamAtLeast(entrySize.coerceAtMost(Long.MAX_VALUE / 8L) * 8L)
+								context.ensureRamAtLeast(entrySize.coerceAtMost(Long.MAX_VALUE / 10L) * 10L)
 								zip.getInputStream(entry).use { stream ->
 									BitmapDecoderCompat.decode(
 										stream,
@@ -328,12 +326,12 @@ class PageLoader @Inject constructor(
 							// Guard: skip if file size unknown/zero (e.g. special file, not yet written).
 							val fileSize = file.length()
 							if (fileSize <= 0L) return@withContext
-							context.ensureRamAtLeast(fileSize.coerceAtMost(Long.MAX_VALUE / 8L) * 8L)
+							context.ensureRamAtLeast(fileSize.coerceAtMost(Long.MAX_VALUE / 10L) * 10L)
 							BitmapDecoderCompat.decode(file)
 						}
 					}.getOrNull() ?: return@withContext
 
-					val filtered = ImageFiltersTransformation(context, sharpening).transform(
+					val filtered = ImageFiltersTransformation(sharpening, vibrance).transform(
 						bitmap,
 						Size.ORIGINAL,
 					)

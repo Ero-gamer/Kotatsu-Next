@@ -206,7 +206,6 @@ dependencies {
     implementation libs.coil.gif
     implementation libs.coil.svg
     implementation libs.avif.decoder
-    implementation libs.gpuimage
     implementation(libs.ssiv) {
         exclude group: 'org.jetbrains.kotlin'
     }

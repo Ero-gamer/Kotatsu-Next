@@ -26,7 +26,6 @@ import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.BaseActivity
 import org.koitharu.kotatsu.core.ui.image.ImageFiltersTransformation
-import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.util.ext.consumeAllSystemBarsInsets
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
@@ -179,9 +178,9 @@ class ColorFilterConfigActivity :
     }
 
     /**
-     * Applies GPU sharpening to [sourceBitmap] on a background thread.
+     * Applies sharpening and/or vibrance to [sourceBitmap] on a background thread.
      * Shows the unfiltered image immediately (with ColorMatrix paint) while processing,
-     * then swaps to the sharpened result when the job completes.
+     * then swaps to the filtered result when the job completes.
      *
      * Cancels any previous in-flight job before starting.
      * Uses [sourceBitmap] directly — no Coil request, no cache writes,
@@ -194,30 +193,22 @@ class ColorFilterConfigActivity :
 
         // Show unfiltered + ColorMatrix immediately so the panel is never blank.
         viewBinding.imageViewAfter.setImageBitmap(source)
-        viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter(0f)
+        viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
 
         sharpenJob?.cancel()
         sharpenJob = lifecycleScope.launch(Dispatchers.Default) {
             var result: Bitmap? = null
             try {
                 result = runCatching {
-                    val sharpened = if (sharpening > 0.01f) {
-                        ImageFiltersTransformation(applicationContext, sharpening)
-                            .transform(source, Size.ORIGINAL)
-                    } else source
-                    sharpened  // vibrance applied separately as ColorFilter below
+                    ImageFiltersTransformation(sharpening, vibrance)
+                        .transform(source, Size.ORIGINAL)
                 }.getOrNull() ?: return@launch
 
-                val sharpenedBitmap = result
-                val boost = if (vibrance != 0f) {
-                    VibranceProcessor.computeBoostForBitmap(sharpenedBitmap, vibrance) ?: 0f
-                } else 0f
                 withContext(Dispatchers.Main) {
                     if (!isDestroyed) {
-                        viewBinding.imageViewAfter.setImageBitmap(sharpenedBitmap)
+                        viewBinding.imageViewAfter.setImageBitmap(result)
                         // Re-apply ColorMatrix paint after bitmap swap so it's never lost.
-                        viewBinding.imageViewAfter.colorFilter =
-                            viewModel.colorFilter.value?.toColorFilter(boost)
+                        viewBinding.imageViewAfter.colorFilter = viewModel.colorFilter.value?.toColorFilter()
                     }
                 }
             } finally {
@@ -225,7 +216,7 @@ class ColorFilterConfigActivity :
                 // the Main-thread swap, `result` would otherwise leak. Recycle it here
                 // unless it was successfully handed to the ImageView (which retains it).
                 // We can safely recycle if the job was cancelled — the ImageView still
-                // holds `source` (set above) so the panel shows the unsharpened preview.
+                // holds `source` (set above) so the panel shows the unfiltered preview.
                 if (!isActive && result != null && result !== source) {
                     result.recycle()
                 }

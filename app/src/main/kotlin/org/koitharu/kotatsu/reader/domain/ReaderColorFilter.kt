@@ -12,10 +12,11 @@ import android.graphics.ColorMatrixColorFilter
  *   [brightness], [contrast], [saturation], [isInverted], [isGrayscale], [isBookBackground]
  *
  * Bitmap pre-processing filters (baked into page file at load, cached to disk):
- *   [sharpening] — via GPUImageSharpenFilter in ImageFiltersTransformation / PageLoader
- *
- * Per-visible-page GPU filters (applied on-screen, released when page scrolls off):
- *   [vibrance] — via VibranceProcessor (GPUImageVibranceFilter) in BasePageHolder
+ *   [sharpening] — via SharpnessProcessor (CPU Laplacian) in ImageFiltersTransformation / PageLoader
+ *   [vibrance] — via VibranceProcessor.applyVibrance (true per-pixel selective vibrance) in
+ *     the same ImageFiltersTransformation / PageLoader pass. This CANNOT be a ColorMatrix:
+ *     a ColorMatrix is one fixed transform for the whole image and can't boost one pixel more
+ *     than another based on that pixel's own saturation, which is what vibrance requires.
  */
 data class ReaderColorFilter(
     val brightness: Float,
@@ -23,7 +24,7 @@ data class ReaderColorFilter(
     val sharpening: Float,
     /** Uniform saturation scale via ColorMatrix — applied in real-time on SSIV paint. */
     val saturation: Float,
-    /** GLSL vibrance — applied by VibranceProcessor in BasePageHolder on visible pages only. */
+    /** True per-pixel selective vibrance — baked into the cached bitmap by VibranceProcessor. */
     val vibrance: Float,
     val isInverted: Boolean,
     val isGrayscale: Boolean,
@@ -39,20 +40,17 @@ data class ReaderColorFilter(
      * ColorMatrixColorFilter applied directly to the SSIV paint — zero re-decode cost.
      * Includes brightness, contrast, saturation, invert, grayscale and book-background tint.
      *
-     * [vibranceBoost] is an optional per-page additional saturation boost computed by
-     * VibranceProcessor from the page's own colour distribution. Passing it here ensures
-     * vibrance is COMPOSITED with all other active filters rather than replacing them —
-     * fixes the bug where colored pages lost brightness/contrast/saturation/grayscale/invert
-     * whenever vibrance was non-zero.
+     * Vibrance is intentionally NOT part of this matrix — it's baked into the page bitmap
+     * itself (see VibranceProcessor.applyVibrance), since true per-pixel selectivity cannot
+     * be expressed as a ColorMatrix.
      */
-    fun toColorFilter(vibranceBoost: Float = 0f): ColorMatrixColorFilter {
+    fun toColorFilter(): ColorMatrixColorFilter {
         val cm = ColorMatrix()
         if (isGrayscale) cm.setSaturation(0f)
         if (isInverted) cm.postConcat(INVERT_MATRIX)
         if (brightness != 0f) cm.postConcat(brightnessMatrix(brightness))
         if (contrast != 0f) cm.postConcat(contrastMatrix(contrast))
-        val totalSaturationBoost = saturation + vibranceBoost
-        if (totalSaturationBoost != 0f && !isGrayscale) cm.postConcat(saturationMatrix(totalSaturationBoost))
+        if (saturation != 0f && !isGrayscale) cm.postConcat(saturationMatrix(saturation))
         if (isBookBackground) cm.postConcat(BOOK_MATRIX)
         return ColorMatrixColorFilter(cm)
     }

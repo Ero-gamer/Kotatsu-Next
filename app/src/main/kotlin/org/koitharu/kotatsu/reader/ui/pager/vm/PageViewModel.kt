@@ -69,8 +69,10 @@ class PageViewModel(
 	}
 
 	/**
-	 * Re-applies sharpening to an already-loaded page without forcing a re-download.
-	 * Uses cached source file → avoids network + minimises RAM cost vs retry(force=true).
+	 * Re-applies sharpening and/or vibrance to an already-loaded page without forcing a
+	 * re-download. Uses cached source file → avoids network + minimises RAM cost vs
+	 * retry(force=true). Both filters are re-read fresh from settingsProducer inside doLoad,
+	 * so this single function covers either (or both) changing.
 	 */
 	fun reapplySharpening(page: MangaPage) {
 		val prevJob = job
@@ -159,8 +161,9 @@ class PageViewModel(
 			previewJob.cancel()
 
 			val sharpening = settingsProducer.value.sharpening
-			val uri = if (sharpening > 0.01f) {
-				loader.applyImageFilters(rawUri, sharpening)
+			val vibrance = settingsProducer.value.colorFilter?.vibrance ?: 0f
+			val uri = if (sharpening > 0.01f || vibrance != 0f) {
+				loader.applyImageFilters(rawUri, sharpening, vibrance)
 			} else {
 				rawUri
 			}
