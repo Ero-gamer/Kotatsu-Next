@@ -318,6 +318,7 @@ class PageLoader @Inject constructor(
 									BitmapDecoderCompat.decode(
 										stream,
 										MimeTypes.getMimeTypeFromExtension(entry.name),
+										isMutable = true,
 									)
 								}
 							}
@@ -327,7 +328,7 @@ class PageLoader @Inject constructor(
 							val fileSize = file.length()
 							if (fileSize <= 0L) return@withContext
 							context.ensureRamAtLeast(fileSize.coerceAtMost(Long.MAX_VALUE / 10L) * 10L)
-							BitmapDecoderCompat.decode(file)
+							BitmapDecoderCompat.decode(file, isMutable = true)
 						}
 					}.getOrNull() ?: return@withContext
 

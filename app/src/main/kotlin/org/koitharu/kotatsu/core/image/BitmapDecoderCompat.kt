@@ -30,12 +30,17 @@ object BitmapDecoderCompat {
 	private const val FORMAT_AVIF = "avif"
 
 	@Blocking
-	fun decode(file: File): Bitmap = when (val format = probeMimeType(file)?.subtype) {
+	fun decode(file: File, isMutable: Boolean = false): Bitmap = when (val format = probeMimeType(file)?.subtype) {
 		FORMAT_AVIF -> file.source().buffer().use { decodeAvif(it.readByteBuffer()) }
 		else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-			ImageDecoder.decodeBitmap(ImageDecoder.createSource(file))
+			// isMutable=true forces ALLOCATOR_SOFTWARE (hardware bitmaps can't be mutable),
+			// avoiding a GPU-backed Config.HARDWARE bitmap — critical for callers that need
+			// getPixels()/setPixels() (e.g. ImageFiltersTransformation), since HARDWARE bitmaps
+			// can't be read on the CPU and add GPU memory pressure on low-RAM devices.
+			ImageDecoder.decodeBitmap(ImageDecoder.createSource(file), DecoderConfigListener(isMutable))
 		} else {
-			checkBitmapNotNull(BitmapFactory.decodeFile(file.absolutePath), format)
+			val opts = BitmapFactory.Options().apply { inMutable = isMutable }
+			checkBitmapNotNull(BitmapFactory.decodeFile(file.absolutePath, opts), format)
 		}
 	}
 
