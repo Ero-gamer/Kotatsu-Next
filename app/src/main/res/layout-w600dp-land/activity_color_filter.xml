@@ -245,18 +245,6 @@
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
 				app:layout_constraintTop_toBottomOf="@id/textView_vibrance" />
 
-			<com.google.android.material.materialswitch.MaterialSwitch
-				android:id="@+id/switch_book"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="8dp"
-				android:text="@string/book_effect"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_vibrance" />
-
 			<TextView
 				android:id="@+id/textView_sharpening"
 				android:layout_width="0dp"
@@ -267,7 +255,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/switch_book" />
+				app:layout_constraintTop_toBottomOf="@id/slider_vibrance" />
 
 			<com.google.android.material.slider.Slider
 				android:id="@+id/slider_sharpening"
@@ -281,6 +269,18 @@
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
 				app:layout_constraintTop_toBottomOf="@id/textView_sharpening" />
+
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_book"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/book_effect"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/slider_sharpening" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

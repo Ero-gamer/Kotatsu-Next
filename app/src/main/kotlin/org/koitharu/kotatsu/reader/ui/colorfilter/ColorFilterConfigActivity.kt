@@ -20,7 +20,6 @@ import com.google.android.material.slider.Slider
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
@@ -70,6 +69,7 @@ class ColorFilterConfigActivity :
 
         val percentFormatter = PercentLabelFormatter(resources)
         val signedFormatter  = SignedPercentLabelFormatter(resources)
+        val unsignedFormatter = UnsignedPercentLabelFormatter(resources)
 
         viewBinding.sliderBrightness.addOnChangeListener(this)
         viewBinding.sliderContrast.addOnChangeListener(this)
@@ -79,7 +79,9 @@ class ColorFilterConfigActivity :
 
         viewBinding.sliderBrightness.setLabelFormatter(percentFormatter)
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
-        viewBinding.sliderSharpening?.setLabelFormatter(percentFormatter)
+        // Sharpening's range is 0..1 (off..max), not -1..1 like Brightness/Contrast, so it
+        // needs a plain 0%..100% formatter instead of the +1 offset one (which made 0 = "100%").
+        viewBinding.sliderSharpening?.setLabelFormatter(unsignedFormatter)
         viewBinding.sliderSaturation?.setLabelFormatter(signedFormatter)
         viewBinding.sliderVibrance?.setLabelFormatter(signedFormatter)
 
@@ -177,12 +179,23 @@ class ColorFilterConfigActivity :
         viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
     }
 
+    /** Bumped on every applyAfterFilter() call; lets in-flight jobs detect they're stale. */
+    private var filterRequestId = 0
+
     /**
      * Applies sharpening and/or vibrance to [sourceBitmap] on a background thread.
      * Shows the unfiltered image immediately (with ColorMatrix paint) while processing,
      * then swaps to the filtered result when the job completes.
      *
-     * Cancels any previous in-flight job before starting.
+     * Uses a request-id check (not job cancellation) to decide whether to show the
+     * result: process() is a tight synchronous pixel loop with no suspension points,
+     * so cancel() can't interrupt it — it always runs to completion. Relying on
+     * isActive/cancellation here would mean withContext(Main) throws
+     * CancellationException right as a freshly-computed result is about to be shown,
+     * silently discarding it. The request-id check sidesteps that race: only the
+     * single latest request is ever allowed to update the UI, regardless of completion
+     * order, with zero risk of a finished result getting thrown away.
+     *
      * Uses [sourceBitmap] directly — no Coil request, no cache writes,
      * no gallery thumbnail pollution.
      */
@@ -195,29 +208,26 @@ class ColorFilterConfigActivity :
         viewBinding.imageViewAfter.setImageBitmap(source)
         viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
 
-        sharpenJob?.cancel()
+        sharpenJob?.cancel() // best-effort early exit if still waiting on the semaphore
+        val requestId = ++filterRequestId
         sharpenJob = lifecycleScope.launch(Dispatchers.Default) {
-            var result: Bitmap? = null
-            try {
-                result = runCatching {
-                    ImageFiltersTransformation(sharpening, vibrance)
-                        .transform(source, Size.ORIGINAL)
-                }.getOrNull() ?: return@launch
+            val result = runCatching {
+                ImageFiltersTransformation(sharpening, vibrance)
+                    .transform(source, Size.ORIGINAL)
+            }.getOrNull() ?: return@launch
 
-                withContext(Dispatchers.Main) {
-                    if (!isDestroyed) {
-                        viewBinding.imageViewAfter.setImageBitmap(result)
-                        // Re-apply ColorMatrix paint after bitmap swap so it's never lost.
-                        viewBinding.imageViewAfter.colorFilter = viewModel.colorFilter.value?.toColorFilter()
-                    }
-                }
-            } finally {
-                // If the coroutine was cancelled after transform() completed but before
-                // the Main-thread swap, `result` would otherwise leak. Recycle it here
-                // unless it was successfully handed to the ImageView (which retains it).
-                // We can safely recycle if the job was cancelled — the ImageView still
-                // holds `source` (set above) so the panel shows the unfiltered preview.
-                if (!isActive && result != null && result !== source) {
+            if (requestId != filterRequestId) {
+                // Superseded by a newer slider change while we were processing.
+                if (result !== source) result.recycle()
+                return@launch
+            }
+
+            withContext(Dispatchers.Main) {
+                if (!isDestroyed && requestId == filterRequestId) {
+                    viewBinding.imageViewAfter.setImageBitmap(result)
+                    // Re-apply ColorMatrix paint after bitmap swap so it's never lost.
+                    viewBinding.imageViewAfter.colorFilter = viewModel.colorFilter.value?.toColorFilter()
+                } else if (result !== source) {
                     result.recycle()
                 }
             }
@@ -257,6 +267,13 @@ class ColorFilterConfigActivity :
             val pct = (value * 100).toInt()
             return pattern.format("${if (pct >= 0) "+" else ""}$pct")
         }
+    }
+
+    /** For sliders whose native range is 0..1 (off..max), e.g. Sharpening — plain 0%..100%. */
+    private class UnsignedPercentLabelFormatter(resources: Resources) : LabelFormatter {
+        private val pattern = resources.getString(R.string.percent_string_pattern)
+        override fun getFormattedValue(value: Float): String =
+            pattern.format((value * 100).format(0))
     }
 
     // ─── Before-image listener ───────────────────────────────────────────────
