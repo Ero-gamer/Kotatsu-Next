@@ -16,6 +16,7 @@ import coil3.network.HttpException
 import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.request.transformations
 import coil3.size.Dimension
 import coil3.size.Size
@@ -115,10 +116,11 @@ class CoverImageView @JvmOverloads constructor(
 			.build(),
 	)
 
-	fun setImageAsync(page: MangaPage) = enqueueRequest(
+	fun setImageAsync(page: MangaPage, allowHardware: Boolean = true) = enqueueRequest(
 		newRequestBuilder(applyTrim = true)
 			.data(page)
 			.mangaSourceExtra(page.source)
+			.allowHardware(allowHardware)
 			.build(),
 	)
 

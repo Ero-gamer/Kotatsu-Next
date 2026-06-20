@@ -239,7 +239,11 @@ class ColorFilterConfigActivity :
             ImageRequestIndicatorListener(listOf(viewBinding.progressBefore, viewBinding.progressAfter)),
         )
         addImageRequestListener(BeforeImageListener())
-        setImageAsync(page)
+        // allowHardware(false): sourceBitmap is read pixel-by-pixel by ImageFiltersTransformation
+        // (vibrance/sharpening preview). A HARDWARE-config bitmap requires a GPU readback to copy
+        // out, which is unreliable on this device's driver and produces corrupted/noisy output
+        // instead of a clean failure — same root cause as the earlier reader crash fix.
+        setImageAsync(page, allowHardware = false)
     }
 
     private fun onLoadingChanged(isLoading: Boolean) {
