@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.image.ui
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.drawable.LayerDrawable
 import android.util.AttributeSet
 import android.view.Gravity
@@ -17,6 +18,7 @@ import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
+import coil3.request.bitmapConfig
 import coil3.request.transformations
 import coil3.size.Dimension
 import coil3.size.Size
@@ -121,6 +123,14 @@ class CoverImageView @JvmOverloads constructor(
 			.data(page)
 			.mangaSourceExtra(page.source)
 			.allowHardware(allowHardware)
+			.apply {
+				// allowHardware(false) alone only rules out GPU-backed bitmaps. The global
+				// allowRgb565(isLowRamDevice()) setting in AppModule's ImageLoader can still
+				// independently pick Config.RGB_565 on low-RAM devices, which is unrelated and
+				// not covered by allowHardware. Callers that need real ARGB_8888 pixel access
+				// (e.g. ImageFiltersTransformation) must force the config explicitly.
+				if (!allowHardware) bitmapConfig(Bitmap.Config.ARGB_8888)
+			}
 			.build(),
 	)
 
