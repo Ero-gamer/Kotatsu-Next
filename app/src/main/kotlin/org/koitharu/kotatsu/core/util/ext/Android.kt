@@ -196,13 +196,16 @@ fun Context.checkNotificationPermission(channelId: String?): Boolean {
 	return hasPermission
 }
 
-suspend fun Bitmap.compressToPNG(output: File) = runInterruptible(Dispatchers.IO) {
-	output.outputStream().use { os ->
-		if (!compress(Bitmap.CompressFormat.PNG, 100, os)) {
-			throw IOException("Failed to encode bitmap into PNG format")
+suspend fun Bitmap.compressBitmap(output: File, format: Bitmap.CompressFormat, quality: Int) =
+	runInterruptible(Dispatchers.IO) {
+		output.outputStream().use { os ->
+			if (!compress(format, quality, os)) {
+				throw IOException("Failed to encode bitmap as ${format.name}")
+			}
 		}
 	}
-}
+
+suspend fun Bitmap.compressToPNG(output: File) = compressBitmap(output, Bitmap.CompressFormat.PNG, 100)
 
 fun Context.ensureRamAtLeast(requiredSize: Long) {
 	if (ramAvailable < requiredSize) {
