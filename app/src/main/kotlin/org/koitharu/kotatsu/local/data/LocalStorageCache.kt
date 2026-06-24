@@ -86,7 +86,7 @@ class LocalStorageCache(
 	 * The filter-processed page cache passes WebP/90 to save ~10× on encode time vs PNG
 	 * while staying compatible with BitmapRegionDecoder on API 28+ for tiled SSIV reads.
 	 */
-	suspend operator fun set(
+	suspend fun set(
 		url: String,
 		bitmap: Bitmap,
 		format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG,
