@@ -15,6 +15,7 @@ import okio.use
 import org.koitharu.kotatsu.core.exceptions.NoDataReceivedException
 import org.koitharu.kotatsu.core.util.MimeTypes
 import org.koitharu.kotatsu.core.util.ext.MimeType
+import org.koitharu.kotatsu.core.util.ext.compressBitmap
 import org.koitharu.kotatsu.core.util.ext.compressToPNG
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.subdir
@@ -79,10 +80,26 @@ class LocalStorageCache(
 		}
 	}
 
-	suspend operator fun set(url: String, bitmap: Bitmap): File = withContext(Dispatchers.IO) {
-		val file = createBufferFile(url, MimeType("image/png"))
+	/**
+	 * Compresses [bitmap] using [format]/[quality] and stores the result in the LRU cache.
+	 * Defaults to lossless PNG for callers that don't specify (e.g. doConvertBitmap).
+	 * The filter-processed page cache passes WebP/90 to save ~10× on encode time vs PNG
+	 * while staying compatible with BitmapRegionDecoder on API 28+ for tiled SSIV reads.
+	 */
+	suspend fun set(
+		url: String,
+		bitmap: Bitmap,
+		format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG,
+		quality: Int = 100,
+	): File = withContext(Dispatchers.IO) {
+		val mimeType: MimeType = when (format) {
+			Bitmap.CompressFormat.JPEG -> MimeType("image/jpeg")
+			Bitmap.CompressFormat.PNG  -> MimeType("image/png")
+			else                       -> MimeType("image/webp") // WEBP / WEBP_LOSSY / WEBP_LOSSLESS
+		}
+		val file = createBufferFile(url, mimeType)
 		try {
-			bitmap.compressToPNG(file)
+			bitmap.compressBitmap(file, format, quality)
 			val cache = lruCache.get()
 			runInterruptible {
 				cache.put(url, file)
