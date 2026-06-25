@@ -338,12 +338,7 @@ class PageLoader @Inject constructor(
 						Size.ORIGINAL,
 					)
 					if (filtered !== bitmap) bitmap.recycle()
-					// WebP lossy at quality 90 encodes ~10× faster than PNG lossless on
-					// this CPU and produces ~70% smaller files (faster disk write + faster
-					// SSIV tile decode). BitmapRegionDecoder supports static WebP on API 28+,
-					// so SSIV's tiled read path is fully compatible.
-					@Suppress("DEPRECATION") // WEBP_LOSSY is API 30+; WEBP is identical on <30
-					processedCache.set(cacheKey, filtered, Bitmap.CompressFormat.WEBP, FILTER_CACHE_QUALITY)
+					processedCache.set(cacheKey, filtered)
 					filtered.recycle()
 				}
 
@@ -477,10 +472,6 @@ class PageLoader @Inject constructor(
 		private const val PROGRESS_UNDEFINED = -1f
 		private const val PREFETCH_LIMIT_DEFAULT = 6
 		private const val PREFETCH_MIN_RAM_MB = 80L
-		/** WebP quality for filter-processed page cache. 99 is near-lossless for manga
-		 *  while still encoding much faster than PNG lossless on low-end ARM CPUs.
-		 *  WebP decode speed is quality-independent — only encode effort and file size differ. */
-		private const val FILTER_CACHE_QUALITY = 99
 
 		fun createPageRequest(pageUrl: String, mangaSource: MangaSource) = Request.Builder()
 			.url(pageUrl)

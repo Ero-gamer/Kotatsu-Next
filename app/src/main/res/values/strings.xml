@@ -546,6 +546,12 @@
     <string name="saturation">Saturation</string>
     <string name="vibrance">Vibrance (HSL)</string>
     <string name="vertical_page_slider">Vertical page slider</string>
+    <string name="e_ink">E-Ink</string>
+    <string name="flash_on_page_change">Flash on page change</string>
+    <string name="flash_on_page_change_summary">Refresh the screen with a short full-screen flash to reduce ghosting on E-Ink displays</string>
+    <string name="flash_duration">Flash duration</string>
+    <string name="flash_every">Flash every</string>
+    <string name="flash_with">Flash with</string>
     <string name="globally">Globally</string>
     <string name="this_manga">This manga</string>
     <string name="color_correction_apply_text">These settings can be applied globally or only to the current manga. If applied globally, individual settings will not be overridden.</string>

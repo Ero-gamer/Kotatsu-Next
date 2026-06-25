@@ -82,9 +82,7 @@ class LocalStorageCache(
 
 	/**
 	 * Compresses [bitmap] using [format]/[quality] and stores the result in the LRU cache.
-	 * Defaults to lossless PNG for callers that don't specify (e.g. doConvertBitmap).
-	 * The filter-processed page cache passes WebP/90 to save ~10× on encode time vs PNG
-	 * while staying compatible with BitmapRegionDecoder on API 28+ for tiled SSIV reads.
+	 * Defaults to lossless PNG (format=PNG, quality=100).
 	 */
 	suspend fun set(
 		url: String,
