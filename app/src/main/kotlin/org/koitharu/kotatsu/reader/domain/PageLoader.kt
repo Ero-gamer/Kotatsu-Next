@@ -15,7 +15,6 @@ import coil3.ImageLoader
 import coil3.memory.MemoryCache
 import coil3.request.ImageRequest
 import coil3.request.transformations
-import coil3.size.Size
 import coil3.toBitmap
 import com.davemorrissey.labs.subscaleview.ImageSource
 import dagger.hilt.android.ActivityRetainedLifecycle
@@ -68,11 +67,8 @@ import org.koitharu.kotatsu.core.util.ext.use
 import org.koitharu.kotatsu.core.util.ext.withProgress
 import org.koitharu.kotatsu.core.util.progress.ProgressDeferred
 import org.koitharu.kotatsu.download.ui.worker.DownloadSlowdownDispatcher
-import org.koitharu.kotatsu.core.ui.image.ImageFiltersTransformation
 import org.koitharu.kotatsu.local.data.LocalStorageCache
 import org.koitharu.kotatsu.local.data.PageCache
-import org.koitharu.kotatsu.local.data.ProcessedPageCache
-import org.koitharu.kotatsu.parsers.util.md5
 import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.requireBody
@@ -93,7 +89,6 @@ class PageLoader @Inject constructor(
 	lifecycle: ActivityRetainedLifecycle,
 	@MangaHttpClient private val okHttp: OkHttpClient,
 	@PageCache private val cache: LocalStorageCache,
-	@ProcessedPageCache private val processedCache: LocalStorageCache,
 	private val coil: ImageLoader,
 	private val settings: AppSettings,
 	private val mangaRepositoryFactory: MangaRepository.Factory,
@@ -119,8 +114,6 @@ class PageLoader @Inject constructor(
 	// (preventing double-conversion of the same file) while allowing different
 	// pages to convert concurrently.
 	private val conversionJobs = ConcurrentHashMap<String, Deferred<Uri>>()
-
-	private val processingLocks = ConcurrentHashMap<String, Mutex>()
 
 	private val prefetchLock = Mutex()
 
@@ -269,95 +262,12 @@ class PageLoader @Inject constructor(
 		error.printStackTraceDebug()
 	}.getOrNull()
 
-	/**
-	 * Applies sharpening and/or vibrance to a page bitmap and caches the result to [processedCache].
-	 * If the processed version is already cached, returns its URI immediately.
-	 *
-	 * Supports both plain file:// URIs (online/downloaded pages) and
-	 * file+zip:// / cbz:// URIs (local archives). Non-file/non-zip URIs (e.g. http://)
-	 * are returned unchanged — these filters only apply to already-cached local files.
-	 *
-	 * RAM guard: if available RAM is less than 10× the compressed file size (a conservative
-	 * upper bound covering decode + ARGB_8888 copy + GPU sharpened output + the extra pixel
-	 * buffer vibrance's bulk getPixels()/setPixels() pass needs), processing is skipped and
-	 * the original URI is returned to prevent OOM on low-end devices.
-	 *
-	 * Contrast, brightness and saturation remain real-time ColorMatrix operations on the SSIV
-	 * paint (see [ReaderColorFilter.toColorFilter]) — no bitmap processing needed there.
-	 * Vibrance, unlike those, MUST be a bitmap pass — see VibranceProcessor's doc comment.
-	 */
-	suspend fun applyImageFilters(uri: Uri, sharpening: Float, vibrance: Float = 0f): Uri {
-		if (sharpening <= 0.01f && vibrance == 0f) return uri
-		// Only process local files — skip network URIs entirely
-		if (!uri.isFileUri() && !uri.isZipUri()) return uri
-
-		val cacheKey = "${uri}_s${sharpening}_v${vibrance}".md5()
-		// computeIfAbsent is intentional: concurrent callers for the same key share one Mutex,
-		// preventing redundant GPU work. The entry is removed in the finally block below.
-		val lock = processingLocks.computeIfAbsent(cacheKey) { Mutex() }
-
-		return try {
-			lock.withLock {
-				// Validate the cached file is non-empty — a crash mid-write leaves a zero-byte
-				// or partial PNG that passes takeIfReadable() but cannot be decoded by SSIV.
-				processedCache.get(cacheKey)?.takeIf { it.length() > 0L }?.let {
-					return@withLock it.toUri()
-				}
-
-				withContext(Dispatchers.IO) {
-					val bitmap = runCatchingCancellable {
-						if (uri.isZipUri()) {
-							ZipFile(uri.schemeSpecificPart).use { zip ->
-								val entry = zip.getEntry(uri.fragment)
-									?: error("Zip entry not found: ${uri.fragment}")
-								// Guard: skip if size unknown/zero to avoid bypass of RAM check.
-								// Prevent overflow: coerce before multiplying.
-								val entrySize = entry.size
-								if (entrySize <= 0L) return@withContext
-								context.ensureRamAtLeast(entrySize.coerceAtMost(Long.MAX_VALUE / 10L) * 10L)
-								zip.getInputStream(entry).use { stream ->
-									BitmapDecoderCompat.decode(
-										stream,
-										MimeTypes.getMimeTypeFromExtension(entry.name),
-										isMutable = true,
-									)
-								}
-							}
-						} else {
-							val file = uri.toFile()
-							// Guard: skip if file size unknown/zero (e.g. special file, not yet written).
-							val fileSize = file.length()
-							if (fileSize <= 0L) return@withContext
-							context.ensureRamAtLeast(fileSize.coerceAtMost(Long.MAX_VALUE / 10L) * 10L)
-							BitmapDecoderCompat.decode(file, isMutable = true)
-						}
-					}.getOrNull() ?: return@withContext
-
-					val filtered = ImageFiltersTransformation(sharpening, vibrance).transform(
-						bitmap,
-						Size.ORIGINAL,
-					)
-					if (filtered !== bitmap) bitmap.recycle()
-					processedCache.set(cacheKey, filtered)
-					filtered.recycle()
-				}
-
-				processedCache.get(cacheKey)?.toUri() ?: uri
-			}
-		} finally {
-			// Remove only if this exact Mutex instance is still the one registered,
-			// so a concurrent caller that raced in with a new lock is not evicted.
-			processingLocks.remove(cacheKey, lock)
-		}
-	}
-
 	suspend fun getPageUrl(page: MangaPage): String {
 		return getRepository(page.source).getPageUrl(page)
 	}
 
 	suspend fun invalidate(clearCache: Boolean) {
 		tasks.clear()
-		processingLocks.clear()
 		loaderScope.cancelChildrenAndJoin()
 		if (clearCache) {
 			cache.clear()

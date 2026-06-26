@@ -11,12 +11,12 @@ import android.graphics.ColorMatrixColorFilter
  * Real-time ColorMatrix paint filters (applied instantly to the SSIV view via [toColorFilter]):
  *   [brightness], [contrast], [saturation], [isInverted], [isGrayscale], [isBookBackground]
  *
- * Bitmap pre-processing filters (baked into page file at load, cached to disk):
- *   [sharpening] — via SharpnessProcessor (CPU Laplacian) in ImageFiltersTransformation / PageLoader
- *   [vibrance] — via VibranceProcessor.applyVibrance (true per-pixel selective vibrance) in
- *     the same ImageFiltersTransformation / PageLoader pass. This CANNOT be a ColorMatrix:
- *     a ColorMatrix is one fixed transform for the whole image and can't boost one pixel more
- *     than another based on that pixel's own saturation, which is what vibrance requires.
+ * Bitmap pre-processing filters (applied per-tile inside FilteringRegionDecoder in SSIV):
+ *   [sharpening] — via SharpnessProcessor (CPU Laplacian) applied to each decoded tile
+ *   [vibrance] — via VibranceProcessor (true per-pixel selective vibrance) applied to each
+ *     decoded tile. This CANNOT be a ColorMatrix: a ColorMatrix is one fixed transform for
+ *     the whole image and can't boost one pixel more than another based on that pixel's own
+ *     saturation, which is what vibrance requires.
  */
 data class ReaderColorFilter(
     val brightness: Float,

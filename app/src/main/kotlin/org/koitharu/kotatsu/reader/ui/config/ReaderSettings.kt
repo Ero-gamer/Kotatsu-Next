@@ -6,10 +6,11 @@ import androidx.annotation.CheckResult
 import androidx.collection.scatterSetOf
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.davemorrissey.labs.subscaleview.decoder.BitmapQuality
+import com.davemorrissey.labs.subscaleview.decoder.DecoderFactory
+import com.davemorrissey.labs.subscaleview.decoder.FilteringRegionDecoder
+import com.davemorrissey.labs.subscaleview.decoder.ImageRegionDecoder
 import com.davemorrissey.labs.subscaleview.decoder.LiJpegTurboRegionDecoder
 import com.davemorrissey.labs.subscaleview.decoder.SkiaImageDecoder
-import com.davemorrissey.labs.subscaleview.decoder.SkiaImageRegionDecoder
-import com.davemorrissey.labs.subscaleview.decoder.SkiaPooledImageRegionDecoder
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -87,9 +88,6 @@ data class ReaderSettings(
 
 	@CheckResult
 	fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
-		// Resolve the config: if ARGB_8888 was requested but the device is low-RAM,
-		// automatically fall back to RGB_565 to prevent OOM on large strip images.
-		// This is a runtime safety net; the setting itself defaults to ARGB_8888.
 		val isLowRam = ssiv.context.isLowRamDevice()
 		val config = if (bitmapConfig == Bitmap.Config.ARGB_8888 && isLowRam) {
 			Bitmap.Config.RGB_565
@@ -101,11 +99,31 @@ data class ReaderSettings(
 		} else {
 			BitmapQuality.STANDARD
 		}
-		// LiJpegTurboRegionDecoder uses libjpeg-turbo for all JPEG images
-		// (faster, lower memory, fixes hardware chroma tint bug on some devices)
-		// and falls back to BitmapRegionDecoder for non-JPEG (WebP, PNG, AVIF).
-		val newFactory = LiJpegTurboRegionDecoder.Factory(quality)
-		return if (ssiv.regionDecoderFactory.bitmapConfig != config) {
+
+		val baseFactory = LiJpegTurboRegionDecoder.Factory(quality)
+		// When sharpening or vibrance are active, wrap the base decoder with
+		// FilteringRegionDecoder so filters are applied per-tile post-decode.
+		// This eliminates the encode-to-disk approach: no PNG written, no full-image
+		// decode — just in-memory math on each tile immediately after it is decoded.
+		val activeVibrance = colorFilter?.vibrance ?: 0f
+		val newFactory: DecoderFactory<out ImageRegionDecoder> =
+			if (sharpening > 0.01f || activeVibrance != 0f) {
+				FilteringRegionDecoder.Factory(baseFactory, sharpening, activeVibrance)
+			} else {
+				baseFactory
+			}
+
+		// Detect any change: bitmap config, filter on/off toggle, or filter params.
+		val current = ssiv.regionDecoderFactory
+		val configChanged  = current.bitmapConfig != config
+		val filterToggled  = (current is FilteringRegionDecoder.Factory) !=
+			(newFactory is FilteringRegionDecoder.Factory)
+		val filterChanged  = !filterToggled &&
+			current is FilteringRegionDecoder.Factory &&
+			newFactory is FilteringRegionDecoder.Factory &&
+			(current.sharpening != newFactory.sharpening || current.vibrance != newFactory.vibrance)
+
+		return if (configChanged || filterToggled || filterChanged) {
 			ssiv.regionDecoderFactory = newFactory
 			ssiv.bitmapDecoderFactory = SkiaImageDecoder.Factory(config)
 			true

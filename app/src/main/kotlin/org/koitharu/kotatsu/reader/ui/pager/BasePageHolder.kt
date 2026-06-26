@@ -61,10 +61,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 	protected val settings: ReaderSettings
 		get() = viewModel.settingsProducer.value
 
-	private var lastSharpening = Float.MIN_VALUE
-	private var lastVibrance = Float.MIN_VALUE
-	/** Sentinel: MIN_VALUE means "not yet applied", distinguishing from a legitimate null filter. */
 	private var lastColorFilter: Any? = UNSET_SENTINEL
+	/** Sentinel: MIN_VALUE means "not yet applied", distinguishing from a legitimate null filter. */
 
 	val context
 		get() = itemView.context
@@ -96,20 +94,12 @@ abstract class BasePageHolder<B : ViewBinding>(
 	@CallSuper
 	protected open fun onConfigChanged(settings: ReaderSettings) {
 		settings.applyBackground(itemView)
-		val newVibrance = settings.colorFilter?.vibrance ?: 0f
-		val sharpeningChanged = lastSharpening != Float.MIN_VALUE && lastSharpening != settings.sharpening
-		val vibranceChanged = lastVibrance != Float.MIN_VALUE && lastVibrance != newVibrance
-		lastSharpening = settings.sharpening
-		lastVibrance = newVibrance
-
 		val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
 		lastColorFilter = settings.colorFilter
 		when {
-			// Sharpening or vibrance changed: both are baked into the bitmap, so re-process
-			// using the cached source file (no re-download).
-			sharpeningChanged || vibranceChanged -> boundData?.let { viewModel.reapplySharpening(it.toMangaPage()) }
-
-			// BitmapConfig changed: reload SSIV tiles with new config.
+			// BitmapConfig or filter params (sharpening/vibrance) changed: reinstall the
+			// region decoder (now a FilteringRegionDecoder when filters are active) and
+			// reload SSIV tiles so the new per-tile filter takes effect immediately.
 			settings.applyBitmapConfig(ssiv) -> reloadImage()
 
 			// ColorFilter (contrast/saturation/brightness/etc) changed while page is displayed:
@@ -170,9 +160,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 		viewModel.onRecycle()
 		ssiv.recycle()
 		animatedView?.disposeImage()
-		// Reset sentinels so the next bind treats settings as fresh and applies all filters.
-		lastSharpening = Float.MIN_VALUE
-		lastVibrance = Float.MIN_VALUE
+		// Reset sentinel so the next bind treats settings as fresh and applies all filters.
 		lastColorFilter = UNSET_SENTINEL
 	}
 
@@ -244,10 +232,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 	}
 
 	// ── Color filter ─────────────────────────────────────────────────────────
-	// Vibrance is NOT part of this — it's baked into the cached page bitmap by
-	// ImageFiltersTransformation/PageLoader (see onConfigChanged's sharpeningChanged/
-	// vibranceChanged branch), the same way sharpening already was. ssiv.colorFilter only
-	// ever carries brightness/contrast/saturation/grayscale/invert.
+	// Vibrance and sharpening are NOT part of this — they are applied per-tile inside
+	// FilteringRegionDecoder (installed in applyBitmapConfig when filters are active).
+	// ssiv.colorFilter only ever carries brightness/contrast/saturation/grayscale/invert.
 
 	/**
 	 * Sets ssiv.colorFilter from the current settings. Call this any time the base

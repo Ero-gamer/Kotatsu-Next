@@ -68,20 +68,6 @@ class PageViewModel(
 		}
 	}
 
-	/**
-	 * Re-applies sharpening and/or vibrance to an already-loaded page without forcing a
-	 * re-download. Uses cached source file → avoids network + minimises RAM cost vs
-	 * retry(force=true). Both filters are re-read fresh from settingsProducer inside doLoad,
-	 * so this single function covers either (or both) changing.
-	 */
-	fun reapplySharpening(page: MangaPage) {
-		val prevJob = job
-		job = scope.launch(Dispatchers.Default) {
-			prevJob?.cancelAndJoin()
-			doLoad(page, force = false)
-		}
-	}
-
 	fun showErrorDetails(url: String?) {
 		val e = (state.value as? PageState.Error)?.error ?: return
 		exceptionResolver.showErrorDetails(e, url)
@@ -156,18 +142,9 @@ class PageViewModel(
 		try {
 			val task = loader.loadPageAsync(data, force)
 			val progressObserver = observeProgress(this, task.progressAsFlow())
-			val rawUri = task.await()
+			val uri = task.await()
 			progressObserver.cancelAndJoin()
 			previewJob.cancel()
-
-			val sharpening = settingsProducer.value.sharpening
-			val vibrance = settingsProducer.value.colorFilter?.vibrance ?: 0f
-			val uri = if (sharpening > 0.01f || vibrance != 0f) {
-				loader.applyImageFilters(rawUri, sharpening, vibrance)
-			} else {
-				rawUri
-			}
-
 			cachedBounds = if (settingsProducer.value.isPagesCropEnabled(isWebtoon)) {
 				loader.getTrimmedBounds(uri)
 			} else {

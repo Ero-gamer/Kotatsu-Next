@@ -58,7 +58,6 @@ import org.koitharu.kotatsu.local.data.FaviconCache
 import org.koitharu.kotatsu.local.data.LocalStorageCache
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.data.PageCache
-import org.koitharu.kotatsu.local.data.ProcessedPageCache
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.main.domain.CoverRestoreInterceptor
 import org.koitharu.kotatsu.main.ui.protect.AppProtectHelper
@@ -227,16 +226,5 @@ interface AppModule {
 			minSize = FileSize.MEGABYTES.convert(2, FileSize.BYTES),
 		)
 
-		@Provides
-		@Singleton
-		@ProcessedPageCache
-		fun provideProcessedPageCache(
-			@ApplicationContext context: Context,
-		) = LocalStorageCache(
-			context = context,
-			dir = CacheDir.PROCESSED_PAGES,
-			defaultSize = FileSize.MEGABYTES.convert(300, FileSize.BYTES),
-			minSize = FileSize.MEGABYTES.convert(50, FileSize.BYTES),
-		)
 	}
 }
