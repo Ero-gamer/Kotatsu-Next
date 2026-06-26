@@ -63,6 +63,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	private var preparingStatusRunnable: Runnable? = null
 
+// Add here:
+    private var lastColorFilter: Any = UNSET_SENTINEL
+
 	val context
 		get() = itemView.context
 
