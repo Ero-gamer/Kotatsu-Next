@@ -48,6 +48,10 @@ open class PageHolder(
 
 	override val ssiv = binding.ssiv
 
+	// Stored as a field so onRecycled() can cancel any pending postDelayed call.
+	// Each onReady() replaces this with a fresh Runnable for the new image's scale.
+	private var scheduleNextTarget: Runnable? = null
+
 	init {
 		ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
 	}
@@ -69,10 +73,16 @@ open class PageHolder(
 		binding.textViewNumber.isVisible = settings.isPagesNumbersEnabled
 	}
 
-	@SuppressLint("SetTextI18n")
 	override fun onBind(data: ReaderPage) {
 		super.onBind(data)
 		binding.textViewNumber.text = (data.index + 1).toString()
+	}
+
+	override fun onRecycled() {
+		binding.ssiv.removeCallbacks(scheduleNextTarget)
+		scheduleNextTarget = null
+		binding.ssiv.setOnTouchListener(null)
+		super.onRecycled()
 	}
 
 	override fun onReady() {
@@ -94,20 +104,20 @@ open class PageHolder(
 		// After each 500ms animation, postDelayed reads the settled scale and primes
 		// doubleTapZoomScale for the next tap.
 		binding.ssiv.doubleTapZoomScale = maxScale * 0.5f
-		val scheduleNextTarget = object : Runnable {
+		scheduleNextTarget = object : Runnable {
 			override fun run() {
 				val ssiv = binding.ssiv
 				if (!ssiv.isReady) return
 				val half = maxScale * 0.5f
 				val eps = ssiv.minScale * 0.05f
-				// At half-zoom → next tap should go to full; anywhere else → go to half.
 				ssiv.doubleTapZoomScale = if (ssiv.scale >= half - eps) maxScale else half
 			}
 		}
+		val target = scheduleNextTarget
 		binding.ssiv.setOnTouchListener { v, event ->
 			if (event.action == MotionEvent.ACTION_UP) {
-				v.removeCallbacks(scheduleNextTarget)
-				v.postDelayed(scheduleNextTarget, 550L)
+				v.removeCallbacks(target)
+				v.postDelayed(target, 550L)
 			}
 			false
 		}

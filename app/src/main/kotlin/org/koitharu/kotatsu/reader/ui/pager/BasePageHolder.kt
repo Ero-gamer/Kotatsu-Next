@@ -61,8 +61,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 	protected val settings: ReaderSettings
 		get() = viewModel.settingsProducer.value
 
-	private var lastColorFilter: Any? = UNSET_SENTINEL
-	/** Sentinel: MIN_VALUE means "not yet applied", distinguishing from a legitimate null filter. */
+	private var preparingStatusRunnable: Runnable? = null
 
 	val context
 		get() = itemView.context
@@ -157,10 +156,11 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	@CallSuper
 	open fun onRecycled() {
+		ssiv.removeCallbacks(preparingStatusRunnable)
+		preparingStatusRunnable = null
 		viewModel.onRecycle()
 		ssiv.recycle()
 		animatedView?.disposeImage()
-		// Reset sentinel so the next bind treats settings as fresh and applies all filters.
 		lastColorFilter = UNSET_SENTINEL
 	}
 
@@ -213,11 +213,12 @@ abstract class BasePageHolder<B : ViewBinding>(
 				} else {
 					bindingInfo.textViewStatus.setText(R.string.loading_)
 					ssiv.setImage(state.source)
-					ssiv.postDelayed({
+					ssiv.removeCallbacks(preparingStatusRunnable)
+					preparingStatusRunnable = Runnable {
 						if (viewModel.state.value is PageState.Loaded) {
 							bindingInfo.textViewStatus.setText(R.string.preparing_)
 						}
-					}, PREPARING_STATUS_DELAY_MS)
+					}.also { ssiv.postDelayed(it, PREPARING_STATUS_DELAY_MS) }
 				}
 			}
 

@@ -30,11 +30,13 @@ abstract class BaseReaderAdapter<H : BasePageHolder<*>>(
 	}
 
 	override fun onBindViewHolder(holder: H, position: Int) {
+		holder.reattachToParent()
 		holder.bind(differ.currentList[position])
 	}
 
 	override fun onViewRecycled(holder: H) {
 		holder.onRecycled()
+		holder.detachFromParent()
 		holder.itemView.resetTransformations()
 		super.onViewRecycled(holder)
 	}
