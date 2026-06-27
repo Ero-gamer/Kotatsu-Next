@@ -114,7 +114,9 @@ class WebtoonImageView @JvmOverloads constructor(
 		super.onDownSamplingChanged()
 		if (isReady) {
 			adjustScale()
-			onImageEventListener.onReady()
+			// Do NOT call onImageEventListener.onReady() here. That fires WebtoonHolder.onReady()
+			// → scrollToAfterLayout() → requestLayout() on every downsampling change, which
+			// during webtoon scroll causes rapid requestLayout() cascades and ANR on slow CPUs.
 		}
 	}
 
