@@ -17,9 +17,9 @@ abstract class LifecycleAwareViewHolder(
 	final override val lifecycle = LifecycleRegistry(this)
 	private var isCurrent = false
 
-	// Whether onCreate() has already run. Prevents duplicate observer registration
-	// when reattachToParent() causes addObserver() to replay the onCreate event on a
-	// holder whose lifecycle is already past CREATED.
+	// Whether onCreate() has already fired. BasePageHolder.onCreate() registers
+	// observe() callbacks — they must only be registered once per holder instance,
+	// not re-registered on every re-bind (reattachToParent replays the onCreate event).
 	private var isInitialized = false
 
 	// Stored so we can remove this specific observer instance on recycle rather than
@@ -49,14 +49,12 @@ abstract class LifecycleAwareViewHolder(
 
 	@CallSuper
 	open fun onStart() {
-		if (!lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) return
 		if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
 		lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)
 	}
 
 	@CallSuper
 	open fun onResume() {
-		if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
 		if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
 		lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 	}
@@ -81,10 +79,10 @@ abstract class LifecycleAwareViewHolder(
 
 	/**
 	 * Removes the parent lifecycle observer so it stops accumulating.
-	 * Does NOT change the holder's own lifecycle state — LifecycleRegistry cannot go
-	 * backwards (e.g. RESUMED → CREATED), and we don't need to suspend anything here
-	 * because observe() (non-repeatOnLifecycle) runs until DESTROYED regardless.
-	 * Must be called when the holder is recycled. Safe to call multiple times.
+	 * Does NOT touch the holder's own lifecycle state — LifecycleRegistry cannot go
+	 * backwards, and the holder's coroutines should keep running while pooled because
+	 * the holder will be re-bound shortly.
+	 * Must be called on recycle. Safe to call multiple times.
 	 */
 	fun detachFromParent() {
 		parentObserver?.let {

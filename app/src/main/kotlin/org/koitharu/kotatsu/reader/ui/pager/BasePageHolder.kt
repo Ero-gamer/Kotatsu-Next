@@ -22,7 +22,6 @@ import org.koitharu.kotatsu.core.image.CoilImageView
 import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
-import org.koitharu.kotatsu.core.util.Throttler
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
 import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
@@ -63,14 +62,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 		get() = viewModel.settingsProducer.value
 
 	private var preparingStatusRunnable: Runnable? = null
-	private var pendingReloadRunnable: Runnable? = null
 
-	// Throttle reloadImage() to avoid rapid-fire ssiv.setImage() while the user drags
-	// a filter slider. Each call triggers LiJpegTurboRegionDecoder.init() which, even with
-	// the byte cache, still reconstructs BitmapRegionDecoder and all SSIV tile state.
-	// Leading + trailing: fire immediately on first change, then once more after 400 ms
-	// if additional changes arrived during the window.
-	private val reloadThrottler = Throttler(400L)
+// Add here:
+    private var lastColorFilter: Any? = UNSET_SENTINEL
 
 	val context
 		get() = itemView.context
@@ -102,38 +96,19 @@ abstract class BasePageHolder<B : ViewBinding>(
 	@CallSuper
 	protected open fun onConfigChanged(settings: ReaderSettings) {
 		settings.applyBackground(itemView)
+		val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
+		lastColorFilter = settings.colorFilter
 		when {
 			// BitmapConfig or filter params (sharpening/vibrance) changed: reinstall the
-			// region decoder and reload SSIV tiles. Leading+trailing throttle: fire
-			// immediately on first change, then once more after the window if more
-			// changes arrived. This prevents OOM from rapid slider drags while ensuring
-			// the final settled value is always applied.
-			settings.applyBitmapConfig(ssiv) -> scheduleReload()
+			// region decoder (now a FilteringRegionDecoder when filters are active) and
+			// reload SSIV tiles so the new per-tile filter takes effect immediately.
+			settings.applyBitmapConfig(ssiv) -> reloadImage()
 
-			// ColorFilter (contrast/saturation/brightness/etc) changed while page is shown:
+			// ColorFilter (contrast/saturation/brightness/etc) changed while page is displayed:
 			// re-apply ColorMatrix paint filter to SSIV — instant, zero re-decode cost.
-			viewModel.state.value is PageState.Shown -> onReady()
+			colorFilterChanged && viewModel.state.value is PageState.Shown -> onReady()
 		}
 		ssiv.applyDownSampling(isResumed())
-	}
-
-	private fun scheduleReload() {
-		if (reloadThrottler.throttle()) {
-			// Leading edge: reload immediately.
-			ssiv.removeCallbacks(pendingReloadRunnable)
-			pendingReloadRunnable = null
-			reloadImage()
-		} else {
-			// Within throttle window: schedule a trailing reload so the final
-			// settled filter value is always applied after dragging stops.
-			if (pendingReloadRunnable == null) {
-				pendingReloadRunnable = Runnable {
-					pendingReloadRunnable = null
-					reloadThrottler.reset()
-					reloadImage()
-				}.also { ssiv.postDelayed(it, 420L) }
-			}
-		}
 	}
 
 	fun reloadImage() {
@@ -186,12 +161,10 @@ abstract class BasePageHolder<B : ViewBinding>(
 	open fun onRecycled() {
 		ssiv.removeCallbacks(preparingStatusRunnable)
 		preparingStatusRunnable = null
-		ssiv.removeCallbacks(pendingReloadRunnable)
-		pendingReloadRunnable = null
-		reloadThrottler.reset()
 		viewModel.onRecycle()
 		ssiv.recycle()
 		animatedView?.disposeImage()
+		lastColorFilter = UNSET_SENTINEL
 	}
 
 	override fun onTrimMemory(level: Int) {
@@ -303,5 +276,6 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	private companion object {
 		private const val PREPARING_STATUS_DELAY_MS = 600L
+		private val UNSET_SENTINEL = Any()
 	}
 }
