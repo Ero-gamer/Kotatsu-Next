@@ -8,7 +8,6 @@ import android.util.AttributeSet
 import androidx.core.view.ancestors
 import androidx.recyclerview.widget.RecyclerView
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
 import org.koitharu.kotatsu.core.util.ext.resolveDp
 import kotlin.math.roundToInt
 
@@ -22,10 +21,6 @@ class WebtoonImageView @JvmOverloads constructor(
 	private var scrollPos = 0
 	private var pendingScrollPos = -1
 	private var debugPaint: Paint? = null
-
-	init {
-		applyLowRamTileSize()
-	}
 
 	override fun onDraw(canvas: Canvas) {
 		super.onDraw(canvas)
@@ -66,19 +61,6 @@ class WebtoonImageView @JvmOverloads constructor(
 		scrollPos = 0
 		pendingScrollPos = -1
 		super.recycle()
-	}
-
-	fun applyLowRamTileSize() {
-		// On low-RAM devices (2GB), cap tile dimensions to 512px.
-		// Default TILE_SIZE_AUTO picks tiles as large as the canvas allows (~1080×1080px
-		// on a 1080p screen = ~4.4MB per tile bitmap). With FilteringRegionDecoder adding
-		// src+out IntArray pools of the same size, peak per-tile cost is ~13MB.
-		// 512×512px tiles = ~1MB bitmap + ~2MB arrays = ~3MB per tile, 4× lower.
-		// Trade-off: more tiles to load, but each is cheaper and failures are smaller.
-		if (context.isLowRamDevice()) {
-			maxTileWidth  = 512
-			maxTileHeight = 512
-		}
 	}
 
 	override fun getSuggestedMinimumHeight(): Int {
