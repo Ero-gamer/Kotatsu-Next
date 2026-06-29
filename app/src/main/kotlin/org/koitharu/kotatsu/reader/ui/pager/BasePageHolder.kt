@@ -267,10 +267,15 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	protected fun SubsamplingScaleImageView.applyDownSampling(isForeground: Boolean) {
 		downSampling = when {
-			isForeground || !settings.isReaderOptimizationEnabled -> 1
+			!settings.isReaderOptimizationEnabled -> 1
 			BuildConfig.DEBUG -> 32
-			context.isLowRamDevice() -> 8
-			else -> 4
+			// Low-RAM devices: cap at 2 even in foreground. Full-res (downSampling=1) on a
+			// very tall strip with filters active allocates ~4MB per tile per thread.
+			// With 2-3 visible holders each decoding 4+ tiles concurrently, peak memory
+			// exceeds 50MB causing OOM in LiJpegTurboRegionDecoder.init() readBytes.
+			// downSampling=2 halves linear tile dimensions → quarter the bitmap memory.
+			context.isLowRamDevice() -> if (isForeground) 2 else 8
+			else -> if (isForeground) 1 else 4
 		}
 	}
 
