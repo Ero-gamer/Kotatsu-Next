@@ -676,6 +676,8 @@
     <string name="webtoon_gaps_summary">Show vertical gaps between pages in webtoon mode</string>
     <string name="enable_pull_gesture_title">Enable pull gesture</string>
     <string name="enable_pull_gesture_summary">Use pull gesture to switch chapters in webtoon</string>
+    <string name="webtoon_memory_saver">Memory saver</string>
+    <string name="webtoon_memory_saver_summary">Keep only the previous, current and next page decoded in memory while scrolling. Reduces crashes on very tall/high-resolution chapters on low-RAM devices, at the cost of slightly less smooth scroll-back. No benefit on standard-resolution pages.</string>
     <string name="less_frequently">Less frequently</string>
     <string name="more_frequently">More frequently</string>
     <string name="frequency_of_check">Frequency of check</string>

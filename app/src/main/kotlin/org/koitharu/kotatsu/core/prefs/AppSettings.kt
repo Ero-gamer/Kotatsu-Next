@@ -566,6 +566,20 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getBoolean(KEY_WEBTOON_PULL_GESTURE, false)
 		set(value) = prefs.edit { putBoolean(KEY_WEBTOON_PULL_GESTURE, value) }
 
+	/**
+	 * When enabled, caps the number of fully-decoded webtoon pages kept in RAM during
+	 * scrolling to roughly 3 (previous + current + next), instead of the RecyclerView
+	 * default of holding extra off-screen views bound and prefetching ahead during fling.
+	 *
+	 * Off by default: it has no real benefit on standard-resolution pages and trades
+	 * away the smooth instant-scroll-back behavior the default cache provides. Intended
+	 * for extra-tall/high-resolution strip chapters on low-RAM devices where multiple
+	 * simultaneously-decoded pages risk OOM.
+	 */
+	var isWebtoonMemorySaverEnabled: Boolean
+		get() = prefs.getBoolean(KEY_WEBTOON_MEMORY_SAVER, false)
+		set(value) = prefs.edit { putBoolean(KEY_WEBTOON_MEMORY_SAVER, value) }
+
 	@get:FloatRange(from = 0.0, to = 0.5)
 	val defaultWebtoonZoomOut: Float
 		get() = prefs.getInt(KEY_WEBTOON_ZOOM_OUT, 0).coerceIn(0, 50) / 100f
@@ -866,6 +880,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_WEBTOON_ZOOM = "webtoon_zoom"
 		const val KEY_WEBTOON_ZOOM_OUT = "webtoon_zoom_out"
 		const val KEY_WEBTOON_PULL_GESTURE = "webtoon_pull_gesture"
+		const val KEY_WEBTOON_MEMORY_SAVER = "webtoon_memory_saver"
 		const val KEY_PREFETCH_CONTENT = "prefetch_content"
 		const val KEY_APP_LOCALE = "app_locale"
 		const val KEY_SOURCES_GRID = "sources_grid"

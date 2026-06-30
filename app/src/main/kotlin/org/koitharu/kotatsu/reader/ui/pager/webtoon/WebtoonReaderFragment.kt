@@ -9,6 +9,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.os.NetworkState
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.list.lifecycle.RecyclerViewLifecycleDispatcher
 import org.koitharu.kotatsu.core.util.ext.firstVisibleItemPosition
 import org.koitharu.kotatsu.core.util.ext.observe
@@ -41,6 +43,9 @@ class WebtoonReaderFragment : BaseReaderFragment<FragmentReaderWebtoonBinding>()
 	@Inject
 	lateinit var pageLoader: PageLoader
 
+	@Inject
+	lateinit var appSettings: AppSettings
+
 	private val scrollInterpolator = DecelerateInterpolator()
 
 	private var recyclerLifecycleDispatcher: RecyclerViewLifecycleDispatcher? = null
@@ -62,6 +67,7 @@ class WebtoonReaderFragment : BaseReaderFragment<FragmentReaderWebtoonBinding>()
 				addOnScrollListener(it)
 			}
 			setOnPullGestureListener(this@WebtoonReaderFragment)
+			applyMemorySaverMode(this, appSettings.isWebtoonMemorySaverEnabled)
 		}
 		viewModel.isWebtoonZooEnabled.observe(viewLifecycleOwner) {
 			binding.frame.isZoomEnable = it
@@ -82,6 +88,10 @@ class WebtoonReaderFragment : BaseReaderFragment<FragmentReaderWebtoonBinding>()
 		viewModel.isWebtoonPullGestureEnabled.observe(viewLifecycleOwner) { enabled ->
 			binding.recyclerView.isPullGestureEnabled = enabled
 		}
+		appSettings.observe(AppSettings.KEY_WEBTOON_MEMORY_SAVER)
+			.observe(viewLifecycleOwner) {
+				applyMemorySaverMode(binding.recyclerView, appSettings.isWebtoonMemorySaverEnabled)
+			}
 		viewModel.uiState.observe(viewLifecycleOwner) { state ->
 			if (state != null) {
 				canGoPrev = state.chapterIndex > 0
@@ -241,6 +251,27 @@ class WebtoonReaderFragment : BaseReaderFragment<FragmentReaderWebtoonBinding>()
 			feedbackTop.hideFeedback()
 			feedbackBottom.hideFeedback()
 		}
+	}
+
+	/**
+	 * When [enabled], caps the number of fully-decoded webtoon pages kept in RAM to
+	 * roughly previous + current + next (~3) by forcing RecyclerView to recycle a
+	 * holder (calling onViewRecycled() → ssiv.recycle(), releasing all tile bitmaps)
+	 * the instant it leaves the laid-out window, and disabling fling-ahead prefetch
+	 * decoding. When disabled, restores the stock defaults (viewCacheSize=2, prefetch
+	 * on) which give smoother instant scroll-back at the cost of more memory — the
+	 * right tradeoff for standard-resolution pages where memory isn't a concern.
+	 *
+	 * Safe to call at any time, including while the list is mid-scroll: it only
+	 * changes how future recycle/bind decisions are made, it doesn't force-recycle
+	 * currently bound holders.
+	 */
+	private fun applyMemorySaverMode(recyclerView: RecyclerView, enabled: Boolean) {
+		val cacheSize = if (enabled) 0 else 2
+		val poolSize = if (enabled) 1 else 5
+		recyclerView.setItemViewCacheSize(cacheSize)
+		(recyclerView.layoutManager as? LinearLayoutManager)?.isItemPrefetchEnabled = !enabled
+		recyclerView.recycledViewPool.setMaxRecycledViews(0, poolSize)
 	}
 
 	private fun RecyclerView.findCurrentPagePosition(): Int {

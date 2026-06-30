@@ -76,6 +76,18 @@ abstract class BasePageHolder<B : ViewBinding>(
 		lifecycleScope.launch(Dispatchers.Main) {
 			ssiv.bindToLifecycle(this@BasePageHolder)
 			ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
+			// Dispatchers.Default is a single pool shared across the WHOLE app, sized to
+			// CPU core count (4 on this device's Cortex-A53). Every visible/cached webtoon
+			// holder's tile decodes compete for the same pool, so up to 4 tiles can decode
+			// in parallel at once — each one allocating a tile bitmap plus the src/out
+			// IntArray filter pools simultaneously. That's a direct multiplier on peak
+			// memory, independent of how many pages are bound. Capping this SSIV instance's
+			// decode dispatcher to 2 concurrent tiles bounds that peak without changing
+			// decode correctness or image quality — tiles simply queue slightly more before
+			// running. No tradeoff: applied unconditionally on low-RAM devices.
+			if (context.isLowRamDevice()) {
+				ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
+			}
 			ssiv.addOnImageEventListener(viewModel)
 			ssiv.addOnImageEventListener(this@BasePageHolder)
 		}
@@ -276,6 +288,15 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	private companion object {
 		private const val PREPARING_STATUS_DELAY_MS = 600L
+
+		// Single process-wide instance, NOT one per holder/page. limitedParallelism()
+		// creates a bounded "view" over the underlying Dispatchers.Default pool — sharing
+		// one instance across every SSIV ensures the cap of 2 applies globally (e.g. 3
+		// visible/cached webtoon pages all decoding tiles still never exceed 2 concurrent
+        // tile decodes app-wide). A separate limitedParallelism(2) per holder would instead
+		// allow 2× the number of holders concurrently, defeating the purpose.
+		@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+		private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(2)
 		private val UNSET_SENTINEL = Any()
 	}
 }

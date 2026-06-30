@@ -93,6 +93,12 @@
         android:summary="@string/enable_pull_gesture_summary"
         android:title="@string/enable_pull_gesture_title" />
 
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="webtoon_memory_saver"
+        android:summary="@string/webtoon_memory_saver_summary"
+        android:title="@string/webtoon_memory_saver" />
+
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
 		android:key="enhanced_colors"
