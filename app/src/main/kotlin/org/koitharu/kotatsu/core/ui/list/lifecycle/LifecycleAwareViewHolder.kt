@@ -17,21 +17,18 @@ abstract class LifecycleAwareViewHolder(
 	final override val lifecycle = LifecycleRegistry(this)
 	private var isCurrent = false
 
-	// Whether onCreate() has already fired. BasePageHolder.onCreate() registers
-	// observe() callbacks — they must only be registered once per holder instance,
-	// not re-registered on every re-bind (reattachToParent replays the onCreate event).
+	// Guards BasePageHolder.onCreate() which registers observe() callbacks.
+	// addObserver() replays lifecycle events up to the parent's current state on
+	// every reattachToParent() call. Without this flag, onCreate() would fire again
+	// on every re-bind, registering duplicate observers that accumulate across scrolls.
 	private var isInitialized = false
 
-	// Stored so we can remove this specific observer instance on recycle rather than
-	// waiting for parent destruction. Without this, every bind registers a fresh observer
-	// that is never removed until the fragment is destroyed — one leaked observer per
-	// scroll event across a 100-page chapter = ~95 dead observer references held by the
-	// fragment's lifecycle, each keeping its WebtoonHolder subtree alive.
+	// The single observer instance registered on the parent lifecycle. Stored so
+	// detachFromParent() can remove it precisely on recycle, preventing the
+	// N-observers-per-page leak that kept WebtoonHolder subtrees alive.
 	private var parentObserver: ParentLifecycleObserver? = null
 
 	init {
-		// itemView.post defers until after the first layout pass so the parent lifecycle
-		// is in at least CREATED state before we register.
 		itemView.post { attachToParent() }
 	}
 
@@ -42,6 +39,9 @@ abstract class LifecycleAwareViewHolder(
 
 	@CallSuper
 	open fun onCreate() {
+		// Guard: only run once per holder instance lifetime.
+		// LifecycleRegistry rejects ON_CREATE when already at CREATED — calling it
+		// again after reattachToParent() would throw IllegalStateException.
 		if (isInitialized) return
 		isInitialized = true
 		lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
@@ -49,6 +49,7 @@ abstract class LifecycleAwareViewHolder(
 
 	@CallSuper
 	open fun onStart() {
+		// Guard against replayed events from addObserver() arriving when already STARTED.
 		if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
 		lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_START)
 	}
@@ -78,11 +79,18 @@ abstract class LifecycleAwareViewHolder(
 	}
 
 	/**
-	 * Removes the parent lifecycle observer so it stops accumulating.
-	 * Does NOT touch the holder's own lifecycle state — LifecycleRegistry cannot go
-	 * backwards, and the holder's coroutines should keep running while pooled because
-	 * the holder will be re-bound shortly.
-	 * Must be called on recycle. Safe to call multiple times.
+	 * Removes this holder's observer from the parent lifecycle.
+	 *
+	 * Does NOT change the holder's own lifecycle state. LifecycleRegistry cannot
+	 * go backwards (e.g. RESUMED → CREATED), and dropping to STOPPED/CREATED here
+	 * caused reattachToParent() → addObserver() to replay ON_CREATE on an already-
+	 * CREATED registry, throwing IllegalStateException and breaking re-bind entirely.
+	 *
+	 * The holder's coroutines continue running while pooled — this is correct because
+	 * observe() (non-repeatOnLifecycle) runs until ON_DESTROY regardless of STARTED/
+	 * RESUMED state, and the holder will be re-bound shortly.
+	 *
+	 * Call from onViewRecycled().
 	 */
 	fun detachFromParent() {
 		parentObserver?.let {
@@ -93,8 +101,10 @@ abstract class LifecycleAwareViewHolder(
 
 	/**
 	 * Re-registers this holder with the parent lifecycle.
-	 * Must be called at the start of re-bind, after [detachFromParent].
-	 * Safe to call if already attached.
+	 * addObserver() replays missed events up to the parent's current state, advancing
+	 * the holder's lifecycle forward if needed. All event handlers are guarded against
+	 * going backwards or replaying an already-handled state.
+	 * Call from onBindViewHolder(), before bind().
 	 */
 	fun reattachToParent() {
 		if (parentObserver != null) return
@@ -109,7 +119,8 @@ abstract class LifecycleAwareViewHolder(
 	}
 
 	private fun dispatchResumed() {
-		val isParentResumed = parentLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+		val isParentResumed = parentLifecycleOwner.lifecycle.currentState
+			.isAtLeast(Lifecycle.State.RESUMED)
 		if (isCurrent && isParentResumed) {
 			if (!isResumed()) onResume()
 		} else {
@@ -122,18 +133,25 @@ abstract class LifecycleAwareViewHolder(
 
 	private inner class ParentLifecycleObserver : DefaultLifecycleObserver {
 
-		override fun onCreate(owner: LifecycleOwner) = this@LifecycleAwareViewHolder.onCreate()
+		override fun onCreate(owner: LifecycleOwner) =
+			this@LifecycleAwareViewHolder.onCreate()
 
-		override fun onStart(owner: LifecycleOwner) = this@LifecycleAwareViewHolder.onStart()
+		override fun onStart(owner: LifecycleOwner) =
+			this@LifecycleAwareViewHolder.onStart()
 
-		override fun onResume(owner: LifecycleOwner) = this@LifecycleAwareViewHolder.dispatchResumed()
+		override fun onResume(owner: LifecycleOwner) =
+			this@LifecycleAwareViewHolder.dispatchResumed()
 
-		override fun onPause(owner: LifecycleOwner) = this@LifecycleAwareViewHolder.dispatchResumed()
+		override fun onPause(owner: LifecycleOwner) =
+			this@LifecycleAwareViewHolder.dispatchResumed()
 
-		override fun onStop(owner: LifecycleOwner) = this@LifecycleAwareViewHolder.onStop()
+		override fun onStop(owner: LifecycleOwner) =
+			this@LifecycleAwareViewHolder.onStop()
 
 		override fun onDestroy(owner: LifecycleOwner) {
-			parentObserver = null
+			// Parent fragment/activity is gone — destroy this holder's lifecycle so
+			// lifecycleScope cancels and all coroutines terminate cleanly.
+			parentObserver = null // registry already removing it
 			this@LifecycleAwareViewHolder.onDestroy()
 		}
 	}
