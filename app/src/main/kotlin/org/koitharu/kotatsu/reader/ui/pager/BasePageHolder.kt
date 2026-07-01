@@ -65,6 +65,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 // Add here:
     private var lastColorFilter: Any? = UNSET_SENTINEL
+	private var tileLoadErrorCount = 0
 
 	val context
 		get() = itemView.context
@@ -130,6 +131,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	fun bind(data: ReaderPage) {
 		boundData = data
+		tileLoadErrorCount = 0
 		ssiv.isVisible = true
 		animatedView?.isVisible = false
 		animatedView?.disposeImage()
@@ -177,6 +179,22 @@ abstract class BasePageHolder<B : ViewBinding>(
 		ssiv.recycle()
 		animatedView?.disposeImage()
 		lastColorFilter = UNSET_SENTINEL
+		tileLoadErrorCount = 0
+	}
+
+	// BUG FIX (silent-unfiltered-image, safety net): if tile decoding keeps failing for
+	// this page (e.g. a race left the region decoder in a bad state for this specific
+	// image), SSIV's default behavior is to swallow the error and never retry — the
+	// unfiltered base/preview bitmap stays visible forever with no visible error state.
+	// One bounded, debounced reload gives the decoder a fresh instance via reloadImage()
+	// (init() re-runs from scratch). Capped at 1 retry per bind so a genuinely broken
+	// file can't loop forever; onStateChanged already surfaces a real Error state via
+	// the normal load pipeline for anything reloadImage() can't fix.
+	override fun onTileLoadError(e: Throwable) {
+		tileLoadErrorCount++
+		if (tileLoadErrorCount == TILE_ERROR_RELOAD_THRESHOLD && viewModel.state.value is PageState.Shown) {
+			reloadImage()
+		}
 	}
 
 	override fun onTrimMemory(level: Int) {
@@ -288,6 +306,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	private companion object {
 		private const val PREPARING_STATUS_DELAY_MS = 600L
+		// Fires reloadImage() once per bind after this many onTileLoadError callbacks —
+		// see onTileLoadError() above.
+		private const val TILE_ERROR_RELOAD_THRESHOLD = 1
 
 		// Single process-wide instance, NOT one per holder/page. limitedParallelism()
 		// creates a bounded "view" over the underlying Dispatchers.Default pool — sharing
