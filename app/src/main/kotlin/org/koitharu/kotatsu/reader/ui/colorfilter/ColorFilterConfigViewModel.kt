@@ -1,10 +1,13 @@
 package org.koitharu.kotatsu.reader.ui.colorfilter
 
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableManga
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableMangaPage
 import org.koitharu.kotatsu.core.nav.AppRouter
@@ -14,6 +17,7 @@ import org.koitharu.kotatsu.core.ui.BaseViewModel
 import org.koitharu.kotatsu.core.util.ext.MutableEventFlow
 import org.koitharu.kotatsu.core.util.ext.call
 import org.koitharu.kotatsu.core.util.ext.require
+import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 import javax.inject.Inject
 
@@ -35,6 +39,86 @@ class ColorFilterConfigViewModel @Inject constructor(
     val colorFilter = _colorFilter.asStateFlow()
 
     val onDismiss = MutableEventFlow<Unit>()
+
+    private val _isLocked = MutableStateFlow(false)
+    val isLocked = _isLocked.asStateFlow()
+
+    private val _profiles = MutableStateFlow<List<ColorFilterProfile>>(emptyList())
+    val profiles = _profiles.asStateFlow()
+
+    init {
+        launchLoadingJob {
+            _isLocked.value = mangaDataRepository.isColorFilterLocked(manga.id)
+        }
+        refreshProfiles()
+    }
+
+    fun setLocked(locked: Boolean) {
+        _isLocked.value = locked
+        viewModelScope.launch(Dispatchers.Default) {
+            mangaDataRepository.setColorFilterLocked(manga, locked)
+        }
+    }
+
+    private fun refreshProfiles() {
+        viewModelScope.launch(Dispatchers.Default) {
+            _profiles.value = mangaDataRepository.getColorFilterProfiles(manga.id)
+        }
+    }
+
+    /** Saves the current [colorFilter] as a new profile. Returns false if the 10-profile cap is hit. */
+    fun saveCurrentAsProfile(name: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val saved = mangaDataRepository.saveColorFilterProfile(manga.id, name, _colorFilter.value ?: ReaderColorFilter.EMPTY)
+            refreshProfiles()
+            withContext(Dispatchers.Main) { onResult(saved != null) }
+        }
+    }
+
+    fun applyProfile(profile: ColorFilterProfile) {
+        _colorFilter.value = profile.filter.takeUnless { it.isEmpty }
+    }
+
+    fun overwriteProfile(profile: ColorFilterProfile) {
+        viewModelScope.launch(Dispatchers.Default) {
+            mangaDataRepository.overwriteColorFilterProfile(profile, _colorFilter.value ?: ReaderColorFilter.EMPTY)
+            refreshProfiles()
+        }
+    }
+
+    fun renameProfile(profile: ColorFilterProfile, newName: String) {
+        viewModelScope.launch(Dispatchers.Default) {
+            mangaDataRepository.renameColorFilterProfile(profile, newName)
+            refreshProfiles()
+        }
+    }
+
+    fun deleteProfile(profile: ColorFilterProfile) {
+        viewModelScope.launch(Dispatchers.Default) {
+            mangaDataRepository.deleteColorFilterProfile(profile)
+            refreshProfiles()
+        }
+    }
+
+    /** Copies [profile] into the global profiles list. */
+    fun copyProfileToGlobal(profile: ColorFilterProfile, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val copied = mangaDataRepository.copyColorFilterProfile(profile, targetMangaId = null)
+            withContext(Dispatchers.Main) { onResult(copied != null) }
+        }
+    }
+
+    /** Loads the global profiles list, for the "import from global" picker. */
+    suspend fun loadGlobalProfiles(): List<ColorFilterProfile> = mangaDataRepository.getColorFilterProfiles(null)
+
+    /** Imports [profile] (expected to be from the global list) into this manga's own list. */
+    fun importProfile(profile: ColorFilterProfile, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val copied = mangaDataRepository.copyColorFilterProfile(profile, targetMangaId = manga.id)
+            refreshProfiles()
+            withContext(Dispatchers.Main) { onResult(copied != null) }
+        }
+    }
 
     /**
      * True once the initial color filter has been loaded from the DB.

@@ -5,7 +5,11 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
 import android.widget.CompoundButton
+import android.widget.LinearLayout
+import android.widget.Toast
+import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -35,6 +39,7 @@ import org.koitharu.kotatsu.core.util.progress.ImageRequestIndicatorListener
 import org.koitharu.kotatsu.databinding.ActivityColorFilterBinding
 import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.util.format
+import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 
 @AndroidEntryPoint
@@ -91,7 +96,43 @@ class ColorFilterConfigActivity :
         viewBinding.buttonDone.setOnClickListener(this)
         viewBinding.buttonReset.setOnClickListener(this)
 
+        // Lock switch + Profiles button aren't in the XML layouts (two variants to keep in
+        // sync otherwise) — inserted as siblings right after switchBook instead.
+        val switchParent = viewBinding.switchBook.parent as ViewGroup
+        val insertAt = switchParent.indexOfChild(viewBinding.switchBook) + 1
+        val lockSwitch = com.google.android.material.materialswitch.MaterialSwitch(this).apply {
+            text = getString(R.string.lock_filter)
+            id = View.generateViewId()
+        }
+        switchParent.addView(lockSwitch, insertAt)
+        lockSwitch.setOnCheckedChangeListener { _, isChecked -> viewModel.setLocked(isChecked) }
+
+        val profilesButton = Button(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            text = getString(R.string.profiles)
+            id = View.generateViewId()
+        }
+        switchParent.addView(profilesButton, insertAt + 1)
+        profilesButton.setOnClickListener { showProfilesDialog() }
+
+        viewModel.isLocked.observe(this) { locked -> lockSwitch.setChecked(locked, false) }
+
         onBackPressedDispatcher.addCallback(ColorFilterConfigBackPressedDispatcher(this, viewModel))
+
+        // Tap a slider's label to enter an exact percent, pick a 25/50/75% preset, or
+        // nudge the current value by ±10%. All three use each slider's own displayed-%
+        // scale (same numbers the slider's tooltip already shows), so typing "50" always
+        // matches what the label would read at that position.
+        setupPercentEntry(viewBinding.sliderBrightness, viewBinding.textViewBrightness, offset = 1f, viewModel::setBrightness)
+        setupPercentEntry(viewBinding.sliderContrast, viewBinding.textViewContrast, offset = 1f, viewModel::setContrast)
+        viewBinding.sliderSaturation?.let { s ->
+            findViewById<View>(R.id.textView_saturation)?.let { setupPercentEntry(s, it, offset = 0f, viewModel::setSaturation) }
+        }
+        viewBinding.sliderVibrance?.let { s ->
+            findViewById<View>(R.id.textView_vibrance)?.let { setupPercentEntry(s, it, offset = 0f, viewModel::setVibrance) }
+        }
+        viewBinding.sliderSharpening?.let { s ->
+            findViewById<View>(R.id.textView_sharpening)?.let { setupPercentEntry(s, it, offset = 0f, viewModel::setSharpening) }
+        }
 
         // Wait for isReady so the initial null emission doesn't flash sliders to zero.
         viewModel.isReady.observe(this) { ready ->
@@ -145,6 +186,42 @@ class ColorFilterConfigActivity :
             .setPositiveButton(R.string.this_manga)  { _, _ -> viewModel.save() }
             .setNeutralButton(R.string.globally)     { _, _ -> viewModel.saveGlobally() }
             .show()
+    }
+
+    /** This series' saved-profiles list: apply / rename / delete / push-to-global / save-new / import-from-global. */
+    private fun showProfilesDialog() {
+        val profiles = viewModel.profiles.value
+        val actions = ColorFilterProfilesDialog.Actions(
+            onApply = viewModel::applyProfile,
+            onRename = viewModel::renameProfile,
+            onDelete = viewModel::deleteProfile,
+            copyAction = getString(R.string.copy_to_global) to { profile: ColorFilterProfile ->
+                viewModel.copyProfileToGlobal(profile) { ok ->
+                    if (!ok) Toast.makeText(this, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show()
+                }
+            },
+            saveNewAction = getString(R.string.save_as_profile) to { name: String, onResult: (Boolean) -> Unit ->
+                viewModel.saveCurrentAsProfile(name, onResult)
+            },
+            extraAction = getString(R.string.import_from_global) to { showImportFromGlobalDialog() },
+        )
+        ColorFilterProfilesDialog.show(this, getString(R.string.profiles), profiles, actions)
+    }
+
+    private fun showImportFromGlobalDialog() {
+        lifecycleScope.launch {
+            val globalProfiles = viewModel.loadGlobalProfiles()
+            val actions = ColorFilterProfilesDialog.Actions(
+                onApply = { profile ->
+                    viewModel.importProfile(profile) { ok ->
+                        if (!ok) Toast.makeText(this@ColorFilterConfigActivity, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onRename = { _, _ -> },
+                onDelete = { },
+            )
+            ColorFilterProfilesDialog.show(this@ColorFilterConfigActivity, getString(R.string.import_from_global), globalProfiles, actions)
+        }
     }
 
     private fun onColorFilterChanged(cf: ReaderColorFilter?) {
@@ -257,7 +334,96 @@ class ColorFilterConfigActivity :
         viewBinding.buttonDone.isEnabled        = !isLoading
     }
 
-    // ─── Label formatters ────────────────────────────────────────────────────
+    // ─── Quick value entry (tap label -> exact %, presets, ±10%) ────────────
+
+    /**
+     * Wires [label] so tapping it opens a dialog to set [slider]'s value directly, using
+     * the same displayed-percent scale as the slider's own tooltip formatter:
+     *   displayedPercent = (value + offset) * 100
+     * [offset] is 1f for Brightness/Contrast (their 0%..200% scale) and 0f for every
+     * other slider (their -100%..100% or 0%..100% scale). [apply] is the ViewModel setter
+     * to call — the slider's own displayed value then updates itself via the existing
+     * colorFilter -> onColorFilterChanged round-trip, so we never touch slider.value here.
+     */
+    private fun setupPercentEntry(
+        slider: Slider,
+        label: View,
+        offset: Float,
+        apply: (Float) -> Unit,
+    ) {
+        label.setOnClickListener {
+            showPercentEntryDialog(
+                currentPercent = (slider.value + offset) * 100f,
+                minPercent = (slider.valueFrom + offset) * 100f,
+                maxPercent = (slider.valueTo + offset) * 100f,
+            ) { percent -> apply(percent / 100f - offset) }
+        }
+    }
+
+    private fun showPercentEntryDialog(
+        currentPercent: Float,
+        minPercent: Float,
+        maxPercent: Float,
+        onValue: (Float) -> Unit,
+    ) {
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+
+        val editText = android.widget.EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+            setText(currentPercent.toInt().toString())
+            setSelection(text.length)
+        }
+
+        fun clamped(p: Float) = p.coerceIn(minOf(minPercent, maxPercent), maxOf(minPercent, maxPercent))
+
+        fun presetButton(text: String, percent: Float) = Button(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            this.text = text
+            setOnClickListener { editText.setText(clamped(percent).toInt().toString()) }
+        }
+
+        val presetsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(presetButton("25%", 25f))
+            addView(presetButton("50%", 50f))
+            addView(presetButton("75%", 75f))
+        }
+
+        fun stepButton(text: String, delta: Float) = Button(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            this.text = text
+            setOnClickListener {
+                val base = editText.text.toString().toFloatOrNull() ?: currentPercent
+                editText.setText(clamped(base + delta).toInt().toString())
+            }
+        }
+
+        val stepRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(stepButton("-10%", -10f))
+            addView(stepButton("+10%", 10f))
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(8), dp(24), dp(0))
+            addView(editText)
+            addView(presetsRow)
+            addView(stepRow)
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.set_value)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val percent = editText.text.toString().toFloatOrNull() ?: return@setPositiveButton
+                onValue(clamped(percent))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+
 
     private class PercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)

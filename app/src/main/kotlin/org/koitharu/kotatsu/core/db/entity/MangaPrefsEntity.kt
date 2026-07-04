@@ -32,6 +32,7 @@ data class MangaPrefsEntity(
     @ColumnInfo(name = "cf_invert") val cfInvert: Boolean,
     @ColumnInfo(name = "cf_grayscale") val cfGrayscale: Boolean,
     @ColumnInfo(name = "cf_book") val cfBookEffect: Boolean,
+    @ColumnInfo(name = "is_locked", defaultValue = "0") val isLocked: Boolean,
     @ColumnInfo(name = "title_override") val titleOverride: String?,
     @ColumnInfo(name = "cover_override") val coverUrlOverride: String?,
     @ColumnInfo(name = "content_rating_override") val contentRatingOverride: String?,
