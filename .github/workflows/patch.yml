@@ -1,0 +1,63 @@
+name: Auto Patch APK build
+
+on:
+  push:
+    paths:
+      - '**.patch'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          submodules: 'recursive'
+
+      - name: Apply Claude Patch
+        run: |
+          # Find any .patch files in the root directory
+          PATCH_FILES=$(ls *.patch 2>/dev/null || true)
+          
+          if [ -n "$PATCH_FILES" ]; then
+            for patch in $PATCH_FILES; do
+              echo "Found patch file: $patch. Applying changes..."
+              git apply "$patch"
+              rm "$patch"
+            done
+          else
+            echo "No .patch files found. Proceeding with standard build."
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Uses the Gradle version declared in gradle/wrapper/gradle-wrapper.properties
+          gradle-version: wrapper
+
+      - name: Build Release APK
+        run: |
+          # 1. Reconstruct the keystore file from your Base64 secret
+          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > release.keystore
+          
+          # 2. Build the APK and inject the signing credentials
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.RELEASE_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.RELEASE_KEY_PASSWORD }} \
+            --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: Kotatsu-Next-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
