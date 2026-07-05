@@ -1,4 +1,4 @@
-name: Auto Patch & Build APK
+name: Auto Patch
 
 on:
   push:
@@ -7,65 +7,43 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
         with:
           submodules: 'recursive'
+          # Set fetch-depth to 0 to allow clean pushes back to the branch
+          fetch-depth: 0
 
-      - name: Apply Claude Patch (Diff or Full Overwrite)
+      - name: Apply and Commit Claude Patch
         run: |
           PATCH_FILES=$(ls *.patch 2>/dev/null || true)
           
           if [ -n "$PATCH_FILES" ]; then
+            # Configure git author credentials for the automated commit
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            
             for patch in $PATCH_FILES; do
               echo "Processing patch file: $patch..."
               
-              # Try a standard application first. If it's a full-file creation patch 
-              # and the file exists, it will fail, triggering the OR (||) block.
+              # Try standard application first; fallback to force-overwrite on conflict
               git apply "$patch" || {
                 echo "Standard patch failed. Attempting forced full-file overwrite..."
-                # --reject applies the parts it can and writes conflict files, 
-                # allowing us to force the update on existing paths.
                 git apply --reject --whitespace=fix "$patch" || true
               }
               
-              # Clean up any leftover conflict reject files if they were generated
+              # Clean up any leftover conflict reject files and the patch itself
               rm -f *.rej
-              # Delete the processed patch file so the build stays pristine
               rm "$patch"
             done
+            
+            # Commit the modified source code and push it back to the active branch
+            git add .
+            git commit -m "Automated patch application (handling diffs and full overwrites)"
+            git push origin ${{ github.ref_name }}
           else
-            echo "No .patch files found. Proceeding with standard build."
+            echo "No .patch files found."
           fi
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: wrapper
-
-      - name: Build Release APK
-        run: |
-          echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > release.keystore
-          
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
-            -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_PASSWORD }} \
-            -Pandroid.injected.signing.key.alias=${{ secrets.RELEASE_ALIAS }} \
-            -Pandroid.injected.signing.key.password=${{ secrets.RELEASE_KEY_PASSWORD }} \
-            --no-daemon --stacktrace
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: Kotatsu-Next-release
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
