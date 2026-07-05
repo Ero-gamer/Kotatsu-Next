@@ -1,13 +1,12 @@
 name: Release Build & Publish
 
+
 on:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      new_tag: ${{ steps.bump_version.outputs.new_tag }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
@@ -15,23 +14,14 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
-      - name: Generate and Bump Tag Version
-        id: bump_version
-        uses: anothrNick/github-tag-action@1.75.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: patch
-          WITH_V: true
-          PRERELEASE: false
-
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.4.0
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           gradle-version: wrapper
 
@@ -46,8 +36,10 @@ jobs:
             --no-daemon --stacktrace
 
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
+          # In v7 + archive:false, the filename becomes the artifact name.
+          # The 'name' input below is ignored by the runner.
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           archive: false 
@@ -59,18 +51,20 @@ jobs:
       contents: write
     steps:
       - name: Download APK from build job
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
+          # Leaving 'name' blank downloads ALL artifacts from the current run
           path: ./ready_apks
           merge-multiple: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3.0.1
         with:
-          tag_name: ${{ needs.build.outputs.new_tag }}
-          name: "Release ${{ needs.build.outputs.new_tag }}"
+          tag_name: latest-stable
+          name: "Latest Stable Build"
           body: |
             ### Automated Release
+            Built and signed for Android 14+ architectures.
           files: "./ready_apks/**/*.apk"
           generate_release_notes: true
           draft: false
