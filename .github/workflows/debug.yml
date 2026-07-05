@@ -72,7 +72,7 @@ jobs:
 
       - name: Create AVD and generate snapshot (if cache miss)
         if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2.37.0
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: ${{ github.event.inputs.api_level }}
           arch: x86_64
@@ -85,7 +85,7 @@ jobs:
       # ── Launch, install, run, collect ─────────────────────────────────────────
 
       - name: Run app and collect crash logs
-        uses: reactivecircus/android-emulator-runner@v2.37.0
+        uses: reactivecircus/android-emulator-runner@v2.38.0
         with:
           api-level: ${{ github.event.inputs.api_level }}
           arch: x86_64
