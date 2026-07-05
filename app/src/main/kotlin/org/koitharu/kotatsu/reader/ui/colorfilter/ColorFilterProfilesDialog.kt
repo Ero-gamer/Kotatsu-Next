@@ -6,29 +6,20 @@ import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
 
-/**
- * Generic "manage saved profiles" list dialog, reused for both a manga's own saved-profiles
- * list and the global list (Reader Settings). The caller supplies the data + the actions that
- * make sense for its scope — this file only knows how to render a list and confirm actions.
- */
 object ColorFilterProfilesDialog {
 
     class Actions(
-        /** Called when the user taps a row to apply it. */
         val onApply: (ColorFilterProfile) -> Unit,
         val onRename: (ColorFilterProfile, String) -> Unit,
         val onDelete: (ColorFilterProfile) -> Unit,
-        /** Label + handler for the scope-specific "copy elsewhere" action. null hides it. */
         val copyAction: Pair<String, (ColorFilterProfile) -> Unit>? = null,
-        /** Label + handler for "save the current filter as a new profile here". null hides it. */
         val saveNewAction: Pair<String, (name: String, onResult: (Boolean) -> Unit) -> Unit>? = null,
-        /** Label + handler for an extra top-level action, e.g. "Import from global". null hides it. */
         val extraAction: Pair<String, () -> Unit>? = null,
-        /** Whether applying should ask for confirmation first (global "apply to all" case). */
         val confirmApply: Boolean = false,
     )
 
@@ -43,7 +34,6 @@ object ColorFilterProfilesDialog {
         val adapter = ArrayAdapter(context, android.R.layout.simple_list_item_1, names)
         listView.adapter = adapter
 
-        // Empty-state: show a hint when there are no profiles yet.
         listView.emptyView = TextView(context).apply {
             text = context.getString(R.string.no_saved_profiles)
             setPadding(
@@ -83,16 +73,17 @@ object ColorFilterProfilesDialog {
 
         dialog.setOnShowListener {
             actions.saveNewAction?.let { (_, save) ->
-                dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
                     promptName(context, null) { name ->
                         save(name) { ok ->
-                            if (ok) dialog.dismiss() else Toast.makeText(context, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show()
+                            if (ok) dialog.dismiss()
+                            else Toast.makeText(context, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
             }
             actions.extraAction?.let { (_, run) ->
-                dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                     run()
                     dialog.dismiss()
                 }
@@ -101,7 +92,7 @@ object ColorFilterProfilesDialog {
         dialog.show()
     }
 
-    private fun showActionMenu(context: Context, profile: ColorFilterProfile, actions: Actions, parent: android.app.AlertDialog) {
+    private fun showActionMenu(context: Context, profile: ColorFilterProfile, actions: Actions, parent: AlertDialog) {
         val items = buildList {
             add(context.getString(R.string.rename))
             add(context.getString(R.string.delete))
