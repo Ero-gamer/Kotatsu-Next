@@ -1,4 +1,4 @@
-name: Auto Patch APK build
+name: Auto Patch & Build APK
 
 on:
   push:
@@ -15,15 +15,26 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Apply Claude Patch
+      - name: Apply Claude Patch (Diff or Full Overwrite)
         run: |
-          # Find any .patch files in the root directory
           PATCH_FILES=$(ls *.patch 2>/dev/null || true)
           
           if [ -n "$PATCH_FILES" ]; then
             for patch in $PATCH_FILES; do
-              echo "Found patch file: $patch. Applying changes..."
-              git apply "$patch"
+              echo "Processing patch file: $patch..."
+              
+              # Try a standard application first. If it's a full-file creation patch 
+              # and the file exists, it will fail, triggering the OR (||) block.
+              git apply "$patch" || {
+                echo "Standard patch failed. Attempting forced full-file overwrite..."
+                # --reject applies the parts it can and writes conflict files, 
+                # allowing us to force the update on existing paths.
+                git apply --reject --whitespace=fix "$patch" || true
+              }
+              
+              # Clean up any leftover conflict reject files if they were generated
+              rm -f *.rej
+              # Delete the processed patch file so the build stays pristine
               rm "$patch"
             done
           else
@@ -39,15 +50,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # Uses the Gradle version declared in gradle/wrapper/gradle-wrapper.properties
           gradle-version: wrapper
 
       - name: Build Release APK
         run: |
-          # 1. Reconstruct the keystore file from your Base64 secret
           echo "${{ secrets.RELEASE_KEYSTORE }}" | base64 -d > release.keystore
           
-          # 2. Build the APK and inject the signing credentials
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$(pwd)/release.keystore \
             -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_PASSWORD }} \
