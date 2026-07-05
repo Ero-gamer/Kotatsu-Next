@@ -36,7 +36,7 @@ jobs:
             --no-daemon --stacktrace
 
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           # In v7 + archive:false, the filename becomes the artifact name.
           # The 'name' input below is ignored by the runner.
