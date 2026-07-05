@@ -51,7 +51,7 @@ jobs:
       contents: write
     steps:
       - name: Download APK from build job
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.1
         with:
           # Leaving 'name' blank downloads ALL artifacts from the current run
           path: ./ready_apks
