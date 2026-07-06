@@ -5,24 +5,25 @@ import coil3.size.Size
 import coil3.transform.Transformation
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlin.random.Random
 
 /**
- * Coil3 [Transformation] that bakes bitmap-level filters into the page bitmap for the
- * ColorFilterConfigActivity preview. Mirrors the pipeline in
- * [com.davemorrissey.labs.subscaleview.decoder.FilteringRegionDecoder] exactly —
- * keep both in sync when changing filter math or constants.
+ * Coil3 [Transformation] that bakes bitmap-level filters into the page bitmap once, so the
+ * result can be cached to disk and SSIV never has to re-process it on every tile/scroll.
  *
- * Pipeline order per pixel: denoise -> sharpen -> vibrance -> dither+grain.
- * Denoise always runs when sharpening is active. Dither+grain always run when
- * either sharpening or vibrance is active.
+ * Both sharpness and vibrance are pure-CPU, allocation-light, single-pass operations — no GPU/
+ * GL involved (see [SharpnessProcessor] and [VibranceProcessor] for why each needed to move
+ * off the GPU/ColorMatrix approaches that were tried first). When both are active they run in
+ * ONE combined getPixels -> loop -> setPixels pass instead of two separate passes, halving the
+ * extra IntArray allocations and avoiding reading the bitmap twice.
+ *
+ * All other filters (contrast, saturation, brightness) remain real-time ColorMatrix paint
+ * filters on SSIV — no bitmap processing needed for those.
  */
 class ImageFiltersTransformation(
     private val sharpening: Float,
     private val vibrance: Float = 0f,
 ) : Transformation() {
 
-    // Bumped to v8_cpu: denoise + dither/grain added — old cached results are stale.
     override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v8_cpu"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
@@ -47,6 +48,10 @@ class ImageFiltersTransformation(
         val k = if (doSharpen) SharpnessProcessor.kernelStrength(sharpening) else 0f
         val v = vibrance
 
+        // Sharpening reads neighbours from `src` while writing elsewhere, so the read and
+        // write buffers must differ — sharing one would corrupt not-yet-processed neighbours.
+        // When sharpening is off, vibrance has no neighbour dependency and can safely mutate
+        // `src` in place, skipping a second w*h allocation entirely.
         val out = if (doSharpen) IntArray(w * h) else src
 
         for (y in 0 until h) {
@@ -61,26 +66,27 @@ class ImageFiltersTransformation(
                 var b: Int
 
                 if (doSharpen && x > 0 && x < w - 1 && hasRowAbove && hasRowBelow) {
-                    val top    = src[idx - w]
+                    val top = src[idx - w]
                     val bottom = src[idx + w]
-                    val left   = src[idx - 1]
-                    val right  = src[idx + 1]
-                    val tr  = (top    shr 16) and 0xFF; val tg  = (top    shr 8) and 0xFF; val tb  = top    and 0xFF
-                    val brr = (bottom shr 16) and 0xFF; val bg  = (bottom shr 8) and 0xFF; val bb  = bottom and 0xFF
-                    val lr  = (left   shr 16) and 0xFF; val lg  = (left   shr 8) and 0xFF; val lb  = left   and 0xFF
-                    val rr  = (right  shr 16) and 0xFF; val rg  = (right  shr 8) and 0xFF; val rb  = right  and 0xFF
-                    val cr  = (px     shr 16) and 0xFF; val cg  = (px     shr 8) and 0xFF; val cb  = px     and 0xFF
-
-                    // Denoise before sharpen: edge-aware bilateral-lite blend so the Laplacian
-                    // amplifies real edges rather than JPEG/compression noise.
+                    val left = src[idx - 1]
+                    val right = src[idx + 1]
+                    // Mirror FilteringRegionDecoder's bilateral-lite denoise pass so the
+                    // preview image in ColorFilterConfigActivity matches actual tile output.
+                    val cr = (px shr 16) and 0xFF; val cg = (px shr 8) and 0xFF; val cb = px and 0xFF
+                    val tr = (top shr 16) and 0xFF; val tg = (top shr 8) and 0xFF; val tb = top and 0xFF
+                    val brr = (bottom shr 16) and 0xFF; val bg = (bottom shr 8) and 0xFF; val bb = bottom and 0xFF
+                    val lr = (left shr 16) and 0xFF; val lg = (left shr 8) and 0xFF; val lb = left and 0xFF
+                    val rr = (right shr 16) and 0xFF; val rg = (right shr 8) and 0xFF; val rb = right and 0xFF
                     val dr = SharpnessProcessor.denoiseChannel(cr, tr, brr, lr, rr)
                     val dg = SharpnessProcessor.denoiseChannel(cg, tg, bg, lg, rg)
                     val db = SharpnessProcessor.denoiseChannel(cb, tb, bb, lb, rb)
-
                     r = SharpnessProcessor.sharpenChannel(dr, tr, brr, lr, rr, k)
                     g = SharpnessProcessor.sharpenChannel(dg, tg, bg, lg, rg, k)
                     b = SharpnessProcessor.sharpenChannel(db, tb, bb, lb, rb, k)
                 } else {
+                    // Border pixels (1px edge) are left un-sharpened — negligible visual impact
+                    // on manga pages (usually blank margins) and avoids bounds-check branching
+                    // for every interior pixel.
                     r = (px shr 16) and 0xFF
                     g = (px shr 8) and 0xFF
                     b = px and 0xFF
@@ -94,17 +100,6 @@ class ImageFiltersTransformation(
                         g = clamp255(mean + (g - mean) * factor)
                         b = clamp255(mean + (b - mean) * factor)
                     }
-                }
-
-                // Dither+grain: tiny luma-only signed delta from a precomputed 64×64 table
-                // combining an 8×8 ordered Bayer dither pattern (reduces banding from
-                // float→int rounding above) with light seeded random grain. Same delta
-                // on r/g/b → no chroma speckle. Indexed by in-image position mod 64.
-                val noise = DITHER_GRAIN[((y and 63) shl 6) or (x and 63)]
-                if (noise != 0) {
-                    r = (r + noise).coerceIn(0, 255)
-                    g = (g + noise).coerceIn(0, 255)
-                    b = (b + noise).coerceIn(0, 255)
                 }
 
                 out[idx] = (px and ALPHA_MASK) or (r shl 16) or (g shl 8) or b
@@ -129,48 +124,12 @@ class ImageFiltersTransformation(
     override fun hashCode(): Int = 31 * sharpening.hashCode() + vibrance.hashCode()
 
     companion object {
-        // Single-flight guard: bounds peak memory when prefetching multiple pages.
+        // Single-flight guard: bounds peak memory (each call holds 1-2 extra w*h IntArrays)
+        // when prefetching multiple pages around a settings change. No shared mutable state
+        // to protect anymore (no GL context) — this is purely a memory-pressure limiter for
+        // the 2GB-class hardware this targets.
         private val cpuSemaphore = Semaphore(1)
 
         private const val ALPHA_MASK = 0xFF000000.toInt()
-        private const val DITHER_AMPLITUDE = 3f
-        private const val GRAIN_AMPLITUDE = 5f
-
-        /**
-         * 64×64 precomputed dither+grain table (deterministic seed 0xC0FFEE).
-         * Combines an 8×8 ordered Bayer dither pattern (tiled 8×) with light random grain.
-         * Identical to the table in FilteringRegionDecoder — keep them in sync.
-         */
-        private val DITHER_GRAIN: IntArray = buildDitherGrainTable()
-
-        private fun buildDitherGrainTable(): IntArray {
-            val bayer8 = intArrayOf(
-                 0, 32,  8, 40,  2, 34, 10, 42,
-                48, 16, 56, 24, 50, 18, 58, 26,
-                12, 44,  4, 36, 14, 46,  6, 38,
-                60, 28, 52, 20, 62, 30, 54, 22,
-                 3, 35, 11, 43,  1, 33,  9, 41,
-                51, 19, 59, 27, 49, 17, 57, 25,
-                15, 47,  7, 39, 13, 45,  5, 37,
-                63, 31, 55, 23, 61, 29, 53, 21,
-            )
-            val random = Random(0xC0FFEE)
-            val table = IntArray(64 * 64)
-            for (y in 0 until 64) {
-                for (x in 0 until 64) {
-                    val bayerValue = bayer8[(y % 8) * 8 + (x % 8)]
-                    val ditherBias = (bayerValue / 63f - 0.5f) * DITHER_AMPLITUDE
-                    val grainBias = (random.nextFloat() - 0.5f) * GRAIN_AMPLITUDE
-                    table[y * 64 + x] = (ditherBias + grainBias).let {
-                        when {
-                            it <= -8f -> -8
-                            it >= 8f  ->  8
-                            else      -> Math.round(it)
-                        }
-                    }
-                }
-            }
-            return table
-        }
     }
 }

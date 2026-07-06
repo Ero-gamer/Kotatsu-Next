@@ -192,8 +192,19 @@ abstract class BasePageHolder<B : ViewBinding>(
 	// the normal load pipeline for anything reloadImage() can't fix.
 	override fun onTileLoadError(e: Throwable) {
 		tileLoadErrorCount++
-		if (tileLoadErrorCount == TILE_ERROR_RELOAD_THRESHOLD && viewModel.state.value is PageState.Shown) {
-			reloadImage()
+		when {
+			tileLoadErrorCount == TILE_ERROR_RELOAD_THRESHOLD_SOFT &&
+				viewModel.state.value is PageState.Shown -> {
+				// First attempt: reload SSIV tiles only — keeps the cached bitmap, just
+				// reinstalls the decoder and re-decodes every tile from the same source.
+				reloadImage()
+			}
+			tileLoadErrorCount >= TILE_ERROR_RELOAD_THRESHOLD_HARD &&
+				viewModel.state.value is PageState.Shown -> {
+				// Second attempt: full page retry via PageLoader — forces a fresh download/
+				// decode cycle if the cached file was corrupted or the descriptor invalidated.
+				boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
+			}
 		}
 	}
 
@@ -306,9 +317,10 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	private companion object {
 		private const val PREPARING_STATUS_DELAY_MS = 600L
-		// Fires reloadImage() once per bind after this many onTileLoadError callbacks —
-		// see onTileLoadError() above.
-		private const val TILE_ERROR_RELOAD_THRESHOLD = 1
+		// Soft threshold: triggers ssiv.setImage() tile-only reload (fast path).
+		private const val TILE_ERROR_RELOAD_THRESHOLD_SOFT = 1
+		// Hard threshold: triggers full viewModel.retry() page re-fetch (slow path).
+		private const val TILE_ERROR_RELOAD_THRESHOLD_HARD = 3
 
 		// Single process-wide instance, NOT one per holder/page. limitedParallelism()
 		// creates a bounded "view" over the underlying Dispatchers.Default pool — sharing
