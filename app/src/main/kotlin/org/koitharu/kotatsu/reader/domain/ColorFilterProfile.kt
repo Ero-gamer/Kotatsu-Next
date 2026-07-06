@@ -1,10 +1,6 @@
 package org.koitharu.kotatsu.reader.domain
 
-/**
- * A named, saved [ReaderColorFilter] snapshot.
- * [mangaId] == null means this is a GLOBAL profile (Reader Settings -> Global filter profiles);
- * otherwise it belongs to that one manga's own saved-profiles list.
- */
+/** A named saved snapshot of [ReaderColorFilter]. mangaId == null means global profile. */
 data class ColorFilterProfile(
     val id: Long,
     val mangaId: Long?,
@@ -12,7 +8,6 @@ data class ColorFilterProfile(
     val filter: ReaderColorFilter,
 ) {
     companion object {
-        /** Per-series and global lists are each capped at this many saved profiles. */
         const val MAX_PROFILES_PER_SCOPE = 10
     }
 }

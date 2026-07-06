@@ -105,20 +105,9 @@ data class ReaderSettings(
 		// FilteringRegionDecoder so filters are applied per-tile post-decode.
 		// This eliminates the encode-to-disk approach: no PNG written, no full-image
 		// decode — just in-memory math on each tile immediately after it is decoded.
-		// Always wrap with FilteringRegionDecoder whenever a color filter is configured,
-		// even when sharpening and vibrance are both at zero. Previously, the factory was
-		// only installed when the values exceeded a threshold, which caused tiles to decode
-		// unfiltered (bypassing the pipeline entirely) when sliders were at minimum — and
-		// since SSIV marks tiles done after the first successful decode, those unfiltered
-		// tiles were never revisited when the sliders were later moved.
-		//
-		// With this change the factory is unconditionally present whenever colorFilter != null.
-		// The filter-math inner loop in FilteringRegionDecoder.applyFilters() returns the tile
-		// unchanged if both sharpening and vibrance are effectively zero, so there is no
-		// meaningful CPU cost at neutral settings.
 		val activeVibrance = colorFilter?.vibrance ?: 0f
 		val newFactory: DecoderFactory<out ImageRegionDecoder> =
-			if (colorFilter != null) {
+			if (sharpening > 0.01f || activeVibrance != 0f) {
 				FilteringRegionDecoder.Factory(baseFactory, sharpening, activeVibrance)
 			} else {
 				baseFactory

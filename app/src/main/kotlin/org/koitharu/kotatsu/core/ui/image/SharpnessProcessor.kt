@@ -1,7 +1,5 @@
 package org.koitharu.kotatsu.core.ui.image
 
-import kotlin.math.abs
-
 /**
  * Pure per-channel sharpen math — no bitmap/array handling here, see
  * [ImageFiltersTransformation] for the single combined getPixels/loop/setPixels pass.
@@ -20,31 +18,8 @@ import kotlin.math.abs
  */
 object SharpnessProcessor {
 
-    private const val SHARPEN_SCALAR = 0.5f
-    private const val DENOISE_STRENGTH = 0.6f
-    private const val DENOISE_RANGE_FALLOFF = 0.15f
-
-    /**
-     * Bilateral-lite denoise for one channel. Mirrors [FilteringRegionDecoder]'s
-     * denoiseChannel() exactly — exposed here so [ImageFiltersTransformation] can call
-     * a single shared implementation instead of duplicating the math.
-     */
-    fun denoiseChannel(center: Int, top: Int, bottom: Int, left: Int, right: Int): Int {
-        val wT = 1f / (1f + kotlin.math.abs(center - top) * DENOISE_RANGE_FALLOFF)
-        val wB = 1f / (1f + kotlin.math.abs(center - bottom) * DENOISE_RANGE_FALLOFF)
-        val wL = 1f / (1f + kotlin.math.abs(center - left) * DENOISE_RANGE_FALLOFF)
-        val wR = 1f / (1f + kotlin.math.abs(center - right) * DENOISE_RANGE_FALLOFF)
-        val wSum = 1f + wT + wB + wL + wR
-        val denoised = (center + top * wT + bottom * wB + left * wL + right * wR) / wSum
-        val moved = center + DENOISE_STRENGTH * (denoised - center)
-        return when {
-            moved <= 0f   -> 0
-            moved >= 255f -> 255
-            else          -> (moved + 0.5f).toInt()
-        }
-    }
-
     /** Maps the 0..1 slider to kernel strength k = amount * SHARPEN_SCALAR (0..0.5). */
+    private const val SHARPEN_SCALAR = 0.5f
 
     /** Converts the raw 0..1 slider value into the kernel strength used by [sharpenChannel]. */
     fun kernelStrength(amount: Float): Float = amount.coerceIn(0f, 1f) * SHARPEN_SCALAR

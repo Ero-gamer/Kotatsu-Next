@@ -118,11 +118,6 @@
 		android:key="reader_crop"
 		android:title="@string/crop_pages" />
 
-	<Preference
-		android:key="global_filter_profiles"
-		android:summary="@string/global_filter_profiles_summary"
-		android:title="@string/global_filter_profiles" />
-
 	<SwitchPreferenceCompat
 		android:defaultValue="true"
 		android:key="reader_fullscreen"

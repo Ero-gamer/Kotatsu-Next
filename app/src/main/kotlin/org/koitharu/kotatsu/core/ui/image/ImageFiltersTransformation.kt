@@ -24,7 +24,7 @@ class ImageFiltersTransformation(
     private val vibrance: Float = 0f,
 ) : Transformation() {
 
-    override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v8_cpu"
+    override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v7_cpu"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         val doSharpen = sharpening > 0.01f
@@ -70,19 +70,17 @@ class ImageFiltersTransformation(
                     val bottom = src[idx + w]
                     val left = src[idx - 1]
                     val right = src[idx + 1]
-                    // Mirror FilteringRegionDecoder's bilateral-lite denoise pass so the
-                    // preview image in ColorFilterConfigActivity matches actual tile output.
-                    val cr = (px shr 16) and 0xFF; val cg = (px shr 8) and 0xFF; val cb = px and 0xFF
-                    val tr = (top shr 16) and 0xFF; val tg = (top shr 8) and 0xFF; val tb = top and 0xFF
-                    val brr = (bottom shr 16) and 0xFF; val bg = (bottom shr 8) and 0xFF; val bb = bottom and 0xFF
-                    val lr = (left shr 16) and 0xFF; val lg = (left shr 8) and 0xFF; val lb = left and 0xFF
-                    val rr = (right shr 16) and 0xFF; val rg = (right shr 8) and 0xFF; val rb = right and 0xFF
-                    val dr = SharpnessProcessor.denoiseChannel(cr, tr, brr, lr, rr)
-                    val dg = SharpnessProcessor.denoiseChannel(cg, tg, bg, lg, rg)
-                    val db = SharpnessProcessor.denoiseChannel(cb, tb, bb, lb, rb)
-                    r = SharpnessProcessor.sharpenChannel(dr, tr, brr, lr, rr, k)
-                    g = SharpnessProcessor.sharpenChannel(dg, tg, bg, lg, rg, k)
-                    b = SharpnessProcessor.sharpenChannel(db, tb, bb, lb, rb, k)
+                    r = SharpnessProcessor.sharpenChannel(
+                        (px shr 16) and 0xFF, (top shr 16) and 0xFF, (bottom shr 16) and 0xFF,
+                        (left shr 16) and 0xFF, (right shr 16) and 0xFF, k,
+                    )
+                    g = SharpnessProcessor.sharpenChannel(
+                        (px shr 8) and 0xFF, (top shr 8) and 0xFF, (bottom shr 8) and 0xFF,
+                        (left shr 8) and 0xFF, (right shr 8) and 0xFF, k,
+                    )
+                    b = SharpnessProcessor.sharpenChannel(
+                        px and 0xFF, top and 0xFF, bottom and 0xFF, left and 0xFF, right and 0xFF, k,
+                    )
                 } else {
                     // Border pixels (1px edge) are left un-sharpened — negligible visual impact
                     // on manga pages (usually blank margins) and avoids bounds-check branching

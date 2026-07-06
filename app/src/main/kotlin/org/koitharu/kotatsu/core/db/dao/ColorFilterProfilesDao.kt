@@ -1,7 +1,6 @@
 package org.koitharu.kotatsu.core.db.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
@@ -10,8 +9,6 @@ import org.koitharu.kotatsu.core.db.entity.ColorFilterProfileEntity
 
 @Dao
 abstract class ColorFilterProfilesDao {
-
-    /** [mangaId] == null selects the global list. */
     @Query("SELECT * FROM color_filter_profiles WHERE manga_id IS :mangaId ORDER BY sort_order")
     abstract suspend fun list(mangaId: Long?): List<ColorFilterProfileEntity>
 
@@ -24,16 +21,12 @@ abstract class ColorFilterProfilesDao {
     @Query("SELECT MAX(sort_order) FROM color_filter_profiles WHERE manga_id IS :mangaId")
     abstract suspend fun maxSortOrder(mangaId: Long?): Int?
 
-    @Insert
-    abstract suspend fun insert(entity: ColorFilterProfileEntity): Long
-
-    @Update
-    abstract suspend fun update(entity: ColorFilterProfileEntity)
+    @Insert abstract suspend fun insert(entity: ColorFilterProfileEntity): Long
+    @Update abstract suspend fun update(entity: ColorFilterProfileEntity)
 
     @Query("DELETE FROM color_filter_profiles WHERE id = :id")
     abstract suspend fun delete(id: Long)
 
-    /** Cleanup hook for when a manga is removed from the library entirely. */
     @Query("DELETE FROM color_filter_profiles WHERE manga_id = :mangaId")
     abstract suspend fun deleteAllForManga(mangaId: Long)
 }

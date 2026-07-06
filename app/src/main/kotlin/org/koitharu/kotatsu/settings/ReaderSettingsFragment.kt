@@ -4,17 +4,13 @@ import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
-import androidx.lifecycle.lifecycleScope
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.model.ZoomMode
 import org.koitharu.kotatsu.core.nav.router
-import org.koitharu.kotatsu.core.parser.MangaDataRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.EInkFlashColor
 import org.koitharu.kotatsu.core.prefs.ReaderAnimation
@@ -26,18 +22,14 @@ import org.koitharu.kotatsu.core.util.ext.setDefaultValueCompat
 import org.koitharu.kotatsu.core.util.ext.getQuantityStringSafe
 import org.koitharu.kotatsu.parsers.util.mapToSet
 import org.koitharu.kotatsu.parsers.util.names
-import org.koitharu.kotatsu.reader.ui.colorfilter.ColorFilterProfilesDialog
 import org.koitharu.kotatsu.settings.utils.MultiSummaryProvider
 import org.koitharu.kotatsu.settings.utils.PercentSummaryProvider
 import org.koitharu.kotatsu.settings.utils.SliderPreference
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class ReaderSettingsFragment :
 	BasePreferenceFragment(R.string.reader_settings),
 	SharedPreferences.OnSharedPreferenceChangeListener {
-
-	@Inject lateinit var mangaDataRepository: MangaDataRepository
 
 	override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
 		addPreferencesFromResource(R.xml.pref_reader)
@@ -107,46 +99,7 @@ class ReaderSettingsFragment :
 				true
 			}
 
-			"global_filter_profiles" -> {
-				showGlobalProfilesDialog()
-				true
-			}
-
 			else -> super.onPreferenceTreeClick(preference)
-		}
-	}
-
-	private fun showGlobalProfilesDialog() {
-		lifecycleScope.launch {
-			val profiles = mangaDataRepository.getColorFilterProfiles(mangaId = null)
-			val actions = ColorFilterProfilesDialog.Actions(
-				onApply = { profile ->
-					lifecycleScope.launch(Dispatchers.Default) {
-						mangaDataRepository.applyGlobalColorFilter(profile.filter)
-					}
-				},
-				onRename = { profile, newName ->
-					lifecycleScope.launch(Dispatchers.Default) {
-						mangaDataRepository.renameColorFilterProfile(profile, newName)
-					}
-				},
-				onDelete = { profile ->
-					lifecycleScope.launch(Dispatchers.Default) {
-						mangaDataRepository.deleteColorFilterProfile(profile)
-					}
-				},
-				// No saveNewAction: global profiles are only ever populated via
-				// "copy to global" from a per-manga series — never from here directly,
-				// since there's no "current filter" concept in Reader Settings.
-				saveNewAction = null,
-				confirmApply = true,
-			)
-			ColorFilterProfilesDialog.show(
-				requireContext(),
-				getString(R.string.global_filter_profiles),
-				profiles,
-				actions,
-			)
 		}
 	}
 

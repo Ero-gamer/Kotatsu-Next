@@ -4,9 +4,7 @@ import android.content.Context
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
@@ -23,57 +21,41 @@ object ColorFilterProfilesDialog {
         val confirmApply: Boolean = false,
     )
 
-    fun show(
-        context: Context,
-        title: String,
-        profiles: List<ColorFilterProfile>,
-        actions: Actions,
-    ) {
-        val names = profiles.map { it.name }.toMutableList()
-        val listView = ListView(context)
-        val adapter = ArrayAdapter(context, android.R.layout.simple_list_item_1, names)
-        listView.adapter = adapter
-
-        listView.emptyView = TextView(context).apply {
-            text = context.getString(R.string.no_saved_profiles)
-            setPadding(
-                (24 * context.resources.displayMetrics.density).toInt(), 0,
-                (24 * context.resources.displayMetrics.density).toInt(), 0,
-            )
+    fun show(context: Context, title: String, profiles: List<ColorFilterProfile>, actions: Actions) {
+        if (profiles.isEmpty() && actions.saveNewAction == null) {
+            Toast.makeText(context, R.string.no_saved_profiles, Toast.LENGTH_SHORT).show()
+            return
         }
+        val names = profiles.map { it.name }
+        val listView = ListView(context)
+        listView.adapter = ArrayAdapter(context, android.R.layout.simple_list_item_1, names)
 
         val dialog = MaterialAlertDialogBuilder(context)
             .setTitle(title)
             .setView(listView)
             .setNegativeButton(android.R.string.cancel, null)
-            .also { builder ->
-                actions.saveNewAction?.let { (label, _) -> builder.setNeutralButton(label, null) }
-                actions.extraAction?.let { (label, _) -> builder.setPositiveButton(label, null) }
+            .also { b ->
+                actions.saveNewAction?.let { b.setNeutralButton(it.first, null) }
+                actions.extraAction?.let   { b.setPositiveButton(it.first, null) }
             }
             .create()
 
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val profile = profiles[position]
+        listView.setOnItemClickListener { _, _, pos, _ ->
+            val p = profiles[pos]
             if (actions.confirmApply) {
                 MaterialAlertDialogBuilder(context)
                     .setTitle(R.string.apply)
-                    .setMessage(context.getString(R.string.apply_profile_confirm, profile.name))
-                    .setPositiveButton(R.string.apply) { _, _ -> actions.onApply(profile); dialog.dismiss() }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show()
-            } else {
-                actions.onApply(profile)
-                dialog.dismiss()
-            }
+                    .setMessage(context.getString(R.string.apply_profile_confirm, p.name))
+                    .setPositiveButton(R.string.apply) { _, _ -> actions.onApply(p); dialog.dismiss() }
+                    .setNegativeButton(android.R.string.cancel, null).show()
+            } else { actions.onApply(p); dialog.dismiss() }
         }
-        listView.setOnItemLongClickListener { _, _, position, _ ->
-            showActionMenu(context, profiles[position], actions, dialog)
-            true
+        listView.setOnItemLongClickListener { _, _, pos, _ ->
+            showMenu(context, profiles[pos], actions, dialog); true
         }
-
         dialog.setOnShowListener {
             actions.saveNewAction?.let { (_, save) ->
-                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
                     promptName(context, null) { name ->
                         save(name) { ok ->
                             if (ok) dialog.dismiss()
@@ -83,52 +65,34 @@ object ColorFilterProfilesDialog {
                 }
             }
             actions.extraAction?.let { (_, run) ->
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                    run()
-                    dialog.dismiss()
-                }
+                dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener { run(); dialog.dismiss() }
             }
         }
         dialog.show()
     }
 
-    private fun showActionMenu(context: Context, profile: ColorFilterProfile, actions: Actions, parent: AlertDialog) {
+    private fun showMenu(context: Context, profile: ColorFilterProfile, actions: Actions, parent: android.app.AlertDialog) {
         val items = buildList {
             add(context.getString(R.string.rename))
             add(context.getString(R.string.delete))
-            actions.copyAction?.let { (label, _) -> add(label) }
+            actions.copyAction?.let { add(it.first) }
         }
-        MaterialAlertDialogBuilder(context)
-            .setTitle(profile.name)
+        MaterialAlertDialogBuilder(context).setTitle(profile.name)
             .setItems(items.toTypedArray()) { _, which ->
-                when (items[which]) {
-                    context.getString(R.string.rename) -> promptName(context, profile.name) { newName ->
-                        actions.onRename(profile, newName)
-                        parent.dismiss()
-                    }
-                    context.getString(R.string.delete) -> {
-                        actions.onDelete(profile)
-                        parent.dismiss()
-                    }
-                    else -> {
-                        actions.copyAction?.second?.invoke(profile)
-                        parent.dismiss()
-                    }
+                when (which) {
+                    0 -> promptName(context, profile.name) { n -> actions.onRename(profile, n); parent.dismiss() }
+                    1 -> { actions.onDelete(profile); parent.dismiss() }
+                    else -> { actions.copyAction?.second?.invoke(profile); parent.dismiss() }
                 }
-            }
-            .show()
+            }.show()
     }
 
     private fun promptName(context: Context, prefill: String?, onName: (String) -> Unit) {
-        val editText = EditText(context).apply { prefill?.let { setText(it) } }
-        MaterialAlertDialogBuilder(context)
-            .setTitle(R.string.set_value)
-            .setView(editText)
+        val edit = EditText(context).apply { prefill?.let { setText(it) } }
+        MaterialAlertDialogBuilder(context).setTitle(R.string.set_value).setView(edit)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                val name = editText.text.toString().trim()
-                if (name.isNotEmpty()) onName(name)
+                edit.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onName)
             }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+            .setNegativeButton(android.R.string.cancel, null).show()
     }
 }

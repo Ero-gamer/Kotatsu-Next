@@ -12,7 +12,6 @@ import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.db.TABLE_FAVOURITES
 import org.koitharu.kotatsu.core.db.TABLE_FAVOURITE_CATEGORIES
 import org.koitharu.kotatsu.core.db.TABLE_PREFERENCES
-import org.koitharu.kotatsu.core.db.entity.ColorFilterProfileEntity
 import org.koitharu.kotatsu.core.db.entity.ContentRating
 import org.koitharu.kotatsu.core.db.entity.MangaPrefsEntity
 import org.koitharu.kotatsu.core.db.entity.toEntities
@@ -31,7 +30,6 @@ import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.model.MangaTag
 import org.koitharu.kotatsu.parsers.util.nullIfEmpty
-import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 import javax.inject.Inject
 import javax.inject.Provider
@@ -73,122 +71,6 @@ class MangaDataRepository @Inject constructor(
 	suspend fun resetColorFilters() {
 		db.getPreferencesDao().resetColorFilters()
 	}
-
-	// ── Lock (immune to global filter changes) ──────────────────────────────
-
-	suspend fun isColorFilterLocked(mangaId: Long): Boolean =
-		db.getPreferencesDao().isLocked(mangaId) == true
-
-	suspend fun setColorFilterLocked(manga: Manga, locked: Boolean) {
-		db.withTransaction {
-			storeManga(manga, replaceExisting = false)
-			val entity = db.getPreferencesDao().find(manga.id) ?: newEntity(manga.id)
-			db.getPreferencesDao().upsert(entity.copy(isLocked = locked))
-		}
-	}
-
-	// ── Saved color filter profiles (per-manga list when mangaId != null, global list when null) ──
-
-	fun observeColorFilterProfiles(mangaId: Long?): Flow<List<ColorFilterProfile>> {
-		return db.getColorFilterProfilesDao().observe(mangaId).map { list -> list.map { it.toColorFilterProfile() } }
-	}
-
-	suspend fun getColorFilterProfiles(mangaId: Long?): List<ColorFilterProfile> {
-		return db.getColorFilterProfilesDao().list(mangaId).map { it.toColorFilterProfile() }
-	}
-
-	/**
-	 * Saves [filter] as a new profile named [name] in [mangaId]'s list (or the global list if
-	 * null). Returns null if the scope is already at [ColorFilterProfile.MAX_PROFILES_PER_SCOPE].
-	 */
-	suspend fun saveColorFilterProfile(mangaId: Long?, name: String, filter: ReaderColorFilter): ColorFilterProfile? {
-		val dao = db.getColorFilterProfilesDao()
-		if (dao.count(mangaId) >= ColorFilterProfile.MAX_PROFILES_PER_SCOPE) return null
-		val order = (dao.maxSortOrder(mangaId) ?: -1) + 1
-		val entity = ColorFilterProfileEntity(
-			id = 0,
-			mangaId = mangaId,
-			name = name,
-			sortOrder = order,
-			cfBrightness = filter.brightness,
-			cfContrast = filter.contrast,
-			cfSharpening = filter.sharpening,
-			cfSaturation = filter.saturation,
-			cfVibrance = filter.vibrance,
-			cfInvert = filter.isInverted,
-			cfGrayscale = filter.isGrayscale,
-			cfBookEffect = filter.isBookBackground,
-		)
-		val id = dao.insert(entity)
-		return entity.copy(id = id).toColorFilterProfile()
-	}
-
-	suspend fun renameColorFilterProfile(profile: ColorFilterProfile, newName: String) {
-		val dao = db.getColorFilterProfilesDao()
-		val current = dao.list(profile.mangaId).find { it.id == profile.id } ?: return
-		dao.update(current.copy(name = newName))
-	}
-
-	/** Overwrites the saved profile's values with [filter] (name unchanged). */
-	suspend fun overwriteColorFilterProfile(profile: ColorFilterProfile, filter: ReaderColorFilter) {
-		val dao = db.getColorFilterProfilesDao()
-		val current = dao.list(profile.mangaId).find { it.id == profile.id } ?: return
-		dao.update(
-			current.copy(
-				cfBrightness = filter.brightness,
-				cfContrast = filter.contrast,
-				cfSharpening = filter.sharpening,
-				cfSaturation = filter.saturation,
-				cfVibrance = filter.vibrance,
-				cfInvert = filter.isInverted,
-				cfGrayscale = filter.isGrayscale,
-				cfBookEffect = filter.isBookBackground,
-			),
-		)
-	}
-
-	suspend fun deleteColorFilterProfile(profile: ColorFilterProfile) {
-		db.getColorFilterProfilesDao().delete(profile.id)
-	}
-
-	/**
-	 * Copies [profile] into [targetMangaId]'s list (null = global list) as a new profile —
-	 * covers both "push this series' profile to global" and "import a global profile into
-	 * this series" (also usable series-to-series). Returns null if the target scope is full.
-	 */
-	suspend fun copyColorFilterProfile(profile: ColorFilterProfile, targetMangaId: Long?): ColorFilterProfile? {
-		return saveColorFilterProfile(targetMangaId, profile.name, profile.filter)
-	}
-
-	/** Sets the app-wide default filter and overwrites every NON-LOCKED manga's own override with it. */
-	suspend fun applyGlobalColorFilter(filter: ReaderColorFilter) {
-		db.getPreferencesDao().applyToAllUnlocked(
-			brightness = filter.brightness,
-			contrast = filter.contrast,
-			sharpening = filter.sharpening,
-			saturation = filter.saturation,
-			vibrance = filter.vibrance,
-			invert = filter.isInverted,
-			grayscale = filter.isGrayscale,
-			book = filter.isBookBackground,
-		)
-	}
-
-	private fun ColorFilterProfileEntity.toColorFilterProfile() = ColorFilterProfile(
-		id = id,
-		mangaId = mangaId,
-		name = name,
-		filter = ReaderColorFilter(
-			brightness = cfBrightness,
-			contrast = cfContrast,
-			sharpening = cfSharpening,
-			saturation = cfSaturation,
-			vibrance = cfVibrance,
-			isInverted = cfInvert,
-			isGrayscale = cfGrayscale,
-			isBookBackground = cfBookEffect,
-		),
-	)
 
 	suspend fun getReaderMode(mangaId: Long): ReaderMode? {
 		return db.getPreferencesDao().find(mangaId)?.let { ReaderMode.valueOf(it.mode) }
@@ -371,7 +253,6 @@ class MangaDataRepository @Inject constructor(
 		cfInvert = ReaderColorFilter.EMPTY.isInverted,
 		cfGrayscale = ReaderColorFilter.EMPTY.isGrayscale,
 		cfBookEffect = ReaderColorFilter.EMPTY.isBookBackground,
-		isLocked = false,
 		titleOverride = null,
 		coverUrlOverride = null,
 		contentRatingOverride = null,
