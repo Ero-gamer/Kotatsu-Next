@@ -5,6 +5,7 @@ import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
@@ -23,7 +24,7 @@ object ColorFilterProfilesDialog {
 
     fun show(context: Context, title: String, profiles: List<ColorFilterProfile>, actions: Actions) {
         if (profiles.isEmpty() && actions.saveNewAction == null) {
-            Toast.makeText(context, R.string.no_saved_profiles, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.no_saved_profiles), Toast.LENGTH_SHORT).show()
             return
         }
         val names = profiles.map { it.name }
@@ -48,36 +49,44 @@ object ColorFilterProfilesDialog {
                     .setMessage(context.getString(R.string.apply_profile_confirm, p.name))
                     .setPositiveButton(R.string.apply) { _, _ -> actions.onApply(p); dialog.dismiss() }
                     .setNegativeButton(android.R.string.cancel, null).show()
-            } else { actions.onApply(p); dialog.dismiss() }
+            } else {
+                actions.onApply(p)
+                dialog.dismiss()
+            }
         }
         listView.setOnItemLongClickListener { _, _, pos, _ ->
-            showMenu(context, profiles[pos], actions, dialog); true
+            showMenu(context, profiles[pos], actions, dialog)
+            true
         }
         dialog.setOnShowListener {
             actions.saveNewAction?.let { (_, save) ->
-                dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
                     promptName(context, null) { name ->
                         save(name) { ok ->
                             if (ok) dialog.dismiss()
-                            else Toast.makeText(context, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show()
+                            else Toast.makeText(context, context.getString(R.string.profiles_limit_reached), Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
             }
             actions.extraAction?.let { (_, run) ->
-                dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener { run(); dialog.dismiss() }
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    run()
+                    dialog.dismiss()
+                }
             }
         }
         dialog.show()
     }
 
-    private fun showMenu(context: Context, profile: ColorFilterProfile, actions: Actions, parent: android.app.AlertDialog) {
+    private fun showMenu(context: Context, profile: ColorFilterProfile, actions: Actions, parent: AlertDialog) {
         val items = buildList {
             add(context.getString(R.string.rename))
             add(context.getString(R.string.delete))
             actions.copyAction?.let { add(it.first) }
         }
-        MaterialAlertDialogBuilder(context).setTitle(profile.name)
+        MaterialAlertDialogBuilder(context)
+            .setTitle(profile.name)
             .setItems(items.toTypedArray()) { _, which ->
                 when (which) {
                     0 -> promptName(context, profile.name) { n -> actions.onRename(profile, n); parent.dismiss() }
@@ -89,10 +98,13 @@ object ColorFilterProfilesDialog {
 
     private fun promptName(context: Context, prefill: String?, onName: (String) -> Unit) {
         val edit = EditText(context).apply { prefill?.let { setText(it) } }
-        MaterialAlertDialogBuilder(context).setTitle(R.string.set_value).setView(edit)
+        MaterialAlertDialogBuilder(context)
+            .setTitle(context.getString(R.string.set_value))
+            .setView(edit)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 edit.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onName)
             }
-            .setNegativeButton(android.R.string.cancel, null).show()
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 }
