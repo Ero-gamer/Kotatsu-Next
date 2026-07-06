@@ -70,10 +70,7 @@ object ColorFilterProfilesDialog {
                 }
             }
             actions.extraAction?.let { (_, run) ->
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                    run()
-                    dialog.dismiss()
-                }
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { run(); dialog.dismiss() }
             }
         }
         dialog.show()
