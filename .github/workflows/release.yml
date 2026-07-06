@@ -38,7 +38,7 @@ jobs:
             --no-daemon --stacktrace
 
       - name: Upload APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: Kotatsu-Next-release
           path: app/build/outputs/apk/release/*.apk
