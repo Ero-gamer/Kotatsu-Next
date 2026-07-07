@@ -62,9 +62,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 		get() = viewModel.settingsProducer.value
 
 	private var preparingStatusRunnable: Runnable? = null
-
-// Add here:
-    private var lastColorFilter: Any? = UNSET_SENTINEL
+	private var lastColorFilter: Any? = UNSET_SENTINEL
+	private var tileLoadErrorCount = 0
 
 	val context
 		get() = itemView.context
@@ -130,6 +129,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	fun bind(data: ReaderPage) {
 		boundData = data
+		tileLoadErrorCount = 0
 		ssiv.isVisible = true
 		animatedView?.isVisible = false
 		animatedView?.disposeImage()
@@ -177,6 +177,16 @@ abstract class BasePageHolder<B : ViewBinding>(
 		ssiv.recycle()
 		animatedView?.disposeImage()
 		lastColorFilter = UNSET_SENTINEL
+		tileLoadErrorCount = 0
+	}
+
+	override fun onTileLoadError(e: Throwable) {
+		tileLoadErrorCount++
+		when {
+			tileLoadErrorCount == TILE_ERROR_SOFT && viewModel.state.value is PageState.Shown -> reloadImage()
+			tileLoadErrorCount >= TILE_ERROR_HARD && viewModel.state.value is PageState.Shown ->
+				boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
+		}
 	}
 
 	override fun onTrimMemory(level: Int) {
@@ -288,6 +298,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 
 	private companion object {
 		private const val PREPARING_STATUS_DELAY_MS = 600L
+		private const val TILE_ERROR_SOFT = 1
+		private const val TILE_ERROR_HARD = 3
 
 		// Single process-wide instance, NOT one per holder/page. limitedParallelism()
 		// creates a bounded "view" over the underlying Dispatchers.Default pool — sharing

@@ -30,6 +30,10 @@ import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.model.MangaTag
 import org.koitharu.kotatsu.parsers.util.nullIfEmpty
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import org.koitharu.kotatsu.core.db.entity.ColorFilterProfileEntity
+import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 import javax.inject.Inject
 import javax.inject.Provider
@@ -60,6 +64,9 @@ class MangaDataRepository @Inject constructor(
 					cfSharpening = colorFilter?.sharpening ?: 0f,
 					cfSaturation = colorFilter?.saturation ?: 0f,
 					cfVibrance = colorFilter?.vibrance ?: 0f,
+					cfDenoise = colorFilter?.denoise ?: 0f,
+					cfDither = colorFilter?.dither ?: 0f,
+					cfGrain = colorFilter?.grain ?: 0f,
 					cfInvert = colorFilter?.isInverted == true,
 					cfGrayscale = colorFilter?.isGrayscale == true,
 					cfBookEffect = colorFilter?.isBookBackground == true,
@@ -71,6 +78,62 @@ class MangaDataRepository @Inject constructor(
 	suspend fun resetColorFilters() {
 		db.getPreferencesDao().resetColorFilters()
 	}
+
+	suspend fun isColorFilterLocked(mangaId: Long): Boolean =
+		db.getPreferencesDao().isLocked(mangaId) == true
+
+	suspend fun setColorFilterLocked(manga: Manga, locked: Boolean) {
+		db.withTransaction {
+			storeManga(manga, replaceExisting = false)
+			val entity = db.getPreferencesDao().find(manga.id) ?: newEntity(manga.id)
+			db.getPreferencesDao().upsert(entity.copy(isLocked = locked))
+		}
+	}
+
+	suspend fun getColorFilterProfiles(mangaId: Long?): List<ColorFilterProfile> =
+		db.getColorFilterProfilesDao().list(mangaId).map(::entityToProfile)
+
+	suspend fun saveColorFilterProfile(mangaId: Long?, name: String, filter: ReaderColorFilter): ColorFilterProfile? {
+		val dao = db.getColorFilterProfilesDao()
+		if (dao.count(mangaId) >= ColorFilterProfile.MAX_PROFILES_PER_SCOPE) return null
+		val order = (dao.maxSortOrder(mangaId) ?: -1) + 1
+		val entity = ColorFilterProfileEntity(0, mangaId, name, order,
+			filter.brightness, filter.contrast, filter.sharpening, filter.saturation,
+			filter.vibrance, filter.denoise, filter.dither, filter.grain,
+			filter.isInverted, filter.isGrayscale, filter.isBookBackground)
+		return entityToProfile(entity.copy(id = dao.insert(entity)))
+	}
+
+	suspend fun renameColorFilterProfile(profile: ColorFilterProfile, name: String) {
+		val dao = db.getColorFilterProfilesDao()
+		dao.list(profile.mangaId).find { it.id == profile.id }?.let { dao.update(it.copy(name = name)) }
+	}
+
+	suspend fun overwriteColorFilterProfile(profile: ColorFilterProfile, filter: ReaderColorFilter) {
+		val dao = db.getColorFilterProfilesDao()
+		dao.list(profile.mangaId).find { it.id == profile.id }?.let {
+			dao.update(it.copy(cfBrightness=filter.brightness, cfContrast=filter.contrast,
+				cfSharpening=filter.sharpening, cfSaturation=filter.saturation, cfVibrance=filter.vibrance,
+				cfDenoise=filter.denoise, cfDither=filter.dither, cfGrain=filter.grain,
+				cfInvert=filter.isInverted, cfGrayscale=filter.isGrayscale, cfBookEffect=filter.isBookBackground))
+		}
+	}
+
+	suspend fun deleteColorFilterProfile(profile: ColorFilterProfile) =
+		db.getColorFilterProfilesDao().delete(profile.id)
+
+	suspend fun copyColorFilterProfile(profile: ColorFilterProfile, targetMangaId: Long?): ColorFilterProfile? =
+		saveColorFilterProfile(targetMangaId, profile.name, profile.filter)
+
+	suspend fun applyGlobalColorFilter(filter: ReaderColorFilter) {
+		db.getPreferencesDao().applyToAllUnlocked(filter.brightness, filter.contrast, filter.sharpening,
+			filter.saturation, filter.vibrance, filter.denoise, filter.dither, filter.grain,
+			filter.isInverted, filter.isGrayscale, filter.isBookBackground)
+	}
+
+	private fun entityToProfile(e: ColorFilterProfileEntity) = ColorFilterProfile(e.id, e.mangaId, e.name,
+		ReaderColorFilter(e.cfBrightness, e.cfContrast, e.cfSharpening, e.cfSaturation, e.cfVibrance,
+			e.cfDenoise, e.cfDither, e.cfGrain, e.cfInvert, e.cfGrayscale, e.cfBookEffect))
 
 	suspend fun getReaderMode(mangaId: Long): ReaderMode? {
 		return db.getPreferencesDao().find(mangaId)?.let { ReaderMode.valueOf(it.mode) }
@@ -213,7 +276,7 @@ class MangaDataRepository @Inject constructor(
 
 	private fun MangaPrefsEntity.getColorFilterOrNull(): ReaderColorFilter? {
 		return if (cfBrightness != 0f || cfContrast != 0f || cfSharpening != 0f ||
-			cfSaturation != 0f || cfVibrance != 0f || cfInvert || cfGrayscale || cfBookEffect
+			cfSaturation != 0f || cfVibrance != 0f || cfDenoise != 0f || cfDither != 0f || cfGrain != 0f || cfInvert || cfGrayscale || cfBookEffect
 		) {
 			ReaderColorFilter(
 				brightness = cfBrightness,
@@ -221,6 +284,9 @@ class MangaDataRepository @Inject constructor(
 				sharpening = cfSharpening,
 				saturation = cfSaturation,
 				vibrance = cfVibrance,
+				denoise = cfDenoise,
+				dither = cfDither,
+				grain = cfGrain,
 				isInverted = cfInvert,
 				isGrayscale = cfGrayscale,
 				isBookBackground = cfBookEffect,
@@ -249,8 +315,12 @@ class MangaDataRepository @Inject constructor(
 		cfContrast = ReaderColorFilter.EMPTY.contrast,
 		cfSharpening = ReaderColorFilter.EMPTY.sharpening,
 		cfSaturation = ReaderColorFilter.EMPTY.saturation,
-			cfVibrance = ReaderColorFilter.EMPTY.vibrance,
+		cfVibrance = ReaderColorFilter.EMPTY.vibrance,
+		cfDenoise = ReaderColorFilter.EMPTY.denoise,
+		cfDither = ReaderColorFilter.EMPTY.dither,
+		cfGrain = ReaderColorFilter.EMPTY.grain,
 		cfInvert = ReaderColorFilter.EMPTY.isInverted,
+		isLocked = false,
 		cfGrayscale = ReaderColorFilter.EMPTY.isGrayscale,
 		cfBookEffect = ReaderColorFilter.EMPTY.isBookBackground,
 		titleOverride = null,

@@ -106,9 +106,12 @@ data class ReaderSettings(
 		// This eliminates the encode-to-disk approach: no PNG written, no full-image
 		// decode — just in-memory math on each tile immediately after it is decoded.
 		val activeVibrance = colorFilter?.vibrance ?: 0f
+		val activeDenoise  = colorFilter?.denoise  ?: 0f
+		val activeDither   = colorFilter?.dither   ?: 0f
+		val activeGrain    = colorFilter?.grain    ?: 0f
 		val newFactory: DecoderFactory<out ImageRegionDecoder> =
-			if (sharpening > 0.01f || activeVibrance != 0f) {
-				FilteringRegionDecoder.Factory(baseFactory, sharpening, activeVibrance)
+			if (colorFilter != null) {
+				FilteringRegionDecoder.Factory(baseFactory, sharpening, activeVibrance, activeDenoise, activeDither, activeGrain)
 			} else {
 				baseFactory
 			}
@@ -121,7 +124,8 @@ data class ReaderSettings(
 		val filterChanged  = !filterToggled &&
 			current is FilteringRegionDecoder.Factory &&
 			newFactory is FilteringRegionDecoder.Factory &&
-			(current.sharpening != newFactory.sharpening || current.vibrance != newFactory.vibrance)
+			(current.sharpening != newFactory.sharpening || current.vibrance != newFactory.vibrance ||
+			current.denoise != newFactory.denoise || current.dither != newFactory.dither || current.grain != newFactory.grain)
 
 		return if (configChanged || filterToggled || filterChanged) {
 			ssiv.regionDecoderFactory = newFactory

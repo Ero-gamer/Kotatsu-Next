@@ -4,8 +4,9 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import org.koitharu.kotatsu.core.db.TABLE_COLOR_FILTER_PROFILES
 
-@Entity(tableName = "color_filter_profiles", indices = [Index("manga_id")])
+@Entity(tableName = TABLE_COLOR_FILTER_PROFILES, indices = [Index("manga_id")])
 data class ColorFilterProfileEntity(
     @PrimaryKey(autoGenerate = true) @ColumnInfo(name = "id") val id: Long,
     @ColumnInfo(name = "manga_id") val mangaId: Long?,

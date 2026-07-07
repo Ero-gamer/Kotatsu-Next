@@ -22,19 +22,25 @@ import kotlinx.coroutines.sync.withPermit
 class ImageFiltersTransformation(
     private val sharpening: Float,
     private val vibrance: Float = 0f,
+    private val denoise: Float = 0f,
+    private val dither: Float = 0f,
+    private val grain: Float = 0f,
 ) : Transformation() {
 
-    override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v7_cpu"
+    override val cacheKey: String =
+        "img_filters_s\${sharpening}_v\${vibrance}_dn\${denoise}_dt\${dither}_gr\${grain}_v8_cpu"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
-        val doSharpen = sharpening > 0.01f
+        val doSharpen  = sharpening > 0.01f
         val doVibrance = vibrance != 0f
-        if (!doSharpen && !doVibrance) return input
-
-        return cpuSemaphore.withPermit { process(input, doSharpen, doVibrance) }
+        val doDenoise  = denoise > 0.01f && doSharpen
+        val doDither   = dither > 0.01f
+        val doGrain    = grain > 0.01f
+        if (!doSharpen && !doVibrance && !doDither && !doGrain) return input
+        return cpuSemaphore.withPermit { process(input, doSharpen, doVibrance, doDenoise, doDither, doGrain) }
     }
 
-    private fun process(input: Bitmap, doSharpen: Boolean, doVibrance: Boolean): Bitmap {
+    private fun process(input: Bitmap, doSharpen: Boolean, doVibrance: Boolean, doDenoise: Boolean, doDither: Boolean, doGrain: Boolean): Bitmap {
         val w = input.width
         val h = input.height
         if (w <= 0 || h <= 0) return input
@@ -47,6 +53,7 @@ class ImageFiltersTransformation(
 
         val k = if (doSharpen) SharpnessProcessor.kernelStrength(sharpening) else 0f
         val v = vibrance
+        val dgTable = if (doDither || doGrain) buildDitherGrainTable(dither, grain) else null
 
         // Sharpening reads neighbours from `src` while writing elsewhere, so the read and
         // write buffers must differ — sharing one would corrupt not-yet-processed neighbours.
@@ -66,28 +73,20 @@ class ImageFiltersTransformation(
                 var b: Int
 
                 if (doSharpen && x > 0 && x < w - 1 && hasRowAbove && hasRowBelow) {
-                    val top = src[idx - w]
-                    val bottom = src[idx + w]
-                    val left = src[idx - 1]
-                    val right = src[idx + 1]
-                    r = SharpnessProcessor.sharpenChannel(
-                        (px shr 16) and 0xFF, (top shr 16) and 0xFF, (bottom shr 16) and 0xFF,
-                        (left shr 16) and 0xFF, (right shr 16) and 0xFF, k,
-                    )
-                    g = SharpnessProcessor.sharpenChannel(
-                        (px shr 8) and 0xFF, (top shr 8) and 0xFF, (bottom shr 8) and 0xFF,
-                        (left shr 8) and 0xFF, (right shr 8) and 0xFF, k,
-                    )
-                    b = SharpnessProcessor.sharpenChannel(
-                        px and 0xFF, top and 0xFF, bottom and 0xFF, left and 0xFF, right and 0xFF, k,
-                    )
+                    val top=src[idx-w]; val bottom=src[idx+w]; val left=src[idx-1]; val right=src[idx+1]
+                    val cr=(px shr 16)and 0xFF; val cg=(px shr 8)and 0xFF; val cb=px and 0xFF
+                    val tr=(top shr 16)and 0xFF;   val tg=(top shr 8)and 0xFF;   val tb=top and 0xFF
+                    val brr=(bottom shr 16)and 0xFF;val brg=(bottom shr 8)and 0xFF;val brb=bottom and 0xFF
+                    val lr=(left shr 16)and 0xFF;  val lg=(left shr 8)and 0xFF;  val lb=left and 0xFF
+                    val rr=(right shr 16)and 0xFF; val rg=(right shr 8)and 0xFF; val rb=right and 0xFF
+                    val dr=if(doDenoise) SharpnessProcessor.denoiseChannel(cr,tr,brr,lr,rr) else cr
+                    val dg=if(doDenoise) SharpnessProcessor.denoiseChannel(cg,tg,brg,lg,rg) else cg
+                    val db=if(doDenoise) SharpnessProcessor.denoiseChannel(cb,tb,brb,lb,rb) else cb
+                    r=SharpnessProcessor.sharpenChannel(dr,tr,brr,lr,rr,k)
+                    g=SharpnessProcessor.sharpenChannel(dg,tg,brg,lg,rg,k)
+                    b=SharpnessProcessor.sharpenChannel(db,tb,brb,lb,rb,k)
                 } else {
-                    // Border pixels (1px edge) are left un-sharpened — negligible visual impact
-                    // on manga pages (usually blank margins) and avoids bounds-check branching
-                    // for every interior pixel.
-                    r = (px shr 16) and 0xFF
-                    g = (px shr 8) and 0xFF
-                    b = px and 0xFF
+                    r=(px shr 16)and 0xFF; g=(px shr 8)and 0xFF; b=px and 0xFF
                 }
 
                 if (doVibrance) {
@@ -100,6 +99,7 @@ class ImageFiltersTransformation(
                     }
                 }
 
+                if (dgTable!=null){val n=dgTable[((y and 63) shl 6)or(x and 63)];if(n!=0){r=(r+n).coerceIn(0,255);g=(g+n).coerceIn(0,255);b=(b+n).coerceIn(0,255)}}
                 out[idx] = (px and ALPHA_MASK) or (r shl 16) or (g shl 8) or b
             }
         }
@@ -116,10 +116,10 @@ class ImageFiltersTransformation(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        return other is ImageFiltersTransformation && sharpening == other.sharpening && vibrance == other.vibrance
+        return other is ImageFiltersTransformation && sharpening==other.sharpening && vibrance==other.vibrance &&
+            denoise==other.denoise && dither==other.dither && grain==other.grain
     }
-
-    override fun hashCode(): Int = 31 * sharpening.hashCode() + vibrance.hashCode()
+    override fun hashCode(): Int = listOf(sharpening,vibrance,denoise,dither,grain).fold(0){h,v->31*h+v.hashCode()}
 
     companion object {
         // Single-flight guard: bounds peak memory (each call holds 1-2 extra w*h IntArrays)
@@ -129,5 +129,15 @@ class ImageFiltersTransformation(
         private val cpuSemaphore = Semaphore(1)
 
         private const val ALPHA_MASK = 0xFF000000.toInt()
+
+        private fun buildDitherGrainTable(ditherAmp: Float, grainAmp: Float): IntArray {
+            val bayer8 = intArrayOf(0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21)
+            val rand = java.util.Random(0xC0FFEEL)
+            val dMax = ditherAmp * 3f; val gMax = grainAmp * 5f
+            return IntArray(64*64){i->
+                val x=i and 63; val y=i shr 6
+                ((bayer8[(y%8)*8+(x%8)]/63f-0.5f)*dMax+(rand.nextFloat()-0.5f)*gMax).toInt().coerceIn(-8,8)
+            }
+        }
     }
 }
