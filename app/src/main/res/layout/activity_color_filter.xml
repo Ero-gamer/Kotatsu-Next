@@ -262,13 +262,7 @@
 
 			<!-- Book effect -->
 			<com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/switch_book" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="@dimen/margin_normal" android:text="@string/book_effect" android:textAppearance="?textAppearanceTitleMedium" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/slider_grain" />
-
-			<!-- Lock filter -->
-			<com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/switch_lock" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="@string/lock_filter" android:textAppearance="?textAppearanceTitleMedium" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/switch_book" />
-
-			<!-- Profiles + Reset -->
-			<Button android:id="@+id/button_profiles" style="?materialButtonOutlinedStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/profiles" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/switch_lock" />
-			<Button android:id="@+id/button_reset" style="?materialButtonOutlinedStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/reset" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toBottomOf="@id/switch_lock" />
+			<Button android:id="@+id/button_reset" style="?materialButtonOutlinedStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/reset" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toBottomOf="@id/switch_book" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

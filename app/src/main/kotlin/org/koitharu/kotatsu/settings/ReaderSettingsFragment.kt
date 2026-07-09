@@ -9,11 +9,7 @@ import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import org.koitharu.kotatsu.R
-import org.koitharu.kotatsu.core.parser.MangaDataRepository
-import org.koitharu.kotatsu.reader.ui.colorfilter.ColorFilterProfilesDialog
 import org.koitharu.kotatsu.core.model.ZoomMode
 import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.prefs.AppSettings
@@ -35,8 +31,6 @@ import org.koitharu.kotatsu.settings.utils.SliderPreference
 class ReaderSettingsFragment :
 	BasePreferenceFragment(R.string.reader_settings),
 	SharedPreferences.OnSharedPreferenceChangeListener {
-
-	@Inject lateinit var mangaDataRepository: MangaDataRepository
 
 	override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
 		addPreferencesFromResource(R.xml.pref_reader)
@@ -103,23 +97,6 @@ class ReaderSettingsFragment :
 		return when (preference.key) {
 			AppSettings.KEY_READER_TAP_ACTIONS -> {
 				router.openReaderTapGridSettings()
-				true
-			}
-
-			"global_filter_profiles" -> {
-				lifecycleScope.launch {
-					val profiles = mangaDataRepository.getColorFilterProfiles(null)
-					ColorFilterProfilesDialog.show(
-						requireContext(), getString(R.string.global_filter_profiles), profiles,
-						ColorFilterProfilesDialog.Actions(
-							onApply  = { p -> lifecycleScope.launch { mangaDataRepository.applyGlobalColorFilter(p.filter) } },
-							onRename = { p, n -> lifecycleScope.launch { mangaDataRepository.renameColorFilterProfile(p, n) } },
-							onDelete = { p -> lifecycleScope.launch { mangaDataRepository.deleteColorFilterProfile(p) } },
-							saveNewAction = getString(R.string.save_as_profile) to { name: String, cb: (Boolean)->Unit -> lifecycleScope.launch { val ok = mangaDataRepository.saveColorFilterProfile(null, name, org.koitharu.kotatsu.reader.domain.ReaderColorFilter.EMPTY); cb(ok != null) } },
-							confirmApply = true,
-						),
-					)
-				}
 				true
 			}
 

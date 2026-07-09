@@ -106,12 +106,6 @@
 		android:title="@string/enhanced_colors"
 		app:allowDividerAbove="true" />
 
-	<Preference
-		android:key="global_filter_profiles"
-		android:persistent="false"
-		android:summary="@string/global_filter_profiles_summary"
-		android:title="@string/global_filter_profiles" />
-
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
 		android:key="reader_optimize"

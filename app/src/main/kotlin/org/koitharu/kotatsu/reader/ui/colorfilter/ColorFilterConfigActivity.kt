@@ -5,10 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
 import android.widget.CompoundButton
-import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -38,7 +35,6 @@ import org.koitharu.kotatsu.core.util.progress.ImageRequestIndicatorListener
 import org.koitharu.kotatsu.databinding.ActivityColorFilterBinding
 import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.util.format
-import org.koitharu.kotatsu.reader.domain.ColorFilterProfile
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 
 @AndroidEntryPoint
@@ -80,9 +76,6 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.addOnChangeListener(this)
         viewBinding.sliderSaturation?.addOnChangeListener(this)
         viewBinding.sliderVibrance?.addOnChangeListener(this)
-        viewBinding.sliderDenoise?.addOnChangeListener(this)
-        viewBinding.sliderDither?.addOnChangeListener(this)
-        viewBinding.sliderGrain?.addOnChangeListener(this)
 
         viewBinding.sliderBrightness.setLabelFormatter(percentFormatter)
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
@@ -91,22 +84,16 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.setLabelFormatter(unsignedFormatter)
         viewBinding.sliderSaturation?.setLabelFormatter(signedFormatter)
         viewBinding.sliderVibrance?.setLabelFormatter(signedFormatter)
-        viewBinding.sliderDenoise?.setLabelFormatter(unsignedFormatter)
-        viewBinding.sliderDither?.setLabelFormatter(unsignedFormatter)
-        viewBinding.sliderGrain?.setLabelFormatter(unsignedFormatter)
 
         viewBinding.switchInvert.setOnCheckedChangeListener(this)
         viewBinding.switchGrayscale.setOnCheckedChangeListener(this)
         viewBinding.switchBook.setOnCheckedChangeListener(this)
         viewBinding.buttonDone.setOnClickListener(this)
         viewBinding.buttonReset?.setOnClickListener(this)
-        viewBinding.switchLock?.setOnCheckedChangeListener { _, checked -> viewModel.setLocked(checked) }
-        viewBinding.buttonProfiles?.setOnClickListener { showProfilesDialog() }
         viewModel.isLocked.observe(this) { locked ->
             viewBinding.switchLock?.setOnCheckedChangeListener(null)
             viewBinding.switchLock?.isChecked = locked
-            viewBinding.switchLock?.setOnCheckedChangeListener { _, checked -> viewModel.setLocked(checked) }
-        }
+            }
 
         onBackPressedDispatcher.addCallback(ColorFilterConfigBackPressedDispatcher(this, viewModel))
 
@@ -136,9 +123,6 @@ class ColorFilterConfigActivity :
             R.id.slider_sharpening -> viewModel.setSharpening(value)
             R.id.slider_saturation -> viewModel.setSaturation(value)
             R.id.slider_vibrance   -> viewModel.setVibrance(value)
-            R.id.slider_denoise    -> viewModel.setDenoise(value)
-            R.id.slider_dither     -> viewModel.setDither(value)
-            R.id.slider_grain      -> viewModel.setGrain(value)
         }
     }
 
@@ -173,18 +157,15 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.setValueRounded(cf?.sharpening ?: 0f)
         viewBinding.sliderSaturation?.setValueRounded(cf?.saturation ?: 0f)
         viewBinding.sliderVibrance?.setValueRounded(cf?.vibrance ?: 0f)
-        viewBinding.sliderDenoise?.setValueRounded(cf?.denoise ?: 0f)
-        viewBinding.sliderDither?.setValueRounded(cf?.dither ?: 0f)
-        viewBinding.sliderGrain?.setValueRounded(cf?.grain ?: 0f)
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
         viewBinding.switchBook.setChecked(cf?.isBookBackground == true, false)
 
         if (!beforeImageReady) return
 
-        val sharpening=cf?.sharpening?:0f; val vibrance=cf?.vibrance?:0f
-        val denoise=cf?.denoise?:0f; val dither=cf?.dither?:0f; val grain=cf?.grain?:0f
-        if (sharpening>0.01f||vibrance!=0f||denoise>0.01f||dither>0.01f||grain>0.01f) {
+        val sharpening = cf?.sharpening ?: 0f
+        val vibrance = cf?.vibrance ?: 0f
+        if (sharpening > 0.01f || vibrance != 0f) {
             applyAfterFilter(cf)
         } else {
             sharpenJob?.cancel()
@@ -223,8 +204,8 @@ class ColorFilterConfigActivity :
      * no gallery thumbnail pollution.
      */
     private fun applyAfterFilter(cf: ReaderColorFilter?) {
-        val sharpening=cf?.sharpening?:0f; val vibrance=cf?.vibrance?:0f
-        val denoise=cf?.denoise?:0f; val dither=cf?.dither?:0f; val grain=cf?.grain?:0f
+        val sharpening = cf?.sharpening ?: 0f
+        val vibrance = cf?.vibrance ?: 0f
         val source = sourceBitmap ?: return
 
         // Show unfiltered + ColorMatrix immediately so the panel is never blank.
@@ -235,7 +216,7 @@ class ColorFilterConfigActivity :
         val requestId = ++filterRequestId
         sharpenJob = lifecycleScope.launch(Dispatchers.Default) {
             val result = runCatching {
-                ImageFiltersTransformation(sharpening, vibrance, denoise, dither, grain)
+                ImageFiltersTransformation(sharpening, vibrance)
                     .transform(source, Size.ORIGINAL)
             }.getOrNull() ?: return@launch
 
@@ -275,72 +256,11 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.isEnabled = !isLoading
         viewBinding.sliderSaturation?.isEnabled = !isLoading
         viewBinding.sliderVibrance?.isEnabled=!isLoading
-        viewBinding.sliderDenoise?.isEnabled=!isLoading
-        viewBinding.sliderDither?.isEnabled=!isLoading
-        viewBinding.sliderGrain?.isEnabled=!isLoading
         viewBinding.switchInvert.isEnabled      = !isLoading
         viewBinding.switchGrayscale.isEnabled   = !isLoading
         viewBinding.buttonDone.isEnabled        = !isLoading
     }
 
-    // ─── Profiles dialog ─────────────────────────────────────────────────────
-
-    private fun showProfilesDialog() {
-        ColorFilterProfilesDialog.show(this, getString(R.string.profiles), viewModel.profiles.value,
-            ColorFilterProfilesDialog.Actions(
-                onApply  = viewModel::applyProfile,
-                onRename = viewModel::renameProfile,
-                onDelete = viewModel::deleteProfile,
-                copyAction = getString(R.string.copy_to_global) to { p: ColorFilterProfile ->
-                    viewModel.copyProfileToGlobal(p) { ok ->
-                        if (!ok) Toast.makeText(this, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show()
-                    }
-                },
-                saveNewAction = getString(R.string.save_as_profile) to { name: String, cb: (Boolean)->Unit ->
-                    viewModel.saveCurrentAsProfile(name, cb)
-                },
-                extraAction = getString(R.string.import_from_global) to { showImportFromGlobalDialog() },
-            )
-        )
-    }
-
-    private fun showImportFromGlobalDialog() {
-        lifecycleScope.launch {
-            val list = viewModel.loadGlobalProfiles()
-            if (list.isEmpty()) { Toast.makeText(this@ColorFilterConfigActivity, R.string.no_saved_profiles, Toast.LENGTH_SHORT).show(); return@launch }
-            ColorFilterProfilesDialog.show(this@ColorFilterConfigActivity, getString(R.string.import_from_global), list,
-                ColorFilterProfilesDialog.Actions(
-                    onApply  = { p -> viewModel.importProfile(p) { ok -> if (!ok) Toast.makeText(this@ColorFilterConfigActivity, R.string.profiles_limit_reached, Toast.LENGTH_SHORT).show() } },
-                    onRename = { _, _ -> }, onDelete = {},
-                )
-            )
-        }
-    }
-
-    // ─── Percent-entry dialogs ────────────────────────────────────────────────
-
-    private fun setupPercentEntry(slider: com.google.android.material.slider.Slider, label: View, offset: Float, apply: (Float)->Unit) {
-        label.setOnClickListener {
-            val cur=(slider.value+offset)*100f; val min=(slider.valueFrom+offset)*100f; val max=(slider.valueTo+offset)*100f
-            showPercentEntry(cur, min, max) { pct -> apply(pct/100f-offset) }
-        }
-    }
-
-    private fun showPercentEntry(cur: Float, min: Float, max: Float, onValue: (Float)->Unit) {
-        fun clamp(p: Float)=p.coerceIn(minOf(min,max), maxOf(min,max))
-        val dp=resources.displayMetrics.density
-        val edit=android.widget.EditText(this).apply{inputType=android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_SIGNED;setText(cur.toInt().toString());setSelection(text.length)}
-        fun btn(label: String, act: ()->Unit)=Button(this,null,com.google.android.material.R.attr.materialButtonOutlinedStyle).apply{text=label;setOnClickListener{act()}}
-        val root=LinearLayout(this).apply{
-            orientation=LinearLayout.VERTICAL; setPadding((dp*24).toInt(),(dp*8).toInt(),(dp*24).toInt(),0)
-            addView(edit)
-            addView(LinearLayout(context).apply{orientation=LinearLayout.HORIZONTAL;addView(btn("25%"){edit.setText(clamp(25f).toInt().toString())});addView(btn("50%"){edit.setText(clamp(50f).toInt().toString())});addView(btn("75%"){edit.setText(clamp(75f).toInt().toString())})})
-            addView(LinearLayout(context).apply{orientation=LinearLayout.HORIZONTAL;addView(btn("−10%"){edit.setText(clamp((edit.text.toString().toFloatOrNull()?:cur)-10f).toInt().toString())});addView(btn("+10%"){edit.setText(clamp((edit.text.toString().toFloatOrNull()?:cur)+10f).toInt().toString())})})
-        }
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle(R.string.set_value).setView(root)
-            .setPositiveButton(android.R.string.ok){_,_->edit.text.toString().toFloatOrNull()?.let{onValue(clamp(it))}}
-            .setNegativeButton(android.R.string.cancel,null).show()
-    }
 
     // ─── Label formatters ────────────────────────────────────────────────────
 
