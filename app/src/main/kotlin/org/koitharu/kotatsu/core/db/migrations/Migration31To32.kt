@@ -4,33 +4,55 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Handles devices already on v31 from the old migration (which added is_locked +
- * color_filter_profiles). Adds cf_denoise, cf_dither, cf_grain to preferences.
- * The extra is_locked column and color_filter_profiles table are ignored by Room
- * since neither is mapped to a registered entity.
+ * Handles devices on old v31 (which had is_locked + color_filter_profiles from a broken migration).
+ * Recreates the preferences table with the correct schema (dropping is_locked) and adds
+ * cf_denoise, cf_dither, cf_grain columns. Devices on clean v31 (from Migration30To31) also pass
+ * through safely since all data is preserved via INSERT SELECT.
  */
 class Migration31To32 : Migration(31, 32) {
 	override fun migrate(db: SupportSQLiteDatabase) {
-		// Use a shadow-table approach isn't needed — SQLite silently keeps extra columns.
-		// We only need to add the 3 missing filter columns. Guard against the rare case
-		// where they were already added by running Migration30To31 on a clean v30 device
-		// that was then re-migrated (shouldn't happen, but be safe).
-		val cursor = db.query("PRAGMA table_info(preferences)")
-		val existingColumns = mutableSetOf<String>()
-		val nameIndex = cursor.getColumnIndex("name")
-		while (cursor.moveToNext()) {
-			existingColumns.add(cursor.getString(nameIndex))
-		}
-		cursor.close()
-
-		if ("cf_denoise" !in existingColumns) {
-			db.execSQL("ALTER TABLE preferences ADD COLUMN `cf_denoise` REAL NOT NULL DEFAULT 0")
-		}
-		if ("cf_dither" !in existingColumns) {
-			db.execSQL("ALTER TABLE preferences ADD COLUMN `cf_dither` REAL NOT NULL DEFAULT 0")
-		}
-		if ("cf_grain" !in existingColumns) {
-			db.execSQL("ALTER TABLE preferences ADD COLUMN `cf_grain` REAL NOT NULL DEFAULT 0")
-		}
+		// Recreate preferences with the exact schema Room expects at v32.
+		// This also drops the stray is_locked column left by the old broken Migration30To31.
+		db.execSQL(
+			"""CREATE TABLE IF NOT EXISTS `preferences_new` (
+				`manga_id` INTEGER NOT NULL,
+				`mode` INTEGER NOT NULL,
+				`cf_brightness` REAL NOT NULL,
+				`cf_contrast` REAL NOT NULL,
+				`cf_sharpening` REAL NOT NULL DEFAULT 0,
+				`cf_vibrance` REAL NOT NULL DEFAULT 0,
+				`cf_vibrance2` REAL NOT NULL DEFAULT 0,
+				`cf_invert` INTEGER NOT NULL,
+				`cf_grayscale` INTEGER NOT NULL,
+				`cf_book` INTEGER NOT NULL,
+				`cf_denoise` REAL NOT NULL DEFAULT 0,
+				`cf_dither` REAL NOT NULL DEFAULT 0,
+				`cf_grain` REAL NOT NULL DEFAULT 0,
+				`title_override` TEXT,
+				`cover_override` TEXT,
+				`content_rating_override` TEXT,
+				PRIMARY KEY(`manga_id`),
+				FOREIGN KEY(`manga_id`) REFERENCES `manga`(`manga_id`) ON UPDATE NO ACTION ON DELETE CASCADE
+			)"""
+		)
+		// Copy all existing data; cf_denoise/dither/grain default to 0 for existing rows.
+		// is_locked is intentionally excluded.
+		db.execSQL(
+			"""INSERT INTO `preferences_new` (
+				manga_id, mode, cf_brightness, cf_contrast,
+				cf_sharpening, cf_vibrance, cf_vibrance2,
+				cf_invert, cf_grayscale, cf_book,
+				cf_denoise, cf_dither, cf_grain,
+				title_override, cover_override, content_rating_override
+			) SELECT
+				manga_id, mode, cf_brightness, cf_contrast,
+				cf_sharpening, cf_vibrance, cf_vibrance2,
+				cf_invert, cf_grayscale, cf_book,
+				COALESCE(cf_denoise, 0), COALESCE(cf_dither, 0), COALESCE(cf_grain, 0),
+				title_override, cover_override, content_rating_override
+			FROM `preferences`"""
+		)
+		db.execSQL("DROP TABLE `preferences`")
+		db.execSQL("ALTER TABLE `preferences_new` RENAME TO `preferences`")
 	}
 }
