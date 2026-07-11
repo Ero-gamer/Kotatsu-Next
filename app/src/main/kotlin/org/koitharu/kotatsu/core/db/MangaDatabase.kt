@@ -47,6 +47,7 @@ import org.koitharu.kotatsu.core.db.migrations.Migration27To28
 import org.koitharu.kotatsu.core.db.migrations.Migration28To29
 import org.koitharu.kotatsu.core.db.migrations.Migration29To30
 import org.koitharu.kotatsu.core.db.migrations.Migration2To3
+import org.koitharu.kotatsu.core.db.migrations.Migration30To31
 import org.koitharu.kotatsu.core.db.migrations.Migration3To4
 import org.koitharu.kotatsu.core.db.migrations.Migration4To5
 import org.koitharu.kotatsu.core.db.migrations.Migration5To6
@@ -75,7 +76,7 @@ import org.koitharu.kotatsu.tracker.data.TrackEntity
 import org.koitharu.kotatsu.tracker.data.TrackLogEntity
 import org.koitharu.kotatsu.tracker.data.TracksDao
 
-const val DATABASE_VERSION = 30
+const val DATABASE_VERSION = 31
 
 @Database(
 	entities = [
@@ -120,6 +121,7 @@ abstract class MangaDatabase : RoomDatabase() {
 	abstract fun getChaptersDao(): ChaptersDao
 
 	abstract fun getSourcePresetsDao(): SourcePresetsDao
+
 }
 
 fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
@@ -152,7 +154,8 @@ fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
 	Migration26To27(),
 	Migration27To28(),
 	Migration28To29(),
-		Migration29To30(),
+	Migration29To30(),
+	Migration30To31(),
 )
 
 fun MangaDatabase(context: Context): MangaDatabase = Room

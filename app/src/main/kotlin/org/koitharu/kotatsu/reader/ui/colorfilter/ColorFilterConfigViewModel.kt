@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableManga
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableMangaPage
 import org.koitharu.kotatsu.core.nav.AppRouter
@@ -19,52 +18,63 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ColorFilterConfigViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
-    private val settings: AppSettings,
-    private val mangaDataRepository: MangaDataRepository,
+	savedStateHandle: SavedStateHandle,
+	private val settings: AppSettings,
+	private val mangaDataRepository: MangaDataRepository,
 ) : BaseViewModel() {
 
-    private val manga = savedStateHandle.require<ParcelableManga>(AppRouter.KEY_MANGA).manga
+	private val manga = savedStateHandle.require<ParcelableManga>(AppRouter.KEY_MANGA).manga
 
-    val preview = savedStateHandle.require<ParcelableMangaPage>(AppRouter.KEY_PAGES).page
+	val preview = savedStateHandle.require<ParcelableMangaPage>(AppRouter.KEY_PAGES).page
 
-    private var initialColorFilter: ReaderColorFilter? = null
+	private var initialColorFilter: ReaderColorFilter? = null
+	val colorFilter = MutableStateFlow<ReaderColorFilter?>(null)
+	val onDismiss = MutableEventFlow<Unit>()
 
-    /** null = not yet loaded from DB; use [isReady] to distinguish "loaded null" from "not yet loaded". */
-    private val _colorFilter = MutableStateFlow<ReaderColorFilter?>(null)
-    val colorFilter = _colorFilter.asStateFlow()
+	val isChanged: Boolean
+		get() = colorFilter.value != initialColorFilter
 
-    val onDismiss = MutableEventFlow<Unit>()
+	init {
+		launchLoadingJob {
+			initialColorFilter = mangaDataRepository.getColorFilter(manga.id) ?: settings.readerColorFilter
+			colorFilter.value = initialColorFilter
+		}
+	}
 
+	fun setBrightness(brightness: Float) = updateColorFilter { it.copy(brightness = brightness) }
+	fun setContrast(contrast: Float)     = updateColorFilter { it.copy(contrast = contrast) }
+	fun setSharpening(sharpening: Float) = updateColorFilter { it.copy(sharpening = sharpening) }
+	fun setSaturation(saturation: Float) = updateColorFilter { it.copy(saturation = saturation) }
+	fun setVibrance(vibrance: Float)     = updateColorFilter { it.copy(vibrance = vibrance) }
+	fun setDenoise(denoise: Float)       = updateColorFilter { it.copy(denoise = denoise) }
+	fun setDither(dither: Float)         = updateColorFilter { it.copy(dither = dither) }
+	fun setGrain(grain: Float)           = updateColorFilter { it.copy(grain = grain) }
+	fun setInversion(invert: Boolean)    = updateColorFilter { it.copy(isInverted = invert) }
+	fun setGrayscale(grayscale: Boolean) = updateColorFilter { it.copy(isGrayscale = grayscale) }
+	fun setBookEffect(book: Boolean)     = updateColorFilter { it.copy(isBookBackground = book) }
 
-    fun setSharpening(sharpening: Float) = updateColorFilter { it.copy(sharpening = sharpening) }
-    fun setSaturation(saturation: Float)  = updateColorFilter { it.copy(saturation = saturation) }
-    fun setVibrance(vibrance: Float)      = updateColorFilter { it.copy(vibrance = vibrance) }
-    fun setInversion(invert: Boolean)    = updateColorFilter { it.copy(isInverted = invert) }
-    fun setGrayscale(grayscale: Boolean) = updateColorFilter { it.copy(isGrayscale = grayscale) }
-    fun setBookEffect(book: Boolean)     = updateColorFilter { it.copy(isBookBackground = book) }
+	fun reset() {
+		colorFilter.value = null
+	}
 
-    fun reset() {
-        _colorFilter.value = null
-    }
+	fun save() {
+		launchLoadingJob(Dispatchers.Default) {
+			mangaDataRepository.saveColorFilter(manga, colorFilter.value)
+			onDismiss.call(Unit)
+		}
+	}
 
-    fun save() {
-        launchLoadingJob(Dispatchers.Default) {
-            mangaDataRepository.saveColorFilter(manga, _colorFilter.value)
-            onDismiss.call(Unit)
-        }
-    }
+	fun saveGlobally() {
+		launchLoadingJob(Dispatchers.Default) {
+			settings.readerColorFilter = colorFilter.value
+			mangaDataRepository.resetColorFilters()
+			onDismiss.call(Unit)
+		}
+	}
 
-    fun saveGlobally() {
-        launchLoadingJob(Dispatchers.Default) {
-            settings.readerColorFilter = _colorFilter.value
-            mangaDataRepository.resetColorFilters()
-            onDismiss.call(Unit)
-        }
-    }
-
-    private inline fun updateColorFilter(block: (ReaderColorFilter) -> ReaderColorFilter) {
-        _colorFilter.value = block(_colorFilter.value ?: ReaderColorFilter.EMPTY)
-            .takeUnless { it.isEmpty }
-    }
+	private inline fun updateColorFilter(block: (ReaderColorFilter) -> ReaderColorFilter) {
+		colorFilter.value = block(
+			colorFilter.value ?: ReaderColorFilter.EMPTY,
+		).takeUnless { it.isEmpty }
+	}
 }

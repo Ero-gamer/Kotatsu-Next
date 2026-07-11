@@ -76,6 +76,9 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.addOnChangeListener(this)
         viewBinding.sliderSaturation?.addOnChangeListener(this)
         viewBinding.sliderVibrance?.addOnChangeListener(this)
+        viewBinding.sliderDenoise?.addOnChangeListener(this)
+        viewBinding.sliderDither?.addOnChangeListener(this)
+        viewBinding.sliderGrain?.addOnChangeListener(this)
 
         viewBinding.sliderBrightness.setLabelFormatter(percentFormatter)
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
@@ -84,25 +87,19 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.setLabelFormatter(unsignedFormatter)
         viewBinding.sliderSaturation?.setLabelFormatter(signedFormatter)
         viewBinding.sliderVibrance?.setLabelFormatter(signedFormatter)
+        viewBinding.sliderDenoise?.setLabelFormatter(unsignedFormatter)
+        viewBinding.sliderDither?.setLabelFormatter(unsignedFormatter)
+        viewBinding.sliderGrain?.setLabelFormatter(unsignedFormatter)
 
         viewBinding.switchInvert.setOnCheckedChangeListener(this)
         viewBinding.switchGrayscale.setOnCheckedChangeListener(this)
         viewBinding.switchBook.setOnCheckedChangeListener(this)
         viewBinding.buttonDone.setOnClickListener(this)
         viewBinding.buttonReset?.setOnClickListener(this)
-        viewModel.isLocked.observe(this) { locked ->
-            viewBinding.switchLock?.setOnCheckedChangeListener(null)
-            viewBinding.switchLock?.isChecked = locked
-            }
 
         onBackPressedDispatcher.addCallback(ColorFilterConfigBackPressedDispatcher(this, viewModel))
 
-        // Wait for isReady so the initial null emission doesn't flash sliders to zero.
-        viewModel.isReady.observe(this) { ready ->
-            if (ready) {
-                viewModel.colorFilter.observe(this, this::onColorFilterChanged)
-            }
-        }
+        viewModel.colorFilter.observe(this, this::onColorFilterChanged)
         viewModel.isLoading.observe(this, this::onLoadingChanged)
         viewModel.onDismiss.observeEvent(this) { finishAfterTransition() }
 
@@ -123,6 +120,9 @@ class ColorFilterConfigActivity :
             R.id.slider_sharpening -> viewModel.setSharpening(value)
             R.id.slider_saturation -> viewModel.setSaturation(value)
             R.id.slider_vibrance   -> viewModel.setVibrance(value)
+            R.id.slider_denoise    -> viewModel.setDenoise(value)
+            R.id.slider_dither     -> viewModel.setDither(value)
+            R.id.slider_grain      -> viewModel.setGrain(value)
         }
     }
 
@@ -157,6 +157,9 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSharpening?.setValueRounded(cf?.sharpening ?: 0f)
         viewBinding.sliderSaturation?.setValueRounded(cf?.saturation ?: 0f)
         viewBinding.sliderVibrance?.setValueRounded(cf?.vibrance ?: 0f)
+        viewBinding.sliderDenoise?.setValueRounded(cf?.denoise ?: 0f)
+        viewBinding.sliderDither?.setValueRounded(cf?.dither ?: 0f)
+        viewBinding.sliderGrain?.setValueRounded(cf?.grain ?: 0f)
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
         viewBinding.switchBook.setChecked(cf?.isBookBackground == true, false)
@@ -255,7 +258,10 @@ class ColorFilterConfigActivity :
         viewBinding.sliderContrast.isEnabled    = !isLoading
         viewBinding.sliderSharpening?.isEnabled = !isLoading
         viewBinding.sliderSaturation?.isEnabled = !isLoading
-        viewBinding.sliderVibrance?.isEnabled=!isLoading
+        viewBinding.sliderVibrance?.isEnabled   = !isLoading
+        viewBinding.sliderDenoise?.isEnabled    = !isLoading
+        viewBinding.sliderDither?.isEnabled     = !isLoading
+        viewBinding.sliderGrain?.isEnabled      = !isLoading
         viewBinding.switchInvert.isEnabled      = !isLoading
         viewBinding.switchGrayscale.isEnabled   = !isLoading
         viewBinding.buttonDone.isEnabled        = !isLoading
