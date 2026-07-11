@@ -101,17 +101,21 @@ data class ReaderSettings(
 		}
 
 		val baseFactory = LiJpegTurboRegionDecoder.Factory(quality)
-		// When sharpening or vibrance are active, wrap the base decoder with
-		// FilteringRegionDecoder so filters are applied per-tile post-decode.
-		// This eliminates the encode-to-disk approach: no PNG written, no full-image
-		// decode — just in-memory math on each tile immediately after it is decoded.
+		val activeSharpening = sharpening
 		val activeVibrance = colorFilter?.vibrance ?: 0f
 		val activeDenoise  = colorFilter?.denoise  ?: 0f
 		val activeDither   = colorFilter?.dither   ?: 0f
 		val activeGrain    = colorFilter?.grain    ?: 0f
+		// Only wrap with FilteringRegionDecoder when a CPU-side filter is actually active.
+		// Contrast/brightness/saturation/invert/grayscale/book are handled by ssiv.colorFilter
+		// (ColorMatrix Paint) at zero memory cost — no extra bitmaps or IntArray pools needed.
+		// Installing FilteringRegionDecoder unconditionally for any colorFilter wastes ~32MB
+		// per tile on srcPool+outPool IntArrays for filters that do nothing (all params zero).
+		val needsCpuFilter = activeSharpening > 0.01f || activeVibrance != 0f ||
+			activeDenoise > 0.01f || activeDither > 0.01f || activeGrain > 0.01f
 		val newFactory: DecoderFactory<out ImageRegionDecoder> =
-			if (colorFilter != null) {
-				FilteringRegionDecoder.Factory(baseFactory, sharpening, activeVibrance, activeDenoise, activeDither, activeGrain)
+			if (needsCpuFilter) {
+				FilteringRegionDecoder.Factory(baseFactory, activeSharpening, activeVibrance, activeDenoise, activeDither, activeGrain)
 			} else {
 				baseFactory
 			}
