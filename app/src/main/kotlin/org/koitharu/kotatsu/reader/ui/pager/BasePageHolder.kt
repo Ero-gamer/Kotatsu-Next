@@ -77,7 +77,6 @@ abstract class BasePageHolder<B : ViewBinding>(
 			ssiv.isEagerLoadingEnabled = !context.isConstrainedDevice()
 			if (context.isConstrainedDevice()) {
 				ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
-				ssiv.setMaxTileSize(LOW_RAM_MAX_TILE_PX, LOW_RAM_MAX_TILE_PX)
 			}
 			ssiv.addOnImageEventListener(viewModel)
 			ssiv.addOnImageEventListener(this@BasePageHolder)
@@ -292,18 +291,12 @@ abstract class BasePageHolder<B : ViewBinding>(
 		private const val PREPARING_STATUS_DELAY_MS = 600L
 		private const val TILE_ERROR_SOFT = 1
 		private const val TILE_ERROR_HARD = 3
-		// 768×768 tiles = ~2.25MB each at ARGB_8888 vs ~16MB for the default 2048×2048.
-		// Keeps peak memory low on sub-2GB devices without causing excessive decode stutter.
-		private const val LOW_RAM_MAX_TILE_PX = 768
 
-		// Single process-wide instance, NOT one per holder/page. limitedParallelism()
-		// creates a bounded "view" over the underlying Dispatchers.Default pool — sharing
-		// one instance across every SSIV ensures the cap of 2 applies globally (e.g. 3
-		// visible/cached webtoon pages all decoding tiles still never exceed 2 concurrent
-        // tile decodes app-wide). A separate limitedParallelism(2) per holder would instead
-		// allow 2× the number of holders concurrently, defeating the purpose.
+		// 4 = Cortex-A53 core count. All cores decode in parallel for fast initial load.
+		// Memory is kept in check by RGB_565 (half memory per tile) + eager loading off
+		// + reduced prefetch — not by fragmenting tiles or throttling decode concurrency.
 		@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-		private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(2)
+		private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(4)
 		private val UNSET_SENTINEL = Any()
 	}
 }

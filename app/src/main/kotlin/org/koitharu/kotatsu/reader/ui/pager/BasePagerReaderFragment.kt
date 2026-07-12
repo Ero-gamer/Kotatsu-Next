@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.os.NetworkState
+import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
 import org.koitharu.kotatsu.core.prefs.ReaderAnimation
 import org.koitharu.kotatsu.core.ui.list.lifecycle.PagerLifecycleDispatcher
 import org.koitharu.kotatsu.core.util.ext.doOnPageChanged
@@ -179,7 +180,12 @@ abstract class BasePagerReaderFragment : BaseReaderFragment<FragmentReaderPagerB
 	protected open fun onCreateAdvancedTransformer(): PageTransformer = PageAnimTransformer()
 
 	protected open fun onInitPager(pager: ViewPager2) {
-		pager.offscreenPageLimit = 2
+		// Keep 2 offscreen pages on normal devices for smooth swiping.
+		// On constrained devices (≤2GB RAM) reduce to 1 — keeps only the immediate
+		// neighbour page alive, halving the number of SSIV instances holding tile
+		// bitmaps in memory simultaneously. ViewPager2 recycles the rest via
+		// onRecycled() → ssiv.recycle() which frees all tile bitmaps immediately.
+		pager.offscreenPageLimit = if (requireContext().isConstrainedDevice()) 1 else 2
 	}
 
 	protected open fun notifyPageChanged(page: Int) {
