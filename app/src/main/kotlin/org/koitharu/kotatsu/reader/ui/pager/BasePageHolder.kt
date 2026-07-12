@@ -75,17 +75,13 @@ abstract class BasePageHolder<B : ViewBinding>(
 		lifecycleScope.launch(Dispatchers.Main) {
 			ssiv.bindToLifecycle(this@BasePageHolder)
 			ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
-			// Dispatchers.Default is a single pool shared across the WHOLE app, sized to
-			// CPU core count (4 on this device's Cortex-A53). Every visible/cached webtoon
-			// holder's tile decodes compete for the same pool, so up to 4 tiles can decode
-			// in parallel at once — each one allocating a tile bitmap plus the src/out
-			// IntArray filter pools simultaneously. That's a direct multiplier on peak
-			// memory, independent of how many pages are bound. Capping this SSIV instance's
-			// decode dispatcher to 2 concurrent tiles bounds that peak without changing
-			// decode correctness or image quality — tiles simply queue slightly more before
-			// running. No tradeoff: applied unconditionally on low-RAM devices.
 			if (context.isLowRamDevice()) {
 				ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
+				// Cap tile size on low-RAM devices. Default is canvas.maximumBitmapWidth
+				// (~2048px), making each tile ~16MB at ARGB_8888. 768px tiles = ~2.25MB each,
+				// drastically reducing peak memory while keeping tile count manageable on
+				// Cortex-A53 (more tiles = more decode calls but they're tiny and fast).
+				ssiv.setMaxTileSize(LOW_RAM_MAX_TILE_PX, LOW_RAM_MAX_TILE_PX)
 			}
 			ssiv.addOnImageEventListener(viewModel)
 			ssiv.addOnImageEventListener(this@BasePageHolder)
@@ -300,6 +296,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 		private const val PREPARING_STATUS_DELAY_MS = 600L
 		private const val TILE_ERROR_SOFT = 1
 		private const val TILE_ERROR_HARD = 3
+		// 768×768 tiles = ~2.25MB each at ARGB_8888 vs ~16MB for the default 2048×2048.
+		// Keeps peak memory low on sub-2GB devices without causing excessive decode stutter.
+		private const val LOW_RAM_MAX_TILE_PX = 768
 
 		// Single process-wide instance, NOT one per holder/page. limitedParallelism()
 		// creates a bounded "view" over the underlying Dispatchers.Default pool — sharing
