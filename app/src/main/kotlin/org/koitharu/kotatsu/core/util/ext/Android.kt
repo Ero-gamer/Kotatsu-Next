@@ -132,6 +132,21 @@ fun Context.isLowRamDevice(): Boolean {
 	return activityManager?.isLowRamDevice == true
 }
 
+/**
+ * True on devices with ≤2GB total RAM. isLowRamDevice() uses Android's built-in
+ * threshold (≤1GB) which misses devices like Oppo A11k (2GB) that still OOM
+ * under heavy tile decode workloads. Use this for reader memory decisions.
+ */
+val Context.ramTotal: Long
+	get() {
+		val result = MemoryInfo()
+		activityManager?.getMemoryInfo(result)
+		return result.totalMem
+	}
+
+fun Context.isConstrainedDevice(): Boolean =
+	ramTotal <= 2L * 1024 * 1024 * 1024 // ≤2GB total RAM
+
 fun Context.isPowerSaveMode(): Boolean {
 	return powerManager?.isPowerSaveMode == true
 }

@@ -29,7 +29,7 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ReaderBackground
 import org.koitharu.kotatsu.core.prefs.ReaderMode
 import org.koitharu.kotatsu.core.util.MediatorStateFlow
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 
@@ -40,6 +40,7 @@ data class ReaderSettings(
 	val sharpening: Float,
 	val isReaderOptimizationEnabled: Boolean,
 	val bitmapConfig: Bitmap.Config,
+	val is32BitEnabled: Boolean,
 	val isPagesNumbersEnabled: Boolean,
 	val isPagesCropEnabledStandard: Boolean,
 	val isPagesCropEnabledWebtoon: Boolean,
@@ -59,13 +60,11 @@ data class ReaderSettings(
 		// Note: "32-bit color mode" = ARGB_8888 (8 bits × 4 channels). They are the same
 		// thing — enabling that setting just ensures the correct format is used.
 		bitmapConfig = if (!settings.is32BitColorsEnabled && settings.isReaderOptimizationEnabled) {
-			// User explicitly chose memory saving mode.
 			Bitmap.Config.RGB_565
 		} else {
-			// Standard: full quality ARGB_8888. The low-RAM fallback is handled in
-			// applyBitmapConfig() where system RAM can be checked at apply-time.
 			Bitmap.Config.ARGB_8888
 		},
+		is32BitEnabled = settings.is32BitColorsEnabled,
 		isPagesNumbersEnabled = settings.isPagesNumbersEnabled,
 		isPagesCropEnabledStandard = settings.isPagesCropEnabled(ReaderMode.STANDARD),
 		isPagesCropEnabledWebtoon = settings.isPagesCropEnabled(ReaderMode.WEBTOON),
@@ -88,8 +87,10 @@ data class ReaderSettings(
 
 	@CheckResult
 	fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
-		val isLowRam = ssiv.context.isLowRamDevice()
-		val config = if (bitmapConfig == Bitmap.Config.ARGB_8888 && isLowRam) {
+		val isLowRam = ssiv.context.isConstrainedDevice()
+		// Auto-downgrade to RGB_565 on constrained devices only when the user has NOT
+		// explicitly enabled 32-bit color. If they turned it on, honour their choice.
+		val config = if (bitmapConfig == Bitmap.Config.ARGB_8888 && isLowRam && !is32BitEnabled) {
 			Bitmap.Config.RGB_565
 		} else {
 			bitmapConfig

@@ -24,7 +24,7 @@ import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
 import org.koitharu.kotatsu.core.util.ext.isSerializable
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.databinding.LayoutPageInfoBinding
@@ -74,13 +74,9 @@ abstract class BasePageHolder<B : ViewBinding>(
 	init {
 		lifecycleScope.launch(Dispatchers.Main) {
 			ssiv.bindToLifecycle(this@BasePageHolder)
-			ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
-			if (context.isLowRamDevice()) {
+			ssiv.isEagerLoadingEnabled = !context.isConstrainedDevice()
+			if (context.isConstrainedDevice()) {
 				ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
-				// Cap tile size on low-RAM devices. Default is canvas.maximumBitmapWidth
-				// (~2048px), making each tile ~16MB at ARGB_8888. 768px tiles = ~2.25MB each,
-				// drastically reducing peak memory while keeping tile count manageable on
-				// Cortex-A53 (more tiles = more decode calls but they're tiny and fast).
 				ssiv.setMaxTileSize(LOW_RAM_MAX_TILE_PX, LOW_RAM_MAX_TILE_PX)
 			}
 			ssiv.addOnImageEventListener(viewModel)
@@ -287,7 +283,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 		downSampling = when {
 			isForeground || !settings.isReaderOptimizationEnabled -> 1
 			BuildConfig.DEBUG -> 32
-			context.isLowRamDevice() -> 8
+			context.isConstrainedDevice() -> 8
 			else -> 4
 		}
 	}

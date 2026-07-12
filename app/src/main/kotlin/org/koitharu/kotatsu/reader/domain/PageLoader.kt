@@ -52,6 +52,7 @@ import org.koitharu.kotatsu.core.util.ext.URI_SCHEME_ZIP
 import org.koitharu.kotatsu.core.util.ext.cancelChildrenAndJoin
 import org.koitharu.kotatsu.core.util.ext.compressToPNG
 import org.koitharu.kotatsu.core.util.ext.ensureRamAtLeast
+import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
 import org.koitharu.kotatsu.core.util.ext.ensureSuccess
 import org.koitharu.kotatsu.core.util.ext.getCompletionResultOrNull
 import org.koitharu.kotatsu.core.util.ext.isFileUri
@@ -121,14 +122,22 @@ class PageLoader @Inject constructor(
 	private var repository: MangaRepository? = null
 	private val prefetchQueue = LinkedList<MangaPage>()
 	private val counter = AtomicInteger(0)
-	private var prefetchQueueLimit = PREFETCH_LIMIT_DEFAULT // TODO adaptive
+	// On constrained devices (≤2GB RAM) cap prefetch to 2 pages and require
+	// ≥200MB free RAM instead of the default 6 pages / 80MB. This prevents
+	// prefetch from filling RAM just before a high-res tile decode burst.
+	private var prefetchQueueLimit = if (context.isConstrainedDevice()) {
+		PREFETCH_LIMIT_CONSTRAINED
+	} else {
+		PREFETCH_LIMIT_DEFAULT
+	}
 	private val edgeDetector = EdgeDetector(context)
 
 	fun isPrefetchApplicable(): Boolean {
+		val minRamMb = if (context.isConstrainedDevice()) PREFETCH_MIN_RAM_MB_CONSTRAINED else PREFETCH_MIN_RAM_MB
 		return repository is CachingMangaRepository
 			&& settings.isPagesPreloadEnabled
 			&& !context.isPowerSaveMode()
-			&& !isLowRam()
+			&& context.ramAvailable > FileSize.MEGABYTES.convert(minRamMb, FileSize.BYTES)
 	}
 
 	@AnyThread
@@ -353,10 +362,6 @@ class PageLoader @Inject constructor(
 		}
 	}
 
-	private fun isLowRam(): Boolean {
-		return context.ramAvailable <= FileSize.MEGABYTES.convert(PREFETCH_MIN_RAM_MB, FileSize.BYTES)
-	}
-
 	private fun Image.toImageSource(): ImageSource = if (this is BitmapImage) {
 		ImageSource.cachedBitmap(toBitmap())
 	} else {
@@ -381,7 +386,9 @@ class PageLoader @Inject constructor(
 
 		private const val PROGRESS_UNDEFINED = -1f
 		private const val PREFETCH_LIMIT_DEFAULT = 6
+		private const val PREFETCH_LIMIT_CONSTRAINED = 2
 		private const val PREFETCH_MIN_RAM_MB = 80L
+		private const val PREFETCH_MIN_RAM_MB_CONSTRAINED = 200L
 
 		fun createPageRequest(pageUrl: String, mangaSource: MangaSource) = Request.Builder()
 			.url(pageUrl)
