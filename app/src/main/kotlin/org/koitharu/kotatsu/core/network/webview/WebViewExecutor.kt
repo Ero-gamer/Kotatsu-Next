@@ -7,11 +7,14 @@ import android.util.AndroidRuntimeException
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
 import androidx.annotation.MainThread
+import androidx.core.view.doOnLayout
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
@@ -25,20 +28,20 @@ import org.koitharu.kotatsu.browser.cloudflare.CloudFlareCallback
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareClient
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareInterceptClient
 import org.koitharu.kotatsu.core.exceptions.CloudFlareException
+import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.network.CommonHeaders
 import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
-import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.network.proxy.ProxyProvider
 import org.koitharu.kotatsu.core.parser.MangaRepository
 import org.koitharu.kotatsu.core.parser.ParserMangaRepository
 import org.koitharu.kotatsu.core.ui.util.ForegroundActivityHolder
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.configureForParser
 import org.koitharu.kotatsu.core.util.ext.prepareDetachedParserViewport
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.sanitizeHeaderValue
 import org.koitharu.kotatsu.parsers.config.ConfigKey
 import org.koitharu.kotatsu.parsers.model.MangaSource
-import org.koitharu.kotatsu.parsers.network.CloudFlareHelper
 import org.koitharu.kotatsu.parsers.util.nullIfEmpty
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import java.lang.ref.WeakReference
@@ -57,8 +60,8 @@ class WebViewExecutor @Inject constructor(
 	private val proxyProvider: ProxyProvider,
 	private val cookieJar: MutableCookieJar,
 	private val foregroundActivityHolder: ForegroundActivityHolder,
-	private val mangaRepositoryFactoryProvider: Provider<MangaRepository.Factory>,
 	private val settings: AppSettings,
+	private val mangaRepositoryFactoryProvider: Provider<MangaRepository.Factory>,
 ) {
 
 	private var webViewCached: WeakReference<WebView>? = null
@@ -221,10 +224,18 @@ class WebViewExecutor @Inject constructor(
 					isThrowaway = false
 				}
 				try {
-					exception.source.getUserAgent()?.let {
+					webView.webChromeClient = WebChromeClient()
+					webView.onResume()
+					val requestUserAgent = (exception as? CloudFlareProtectedException)
+						?.headers
+						?.get(CommonHeaders.USER_AGENT)
+						?: exception.source.getUserAgent()
+					requestUserAgent?.let {
 						webView.settings.userAgentString = it
 					}
 					val resolved = withTimeoutOrNull(timeout) {
+						awaitVisibleLayout(webView)
+						webView.requestFocus()
 						suspendCancellableCoroutine { cont ->
 							webView.webViewClient = createCloudFlareClient(webView, exception, cont)
 							webView.loadUrl(exception.url)
@@ -242,6 +253,8 @@ class WebViewExecutor @Inject constructor(
 					e.printStackTraceDebug()
 					false
 				} finally {
+					runCatching { webView.onPause() }
+					webView.webChromeClient = WebChromeClient()
 					if (isThrowaway) {
 						runCatching { webView.stopLoading() }
 						webView.webViewClient = WebViewClient()
@@ -279,16 +292,31 @@ class WebViewExecutor @Inject constructor(
 			(webView.parent as? ViewGroup)?.removeView(webView)
 			webView.alpha = 1f
 			webView.visibility = View.VISIBLE
-			webView.bringToFront()
 			content.addView(
 				webView,
 				ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
 			)
+			webView.bringToFront()
 		}.onFailure {
 			it.printStackTraceDebug()
 			return null
 		}
 		return content
+	}
+
+	/** Wait until Cloudflare sees a real viewport that has reached the screen at least once. */
+	@MainThread
+	private suspend fun awaitVisibleLayout(webView: WebView) {
+		suspendCancellableCoroutine { cont ->
+			webView.doOnLayout {
+				if (cont.isActive) cont.resume(Unit)
+			}
+		}
+		suspendCancellableCoroutine { cont ->
+			webView.postOnAnimation {
+				if (cont.isActive) cont.resume(Unit)
+			}
+		}
 	}
 
 	@MainThread
@@ -309,34 +337,30 @@ class WebViewExecutor @Inject constructor(
 		val handler = Handler(Looper.getMainLooper())
 		val resumeOnce: (Boolean) -> Unit = { result ->
 			handler.removeCallbacksAndMessages(null)
+			if (result) {
+				CookieManager.getInstance().flush()
+			}
 			if (continuation.isActive) continuation.resume(result)
 		}
-		val initialClearance = CloudFlareHelper.getClearanceCookie(cookieJar, exception.url)
-		val challengeDeadline = System.currentTimeMillis() + MAX_CHALLENGE_MS
-		// CloudFlareClient only signals success when the clearance cookie *changes*. Probe the page state so we can
-		// (a) finish the instant the real page is shown, and (b) give up on a stuck challenge before the hard timeout.
+		var consecutivePasses = 0
+		// Cookie changes are intentionally ignored here. They occur between managed-challenge stages and
+		// accepting the first one destroys the WebView before Cloudflare has finished verification.
 		val check = object : Runnable {
 			override fun run() {
 				if (!continuation.isActive) return
-				// Some sources (e.g. utoon) only ever land cf_clearance via Cloudflare's PAT / managed-challenge
-				// side-channel while Turnstile itself reports an error. Catch that the moment the cookie appears.
-				val clearance = CloudFlareHelper.getClearanceCookie(cookieJar, exception.url)
-				if (clearance != null && clearance != initialClearance) {
-					resumeOnce(true)
-					return
-				}
 				webView.evaluateJavascript(CF_STATE_JS) { raw ->
 					if (!continuation.isActive) return@evaluateJavascript
-					when (raw?.removeSurrounding("\"")) {
-						"ok" -> resumeOnce(true)
-						"error" -> resumeOnce(false)
-						else -> if (System.currentTimeMillis() >= challengeDeadline) {
-							resumeOnce(false)
-						} else {
-							handler.removeCallbacks(this)
-							handler.postDelayed(this, CHALLENGE_POLL_INTERVAL_MS)
+					if (raw?.removeSurrounding("\"") == "ok") {
+						consecutivePasses++
+						if (consecutivePasses >= REQUIRED_STABLE_PASSES) {
+							resumeOnce(true)
+							return@evaluateJavascript
 						}
+					} else {
+						consecutivePasses = 0
 					}
+					handler.removeCallbacks(this)
+					handler.postDelayed(this, CHALLENGE_POLL_INTERVAL_MS)
 				}
 			}
 		}
@@ -351,7 +375,11 @@ class WebViewExecutor @Inject constructor(
 				handler.postDelayed(check, 100L)
 			}
 
-			override fun onCheckPassed() = resumeOnce(true)
+			override fun onCheckPassed() {
+				// A cookie changed. Probe the DOM sooner, but do not finish until the page is stable.
+				handler.removeCallbacks(check)
+				handler.postDelayed(check, 100L)
+			}
 
 			// CloudFlareClient gives up after a few reloads; headlessly we'd rather keep going until the
 			// page-state poll sees the real page (or the overall timeout fires).
@@ -421,7 +449,7 @@ class WebViewExecutor @Inject constructor(
 
 		const val TAG = "WebViewExecutor"
 		const val CHALLENGE_POLL_INTERVAL_MS = 700L
-		const val MAX_CHALLENGE_MS = 11_000L // give up on a stuck challenge just before the hard timeout
+		const val REQUIRED_STABLE_PASSES = 3
 
 		// After a failed auto-resolve for a host, skip new attempts for this long so a burst of failing
 		// requests (favicon + catalog + chapters + …) doesn't queue up multiple full timeouts.

@@ -45,6 +45,12 @@ class PageViewModel(
 	fun isLoading() = job?.isActive == true
 
 	fun onBind(page: MangaPage) {
+		// Immediately clear stale state so the observer in BasePageHolder doesn't
+		// call ssiv.setImage() with the previous page's source while prevJob is
+		// still cancelling. Without this, a stale PageState.Loaded triggers a
+		// phantom setImage() → ssiv.reset() → decoder init cancelled → "preparing"
+		// screen permanently stuck on chapter 2+ high-res images.
+		state.value = PageState.Empty
 		val prevJob = job
 		job = scope.launch(Dispatchers.Default) {
 			prevJob?.cancelAndJoin()

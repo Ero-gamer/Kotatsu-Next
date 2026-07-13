@@ -59,7 +59,7 @@ abstract class ErrorObserver(
 	protected fun resolve(error: Throwable) {
 		if (isAlive()) {
 			lifecycleScope.launch {
-				val isResolved = resolver?.resolve(error) == true
+				val isResolved = resolver?.resolve(error, tryAutoResolve = false) == true
 				if (isActive) {
 					onResolved?.accept(isResolved)
 				}

@@ -21,7 +21,17 @@ internal const val CF_STATE_JS = """
 			if (t.indexOf('just a moment') !== -1 || t.indexOf('un instant') !== -1 ||
 				t.indexOf('einen moment') !== -1 || t.indexOf('un momento') !== -1 ||
 				t.indexOf('один момент') !== -1) return 'wait';
-			if (document.querySelector('#challenge-running, #challenge-stage, #cf-challenge-running, .cf-browser-verification, #turnstile-wrapper, #cf-please-wait, script[src*="challenge-platform"]')) return 'wait';
+			var challengeNodes = document.querySelectorAll(
+				'#challenge-running, #challenge-stage, #cf-challenge-running, ' +
+				'.cf-browser-verification, #turnstile-wrapper, #cf-please-wait'
+			);
+			for (var i = 0; i < challengeNodes.length; i++) {
+				var node = challengeNodes[i];
+				var style = window.getComputedStyle(node);
+				if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+				var rect = node.getBoundingClientRect();
+				if (rect.width > 0 && rect.height > 0) return 'wait';
+			}
 			if (!document.body || document.body.children.length === 0) return 'wait';
 			return 'ok';
 		} catch (e) { return 'wait'; }
