@@ -727,9 +727,6 @@ class AppRouter private constructor(
                 exception.headers[CommonHeaders.USER_AGENT]?.let {
                     putExtra(KEY_USER_AGENT, it)
                 }
-                if (hidden) {
-                    putExtra(CloudFlareActivity.EXTRA_HIDDEN, true)
-                }
             }
         }
 
