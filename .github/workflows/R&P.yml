@@ -64,7 +64,6 @@ jobs:
           name: "Latest Stable Build"
           body: |
             ### Automated Release
-            Built and signed for Android 14+ architectures.
           files: "./ready_apks/**/*.apk"
           generate_release_notes: true
           draft: false
