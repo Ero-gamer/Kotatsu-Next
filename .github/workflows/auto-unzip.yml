@@ -2,45 +2,39 @@ name: Unzip and Commit
 
 on:
   push:
-    branches:
-      - '**' # Triggers on any branch push
+    paths:
+      - '**.zip' # Triggers only when a zip file is uploaded
 
 jobs:
   unzip:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-
+      contents: write # Needed to commit the extracted files
     steps:
       - name: Checkout code
         uses: actions/checkout@v7.0.1
 
-      - name: Extract zip and commit changes
+      - name: Extract zip
         run: |
-          # 1. Locate the zip file (searching root directory)
+          # Find the zip file
           ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No zip file found in root directory. Skipping execution."
-            exit 0
-          fi
-
-          echo "Found target archive: $ZIP_FILE"
-
-          # 2. Extract and clean up original archive
+          
+          # Unzip it, overwriting existing files
           unzip -o "$ZIP_FILE" -d .
+          
+          # Remove the zip file after extraction
           rm "$ZIP_FILE"
 
-          # 3. Configure Git credentials
+      - name: Commit and Push
+        run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 4. Stage and verify changes before committing
+          
+          # Stage all extracted files
           git add .
-
-          if git diff --staged --quiet; then
-            echo "No changes detected after extraction."
-          else
-            git commit -m "Auto-extract: Decompressed $(basename "$ZIP_FILE")"
-            git push
-          fi
+          
+          # Commit the changes
+          git commit -m "Auto-extract: Decompressed $(basename "$ZIP_FILE")"
+          
+          # Push to the current branch
+          git push
