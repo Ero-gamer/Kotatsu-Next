@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Tonal circle behind a card status glyph. Fully rounded to sit alongside the progress ring, and
+	tinted per-use so each indicator carries its own accent.
+-->
+<shape
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:shape="oval">
+
+	<solid android:color="@android:color/white" />
+</shape>

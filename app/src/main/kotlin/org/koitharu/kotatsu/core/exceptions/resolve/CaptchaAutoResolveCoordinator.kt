@@ -23,7 +23,6 @@ import org.koitharu.kotatsu.browser.cloudflare.CloudFlareHiddenActivity
 import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.model.UnknownMangaSource
 import org.koitharu.kotatsu.core.nav.AppRouter
-import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.ui.DefaultActivityLifecycleCallbacks
 import org.koitharu.kotatsu.core.ui.util.ForegroundActivityHolder
@@ -41,7 +40,6 @@ import javax.inject.Singleton
 class CaptchaAutoResolveCoordinator @Inject constructor(
 	@ApplicationContext private val context: Context,
 	private val foregroundActivityHolder: ForegroundActivityHolder,
-	private val settings: AppSettings,
 ) : DefaultActivityLifecycleCallbacks, DefaultLifecycleObserver {
 
 	private val stateMutex = Mutex()
@@ -112,14 +110,30 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
 		}
 	}
 
+	/**
+	 * Reports that verification which finished successfully did not actually unblock [source].
+	 */
+	fun notifyVerificationIneffective(source: MangaSource) {
+		Log.w(TAG, "Verification succeeded but $source is still protected; suppressing auto-resolve")
+		recentSuccessAt.remove(source)
+		recentFailureAt[source] = System.currentTimeMillis()
+	}
+
 	/** Resolves [exception] only when automatic solving is enabled for its source. */
 	suspend fun resolveIfEnabled(exception: CloudFlareProtectedException): Boolean {
-		// Global kill-switch: if the user disabled auto-resolve in Settings → Network, bail immediately.
-		if (settings.isCfAutoSolveDisabled) return false
 		if (SourceSettings(context, exception.source).isCaptchaAutoResolveDisabled) return false
+		val now = System.currentTimeMillis()
 		val lastSuccess = recentSuccessAt[exception.source]
-		if (lastSuccess != null && System.currentTimeMillis() - lastSuccess < RECENT_SUCCESS_COOLDOWN_MS) {
+		if (lastSuccess != null && now - lastSuccess < RECENT_SUCCESS_COOLDOWN_MS) {
 			return true
+		}
+		// A source whose challenge just failed must not spawn a solver Activity for every following
+		// request: one unsolvable challenge would otherwise become an app-wide verification loop, with
+		// the tracker and every open screen re-launching it back to back. Report "not resolved" instead
+		// so the caller falls back to the ordinary captcha state, which offers a single manual "Solve".
+		val lastFailure = recentFailureAt[exception.source]
+		if (lastFailure != null && now - lastFailure < RECENT_FAILURE_COOLDOWN_MS) {
+			return false
 		}
 		return resolve(exception.source, exception)
 	}
@@ -214,12 +228,15 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
 		}
 	}
 
-	private data class ResolveSession(
+	private class ResolveSession(
 		val source: MangaSource,
 		val exception: CloudFlareProtectedException,
 		val activityResult: CompletableDeferred<Boolean>,
 		val result: CompletableDeferred<Boolean>,
-	)
+	) {
+		@Volatile
+		var isCancelledByBackground = false
+	}
 
 	private data class SessionClaim(
 		val session: ResolveSession,
@@ -227,6 +244,7 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
 	)
 
 	private companion object {
+		const val TAG = "CaptchaCoordinator"
 		const val RECENT_SUCCESS_COOLDOWN_MS = 30_000L
 		const val MAX_REQUEST_RETRIES = 2
 	}

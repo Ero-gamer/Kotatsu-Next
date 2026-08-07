@@ -20,8 +20,6 @@ import androidx.interpolator.view.animation.FastOutLinearInInterpolator
 import androidx.interpolator.view.animation.LinearOutSlowInInterpolator
 import com.google.android.material.bottomnavigation.BottomNavigationMenuView
 import com.google.android.material.navigation.NavigationBarView
-import com.google.android.material.shape.MaterialShapeDrawable
-import com.google.android.material.shape.ShapeAppearanceModel
 import org.koitharu.kotatsu.core.util.ext.applySystemAnimatorScale
 import org.koitharu.kotatsu.core.util.ext.measureHeight
 import kotlin.math.max
@@ -35,7 +33,7 @@ private const val SLIDE_DOWN_ANIMATION_DURATION = 175L
 
 private const val MAX_ITEM_COUNT = 6
 
-class SlidingBottomNavigationView @JvmOverloads constructor(
+open class SlidingBottomNavigationView @JvmOverloads constructor(
 	context: Context,
 	attrs: AttributeSet? = null,
 	@AttrRes defStyleAttr: Int = materialR.attr.bottomNavigationStyle,
@@ -47,14 +45,6 @@ class SlidingBottomNavigationView @JvmOverloads constructor(
 
 	private var currentState = STATE_UP
 	private var behavior = HideBottomNavigationOnScrollBehavior()
-
-	var isFloating: Boolean = false
-		set(value) {
-			if (field != value) {
-				field = value
-				applyFloatingStyle(value)
-			}
-		}
 
 	var isPinned: Boolean
 		get() = behavior.isPinned
@@ -108,7 +98,15 @@ class SlidingBottomNavigationView @JvmOverloads constructor(
 		return measureSpec
 	}
 
-	override fun getMaxItemCount(): Int = MAX_ITEM_COUNT
+	override fun getMaxItemCount(): Int = maxItemCountOverride
+
+	/**
+	 * A getter with no backing field on purpose: [getMaxItemCount] is called from NavigationBarView's
+	 * constructor, before a subclass's property initialisers have run, so a `val` would still read
+	 * zero there.
+	 */
+	protected open val maxItemCountOverride: Int
+		get() = MAX_ITEM_COUNT
 
 	@SuppressLint("RestrictedApi")
 	override fun createNavigationBarMenuView(context: Context) = BottomNavigationMenuView(context)
@@ -185,20 +183,7 @@ class SlidingBottomNavigationView @JvmOverloads constructor(
 		}
 	}
 
-	private fun applyFloatingStyle(floating: Boolean) {
-		if (floating) {
-			val radius = 28f * resources.displayMetrics.density
-			(background as? MaterialShapeDrawable)?.shapeAppearanceModel =
-				ShapeAppearanceModel.builder()
-					.setAllCornerSizes(radius)
-					.build()
-		} else {
-			(background as? MaterialShapeDrawable)?.shapeAppearanceModel =
-				ShapeAppearanceModel.builder()
-					.setAllCornerSizes(0f)
-					.build()
-		}
-	}
+
 
 	private fun animateTranslation(targetY: Float, duration: Long, interpolator: TimeInterpolator) {
 		currentAnimator = animate()

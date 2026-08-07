@@ -182,7 +182,7 @@
 			android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
 			android:excludeFromRecents="true"
 			android:theme="@style/Theme.Kotatsu.CloudFlareHidden"
-			android:windowSoftInputMode="adjustResize" />
+			android:windowSoftInputMode="adjustNothing" />
 		<activity
 			android:name="org.koitharu.kotatsu.settings.sources.auth.SourceAuthActivity"
 			android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
@@ -396,10 +396,6 @@
 			android:name="org.koitharu.kotatsu.details.service.MangaPrefetchService"
 			android:exported="false"
 			android:label="@string/prefetch_content" />
-		<service
-			android:name="org.koitharu.kotatsu.browser.AdListUpdateService"
-			android:exported="false" />
-
 		<provider
 			android:name="org.koitharu.kotatsu.search.ui.MangaSuggestionsProvider"
 			android:authorities="${applicationId}.MangaSuggestionsProvider"

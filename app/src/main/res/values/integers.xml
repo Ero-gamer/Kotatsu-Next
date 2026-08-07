@@ -8,7 +8,9 @@
 	<integer name="manga_badge_max_character_count">3</integer>
 	<integer name="explore_buttons_columns">2</integer>
 	<integer name="details_description_lines">4</integer>
-	<integer name="details_title_lines">4</integer>
+	<!-- Three is enough for all but the longest titles, and stops a wordy one from pushing the
+	     favourite button and the info table below the fold. -->
+	<integer name="details_title_lines">3</integer>
 
 	<integer name="splash_screen_duration">450</integer>
 </resources>

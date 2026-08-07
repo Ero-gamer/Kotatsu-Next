@@ -27,34 +27,95 @@
 			tools:ignore="ContentDescription"
 			tools:src="@tools:sample/backgrounds/scenic[5]" />
 
+		<!-- New-chapter count and favourite mark sit together at the top-left, opposite the reading
+		     progress ring. Both are "what is going on with this title" rather than "where am I in it". -->
+		<LinearLayout
+			android:id="@+id/layout_indicators"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="top|start"
+			android:layout_margin="@dimen/card_indicator_offset"
+			android:orientation="vertical">
+
+			<LinearLayout
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:gravity="center_vertical"
+				android:orientation="horizontal">
+
+			<org.koitharu.kotatsu.core.ui.widgets.BadgeView
+				android:id="@+id/badge"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginEnd="4dp"
+				android:visibility="gone"
+				app:maxCharacterCount="@integer/manga_badge_max_character_count"
+				tools:number="8"
+				tools:visibility="visible" />
+
+			<ImageView
+				android:id="@+id/imageView_favourite"
+				android:layout_width="@dimen/card_indicator_size_glyph"
+				android:layout_height="@dimen/card_indicator_size_glyph"
+				android:background="@drawable/bg_card_indicator"
+				android:backgroundTint="?attr/colorTertiaryContainer"
+				android:padding="4dp"
+				android:src="@drawable/ic_heart"
+				android:visibility="gone"
+				app:tint="?attr/colorOnTertiaryContainer"
+				tools:ignore="ContentDescription"
+				tools:visibility="visible" />
+
+			</LinearLayout>
+
+			<!-- Pinned / downloaded markers stack under the badges rather than sharing the corner. -->
+			<org.koitharu.kotatsu.core.ui.widgets.IconsView
+				android:id="@+id/iconsView"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="4dp"
+				android:background="@drawable/bg_list_icons"
+				android:orientation="horizontal"
+				android:padding="4dp"
+				app:iconSize="14dp"
+				app:iconSpacing="4dp" />
+
+		</LinearLayout>
+
 		<org.koitharu.kotatsu.history.ui.util.ReadingProgressView
 			android:id="@+id/progressView"
 			android:layout_width="@dimen/card_indicator_size"
 			android:layout_height="@dimen/card_indicator_size"
-			android:layout_gravity="bottom|end"
-			android:layout_margin="@dimen/card_indicator_offset" />
-
-		<org.koitharu.kotatsu.core.ui.widgets.IconsView
-			android:id="@+id/iconsView"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_gravity="top|start"
-			android:layout_marginTop="10dp"
-			android:background="@drawable/bg_list_icons"
-			android:orientation="horizontal"
-			android:padding="4dp"
-			app:iconSize="14dp"
-			app:iconSpacing="4dp" />
-
-		<org.koitharu.kotatsu.core.ui.widgets.BadgeView
-			android:id="@+id/badge"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
 			android:layout_gravity="top|end"
-			android:layout_margin="@dimen/margin_small"
+			android:layout_margin="@dimen/card_indicator_offset"
+			app:progressStyle="?attr/readingProgressStyle" />
+
+		<!-- Backdrop for the overlaid title. Sized for two lines and faded to transparent at the
+		     top; the gradient itself is built in MangaGridItemAD so it can pick up the theme accent.
+		     Kept directly above the cover so the badges and icons still draw over it. -->
+		<View
+			android:id="@+id/view_scrim"
+			android:layout_width="match_parent"
+			android:layout_height="72dp"
+			android:layout_gravity="bottom"
 			android:visibility="gone"
-			app:maxCharacterCount="@integer/manga_badge_max_character_count"
-			tools:number="8"
+			tools:background="#CC000000"
+			tools:visibility="visible" />
+
+
+		<!-- Shown only by themes that draw the title over the artwork (Expressive).
+		     Layout params stay here rather than in the style: layout_* attributes are read by the
+		     parent from the tag itself, and do not reliably survive a ?attr style indirection. -->
+		<TextView
+			android:id="@+id/textView_title_overlay"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_gravity="bottom|start"
+			android:layout_marginStart="12dp"
+			android:layout_marginEnd="12dp"
+			android:layout_marginBottom="8dp"
+			style="?attr/mangaCoverTitleStyle"
+			tools:text="@tools:sample/lorem"
 			tools:visibility="visible" />
 
 	</FrameLayout>
@@ -63,14 +124,7 @@
 		android:id="@+id/textView_title"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:elegantTextHeight="false"
-		android:ellipsize="end"
-		android:lines="2"
-		android:paddingVertical="4dp"
-		android:textAppearance="?attr/textAppearanceTitleSmall"
-		android:textColor="?android:attr/textColorPrimary"
-		app:layout_constraintStart_toStartOf="parent"
-		app:layout_constraintTop_toBottomOf="@+id/thumbnail"
+		style="?attr/mangaGridTitleStyle"
 		tools:text="@tools:sample/lorem" />
 
 </LinearLayout>

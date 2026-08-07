@@ -8,6 +8,9 @@ plugins {
     id 'dagger.hilt.android.plugin'
     id 'androidx.room'
     id 'org.jetbrains.kotlin.plugin.serialization'
+    id 'org.jetbrains.kotlin.plugin.compose'
+	// enable if needed
+	// id 'dev.reformator.stacktracedecoroutinator'
 }
 
 configurations.all {
@@ -27,7 +30,8 @@ configurations.all {
 }
 
 android {
-    compileSdk = 36
+    compileSdk = 37
+	buildToolsVersion = '35.0.0'
     namespace = 'org.koitharu.kotatsu'
 
     dependenciesInfo {
@@ -38,7 +42,7 @@ android {
     defaultConfig {
         applicationId 'io.github.kotatsu.next'
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 2038
         versionName = '9.8.1'
         generatedDensities = []
@@ -75,6 +79,7 @@ android {
     buildFeatures {
         viewBinding true
         buildConfig true
+        compose true
     }
 
     packagingOptions {
@@ -158,6 +163,13 @@ dependencies {
     implementation libs.kotlin.stdlib
     implementation libs.kotlinx.coroutines.android
     implementation libs.kotlinx.coroutines.guava
+
+    implementation platform(libs.androidx.compose.bom)
+    implementation libs.androidx.compose.runtime
+    implementation libs.androidx.compose.ui
+    implementation libs.androidx.compose.foundation
+    implementation libs.androidx.compose.material3
+    implementation libs.androidx.compose.activity
 
     implementation libs.androidx.appcompat
     implementation libs.androidx.core

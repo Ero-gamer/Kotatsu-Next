@@ -6,6 +6,7 @@
 
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
+		android:icon="@drawable/ic_check"
 		android:key="enable"
 		android:layout="@layout/preference_toggle_header"
 		android:order="0"
@@ -14,6 +15,7 @@
 
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
+		android:icon="@drawable/ic_notification"
 		android:key="no_captcha"
 		android:order="104"
 		android:summary="@string/disable_captcha_notifications_summary"
@@ -21,6 +23,7 @@
 
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
+		android:icon="@drawable/ic_disable"
 		android:key="no_auto_captcha"
 		android:order="103"
 		android:summary="@string/disable_captcha_auto_solve_summary"
@@ -28,6 +31,7 @@
 
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
+		android:icon="@drawable/ic_timelapse"
 		android:key="slowdown"
 		android:order="105"
 		android:summary="@string/download_slowdown_summary"

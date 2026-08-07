@@ -218,4 +218,30 @@
 		<attr name="number" />
 	</declare-styleable>
 
+	<!--
+		Where a manga grid item draws its title. Themes pick exactly one of the two: the default puts
+		it under the cover, Expressive lays it over the artwork. Both views always exist in the layout
+		and each theme hides the one it isn't using, so no runtime theme checks are needed.
+	-->
+	<attr name="mangaGridTitleStyle" format="reference" />
+	<attr name="mangaCoverTitleStyle" format="reference" />
+
+	<!--
+		Grid title text appearances, resolved per theme by DynamicItemSizeResolver, which swaps between
+		them as the grid size preference changes. They are theme attributes rather than constants so the
+		Expressive theme can carry its own font and shadow through that runtime swap.
+	-->
+	<attr name="gridTitleTextAppearance" format="reference" />
+	<attr name="gridTitleTextAppearanceSmall" format="reference" />
+
+	<!-- Drawable style for the reading-progress ring on a card, so Expressive can restyle it. -->
+	<attr name="readingProgressStyle" format="reference" />
+
+	<!--
+		Inset around each manga grid card. Applied in MangaGridItemAD rather than the layout: this has
+		to vary per theme, and layout_* attributes are read by the parent from the tag itself, so a
+		?attr indirection in the style does not reach them.
+	-->
+	<attr name="mangaGridSpacing" format="dimension" />
+
 </resources>

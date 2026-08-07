@@ -423,7 +423,10 @@ class DetailsActivity :
 		val manga = details.toManga()
 		with(viewBinding) {
 			textViewTitle.text = manga.title
-			textViewSubtitle.textAndVisible = manga.altTitles.joinToString("\n")
+			// Alternative titles are hidden here. Sources often carry a translation per language, so
+				// this ran to several lines of text nobody reads before the header even reaches the
+				// favourite button. They are still on the manga object for search and matching.
+				textViewSubtitle.textAndVisible = null
 			textViewNsfw16.isVisible = manga.contentRating == ContentRating.SUGGESTIVE
 			textViewNsfw18.isVisible = manga.contentRating == ContentRating.ADULT
 			textViewDescription.text = details.description.ifNullOrEmpty { getString(R.string.no_description) }

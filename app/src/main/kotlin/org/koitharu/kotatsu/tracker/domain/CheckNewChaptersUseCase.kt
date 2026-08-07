@@ -2,7 +2,6 @@ package org.koitharu.kotatsu.tracker.domain
 
 import android.util.Log
 import coil3.request.CachePolicy
-import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.core.model.getPreferredBranch
 import org.koitharu.kotatsu.core.model.isLocal
 import org.koitharu.kotatsu.core.parser.CachingMangaRepository
@@ -37,10 +36,18 @@ class CheckNewChaptersUseCase @Inject constructor(
 
 	suspend operator fun invoke(manga: Manga): MangaUpdates = mutex.withLock(manga.id) {
 		repository.updateTracks()
-		val tracking = repository.getTrackOrNull(manga) ?: return@withLock MangaUpdates.Failure(
-			manga = manga,
-			error = null,
-		)
+		val tracking = repository.getTrackOrNull(manga)
+		if (tracking == null) {
+			Log.w(
+				TAG,
+				"[${manga.id}] \"${manga.title}\": no track row after updateTracks - manga is not tracked " +
+					"(not in history/tracked favourite category, or tracking sources disabled)",
+			)
+			return@withLock MangaUpdates.Failure(
+				manga = manga,
+				error = null,
+			)
+		}
 		invokeImpl(tracking)
 	}
 
@@ -160,21 +167,57 @@ class CheckNewChaptersUseCase @Inject constructor(
 		historyChapterId: Long,
 	): MangaUpdates.Success {
 		if (track.isEmpty()) {
-			// first check or manga was empty on last check
+			// First check (fresh install, restored backup or new manga): there is no tracker
+			// baseline, but the user's reading position is one. Anchoring on it surfaces the
+			// chapters released since the user last read, instead of silently swallowing them
+			// into the new baseline; filterReadAndStaleChapters then drops read/old ones.
+			val chapters = manga.getChapters(branch)
+			if (historyChapterId != 0L && !chapters.isNullOrEmpty()) {
+				compareAgainst(manga, branch, chapters, historyChapterId)?.let {
+					Log.i(
+						TAG,
+						"[${manga.id}] \"${manga.title}\": no baseline yet, anchored on history " +
+							"chapter $historyChapterId: new=${it.newChapters.size}",
+					)
+					return it
+				}
+			}
+			Log.i(
+				TAG,
+				"[${manga.id}] \"${manga.title}\": no baseline yet, re-baselining without reporting updates " +
+					"(chapters=${chapters?.size ?: 0} in branch \"$branch\", historyChapterId=$historyChapterId)",
+			)
 			return MangaUpdates.Success(manga, branch, emptyList(), isValid = false)
 		}
 		val chapters = requireNotNull(manga.getChapters(branch))
-		if (BuildConfig.DEBUG && chapters.findById(track.lastChapterId) == null) {
-			Log.e("Tracker", "Chapter ${track.lastChapterId} not found")
+		compareAgainst(manga, branch, chapters, track.lastChapterId)?.let {
+			Log.d(TAG, "[${manga.id}] \"${manga.title}\": compared by lastChapterId anchor, new=${it.newChapters.size}")
+			return it
 		}
-		compareAgainst(manga, branch, chapters, track.lastChapterId)?.let { return it }
+		Log.i(
+			TAG,
+			"[${manga.id}] \"${manga.title}\": lastChapterId=${track.lastChapterId} not found among " +
+				"${chapters.size} chapter(s) of branch \"$branch\", falling back to date baseline",
+		)
 		// lastChapterId is stale (not in the fresh list) -> prefer the date baseline.
-		compareByDate(manga, branch, chapters, track.lastChapterDate?.toEpochMilli() ?: 0L)?.let { return it }
+		compareByDate(manga, branch, chapters, track.lastChapterDate?.toEpochMilli() ?: 0L)?.let {
+			Log.i(TAG, "[${manga.id}] \"${manga.title}\": compared by date ${track.lastChapterDate}, new=${it.newChapters.size}")
+			return it
+		}
 		// No usable id or date -> last resort: the user's reading position.
 		if (historyChapterId != 0L && historyChapterId != track.lastChapterId) {
-			compareAgainst(manga, branch, chapters, historyChapterId)?.let { return it }
+			compareAgainst(manga, branch, chapters, historyChapterId)?.let {
+				Log.i(TAG, "[${manga.id}] \"${manga.title}\": compared by history chapter $historyChapterId, new=${it.newChapters.size}")
+				return it
+			}
 		}
 		// Nothing usable; can't tell what's new. Re-baseline silently.
+		Log.w(
+			TAG,
+			"[${manga.id}] \"${manga.title}\": no usable anchor " +
+				"(lastChapterId=${track.lastChapterId}, lastChapterDate=${track.lastChapterDate}, " +
+				"historyChapterId=$historyChapterId, chapters=${chapters.size}), re-baselining without reporting updates",
+		)
 		return MangaUpdates.Success(manga, branch, emptyList(), isValid = false)
 	}
 
@@ -242,6 +285,14 @@ class CheckNewChaptersUseCase @Inject constructor(
 		return if (filtered.size == newChapters.size) {
 			this
 		} else {
+			val dropped = newChapters - filtered.toSet()
+			Log.i(
+				TAG,
+				"[${manga.id}] \"${manga.title}\": dropped ${dropped.size} of ${newChapters.size} new chapter(s) " +
+					"as read/stale (readChapters=$readChapters, historyChapterId=${history?.chapterId}, " +
+					"similarHistories=${similarHistories.size}): " +
+					dropped.joinToString(limit = DROPPED_CHAPTERS_LOG_LIMIT) { x -> x.name },
+			)
 			copy(newChapters = filtered)
 		}
 	}
@@ -265,13 +316,12 @@ class CheckNewChaptersUseCase @Inject constructor(
 		val index = chapters.indexOfFirst { it.id == chapterId }
 		return when {
 			index >= 0 -> index + 1
-			ReadingProgress.isCompleted(percent) -> chapters.size
 			else -> estimatedReadChaptersCount().coerceAtMost(chapters.size)
 		}
 	}
 
 	private fun MangaHistory.estimatedReadChaptersCount(): Int {
-		if (chaptersCount <= 0) {
+		if (chaptersCount <= 0 || !ReadingProgress.isValid(percent)) {
 			return 0
 		}
 		return if (ReadingProgress.isCompleted(percent)) {
@@ -283,7 +333,9 @@ class CheckNewChaptersUseCase @Inject constructor(
 
 	private companion object {
 
+		const val TAG = "Tracker"
 		const val SIMILAR_HISTORY_LIMIT = 8
 		const val MAX_STALE_CHAPTER_DAYS = 90L
+		const val DROPPED_CHAPTERS_LOG_LIMIT = 10
 	}
 }

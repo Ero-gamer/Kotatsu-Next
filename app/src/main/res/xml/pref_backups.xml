@@ -5,12 +5,14 @@
     android:title="@string/backup_restore">
 
     <Preference
+        android:icon="@drawable/ic_save"
         android:key="backup"
         android:persistent="false"
         android:summary="@string/backup_information"
         android:title="@string/create_backup" />
 
     <Preference
+        android:icon="@drawable/ic_backup_restore"
         android:key="restore"
         android:persistent="false"
         android:summary="@string/restore_summary"
@@ -18,6 +20,7 @@
 
     <PreferenceScreen
         android:fragment="org.koitharu.kotatsu.backups.ui.periodical.PeriodicalBackupSettingsFragment"
+        android:icon="@drawable/ic_timer_run"
         android:key="backup_periodic"
         android:persistent="false"
         android:title="@string/periodic_backups" />

@@ -50,6 +50,65 @@
 		<item name="android:textSize">18sp</item>
 	</style>
 
+	<!--
+		M3 Expressive's "app bar with search" search bar, minus the parts that don't suit a phone-width
+		single-pane layout. What is kept is the app-bar search container colour.
+
+		adaptiveMaxWidthEnabled is off because SearchBar.onMeasure clamps the bar to
+		max(312dp, 50% of parent) as soon as the parent is wider than 312dp. That is meant for tablets,
+		where a full-bleed search bar looks stretched; on a phone it just leaves the bar short with dead
+		space either side.
+
+		hideNavigationIcon and defaultMarginsEnabled are restored because MainActivity sets the bar's
+		horizontal margins itself from m3_searchbar_margin_horizontal plus the window insets, and the
+		bar is the support action bar with its default navigation click listener forced on.
+	-->
+	<style name="Widget.Kotatsu.SearchBar.AppBarWithSearch" parent="Widget.Material3Expressive.SearchBar.AppBarWithSearch">
+		<item name="hideNavigationIcon">false</item>
+		<item name="defaultMarginsEnabled">true</item>
+		<item name="adaptiveMaxWidthEnabled">false</item>
+	</style>
+
+	<!-- Manga grid title, drawn under the cover. Default themes show it, Expressive hides it.
+	     Layout params live in item_manga_grid.xml, not here - see the note on that tag. -->
+	<style name="Widget.Kotatsu.MangaGridTitle" parent="">
+		<item name="android:elegantTextHeight">false</item>
+		<item name="android:includeFontPadding">false</item>
+		<item name="android:ellipsize">end</item>
+		<item name="android:lines">2</item>
+		<item name="android:paddingVertical">4dp</item>
+		<item name="android:textAppearance">?attr/gridTitleTextAppearance</item>
+		<item name="android:textColor">?android:attr/textColorPrimary</item>
+		<item name="android:visibility">visible</item>
+	</style>
+
+	<style name="Widget.Kotatsu.MangaGridTitle.Hidden">
+		<item name="android:visibility">gone</item>
+	</style>
+
+	<!-- Manga grid title, drawn over the cover. Hidden unless the theme opts in.
+	     maxLines rather than lines: a fixed two-line box reserves height even for a one-line title,
+	     which lifts short titles away from the bottom of the cover. -->
+	<style name="Widget.Kotatsu.MangaCoverTitle" parent="">
+		<item name="android:elegantTextHeight">false</item>
+		<!-- Google Sans carries tall ascent/descent metrics, and the default font padding adds more
+		     on top. Left on, a two-line title ends up with a band of empty space under it and drifts
+		     away from the bottom of the cover. -->
+		<item name="android:includeFontPadding">false</item>
+		<item name="android:shadowColor">#B3000000</item>
+		<item name="android:shadowDx">0</item>
+		<item name="android:shadowDy">1</item>
+		<item name="android:shadowRadius">3</item>
+		<item name="android:ellipsize">end</item>
+		<item name="android:maxLines">2</item>
+		<item name="android:textAppearance">?attr/gridTitleTextAppearance</item>
+		<item name="android:visibility">gone</item>
+	</style>
+
+	<style name="Widget.Kotatsu.MangaCoverTitle.Visible">
+		<item name="android:visibility">visible</item>
+	</style>
+
 	<style name="Widget.Kotatsu.CircularProgressIndicator" parent="Widget.Material3.CircularProgressIndicator">
 		<item name="trackCornerRadius">@dimen/mtrl_progress_indicator_full_rounded_corner_radius</item>
 	</style>
@@ -265,6 +324,223 @@
 		<item name="android:lineHeight" tools:ignore="NewApi">14sp</item>
 	</style>
 
+	<!--
+		Titles drawn over cover artwork. The shadow lives here rather than on the view because
+		DynamicItemSizeResolver re-applies a text appearance whenever the grid size changes, and only
+		attributes carried by the appearance itself survive that swap.
+
+		The face is Google Sans, a variable font (GRAD/opsz/wght) rendered at its default instance.
+		Both fontFamily attributes are needed: Material's own TitleSmall sets each of them, so leaving
+		either one out lets sans-serif-medium win on that code path.
+	-->
+	<style name="TextAppearance.Kotatsu.GridTitle.OnCover" parent="TextAppearance.Material3.TitleSmall">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+		<item name="android:textColor">@android:color/white</item>
+		<item name="android:letterSpacing">0</item>
+		<item name="android:shadowColor">#B3000000</item>
+		<item name="android:shadowDx">0</item>
+		<item name="android:shadowDy">1</item>
+		<item name="android:shadowRadius">3</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.GridTitle.OnCover.Small">
+		<item name="android:textSize">12sp</item>
+		<item name="lineHeight">14sp</item>
+		<item name="android:lineHeight" tools:ignore="NewApi">14sp</item>
+	</style>
+
+	<!--
+		Bold with the same soft drop shadow as the cover titles, for the pieces that sit over or
+		against artwork: the "continue reading" button and the navigation bar labels.
+	-->
+	<style name="TextAppearance.Kotatsu.Shadowed" parent="TextAppearance.Material3.LabelLarge">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+		<item name="android:shadowColor">#80000000</item>
+		<item name="android:shadowDx">0</item>
+		<item name="android:shadowDy">1</item>
+		<item name="android:shadowRadius">3</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Shadowed.NavLabel" parent="TextAppearance.Material3.LabelMedium">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+		<item name="android:shadowColor">#80000000</item>
+		<item name="android:shadowDx">0</item>
+		<item name="android:shadowDy">1</item>
+		<item name="android:shadowRadius">3</item>
+	</style>
+
+	<style name="Widget.Kotatsu.ExtendedFab.Continue" parent="Widget.Material3.ExtendedFloatingActionButton.Primary">
+		<item name="android:textAppearance">@style/TextAppearance.Kotatsu.Shadowed</item>
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<!--
+		Set as bottomNavigationStyle rather than applied in code: NavigationBarItemView reads these
+		when it builds its item views, so applying them afterwards leaves the views already laid out
+		against the old values.
+	-->
+	<style name="Widget.Kotatsu.BottomNavigationView.Expressive" parent="Widget.Material3Expressive.BottomNavigationView">
+		<item name="itemTextAppearanceActive">@style/TextAppearance.Kotatsu.Shadowed.NavLabel</item>
+		<item name="itemTextAppearanceInactive">@style/TextAppearance.Kotatsu.Shadowed.NavLabel</item>
+		<item name="horizontalItemTextAppearanceActive">@style/TextAppearance.Kotatsu.Shadowed.NavLabel</item>
+		<item name="horizontalItemTextAppearanceInactive">@style/TextAppearance.Kotatsu.Shadowed.NavLabel</item>
+	</style>
+
+	<!--
+		Google Sans reports tall ascent/descent metrics, and includeFontPadding (on by default) adds a
+		further band above and below every line. Across a list of settings rows or a details table that
+		compounds into the large gaps between each title and its summary.
+
+		It has to be set on the TextView rather than in the text appearances above: includeFontPadding
+		is a TextView attribute and is not part of the TextAppearance styleable, so setTextAppearance
+		would ignore it. Applying it through android:textViewStyle catches everything the AppCompat /
+		Material inflater creates for a <TextView> tag.
+	-->
+	<style name="Widget.Kotatsu.TextView" parent="Widget.MaterialComponents.TextView">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<!--
+		android:textViewStyle only reaches widgets the inflater creates from a <TextView> tag. Anything
+		with its own default style attribute - every button, chip and tab - resolves against that
+		instead and never sees it, which is what left the split button's label sitting high in its
+		pill. These thin subclasses re-apply it on top of the Expressive styles the theme already uses.
+
+		If text turns up off-centre in some other widget, it will be one that resolves its own style
+		and is missing from this list.
+	-->
+	<style name="Widget.Kotatsu.Expressive.Button" parent="Widget.Material3Expressive.Button">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Button.Tonal" parent="Widget.Material3Expressive.Button.TonalButton">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Button.Outlined" parent="Widget.Material3Expressive.Button.OutlinedButton">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Button.Elevated" parent="Widget.Material3Expressive.Button.ElevatedButton">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Button.Text" parent="Widget.Material3Expressive.Button.TextButton">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Button.Text.Dialog" parent="Widget.Material3Expressive.Button.TextButton.Dialog">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Button.Text.Snackbar" parent="Widget.Material3Expressive.Button.TextButton.Snackbar">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Chip.Assist" parent="Widget.Material3.Chip.Assist">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Chip.Filter" parent="Widget.Material3.Chip.Filter">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.Chip.Suggestion" parent="Widget.Material3.Chip.Suggestion">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.TabLayout" parent="Widget.Material3.TabLayout">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<style name="Widget.Kotatsu.Expressive.ExtendedFab" parent="Widget.Material3Expressive.ExtendedFloatingActionButton.Medium">
+		<item name="android:includeFontPadding">false</item>
+	</style>
+
+	<!--
+		Google Sans across the whole type scale. Each Material3 text appearance hard-codes both
+		fontFamily and android:fontFamily, so a theme-level font attribute is ignored and every role
+		has to be overridden individually. The weight is pinned through the font-family resources,
+		since the .ttf on its own always renders its default instance.
+	-->
+	<style name="TextAppearance.Kotatsu.Sans.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.DisplayMedium" parent="TextAppearance.Material3.DisplayMedium">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.DisplaySmall" parent="TextAppearance.Material3.DisplaySmall">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.HeadlineLarge" parent="TextAppearance.Material3.HeadlineLarge">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+		<item name="fontFamily">@font/google_sans_bold</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.TitleLarge" parent="TextAppearance.Material3.TitleLarge">
+		<item name="fontFamily">@font/google_sans_medium</item>
+		<item name="android:fontFamily">@font/google_sans_medium</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+		<item name="fontFamily">@font/google_sans_medium</item>
+		<item name="android:fontFamily">@font/google_sans_medium</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+		<item name="fontFamily">@font/google_sans_medium</item>
+		<item name="android:fontFamily">@font/google_sans_medium</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+		<item name="fontFamily">@font/google_sans</item>
+		<item name="android:fontFamily">@font/google_sans</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+		<item name="fontFamily">@font/google_sans</item>
+		<item name="android:fontFamily">@font/google_sans</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.BodySmall" parent="TextAppearance.Material3.BodySmall">
+		<item name="fontFamily">@font/google_sans</item>
+		<item name="android:fontFamily">@font/google_sans</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+		<item name="fontFamily">@font/google_sans_medium</item>
+		<item name="android:fontFamily">@font/google_sans_medium</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+		<item name="fontFamily">@font/google_sans_medium</item>
+		<item name="android:fontFamily">@font/google_sans_medium</item>
+	</style>
+
+	<style name="TextAppearance.Kotatsu.Sans.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+		<item name="fontFamily">@font/google_sans_medium</item>
+		<item name="android:fontFamily">@font/google_sans_medium</item>
+	</style>
+
 	<!-- Shapes -->
 
 	<style name="ShapeAppearanceOverlay.Kotatsu.Cover" parent="">
@@ -328,6 +604,51 @@
 		<item name="strokeWidth">4dp</item>
 		<item name="android:textSize">9sp</item>
 		<item name="autoFitTextSize">true</item>
+	</style>
+
+	<!--
+		Expressive reading-progress ring.
+
+		The stock style fills a solid primary disc and paints the arc over it in colorSurfaceVariant,
+		with no track at all - outlineColor is never set, so the drawable's track branch never runs.
+		This one inverts that: a quiet tonal container, a real track drawn as the remainder of the
+		circle, and the arc itself in the accent so progress is what carries the colour. The gap
+		between arc and track only reads once the track is actually painted.
+	-->
+	<style name="ProgressDrawable.Expressive">
+		<item name="android:fillAlpha">1</item>
+		<item name="android:fillColor">?attr/colorSecondaryContainer</item>
+		<item name="android:strokeColor">?attr/colorPrimary</item>
+		<item name="outlineColor">?attr/colorOutlineVariant</item>
+		<item name="android:textColor">?attr/colorOnSecondaryContainer</item>
+		<item name="strokeWidth">5dp</item>
+		<item name="android:textSize">9sp</item>
+		<item name="autoFitTextSize">true</item>
+	</style>
+
+	<!--
+		Expressive new-chapter badge: a round red counter.
+
+		Zero padding and equal min width/height keep it a true circle - the horizontal padding an
+		earlier version had stretched it into an oval as soon as the count reached two digits.
+
+		includeFontPadding matters more here than anywhere else: BadgeView resolves against
+		badgeViewStyle rather than android:textViewStyle, so it never picked up the app-wide fix, and
+		Google Sans's tall metrics left the number sitting visibly off-centre inside the circle.
+	-->
+	<style name="Widget.Kotatsu.BadgeView.Expressive">
+		<item name="android:textColor">?attr/colorOnError</item>
+		<item name="backgroundColor">?attr/colorError</item>
+		<item name="shapeAppearance">@style/ShapeAppearanceOverlay.Kotatsu.Circle</item>
+		<item name="android:gravity">center</item>
+		<item name="android:padding">0dp</item>
+		<item name="android:minWidth">@dimen/card_indicator_size_glyph</item>
+		<item name="android:minHeight">@dimen/card_indicator_size_glyph</item>
+		<item name="android:textSize">11sp</item>
+		<item name="android:includeFontPadding">false</item>
+		<item name="android:elegantTextHeight">false</item>
+		<item name="android:fontFamily">@font/google_sans_bold</item>
+		<item name="fontFamily">@font/google_sans_bold</item>
 	</style>
 
 	<style name="FaviconDrawable">

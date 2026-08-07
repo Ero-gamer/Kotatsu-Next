@@ -10,6 +10,9 @@
 	<dimen name="list_spacing_large">12dp</dimen>
 	<!-- Navigation -->
 	<dimen name="nav_bar_height_compact">56dp</dimen>
+	<!-- Inset of the floating nav bar from the screen edges. Wider than margin_normal so the bar
+	     reads as a pill rather than an edge-to-edge strip with rounded ends. -->
+	<dimen name="nav_bar_floating_margin_horizontal">40dp</dimen>
 
 	<dimen name="grid_spacing">8dp</dimen>
 	<dimen name="list_spacing">8dp</dimen>
@@ -41,8 +44,16 @@
 	<dimen name="search_suggestions_manga_height">142dp</dimen>
 	<dimen name="search_suggestions_manga_spacing">6dp</dimen>
 
+	<!-- Inset around a manga grid card. The default keeps the classic spaced-out grid; Expressive
+	     drops it to a hairline so the covers read as one near-continuous mosaic. -->
+	<dimen name="manga_grid_spacing">8dp</dimen>
+	<dimen name="manga_grid_spacing_tight">1dp</dimen>
+
 	<dimen name="card_indicator_size">32dp</dimen>
 	<dimen name="card_indicator_size_small">24dp</dimen>
+	<!-- Glyph indicators sit a step below the progress ring: the ring carries a number and needs the
+	     room, a heart or a badge count does not, and matching them made the cluster overbearing. -->
+	<dimen name="card_indicator_size_glyph">22dp</dimen>
 	<dimen name="card_indicator_offset">8dp</dimen>
 
 	<dimen name="chapter_check_size">16dp</dimen>

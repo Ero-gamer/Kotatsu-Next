@@ -103,9 +103,9 @@ class DynamicItemSizeResolver(
 
 		private fun TextView.adjustTextAppearance(width: Int) {
 			val textAppearanceResId = if (width < widthThreshold) {
-				R.style.TextAppearance_Kotatsu_GridTitle_Small
+				context.getThemeResId(R.attr.gridTitleTextAppearanceSmall, R.style.TextAppearance_Kotatsu_GridTitle_Small)
 			} else {
-				R.style.TextAppearance_Kotatsu_GridTitle
+				context.getThemeResId(R.attr.gridTitleTextAppearance, R.style.TextAppearance_Kotatsu_GridTitle)
 			}
 			if (textAppearanceResId != prevTextAppearance) {
 				prevTextAppearance = textAppearanceResId

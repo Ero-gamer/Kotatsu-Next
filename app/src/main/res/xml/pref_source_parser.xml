@@ -5,6 +5,7 @@
 
 	<Preference
 		android:enabled="false"
+		android:icon="@drawable/ic_user"
 		android:key="auth"
 		android:order="100"
 		android:persistent="false"
@@ -12,6 +13,7 @@
 		app:allowDividerAbove="true" />
 
 	<Preference
+		android:icon="@drawable/ic_data_privacy"
 		android:key="cookies_clear"
 		android:order="101"
 		android:persistent="false"

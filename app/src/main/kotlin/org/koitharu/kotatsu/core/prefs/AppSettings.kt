@@ -155,7 +155,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	@get:FloatRange(0.0, 1.0)
 	var readerDoublePagesSensitivity: Float
-		get() = prefs.getFloat(KEY_READER_DOUBLE_PAGES_SENSITIVITY, 0.5f)
+		get() = getFloatCompat(KEY_READER_DOUBLE_PAGES_SENSITIVITY, 0.5f).coerceIn(0f, 1f)
 		set(@FloatRange(0.0, 1.0) value) = prefs.edit { putFloat(KEY_READER_DOUBLE_PAGES_SENSITIVITY, value) }
 
 	val readerScreenOrientation: Int
@@ -227,8 +227,8 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getEnumValue(KEY_TRACKER_DOWNLOAD, TrackerDownloadStrategy.DISABLED)
 
 	var isTrackerUnstuckMigrationDone: Boolean
-		get() = prefs.getBoolean(KEY_TRACKER_UNSTUCK_MIGRATION_V3, false)
-		set(value) = prefs.edit { putBoolean(KEY_TRACKER_UNSTUCK_MIGRATION_V3, value) }
+		get() = prefs.getBoolean(KEY_TRACKER_UNSTUCK_MIGRATION_V4, false)
+		set(value) = prefs.edit { putBoolean(KEY_TRACKER_UNSTUCK_MIGRATION_V4, value) }
 
 	var isTrackerProgressRefreshDone: Boolean
 		get() = prefs.getBoolean(KEY_TRACKER_PROGRESS_REFRESH_V1, false)
@@ -459,30 +459,23 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		get() = prefs.getBoolean(KEY_READER_SCREEN_ON, true)
 
 	var readerColorFilter: ReaderColorFilter?
-		get() {
-			// Read each key individually with its own safe fallback.
-			// A single broad runCatching {} would silently drop ALL filter values
-			// if any one key has a type mismatch (e.g. after a prefs migration error).
-			return try {
-				ReaderColorFilter(
-					brightness = runCatching { prefs.getFloat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness) }.getOrDefault(ReaderColorFilter.EMPTY.brightness),
-					contrast = runCatching { prefs.getFloat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast) }.getOrDefault(ReaderColorFilter.EMPTY.contrast),
-					sharpening = runCatching { prefs.getFloat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening) }.getOrDefault(ReaderColorFilter.EMPTY.sharpening),
-					saturation = runCatching { prefs.getFloat(KEY_CF_SATURATION, ReaderColorFilter.EMPTY.saturation) }.getOrDefault(ReaderColorFilter.EMPTY.saturation),
-					vibrance = runCatching { prefs.getFloat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance) }.getOrDefault(ReaderColorFilter.EMPTY.vibrance),
-					isInverted = runCatching { prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted) }.getOrDefault(ReaderColorFilter.EMPTY.isInverted),
-					isGrayscale = runCatching { prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale) }.getOrDefault(ReaderColorFilter.EMPTY.isGrayscale),
-					isBookBackground = runCatching { prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground) }.getOrDefault(ReaderColorFilter.EMPTY.isBookBackground),
-				).takeUnless { it.isEmpty }
-			} catch (e: Exception) {
-				null
-			}
-		}
+		get() = runCatching {
+			ReaderColorFilter(
+				brightness = getFloatCompat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness),
+				contrast = getFloatCompat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast),
+				sharpening = getFloatCompat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening),
+				saturation = getFloatCompat(KEY_CF_SATURATION, ReaderColorFilter.EMPTY.saturation),
+				vibrance = getFloatCompat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance),
+				denoise = getFloatCompat(KEY_CF_DENOISE, ReaderColorFilter.EMPTY.denoise),
+				dither = getFloatCompat(KEY_CF_DITHER, ReaderColorFilter.EMPTY.dither),
+				grain = getFloatCompat(KEY_CF_GRAIN, ReaderColorFilter.EMPTY.grain),
+				isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
+				isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
+				isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
+			).takeUnless { it.isEmpty }
+		}.getOrNull()
 		set(value) {
-			// Use commit=true (synchronous write) so the value is persisted to disk before this
-			// setter returns. apply() is async — if the process is killed by an OOM crash while
-			// the write is pending, the filter settings are permanently lost.
-			prefs.edit(commit = true) {
+			prefs.edit {
 				if (value != null) {
 					putFloat(KEY_CF_BRIGHTNESS, value.brightness)
 					putFloat(KEY_CF_CONTRAST, value.contrast)
@@ -586,7 +579,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
 	@get:FloatRange(from = 0.0, to = 1.0)
 	var readerAutoscrollSpeed: Float
-		get() = prefs.getFloat(KEY_READER_AUTOSCROLL_SPEED, 0f)
+		get() = getFloatCompat(KEY_READER_AUTOSCROLL_SPEED, 0f)
 		set(@FloatRange(from = 0.0, to = 1.0) value) = prefs.edit {
 			putFloat(
 				KEY_READER_AUTOSCROLL_SPEED,
@@ -744,16 +737,31 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 	}
 
 	private fun normalizeImportedPreferences(values: Map<String, *>): Map<String, *> {
-		val rawValue = values[KEY_ACTIVE_SOURCE_PRESET] ?: return values
-		val fixedValue = when (rawValue) {
-			is Long -> return values
-			is Number -> rawValue.toLong()
-			is String -> rawValue.toLongOrNull() ?: return values
-			else -> return values
+		val result = HashMap(values)
+		result[KEY_ACTIVE_SOURCE_PRESET]?.let { rawValue ->
+			val fixedValue = when (rawValue) {
+				is Long -> rawValue
+				is Number -> rawValue.toLong()
+				is String -> rawValue.toLongOrNull()
+				else -> null
+			}
+			if (fixedValue != null) {
+				result[KEY_ACTIVE_SOURCE_PRESET] = fixedValue
+			}
 		}
-		return HashMap(values).apply {
-			put(KEY_ACTIVE_SOURCE_PRESET, fixedValue)
+		for (key in FLOAT_PREFERENCE_KEYS) {
+			result[key]?.let { rawValue ->
+				val fixedValue = when (rawValue) {
+					is Number -> rawValue.toFloat()
+					is String -> rawValue.toFloatOrNull()
+					else -> null
+				}
+				if (fixedValue != null && fixedValue.isFinite()) {
+					result[key] = fixedValue
+				}
+			}
 		}
+		return result
 	}
 
 	private fun isBackgroundNetworkRestricted(): Boolean {
@@ -761,6 +769,23 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 			connectivityManager.restrictBackgroundStatus == ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED
 		} else {
 			false
+		}
+	}
+
+	private fun getFloatCompat(key: String, defaultValue: Float): Float = try {
+		prefs.getFloat(key, defaultValue)
+	} catch (_: ClassCastException) {
+		val fixedValue = when (val rawValue = prefs.all[key]) {
+			is Number -> rawValue.toFloat()
+			is String -> rawValue.toFloatOrNull()
+			else -> null
+		}
+		if (fixedValue == null || !fixedValue.isFinite()) {
+			prefs.edit { remove(key) }
+			defaultValue
+		} else {
+			prefs.edit { putFloat(key, fixedValue) }
+			fixedValue
 		}
 	}
 
@@ -810,7 +835,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_TRACKER_NOTIFICATIONS = "tracker_notifications"
 		const val KEY_TRACKER_NO_NSFW = "tracker_no_nsfw"
 		const val KEY_TRACKER_DOWNLOAD = "tracker_download"
-		const val KEY_TRACKER_UNSTUCK_MIGRATION_V3 = "tracker_unstuck_migration_v3"
+		const val KEY_TRACKER_UNSTUCK_MIGRATION_V4 = "tracker_unstuck_migration_v4"
 		const val KEY_TRACKER_PROGRESS_REFRESH_V1 = "tracker_progress_refresh_v1"
 		const val KEY_NOTIFICATIONS_SETTINGS = "notifications_settings"
 		const val KEY_NOTIFICATIONS_SOUND = "notifications_sound"
@@ -938,6 +963,13 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_DISCORD_RPC_SKIP_NSFW = "discord_rpc_skip_nsfw"
 		const val KEY_DISCORD_TOKEN = "discord_token"
 		const val KEY_ACTIVE_SOURCE_PRESET = "active_source_preset"
+
+		private val FLOAT_PREFERENCE_KEYS = setOf(
+			KEY_READER_DOUBLE_PAGES_SENSITIVITY,
+			KEY_CF_BRIGHTNESS,
+			KEY_CF_CONTRAST,
+			KEY_READER_AUTOSCROLL_SPEED,
+		)
 
 		// keys for non-persistent preferences
 		const val KEY_APP_VERSION = "app_version"

@@ -8,6 +8,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.WebSettings
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.core.view.doOnLayout
 import androidx.core.view.isGone
@@ -58,6 +59,7 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 	private var recreateRequested = false
 	private var clearanceAtLaunch: String? = null
 	private var clearanceUpdateObservedAt = 0L
+	private var challengeStartedAt = 0L
 	private var resolveJob: Job? = null
 	private var isHiddenPresentation = false
 	private var lastChallengeState: String? = null
@@ -94,6 +96,7 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 			return
 		}
 		clearanceAtLaunch = CloudFlareHelper.getClearanceCookie(cookieJar, url)
+		alignUserAgentWithEngine(repository)
 
 		// Check if source needs header interception
 		val needsInterception = shouldUseInterception(source, repository)
@@ -124,7 +127,15 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 				}
 				awaitChallengeViewport()
 				onTitleChanged(getString(R.string.loading_), url)
+				// Arm the resolve budget only now. applyWebViewConfig() and the viewport wait run on this
+				// coroutine, so anchoring the deadlines on onCreate2 spent the whole allowance before the
+				// challenge had even started loading.
+				challengeStartedAt = System.currentTimeMillis()
 				viewBinding.webView.loadUrl(url)
+			} else {
+				// Restored after a configuration change: the WebView kept its page, so the challenge is
+				// already in flight.
+				challengeStartedAt = System.currentTimeMillis()
 			}
 		}
 		// A cf_clearance change is not a completion signal. Cloudflare can update it while the
@@ -192,9 +203,14 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 
 	override fun onLoadingStateChanged(isLoading: Boolean) = Unit
 
-	/** Do not start Turnstile until this Activity has the same real viewport as a manual Solve launch. */
+	/**
+	 * Do not start Turnstile until this Activity has the same real viewport as a manual Solve launch.
+	 * The focus wait is bounded: a hidden solver that never wins focus must still load its URL, otherwise
+	 * the resolve loop would time out against a WebView that never navigated at all.
+	 */
 	private suspend fun awaitChallengeViewport() {
-		while (!viewBinding.webView.hasWindowFocus()) {
+		val focusDeadline = System.currentTimeMillis() + VIEWPORT_FOCUS_TIMEOUT_MS
+		while (!viewBinding.webView.hasWindowFocus() && System.currentTimeMillis() < focusDeadline) {
 			delay(VIEWPORT_POLL_INTERVAL_MS)
 		}
 		suspendCancellableCoroutine { cont ->
@@ -232,7 +248,7 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 	 * into Turnstile's cross-origin iframe), so polling it does not perturb the challenge.
 	 */
 	private suspend fun runResolveLoop() {
-		val retryAt = System.currentTimeMillis() + if (autoRecreateCount < MAX_AUTO_RECREATE_COUNT) {
+		val budget = if (autoRecreateCount < MAX_AUTO_RECREATE_COUNT) {
 			AUTO_RETRY_DELAY_MS
 		} else {
 			MANUAL_FALLBACK_DELAY_MS
@@ -245,6 +261,11 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 		}
 		while (true) {
 			delay(RESOLVE_POLL_INTERVAL_MS)
+			// Nothing is loading yet, so no deadline may run.
+			val startedAt = challengeStartedAt
+			if (startedAt == 0L) {
+				continue
+			}
 			if (isAutoResolve && autoRecreateCount < MAX_AUTO_RECREATE_COUNT) {
 				val clearance = intent.dataString?.let {
 					CloudFlareHelper.getClearanceCookie(cookieJar, it)
@@ -270,6 +291,7 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 			} else {
 				consecutivePasses = 0
 				val now = System.currentTimeMillis()
+				val retryAt = startedAt + budget
 				if (
 					clearanceUpdateObservedAt != 0L &&
 					now - clearanceUpdateObservedAt >= CLEARANCE_RECREATE_GRACE_MS
@@ -367,6 +389,8 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 			val targetUrl = intent?.dataString?.toHttpUrlOrNull()
 			if (targetUrl != null) {
 				clearCfCookies(targetUrl)
+				clearanceUpdateObservedAt = 0L
+				challengeStartedAt = System.currentTimeMillis()
 				viewBinding.webView.loadUrl(targetUrl.toString())
 				resolveJob = lifecycleScope.launch { runResolveLoop() }
 			}
@@ -382,6 +406,44 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 	private suspend fun clearCfCookies(url: HttpUrl) = runInterruptible(Dispatchers.Default) {
 		cookieJar.removeCookies(url) { cookie ->
 			CloudFlareHelper.isCloudFlareCookie(cookie.name)
+		}
+	}
+
+	/**
+	 * Turnstile cannot be passed by a WebView that lies about what it is.
+	 *
+	 * Several parsers hard-code a desktop User-Agent as their [ConfigKey.UserAgent] default (HotComics
+	 * ships `X11; Linux x86_64 … Chrome/114`), and [BaseBrowserActivity] pushes that string onto the
+	 * solver WebView. Everything the challenge script actually measures then contradicts it:
+	 * `navigator.userAgentData` reports Android and the real Chrome build, `navigator.platform` reports
+	 * an ARM Linux, touch points and screen size are a phone's, and the WebGL renderer is a mobile GPU.
+	 * That contradiction is the signature anti-bot checks exist to catch, so the challenge fails, the
+	 * interstitial reloads itself with a fresh ray id, and the solver loops forever no matter how long
+	 * it is given.
+	 *
+	 * The clearance cookie is bound to the User-Agent that earned it, so the fix has to keep OkHttp in
+	 * step. Writing the source's [ConfigKey.UserAgent] would not do it: parsers like HotComics build
+	 * `getRequestHeaders()` from a hard-coded constant and never read that key back, so the agent is
+	 * recorded in [SourceSettings.cloudFlareUserAgent] instead and forced on by `CommonHeadersInterceptor`.
+	 * Only genuinely inconsistent overrides are touched — a source whose agent already matches the
+	 * engine is left exactly as it is.
+	 */
+	private fun alignUserAgentWithEngine(repository: ParserMangaRepository?) {
+		if (repository == null) return
+		val engineUserAgent = runCatching { WebSettings.getDefaultUserAgent(this) }.getOrNull()
+		if (engineUserAgent.isNullOrEmpty() || ANDROID_UA_TOKEN !in engineUserAgent) return
+		val currentUserAgent = viewBinding.webView.settings.userAgentString
+		if (currentUserAgent.isNullOrEmpty() || ANDROID_UA_TOKEN in currentUserAgent) return
+		Log.w(
+			TAG,
+			"Configured User-Agent contradicts the WebView engine, realigning so the challenge can pass." +
+				"\n  was: $currentUserAgent\n  now: $engineUserAgent",
+		)
+		viewBinding.webView.settings.userAgentString = engineUserAgent
+		runCatching {
+			repository.getConfig().cloudFlareUserAgent = engineUserAgent
+		}.onFailure {
+			it.printStackTraceDebug()
 		}
 	}
 
@@ -425,6 +487,7 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 		const val TAG = "CloudFlareActivity"
 		const val EXTRA_AUTO_RESOLVE = "auto_resolve"
 		private const val VIEWPORT_POLL_INTERVAL_MS = 16L
+		private const val VIEWPORT_FOCUS_TIMEOUT_MS = 2_000L
 		private const val EXTRA_AUTO_RECREATE_COUNT = "auto_recreate_count"
 		private const val RESOLVE_POLL_INTERVAL_MS = 800L
 		private const val AUTO_RETRY_DELAY_MS = 6_000L
@@ -437,5 +500,6 @@ open class CloudFlareActivity : BaseBrowserActivity(), CloudFlareCallback {
 		private const val HIDDEN_RENDER_ALPHA = 0.01f
 		private const val CF_STATE_OK = "ok"
 		private const val CF_STATE_WAIT = "wait"
+		private const val ANDROID_UA_TOKEN = "Android"
 	}
 }

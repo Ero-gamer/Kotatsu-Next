@@ -103,9 +103,27 @@ class ReadingProgressDrawable(
 		}
 		val innerRadius = radius - paint.strokeWidth / 2f
 		paint.style = Paint.Style.STROKE
+		val sweep = 360f * percent.coerceIn(0f, 1f)
+		// Material 3 Expressive draws the track as what is *left* of the circle rather than a ring
+		// underneath the indicator, separated from it by a gap at each end. The gap is dropped at the
+		// extremes, where there is either no indicator or no track for it to be separated from.
+		val gap = if (sweep > 0f && sweep < 360f) EXPRESSIVE_GAP_DEGREES else 0f
 		if (hasOutline) {
 			paint.color = currentOutlineColor
-			canvas.drawCircle(cx, cy, innerRadius, paint)
+			val trackStart = -90f + sweep + gap
+			val trackSweep = 360f - sweep - gap * 2f
+			if (trackSweep > 0f) {
+				canvas.drawArc(
+					cx - innerRadius,
+					cy - innerRadius,
+					cx + innerRadius,
+					cy + innerRadius,
+					trackStart,
+					trackSweep,
+					false,
+					paint,
+				)
+			}
 		}
 		paint.color = currentLineColor
 		canvas.drawArc(
@@ -114,7 +132,7 @@ class ReadingProgressDrawable(
 			cx + innerRadius,
 			cy + innerRadius,
 			-90f,
-			360f * percent,
+			sweep,
 			false,
 			paint,
 		)
@@ -167,6 +185,12 @@ class ReadingProgressDrawable(
 			prevOutlineColor != currentOutlineColor ||
 			prevBackgroundColor != currentBackgroundColor ||
 			prevTextColor != currentTextColor
+	}
+
+	private companion object {
+
+		/** Separation between the active indicator and the track, per M3 Expressive. */
+		const val EXPRESSIVE_GAP_DEGREES = 14f
 	}
 
 	private fun getTextSizeForWidth(width: Float, text: String): Float {
