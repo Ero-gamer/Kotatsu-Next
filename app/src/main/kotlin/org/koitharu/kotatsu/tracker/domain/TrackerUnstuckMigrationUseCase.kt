@@ -80,8 +80,9 @@ class TrackerUnstuckMigrationUseCase @Inject constructor(
 	private suspend fun refreshProgressImpl() = coroutineScope {
 		val tracksDao = db.getTracksDao()
 		val historyDao = db.getHistoryDao()
-		val candidates = tracksDao.findAll(offset = 0, limit = Int.MAX_VALUE, minActivityTime = Long.MIN_VALUE)
-			.filter { it.track.newChapters > 0 }
+		val candidates =
+			tracksDao.findAll(offset = 0, limit = Int.MAX_VALUE, minActivityTime = Long.MIN_VALUE, staleCheckTime = 0L)
+				.filter { it.track.newChapters > 0 }
 		val semaphore = Semaphore(MAX_PARALLELISM)
 		for (entry in candidates) {
 			val history = historyDao.find(entry.track.mangaId) ?: continue
@@ -111,8 +112,9 @@ class TrackerUnstuckMigrationUseCase @Inject constructor(
 	private suspend fun runImpl() = coroutineScope {
 		val tracksDao = db.getTracksDao()
 		val historyDao = db.getHistoryDao()
-		val candidates = tracksDao.findAll(offset = 0, limit = Int.MAX_VALUE, minActivityTime = Long.MIN_VALUE)
-			.filter { it.track.newChapters == 0 && it.track.lastChapterId != 0L }
+		val candidates =
+			tracksDao.findAll(offset = 0, limit = Int.MAX_VALUE, minActivityTime = Long.MIN_VALUE, staleCheckTime = 0L)
+				.filter { it.track.newChapters == 0 && it.track.lastChapterId != 0L }
 		val semaphore = Semaphore(MAX_PARALLELISM)
 		for (entry in candidates) {
 			val history = historyDao.find(entry.track.mangaId) ?: continue

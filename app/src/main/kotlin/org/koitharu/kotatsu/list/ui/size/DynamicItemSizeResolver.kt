@@ -9,6 +9,7 @@ import androidx.core.widget.TextViewCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.util.ext.getThemeResId
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.history.ui.util.ReadingProgressView
 import kotlin.math.roundToInt

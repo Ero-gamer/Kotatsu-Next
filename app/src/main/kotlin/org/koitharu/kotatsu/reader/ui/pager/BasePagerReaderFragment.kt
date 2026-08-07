@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.os.NetworkState
-import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
+import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
 import org.koitharu.kotatsu.core.prefs.ReaderAnimation
 import org.koitharu.kotatsu.core.ui.list.lifecycle.PagerLifecycleDispatcher
 import org.koitharu.kotatsu.core.util.ext.doOnPageChanged
@@ -185,7 +185,7 @@ abstract class BasePagerReaderFragment : BaseReaderFragment<FragmentReaderPagerB
 		// neighbour page alive, halving the number of SSIV instances holding tile
 		// bitmaps in memory simultaneously. ViewPager2 recycles the rest via
 		// onRecycled() → ssiv.recycle() which frees all tile bitmaps immediately.
-		pager.offscreenPageLimit = if (requireContext().isConstrainedDevice()) 1 else 2
+		pager.offscreenPageLimit = if (requireContext().isLowRamDevice()) 1 else 2
 	}
 
 	protected open fun notifyPageChanged(page: Int) {

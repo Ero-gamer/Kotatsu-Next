@@ -96,6 +96,7 @@ class SourceSettings(context: Context, source: MangaSource) : MangaSourceConfig 
 		const val KEY_DOMAIN = "domain"
 		const val KEY_NO_CAPTCHA = "no_captcha"
 		const val KEY_NO_AUTO_CAPTCHA = "no_auto_captcha"
+		const val KEY_CF_USER_AGENT = "cf_user_agent"
 		const val KEY_SLOWDOWN = "slowdown"
 		const val KEY_SORT_ORDER = "sort_order"
 	}

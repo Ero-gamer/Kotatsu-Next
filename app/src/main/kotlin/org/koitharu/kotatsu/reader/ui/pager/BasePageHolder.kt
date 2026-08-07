@@ -24,7 +24,7 @@ import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
-import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
+import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
 import org.koitharu.kotatsu.core.util.ext.isSerializable
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.databinding.LayoutPageInfoBinding
@@ -74,8 +74,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 	init {
 		lifecycleScope.launch(Dispatchers.Main) {
 			ssiv.bindToLifecycle(this@BasePageHolder)
-			ssiv.isEagerLoadingEnabled = !context.isConstrainedDevice()
-			if (context.isConstrainedDevice()) {
+			ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
+			if (context.isLowRamDevice()) {
 				ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
 			}
 			ssiv.addOnImageEventListener(viewModel)
@@ -282,7 +282,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 		downSampling = when {
 			isForeground || !settings.isReaderOptimizationEnabled -> 1
 			BuildConfig.DEBUG -> 32
-			context.isConstrainedDevice() -> 8
+			context.isLowRamDevice() -> 8
 			else -> 4
 		}
 	}

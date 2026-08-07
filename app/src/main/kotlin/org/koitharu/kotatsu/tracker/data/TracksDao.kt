@@ -18,6 +18,8 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
 		"""
 		SELECT * FROM tracks
 		WHERE last_check_time = 0
+			OR last_check_time <= :staleCheckTime
+			OR last_chapter_date = 0
 			OR last_chapter_date >= :minActivityTime
 			OR EXISTS(
 				SELECT 1 FROM history
@@ -35,7 +37,7 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
 		LIMIT :limit OFFSET :offset
 		""",
 	)
-	abstract suspend fun findAll(offset: Int, limit: Int, minActivityTime: Long): List<TrackWithManga>
+	abstract suspend fun findAll(offset: Int, limit: Int, minActivityTime: Long, staleCheckTime: Long): List<TrackWithManga>
 
 	@Transaction
 	@Query("SELECT * FROM tracks ORDER BY last_check_time DESC")

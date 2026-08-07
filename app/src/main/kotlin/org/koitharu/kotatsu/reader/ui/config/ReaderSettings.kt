@@ -29,7 +29,7 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ReaderBackground
 import org.koitharu.kotatsu.core.prefs.ReaderMode
 import org.koitharu.kotatsu.core.util.MediatorStateFlow
-import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
+import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 
@@ -87,7 +87,7 @@ data class ReaderSettings(
 
 	@CheckResult
 	fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
-		val isLowRam = ssiv.context.isConstrainedDevice()
+		val isLowRam = ssiv.context.isLowRamDevice()
 		// Auto-downgrade to RGB_565 on constrained devices only when the user has NOT
 		// explicitly enabled 32-bit color. If they turned it on, honour their choice.
 		val config = if (bitmapConfig == Bitmap.Config.ARGB_8888 && isLowRam && !is32BitEnabled) {

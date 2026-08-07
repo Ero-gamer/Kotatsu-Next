@@ -30,6 +30,9 @@ abstract class TrackLogsDao : MangaQueryBuilder.ConditionCallback {
 	@Query("SELECT COUNT(*) FROM track_logs WHERE unread = 1")
 	abstract fun observeUnreadCount(): Flow<Int>
 
+	@Query("SELECT MAX(created_at) FROM track_logs WHERE manga_id = :mangaId")
+	abstract suspend fun getLastLogTime(mangaId: Long): Long?
+
 	@Query("DELETE FROM track_logs")
 	abstract suspend fun clear()
 

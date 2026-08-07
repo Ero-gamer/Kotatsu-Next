@@ -52,7 +52,7 @@ import org.koitharu.kotatsu.core.util.ext.URI_SCHEME_ZIP
 import org.koitharu.kotatsu.core.util.ext.cancelChildrenAndJoin
 import org.koitharu.kotatsu.core.util.ext.compressToPNG
 import org.koitharu.kotatsu.core.util.ext.ensureRamAtLeast
-import org.koitharu.kotatsu.core.util.ext.isConstrainedDevice
+import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
 import org.koitharu.kotatsu.core.util.ext.ensureSuccess
 import org.koitharu.kotatsu.core.util.ext.getCompletionResultOrNull
 import org.koitharu.kotatsu.core.util.ext.isFileUri
@@ -125,7 +125,7 @@ class PageLoader @Inject constructor(
 	// On constrained devices (≤2GB RAM) cap prefetch to 2 pages and require
 	// ≥200MB free RAM instead of the default 6 pages / 80MB. This prevents
 	// prefetch from filling RAM just before a high-res tile decode burst.
-	private var prefetchQueueLimit = if (context.isConstrainedDevice()) {
+	private var prefetchQueueLimit = if (context.isLowRamDevice()) {
 		PREFETCH_LIMIT_CONSTRAINED
 	} else {
 		PREFETCH_LIMIT_DEFAULT
@@ -133,7 +133,7 @@ class PageLoader @Inject constructor(
 	private val edgeDetector = EdgeDetector(context)
 
 	fun isPrefetchApplicable(): Boolean {
-		val minRamMb = if (context.isConstrainedDevice()) PREFETCH_MIN_RAM_MB_CONSTRAINED else PREFETCH_MIN_RAM_MB
+		val minRamMb = if (context.isLowRamDevice()) PREFETCH_MIN_RAM_MB_CONSTRAINED else PREFETCH_MIN_RAM_MB
 		return repository is CachingMangaRepository
 			&& settings.isPagesPreloadEnabled
 			&& !context.isPowerSaveMode()
