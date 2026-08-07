@@ -265,9 +265,6 @@ class SuggestionsWorker @AssistedInject constructor(
 		blacklist: TagsBlacklist,
 	): List<Manga> = runCatchingCancellable {
 		val repository = mangaRepositoryFactory.create(source)
-		if (repository is ParserMangaRepository && repository.isUpdatesDisabled()) {
-			return@runCatchingCancellable emptyList()
-		}
 		val availableOrders = repository.sortOrders
 		val order = preferredSortOrders.first { it in availableOrders }
 		val availableTags = repository.getFilterOptions().availableTags
