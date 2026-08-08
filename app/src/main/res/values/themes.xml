@@ -68,14 +68,6 @@
 		<!-- Fix crash in A15 -->
 		<item name="actionButtonStyle">@style/Widget.AppCompat.ActionButton</item>
 
-		<!-- Manga grid title under the cover; Expressive overrides both of these to move it on top -->
-		<item name="mangaGridTitleStyle">@style/Widget.Kotatsu.MangaGridTitle</item>
-		<item name="mangaCoverTitleStyle">@style/Widget.Kotatsu.MangaCoverTitle</item>
-		<item name="gridTitleTextAppearance">@style/TextAppearance.Kotatsu.GridTitle</item>
-		<item name="gridTitleTextAppearanceSmall">@style/TextAppearance.Kotatsu.GridTitle.Small</item>
-		<item name="readingProgressStyle">@style/ProgressDrawable</item>
-		<item name="mangaGridSpacing">@dimen/manga_grid_spacing</item>
-
 		<!-- Custom views -->
 		<item name="fastScrollerStyle">@style/Widget.Kotatsu.FastScroller</item>
 		<item name="listItemTextViewStyle">@style/Widget.Kotatsu.ListItemTextView</item>
@@ -87,7 +79,7 @@
 	<!--== Default Theme ==-->
 	<style name="Theme.Kotatsu" parent="Base.Theme.Kotatsu" />
 
-	<!-- Focused, rendered window for automatic Cloudflare resolution without visible navigation. -->
+	<!-- Used by CloudFlareHiddenActivity: same WebView pipeline, no visible UI. -->
 	<style name="Theme.Kotatsu.CloudFlareHidden" parent="Theme.Kotatsu">
 		<item name="android:windowBackground">@android:color/transparent</item>
 		<item name="android:windowIsTranslucent">true</item>
@@ -99,8 +91,8 @@
 		<item name="android:colorBackground">@android:color/transparent</item>
 		<item name="android:statusBarColor">@android:color/transparent</item>
 		<item name="android:navigationBarColor">@android:color/transparent</item>
-		<item name="android:windowActionBar">false</item>
-		<item name="android:backgroundDimEnabled">false</item>
+		<item name="windowActionBar">false</item>
+		<item name="windowNoTitle">true</item>
 	</style>
 
 	<!-- Base ThemeOverlay -->
@@ -131,12 +123,9 @@
 		<item name="collapsingToolbarLayoutMediumStyle">@style/Widget.Material3Expressive.CollapsingToolbar.Medium</item>
 		<item name="collapsingToolbarLayoutLargeStyle">@style/Widget.Material3Expressive.CollapsingToolbar.Large</item>
 
-		<!-- Search - The "app bar with search" pattern. The SearchView variant is what finally turns
-		     containedAnimationEnabled on, so expanding search animates out of the bar instead of
-		     cross-fading over the whole screen; the bar itself uses the Kotatsu subclass so the app
-		     keeps control of its margins and navigation icon. -->
-		<item name="materialSearchBarStyle">@style/Widget.Kotatsu.SearchBar.AppBarWithSearch</item>
-		<item name="materialSearchViewStyle">@style/Widget.Material3Expressive.SearchView.AppBarWithSearch</item>
+		<!-- Search - Full expressive search with contained animations (alpha10) -->
+		<item name="materialSearchBarStyle">@style/Widget.Material3Expressive.SearchBar</item>
+		<item name="materialSearchViewStyle">@style/Widget.Material3Expressive.SearchView</item>
 
 		<!-- FAB - Expressive shapes with primary container colors -->
 		<item name="floatingActionButtonStyle">@style/Widget.Material3Expressive.FloatingActionButton</item>
@@ -154,17 +143,14 @@
 			@style/Widget.Material3Expressive.ExtendedFloatingActionButton.Large
 		</item>
 
-		<!-- Buttons - Expressive with shape morph on press, toggle support. The Kotatsu subclasses
-		     only add includeFontPadding=false; see the note beside them in styles.xml. -->
-		<item name="materialButtonStyle">@style/Widget.Kotatsu.Expressive.Button</item>
-		<item name="materialButtonTonalStyle">@style/Widget.Kotatsu.Expressive.Button.Tonal</item>
-		<item name="materialButtonOutlinedStyle">@style/Widget.Kotatsu.Expressive.Button.Outlined</item>
-		<item name="materialButtonElevatedStyle">@style/Widget.Kotatsu.Expressive.Button.Elevated</item>
-		<item name="borderlessButtonStyle">@style/Widget.Kotatsu.Expressive.Button.Text</item>
-		<item name="buttonBarButtonStyle">@style/Widget.Kotatsu.Expressive.Button.Text.Dialog</item>
-		<item name="snackbarButtonStyle">@style/Widget.Kotatsu.Expressive.Button.Text.Snackbar</item>
-		<item name="chipStyle">@style/Widget.Kotatsu.Expressive.Chip.Assist</item>
-		<item name="tabStyle">@style/Widget.Kotatsu.Expressive.TabLayout</item>
+		<!-- Buttons - Expressive with shape morph on press, toggle support -->
+		<item name="materialButtonStyle">@style/Widget.Material3Expressive.Button</item>
+		<item name="materialButtonTonalStyle">@style/Widget.Material3Expressive.Button.TonalButton</item>
+		<item name="materialButtonOutlinedStyle">@style/Widget.Material3Expressive.Button.OutlinedButton</item>
+		<item name="materialButtonElevatedStyle">@style/Widget.Material3Expressive.Button.ElevatedButton</item>
+		<item name="borderlessButtonStyle">@style/Widget.Material3Expressive.Button.TextButton</item>
+		<item name="buttonBarButtonStyle">@style/Widget.Material3Expressive.Button.TextButton.Dialog</item>
+		<item name="snackbarButtonStyle">@style/Widget.Material3Expressive.Button.TextButton.Snackbar</item>
 
 		<!-- Icon Buttons - Expressive with round/square shape morph -->
 		<item name="materialIconButtonStyle">@style/Widget.Material3Expressive.Button.IconButton.Standard</item>
@@ -177,8 +163,7 @@
 		<item name="materialButtonToggleGroupStyle">@style/Widget.Material3Expressive.MaterialButtonToggleGroup</item>
 
 		<!-- Navigation - Flexible nav bar with horizontal item support -->
-		<item name="bottomNavigationStyle">@style/Widget.Kotatsu.BottomNavigationView.Expressive</item>
-		<item name="extendedFloatingActionButtonStyle">@style/Widget.Kotatsu.ExtendedFab.Continue</item>
+		<item name="bottomNavigationStyle">@style/Widget.Material3Expressive.BottomNavigationView</item>
 		<item name="navigationRailStyle">@style/Widget.Material3Expressive.NavigationRailView</item>
 
 		<!-- Toolbar - Expressive with surface variants -->
@@ -205,52 +190,6 @@
 		<item name="collapsingToolbarLayoutMediumSize">@dimen/m3_comp_app_bar_medium_flexible_container_height</item>
 		<item name="collapsingToolbarLayoutLargeSize">@dimen/m3_comp_app_bar_large_flexible_container_height</item>
 		<item name="actionBarSize">@dimen/m3_comp_app_bar_small_container_height</item>
-
-		<!-- Google Sans across the type scale. Every role has to be listed: Material's own text
-		     appearances hard-code a font family, so there is no single attribute that covers them. -->
-		<item name="textAppearanceDisplayLarge">@style/TextAppearance.Kotatsu.Sans.DisplayLarge</item>
-		<item name="textAppearanceDisplayMedium">@style/TextAppearance.Kotatsu.Sans.DisplayMedium</item>
-		<item name="textAppearanceDisplaySmall">@style/TextAppearance.Kotatsu.Sans.DisplaySmall</item>
-		<item name="textAppearanceHeadlineLarge">@style/TextAppearance.Kotatsu.Sans.HeadlineLarge</item>
-		<item name="textAppearanceHeadlineMedium">@style/TextAppearance.Kotatsu.Sans.HeadlineMedium</item>
-		<item name="textAppearanceHeadlineSmall">@style/TextAppearance.Kotatsu.Sans.HeadlineSmall</item>
-		<item name="textAppearanceTitleLarge">@style/TextAppearance.Kotatsu.Sans.TitleLarge</item>
-		<item name="textAppearanceTitleMedium">@style/TextAppearance.Kotatsu.Sans.TitleMedium</item>
-		<item name="textAppearanceTitleSmall">@style/TextAppearance.Kotatsu.Sans.TitleSmall</item>
-		<item name="textAppearanceBodyLarge">@style/TextAppearance.Kotatsu.Sans.BodyLarge</item>
-		<item name="textAppearanceBodyMedium">@style/TextAppearance.Kotatsu.Sans.BodyMedium</item>
-		<item name="textAppearanceBodySmall">@style/TextAppearance.Kotatsu.Sans.BodySmall</item>
-		<item name="textAppearanceLabelLarge">@style/TextAppearance.Kotatsu.Sans.LabelLarge</item>
-		<item name="textAppearanceLabelMedium">@style/TextAppearance.Kotatsu.Sans.LabelMedium</item>
-		<item name="textAppearanceLabelSmall">@style/TextAppearance.Kotatsu.Sans.LabelSmall</item>
-		<item name="android:fontFamily">@font/google_sans</item>
-		<item name="fontFamily">@font/google_sans</item>
-		<!-- Strips the extra band Google Sans's metrics add above and below every line. -->
-		<item name="android:textViewStyle">@style/Widget.Kotatsu.TextView</item>
-
-		<!-- Manga grid titles move onto the artwork, in white with a soft drop shadow so they stay
-		     legible over a bright cover. -->
-		<item name="mangaGridTitleStyle">@style/Widget.Kotatsu.MangaGridTitle.Hidden</item>
-		<item name="mangaCoverTitleStyle">@style/Widget.Kotatsu.MangaCoverTitle.Visible</item>
-		<item name="gridTitleTextAppearance">@style/TextAppearance.Kotatsu.GridTitle.OnCover</item>
-		<item name="gridTitleTextAppearanceSmall">@style/TextAppearance.Kotatsu.GridTitle.OnCover.Small</item>
-
-		<!-- Card status cluster: tonal progress ring and a red new-chapter badge. -->
-		<item name="readingProgressStyle">@style/ProgressDrawable.Expressive</item>
-		<item name="badgeViewStyle">@style/Widget.Kotatsu.BadgeView.Expressive</item>
-		<!-- Covers sit nearly edge to edge, so each card gets as much of its cell as possible. -->
-		<item name="mangaGridSpacing">@dimen/manga_grid_spacing_tight</item>
-
-		<!-- Motion - The spring physics behind every expressive component.
-		     Base.Theme.Kotatsu inherits Theme.Material3.DayNight, which pins these to the Standard
-		     springs. Without overriding them the expressive widgets above still animate with standard
-		     motion, so the bold shapes land but none of the bounce does. -->
-		<item name="motionSpringDefaultSpatial">@style/Motion.Material3.Spring.Expressive.Default.Spatial</item>
-		<item name="motionSpringDefaultEffects">@style/Motion.Material3.Spring.Expressive.Default.Effects</item>
-		<item name="motionSpringFastSpatial">@style/Motion.Material3.Spring.Expressive.Fast.Spatial</item>
-		<item name="motionSpringFastEffects">@style/Motion.Material3.Spring.Expressive.Fast.Effects</item>
-		<item name="motionSpringSlowSpatial">@style/Motion.Material3.Spring.Expressive.Slow.Spatial</item>
-		<item name="motionSpringSlowEffects">@style/Motion.Material3.Spring.Expressive.Slow.Effects</item>
 
 		<!-- Dynamic color theme -->
 		<item name="dynamicColorThemeOverlay">@style/ThemeOverlay.Material3Expressive.DynamicColors.DayNight</item>
