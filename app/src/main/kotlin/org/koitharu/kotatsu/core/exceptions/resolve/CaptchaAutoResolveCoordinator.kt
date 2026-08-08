@@ -24,6 +24,7 @@ import org.koitharu.kotatsu.browser.cloudflare.CloudFlareHiddenActivity
 import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.model.UnknownMangaSource
 import org.koitharu.kotatsu.core.nav.AppRouter
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.ui.DefaultActivityLifecycleCallbacks
 import org.koitharu.kotatsu.core.ui.util.ForegroundActivityHolder
@@ -41,6 +42,7 @@ import javax.inject.Singleton
 class CaptchaAutoResolveCoordinator @Inject constructor(
 	@ApplicationContext private val context: Context,
 	private val foregroundActivityHolder: ForegroundActivityHolder,
+	private val settings: AppSettings,
 ) : DefaultActivityLifecycleCallbacks, DefaultLifecycleObserver {
 
 	private val stateMutex = Mutex()
@@ -125,6 +127,7 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
 
 	/** Resolves [exception] only when automatic solving is enabled for its source. */
 	suspend fun resolveIfEnabled(exception: CloudFlareProtectedException): Boolean {
+		if (settings.isCfAutoSolveDisabled) return false
 		if (SourceSettings(context, exception.source).isCaptchaAutoResolveDisabled) return false
 		val now = System.currentTimeMillis()
 		val lastSuccess = recentSuccessAt[exception.source]
