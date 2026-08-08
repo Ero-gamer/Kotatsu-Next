@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Google Sans is a variable font (GRAD / opsz / wght). Referencing the .ttf directly renders it at
+	its default instance, which is Regular - the weight has to be pinned through a font-family for
+	the bold face to actually appear.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android">
+	<font
+		android:font="@font/google_sans"
+		android:fontStyle="normal"
+		android:fontWeight="700"
+		android:fontVariationSettings="'wght' 700" />
+</font-family>
