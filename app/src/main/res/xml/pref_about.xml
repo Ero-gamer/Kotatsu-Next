@@ -54,4 +54,12 @@
 		android:summary="@string/url_discord"
 		android:title="@string/telegram_group" />
 
+
+	<Preference
+		android:key="about_donate"
+		android:persistent="false"
+		android:summary="@string/donate_summary"
+		android:title="@string/donate"
+		app:allowDividerAbove="true" />
+
 </PreferenceScreen>

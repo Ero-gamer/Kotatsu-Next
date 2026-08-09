@@ -72,6 +72,12 @@ abstract class BaseActivity<B : ViewBinding> :
 			if (isAmoledTheme) {
 				setTheme(R.style.ThemeOverlay_Kotatsu_Amoled)
 			}
+			// Apply card style overlay independently of colour scheme.
+			if (settings.isCoverTitleCardStyle) {
+				setTheme(R.style.ThemeOverlay_Kotatsu_CoverTitleCards)
+			} else {
+				setTheme(R.style.ThemeOverlay_Kotatsu_ClassicCards)
+			}
 		}
 		putDataToExtras(intent)
 		exceptionResolver = entryPoint.exceptionResolverFactory.create(this)

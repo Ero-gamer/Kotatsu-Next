@@ -958,6 +958,9 @@
 	<string name="manage_preset_sources">Manage sources</string>
 	<string name="default_sources">Default</string>
 
+    <string name="manga_card_style">Manga card style</string>
+    <string name="manga_card_style_classic">Classic (title below cover)</string>
+    <string name="manga_card_style_cover">Cover title (title over artwork)</string>
     <string name="donate">Donate</string>
     <string name="donate_summary">Support development via crypto</string>
     <string name="donate_dialog_title">Support Kotatsu Next</string>

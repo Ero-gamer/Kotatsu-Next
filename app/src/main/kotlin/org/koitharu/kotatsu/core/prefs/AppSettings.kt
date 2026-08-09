@@ -68,6 +68,14 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 	val isAmoledTheme: Boolean
 		get() = prefs.getBoolean(KEY_THEME_AMOLED, false)
 
+	/**
+	 * Whether the user prefers the "cover title" card style (title drawn over the artwork with a
+	 * gradient scrim) or the classic style (title below the cover).
+	 * Returns true for cover-title (Expressive look), false for classic (default).
+	 */
+	val isCoverTitleCardStyle: Boolean
+		get() = prefs.getBoolean(KEY_MANGA_CARD_STYLE, false)
+
 	var mainNavItems: List<NavItem>
 		get() {
 			val raw = prefs.getString(KEY_NAV_MAIN, null)?.split(',')
@@ -802,6 +810,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_THEME = "theme"
 		const val KEY_COLOR_THEME = "color_theme"
 		const val KEY_THEME_AMOLED = "amoled_theme"
+		const val KEY_MANGA_CARD_STYLE = "manga_card_style"
 		const val KEY_OFFLINE_DISABLED = "no_offline"
 		const val KEY_PAGES_CACHE_CLEAR = "pages_cache_clear"
 		const val KEY_HTTP_CACHE_CLEAR = "http_cache_clear"

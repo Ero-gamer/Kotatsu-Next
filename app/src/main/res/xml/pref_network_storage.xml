@@ -72,4 +72,17 @@
         android:summary="@string/disable_connectivity_check_summary"
         android:title="@string/disable_connectivity_check" />
 
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="adblock"
+        android:summary="@string/adblock_summary"
+        android:title="@string/adblock" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        android:key="cf_auto_solve_disabled"
+        android:summary="@string/disable_captcha_auto_solve_summary"
+        android:title="@string/disable_captcha_auto_solve" />
+
 </PreferenceScreen>

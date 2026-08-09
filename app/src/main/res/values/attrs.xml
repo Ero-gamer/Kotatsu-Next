@@ -244,4 +244,7 @@
 	-->
 	<attr name="mangaGridSpacing" format="dimension" />
 
+	<!-- Theme overlay applied for the "cover title" card style (Expressive look). -->
+	<attr name="mangaCardStyleOverlay" format="reference" />
+
 </resources>

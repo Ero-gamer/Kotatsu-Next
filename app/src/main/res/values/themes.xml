@@ -68,6 +68,13 @@
 		<!-- Fix crash in A15 -->
 		<item name="actionButtonStyle">@style/Widget.AppCompat.ActionButton</item>
 
+		<!-- Manga card style defaults (classic: title below cover). See ThemeOverlay.Kotatsu.CoverTitleCards. -->
+		<item name="mangaGridTitleStyle">@style/Widget.Kotatsu.MangaGridTitle</item>
+		<item name="mangaCoverTitleStyle">@style/Widget.Kotatsu.MangaCoverTitle</item>
+		<item name="gridTitleTextAppearance">@style/TextAppearance.Kotatsu.GridTitle</item>
+		<item name="gridTitleTextAppearanceSmall">@style/TextAppearance.Kotatsu.GridTitle.Small</item>
+		<item name="mangaGridSpacing">@dimen/manga_grid_spacing</item>
+
 		<!-- Custom views -->
 		<item name="fastScrollerStyle">@style/Widget.Kotatsu.FastScroller</item>
 		<item name="listItemTextViewStyle">@style/Widget.Kotatsu.ListItemTextView</item>

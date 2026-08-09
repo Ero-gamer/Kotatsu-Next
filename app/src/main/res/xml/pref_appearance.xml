@@ -32,6 +32,13 @@
 
     <PreferenceCategory android:title="@string/manga_list">
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="manga_card_style"
+            android:summary="@string/manga_card_style_cover"
+            android:title="@string/manga_card_style" />
+
+
         <ListPreference
             android:entries="@array/list_modes"
             android:icon="@drawable/ic_list"
