@@ -56,6 +56,7 @@
 
 
 	<Preference
+		android:icon="@drawable/ic_heart"
 		android:key="about_donate"
 		android:persistent="false"
 		android:summary="@string/donate_summary"

@@ -438,4 +438,50 @@
 		<item name="mangaGridSpacing">@dimen/manga_grid_spacing</item>
 	</style>
 
+
+	<!-- ═══ Font ThemeOverlays ═══
+	     Applied in BaseActivity after the colour-scheme overlay.
+	     Sets both android:fontFamily (used by android.widget.TextView) and
+	     fontFamily (used by Material3 / AppCompat text appearances). -->
+
+	<style name="ThemeOverlay.Kotatsu.Font.GoogleSans" parent="">
+		<item name="android:fontFamily">@font/google_sans</item>
+		<item name="fontFamily">@font/google_sans</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.Inter" parent="">
+		<item name="android:fontFamily">@font/inter_regular</item>
+		<item name="fontFamily">@font/inter_regular</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.FiraSans" parent="">
+		<item name="android:fontFamily">@font/fira_sans_regular</item>
+		<item name="fontFamily">@font/fira_sans_regular</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.DejaVuSerif" parent="">
+		<item name="android:fontFamily">@font/dejavu_serif</item>
+		<item name="fontFamily">@font/dejavu_serif</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.DejaVuSansMono" parent="">
+		<item name="android:fontFamily">@font/dejavu_sans_mono</item>
+		<item name="fontFamily">@font/dejavu_sans_mono</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.BitstreamVera" parent="">
+		<item name="android:fontFamily">@font/bitstream_vera_sans</item>
+		<item name="fontFamily">@font/bitstream_vera_sans</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.OpenDyslexic" parent="">
+		<item name="android:fontFamily">@font/open_dyslexic_regular</item>
+		<item name="fontFamily">@font/open_dyslexic_regular</item>
+	</style>
+
+	<style name="ThemeOverlay.Kotatsu.Font.JetBrainsMono" parent="">
+		<item name="android:fontFamily">@font/jetbrains_mono_regular</item>
+		<item name="fontFamily">@font/jetbrains_mono_regular</item>
+	</style>
+
 </resources>

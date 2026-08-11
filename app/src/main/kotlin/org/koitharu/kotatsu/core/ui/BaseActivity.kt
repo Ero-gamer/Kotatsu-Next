@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.prefs.AppFont
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.ui.util.ActionModeDelegate
@@ -77,6 +78,12 @@ abstract class BaseActivity<B : ViewBinding> :
 				setTheme(R.style.ThemeOverlay_Kotatsu_CoverTitleCards)
 			} else {
 				setTheme(R.style.ThemeOverlay_Kotatsu_ClassicCards)
+			}
+			// Apply font overlay: sets android:fontFamily + fontFamily on the theme so that
+			// ALL TextViews, Buttons and Material3 components pick up the custom typeface.
+			val fontOverlay = settings.appFont.themeOverlayRes
+			if (fontOverlay != 0) {
+				setTheme(fontOverlay)
 			}
 		}
 		putDataToExtras(intent)

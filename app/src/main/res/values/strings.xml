@@ -966,4 +966,16 @@
     <string name="donate_dialog_title">Support Kotatsu Next</string>
     <string name="donate_close">Close</string>
     <string name="donate_copy_address">Address copied</string>
+    <!-- Font picker strings -->
+    <string name="font">Font</string>
+    <string name="font_system">System default</string>
+    <string name="font_google_sans">Google Sans</string>
+    <string name="font_inter">Inter</string>
+    <string name="font_fira_sans">Fira Sans</string>
+    <string name="font_dejavu_serif">DejaVu Serif</string>
+    <string name="font_dejavu_sans_mono">DejaVu Sans Mono</string>
+    <string name="font_bitstream_vera">Bitstream Vera Sans</string>
+    <string name="font_open_dyslexic">OpenDyslexic</string>
+    <string name="font_jetbrains_mono">JetBrains Mono</string>
+
 </resources>

@@ -75,12 +75,14 @@
 
     <SwitchPreferenceCompat
         android:defaultValue="false"
+        android:icon="@drawable/ic_shield_check"
         android:key="adblock"
         android:summary="@string/adblock_summary"
         android:title="@string/adblock" />
 
     <SwitchPreferenceCompat
         android:defaultValue="false"
+        android:icon="@drawable/ic_captcha"
         android:key="cf_auto_solve_disabled"
         android:summary="@string/disable_captcha_auto_solve_summary"
         android:title="@string/disable_captcha_auto_solve" />

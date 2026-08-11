@@ -30,10 +30,19 @@
         android:key="app_locale"
         android:title="@string/language" />
 
+    <ListPreference
+        android:entries="@array/font_names"
+        android:entryValues="@array/font_keys"
+        android:icon="@drawable/ic_font"
+        android:key="app_font"
+        android:title="@string/font"
+        app:useSimpleSummaryProvider="true" />
+
     <PreferenceCategory android:title="@string/manga_list">
 
         <SwitchPreferenceCompat
             android:defaultValue="false"
+            android:icon="@drawable/ic_images"
             android:key="manga_card_style"
             android:summary="@string/manga_card_style_cover"
             android:title="@string/manga_card_style" />

@@ -68,6 +68,10 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 	val isAmoledTheme: Boolean
 		get() = prefs.getBoolean(KEY_THEME_AMOLED, false)
 
+	/** The font to apply app-wide; SYSTEM means no custom typeface (Android default). */
+	val appFont: AppFont
+		get() = AppFont.fromKey(prefs.getString(KEY_APP_FONT, null))
+
 	/**
 	 * Whether the user prefers the "cover title" card style (title drawn over the artwork with a
 	 * gradient scrim) or the classic style (title below the cover).
@@ -811,6 +815,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 		const val KEY_COLOR_THEME = "color_theme"
 		const val KEY_THEME_AMOLED = "amoled_theme"
 		const val KEY_MANGA_CARD_STYLE = "manga_card_style"
+		const val KEY_APP_FONT = "app_font"
 		const val KEY_OFFLINE_DISABLED = "no_offline"
 		const val KEY_PAGES_CACHE_CLEAR = "pages_cache_clear"
 		const val KEY_HTTP_CACHE_CLEAR = "http_cache_clear"

@@ -114,6 +114,7 @@ class AppearanceSettingsFragment :
             AppSettings.KEY_COLOR_THEME,
             AppSettings.KEY_THEME_AMOLED,
             AppSettings.KEY_MANGA_CARD_STYLE,
+            AppSettings.KEY_APP_FONT,
                 -> {
                 postRestart()
             }
