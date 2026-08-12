@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Single font entry in the horizontal picker.
+	The font name is rendered in its own typeface so the user sees a preview.
+-->
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="wrap_content"
+	android:layout_height="wrap_content"
+	android:background="?selectableItemBackground"
+	android:gravity="center"
+	android:minWidth="80dp"
+	android:orientation="vertical"
+	android:padding="8dp">
+
+	<FrameLayout
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content">
+
+		<com.google.android.material.card.MaterialCardView
+			android:layout_width="72dp"
+			android:layout_height="72dp"
+			android:focusableInTouchMode="false"
+			style="?materialCardViewOutlinedStyle">
+
+			<TextView
+				android:id="@+id/tv_font_preview_sample"
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				android:gravity="center"
+				android:padding="4dp"
+				android:text="Ag"
+				android:textSize="28sp"
+				android:textColor="?colorOnSurface" />
+
+		</com.google.android.material.card.MaterialCardView>
+
+	</FrameLayout>
+
+	<TextView
+		android:id="@+id/tv_font_name"
+		android:layout_width="80dp"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="4dp"
+		android:ellipsize="end"
+		android:gravity="center"
+		android:maxLines="2"
+		android:textAppearance="?attr/textAppearanceLabelSmall"
+		android:textColor="?android:attr/textColorPrimary" />
+
+	<View
+		android:id="@+id/view_selected_indicator"
+		android:layout_width="20dp"
+		android:layout_height="3dp"
+		android:layout_marginTop="4dp"
+		android:background="?colorPrimary"
+		android:visibility="gone" />
+
+</LinearLayout>

@@ -23,7 +23,10 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.koitharu.kotatsu.BuildConfig
+import android.graphics.Typeface
+import android.widget.TextView
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.prefs.SystemFontScanner
 import org.koitharu.kotatsu.core.prefs.AppFont
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.nav.AppRouter
@@ -81,9 +84,24 @@ abstract class BaseActivity<B : ViewBinding> :
 			}
 			// Apply font overlay: sets android:fontFamily + fontFamily on the theme so that
 			// ALL TextViews, Buttons and Material3 components pick up the custom typeface.
-			val fontOverlay = settings.appFont.themeOverlayRes
-			if (fontOverlay != 0) {
-				setTheme(fontOverlay)
+			val fontKey = settings.appFontKey
+			if (fontKey.startsWith("system:")) {
+				// Device font selected — resolve the Typeface and apply via theme override at runtime
+				// (can't use a static ThemeOverlay since the font isn't a res/font/ resource)
+				val fontName = fontKey.removePrefix("system:")
+				val entry = runCatching {
+					SystemFontScanner.getSystemFonts().firstOrNull { it.name == fontName }
+				}.getOrNull()
+				if (entry != null) {
+					window.decorView.post {
+						applySystemFontToWindow(entry.typeface)
+					}
+				}
+			} else {
+				val fontOverlay = settings.appFont.themeOverlayRes
+				if (fontOverlay != 0) {
+					setTheme(fontOverlay)
+				}
 			}
 		}
 		putDataToExtras(intent)
@@ -203,4 +221,24 @@ abstract class BaseActivity<B : ViewBinding> :
 	}
 
 	protected fun hasViewBinding() = ::viewBinding.isInitialized
+	/**
+	 * Recursively sets a custom Typeface on every TextView in the window's view hierarchy.
+	 * Used for device fonts (system:) which can't be expressed as a static ThemeOverlay resource.
+	 */
+	private fun applySystemFontToWindow(typeface: Typeface) {
+		applyTypefaceToView(window.decorView, typeface)
+	}
+
+	private fun applyTypefaceToView(view: android.view.View, typeface: Typeface) {
+		if (view is TextView) {
+			val style = view.typeface?.style ?: Typeface.NORMAL
+			view.typeface = Typeface.create(typeface, style)
+		}
+		if (view is android.view.ViewGroup) {
+			for (i in 0 until view.childCount) {
+				applyTypefaceToView(view.getChildAt(i), typeface)
+			}
+		}
+	}
+
 }

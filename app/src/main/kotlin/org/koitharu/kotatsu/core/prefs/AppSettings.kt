@@ -68,7 +68,14 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 	val isAmoledTheme: Boolean
 		get() = prefs.getBoolean(KEY_THEME_AMOLED, false)
 
-	/** The font to apply app-wide; SYSTEM means no custom typeface (Android default). */
+	/** The persisted font key (may be "system:FontName" for device fonts). */
+	val appFontKey: String
+		get() = prefs.getString(KEY_APP_FONT, null) ?: AppFont.APP_DEFAULT.key
+
+	/**
+	 * The built-in AppFont entry for the current selection, or APP_DEFAULT if the user
+	 * has selected a device font (key starts with "system:").
+	 */
 	val appFont: AppFont
 		get() = AppFont.fromKey(prefs.getString(KEY_APP_FONT, null))
 

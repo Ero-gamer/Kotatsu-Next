@@ -444,6 +444,12 @@
 	     Sets both android:fontFamily (used by android.widget.TextView) and
 	     fontFamily (used by Material3 / AppCompat text appearances). -->
 
+	<!-- Forces the device's system sans-serif font (respects user's OS font setting) -->
+	<style name="ThemeOverlay.Kotatsu.Font.SystemFont" parent="">
+		<item name="android:fontFamily">sans-serif</item>
+		<item name="fontFamily">sans-serif</item>
+	</style>
+
 	<style name="ThemeOverlay.Kotatsu.Font.GoogleSans" parent="">
 		<item name="android:fontFamily">@font/google_sans</item>
 		<item name="fontFamily">@font/google_sans</item>

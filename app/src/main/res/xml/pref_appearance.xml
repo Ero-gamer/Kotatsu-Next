@@ -30,13 +30,10 @@
         android:key="app_locale"
         android:title="@string/language" />
 
-    <ListPreference
-        android:entries="@array/font_names"
-        android:entryValues="@array/font_keys"
+    <org.koitharu.kotatsu.settings.utils.FontChooserPreference
         android:icon="@drawable/ic_font"
         android:key="app_font"
-        android:title="@string/font"
-        app:useSimpleSummaryProvider="true" />
+        android:title="@string/font" />
 
     <PreferenceCategory android:title="@string/manga_list">
 

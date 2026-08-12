@@ -23,11 +23,20 @@ enum class AppFont(
 	@StyleRes val themeOverlayRes: Int,
 ) {
 	/** Android system default — no override applied */
-	SYSTEM(
-		key = "system",
-		titleResId = R.string.font_system,
+	/** App default — uses the font bundled with the Material3 theme (Roboto on most devices) */
+	APP_DEFAULT(
+		key = "app_default",
+		titleResId = R.string.font_app_default,
 		fontRes = null,
 		themeOverlayRes = 0,
+	),
+
+	/** Android system font — the typeface the device OS uses (respects manufacturer/user font) */
+	SYSTEM_FONT(
+		key = "system_font",
+		titleResId = R.string.font_system_font,
+		fontRes = null,
+		themeOverlayRes = R.style.ThemeOverlay_Kotatsu_Font_SystemFont,
 	),
 
 	/** Google Sans — clean modern sans-serif (bundled from commit, used by FloatingNavBar) */
@@ -96,6 +105,6 @@ enum class AppFont(
 	;
 
 	companion object {
-		fun fromKey(key: String?): AppFont = entries.firstOrNull { it.key == key } ?: SYSTEM
+		fun fromKey(key: String?): AppFont = entries.firstOrNull { it.key == key } ?: APP_DEFAULT
 	}
 }

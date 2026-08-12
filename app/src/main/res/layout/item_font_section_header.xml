@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Section divider label: "Built-in fonts" / "Device fonts" -->
+<TextView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="wrap_content"
+	android:layout_height="match_parent"
+	android:gravity="bottom"
+	android:minWidth="80dp"
+	android:paddingHorizontal="8dp"
+	android:paddingBottom="6dp"
+	android:textAppearance="?attr/textAppearanceLabelSmall"
+	android:textColor="?attr/colorPrimary"
+	android:writingDirection="locale" />
