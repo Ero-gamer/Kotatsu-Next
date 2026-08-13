@@ -144,30 +144,4 @@
 		<item>@string/ask_every_time</item>
 		<item>@string/disable</item>
 	</string-array>
-
-    <!-- Font picker -->
-    <string-array name="font_names">
-        <item>@string/font_system</item>
-        <item>@string/font_google_sans</item>
-        <item>@string/font_inter</item>
-        <item>@string/font_fira_sans</item>
-        <item>@string/font_dejavu_serif</item>
-        <item>@string/font_dejavu_sans_mono</item>
-        <item>@string/font_bitstream_vera</item>
-        <item>@string/font_open_dyslexic</item>
-        <item>@string/font_jetbrains_mono</item>
-    </string-array>
-
-    <string-array name="font_keys">
-        <item>system</item>
-        <item>google_sans</item>
-        <item>inter</item>
-        <item>fira_sans</item>
-        <item>dejavu_serif</item>
-        <item>dejavu_sans_mono</item>
-        <item>bitstream_vera</item>
-        <item>open_dyslexic</item>
-        <item>jetbrains_mono</item>
-    </string-array>
-
 </resources>
