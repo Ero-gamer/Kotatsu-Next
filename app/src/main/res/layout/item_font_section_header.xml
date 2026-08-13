@@ -9,5 +9,4 @@
 	android:paddingHorizontal="8dp"
 	android:paddingBottom="6dp"
 	android:textAppearance="?attr/textAppearanceLabelSmall"
-	android:textColor="?attr/colorPrimary"
-	android:writingDirection="locale" />
+	android:textColor="?attr/colorPrimary" />
