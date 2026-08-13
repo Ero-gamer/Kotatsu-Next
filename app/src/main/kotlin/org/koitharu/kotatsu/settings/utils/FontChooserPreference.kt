@@ -129,11 +129,6 @@ class FontChooserPreference @JvmOverloads constructor(
 
 		private var selectedKey: String = currentKey
 
-		companion object {
-			const val VT_HEADER = 0
-			const val VT_ENTRY  = 1
-		}
-
 		fun setSelected(key: String) {
 			if (key == selectedKey) return
 			val old = items.indexOfFirst { it is FontItem.Entry && it.key == selectedKey }
@@ -144,13 +139,13 @@ class FontChooserPreference @JvmOverloads constructor(
 		}
 
 		override fun getItemViewType(position: Int) =
-			if (items[position] is FontItem.Header) VT_HEADER else VT_ENTRY
+			if (items[position] is FontItem.Header) 0 else 1
 
 		override fun getItemCount() = items.size
 
 		override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
 			val inflater = LayoutInflater.from(parent.context)
-			return if (viewType == VT_HEADER) {
+			return if (viewType == 0) {
 				HeaderVH(inflater.inflate(R.layout.item_font_section_header, parent, false))
 			} else {
 				EntryVH(inflater.inflate(R.layout.item_font_entry, parent, false))
