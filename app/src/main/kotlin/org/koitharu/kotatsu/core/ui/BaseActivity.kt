@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -247,7 +248,8 @@ abstract class BaseActivity<B : ViewBinding> :
 	 * This is a one-time call from [setContentView] and is O(view-tree depth) — negligible cost.
 	 */
 	private fun applyFontToNavBars(root: View, typeface: android.graphics.Typeface) {
-		root.descendants.filterIsInstance<NavigationBarView>().forEach { navBar ->
+		val rootGroup = root as? ViewGroup ?: return
+		rootGroup.descendants.filterIsInstance<NavigationBarView>().forEach { navBar ->
 			navBar.descendants.filterIsInstance<TextView>().forEach { tv ->
 				val style = tv.typeface?.style ?: android.graphics.Typeface.NORMAL
 				tv.typeface = android.graphics.Typeface.create(typeface, style)
