@@ -89,9 +89,22 @@ class FontChooserPreference @JvmOverloads constructor(
 		// ── Section 1: Built-in fonts ──
 		items += FontItem.Header(context.getString(R.string.font_section_builtin))
 		for (appFont in AppFont.entries) {
-			val typeface = if (appFont.fontRes != null) {
-				runCatching { ResourcesCompat.getFont(context, appFont.fontRes) }.getOrNull()
-			} else null
+			val typeface = when {
+				appFont.fontRes != null -> {
+					// Bundled font — load from resources for the preview card.
+					runCatching { ResourcesCompat.getFont(context, appFont.fontRes) }.getOrNull()
+				}
+				appFont == AppFont.SYSTEM_FONT -> {
+					// SYSTEM_FONT: preview should show the actual device OEM font.
+					// Typeface.DEFAULT IS the system font — the old code passed null here
+					// which fell back to DEFAULT in the adapter anyway, but let's be explicit.
+					Typeface.DEFAULT
+				}
+				else -> {
+					// APP_DEFAULT: null → adapter uses Typeface.DEFAULT for rendering.
+					null
+				}
+			}
 			items += FontItem.Entry(
 				key      = appFont.key,
 				label    = context.getString(appFont.titleResId),

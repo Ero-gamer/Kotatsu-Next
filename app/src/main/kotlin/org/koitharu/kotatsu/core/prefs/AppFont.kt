@@ -13,16 +13,20 @@ import org.koitharu.kotatsu.R
  * A null [fontRes] means "use the system default" (i.e. no custom typeface applied).
  *
  * The [key] is persisted to SharedPreferences and must never change between releases.
+ *
+ * [themeOverlayRes] is used for bundled fonts only — it sets `android:fontFamily` in the
+ * theme so Material3 components and non-inflated widgets (e.g. system-drawn elements) pick
+ * up the right font.  For runtime fonts (SYSTEM_FONT, system:Name device fonts) the value
+ * is 0 and font application is handled exclusively by [FontInflaterFactory2] at inflation time.
  */
 @Keep
 enum class AppFont(
 	val key: String,
 	@StringRes val titleResId: Int,
 	@FontRes val fontRes: Int?,
-	/** ThemeOverlay style resource to set this font app-wide, or 0 for system default */
+	/** ThemeOverlay style resource to set this font app-wide, or 0 for runtime-applied fonts */
 	@StyleRes val themeOverlayRes: Int,
 ) {
-	/** Android system default — no override applied */
 	/** App default — uses the font bundled with the Material3 theme (Roboto on most devices) */
 	APP_DEFAULT(
 		key = "app_default",
@@ -31,12 +35,19 @@ enum class AppFont(
 		themeOverlayRes = 0,
 	),
 
-	/** Android system font — the typeface the device OS uses (respects manufacturer/user font) */
+	/**
+	 * Android system font — the typeface the device OS uses (respects manufacturer/user font).
+	 *
+	 * themeOverlayRes is intentionally 0: the old overlay set `android:fontFamily=sans-serif`
+	 * which maps to Roboto on most devices — the opposite of what "system font" should do.
+	 * The correct Typeface.DEFAULT (actual OEM/user-set system font) is applied at runtime
+	 * by [FontInflaterFactory2] via [FontTypefaceHolder].
+	 */
 	SYSTEM_FONT(
 		key = "system_font",
 		titleResId = R.string.font_system_font,
 		fontRes = null,
-		themeOverlayRes = R.style.ThemeOverlay_Kotatsu_Font_SystemFont,
+		themeOverlayRes = 0,
 	),
 
 	/** Google Sans — clean modern sans-serif (bundled from commit, used by FloatingNavBar) */

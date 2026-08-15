@@ -17,17 +17,14 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
-import androidx.fragment.app.FragmentManager
 import androidx.viewbinding.ViewBinding
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.koitharu.kotatsu.BuildConfig
-import android.graphics.Typeface
-import android.widget.TextView
 import org.koitharu.kotatsu.R
-import org.koitharu.kotatsu.core.prefs.SystemFontScanner
 import org.koitharu.kotatsu.core.prefs.AppFont
+import org.koitharu.kotatsu.core.prefs.FontTypefaceHolder
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.ui.util.ActionModeDelegate
@@ -82,28 +79,38 @@ abstract class BaseActivity<B : ViewBinding> :
 			} else {
 				setTheme(R.style.ThemeOverlay_Kotatsu_ClassicCards)
 			}
-			// Apply font overlay: sets android:fontFamily + fontFamily on the theme so that
-			// ALL TextViews, Buttons and Material3 components pick up the custom typeface.
+
 			val fontKey = settings.appFontKey
-			if (fontKey.startsWith("system:")) {
-				// Device font selected — resolve the Typeface and apply via theme override at runtime
-				// (can't use a static ThemeOverlay since the font isn't a res/font/ resource)
-				val fontName = fontKey.removePrefix("system:")
-				val entry = runCatching {
-					SystemFontScanner.getSystemFonts().firstOrNull { it.name == fontName }
-				}.getOrNull()
-				if (entry != null) {
-					window.decorView.post {
-						applySystemFontToWindow(entry.typeface)
-					}
-				}
-			} else {
+
+			// For bundled fonts: apply the static ThemeOverlay so the theme attribute
+			// `android:fontFamily` is set — this covers TextViews that are NOT inflated
+			// through our factory (e.g. WebView internal views, system widgets).
+			// SYSTEM_FONT is intentionally excluded here — its ThemeOverlay was wrong
+			// (it set `sans-serif` = Roboto instead of the actual OEM font).
+			// The FontInflaterFactory2 below handles ALL fonts uniformly at inflation time.
+			if (fontKey != AppFont.APP_DEFAULT.key && !fontKey.startsWith("system:") &&
+				fontKey != AppFont.SYSTEM_FONT.key
+			) {
 				val fontOverlay = settings.appFont.themeOverlayRes
 				if (fontOverlay != 0) {
 					setTheme(fontOverlay)
 				}
 			}
+
+			// Install a LayoutInflater.Factory2 that applies the custom Typeface to every
+			// TextView (and subclass) at inflation time.  This MUST be done BEFORE
+			// super.onCreate() so that AppCompat can chain its own factory on top of ours.
+			//
+			// This approach covers:
+			//   • The activity's own layout (setContentView)
+			//   • All Fragment layouts hosted by this activity (FragmentManager uses this inflater)
+			//   • Views inflated programmatically via layoutInflater
+			//
+			// Note: Dialog/BottomSheet windows use their OWN LayoutInflater — those are
+			// handled in BaseAdaptiveSheet and AlertDialogFragment separately.
+			FontInflaterFactory2.installFromSettings(layoutInflater, applicationContext, fontKey)
 		}
+
 		putDataToExtras(intent)
 		exceptionResolver = entryPoint.exceptionResolverFactory.create(this)
 		if (applyColorSchemeTheme) {
@@ -221,24 +228,4 @@ abstract class BaseActivity<B : ViewBinding> :
 	}
 
 	protected fun hasViewBinding() = ::viewBinding.isInitialized
-	/**
-	 * Recursively sets a custom Typeface on every TextView in the window's view hierarchy.
-	 * Used for device fonts (system:) which can't be expressed as a static ThemeOverlay resource.
-	 */
-	private fun applySystemFontToWindow(typeface: Typeface) {
-		applyTypefaceToView(window.decorView, typeface)
-	}
-
-	private fun applyTypefaceToView(view: android.view.View, typeface: Typeface) {
-		if (view is TextView) {
-			val style = view.typeface?.style ?: Typeface.NORMAL
-			view.typeface = Typeface.create(typeface, style)
-		}
-		if (view is android.view.ViewGroup) {
-			for (i in 0 until view.childCount) {
-				applyTypefaceToView(view.getChildAt(i), typeface)
-			}
-		}
-	}
-
 }
