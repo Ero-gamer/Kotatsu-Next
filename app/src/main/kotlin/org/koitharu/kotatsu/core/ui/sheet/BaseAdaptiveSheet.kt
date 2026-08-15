@@ -28,7 +28,6 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.ui.BaseActivity
 import org.koitharu.kotatsu.core.ui.BaseActivityEntryPoint
-import org.koitharu.kotatsu.core.ui.FontInflaterFactory2
 import org.koitharu.kotatsu.core.ui.util.ActionModeDelegate
 import com.google.android.material.R as materialR
 
@@ -64,25 +63,6 @@ abstract class BaseAdaptiveSheet<B : ViewBinding> : AppCompatDialogFragment(),
 		super.onAttach(context)
 		val entryPoint = EntryPointAccessors.fromApplication<BaseActivityEntryPoint>(context)
 		exceptionResolver = entryPoint.exceptionResolverFactory.create(this)
-	}
-
-	/**
-	 * Apply the active font to every TextView inflated in this sheet's window.
-	 *
-	 * Bottom sheets and side sheets run in their own [Dialog] window with a separate
-	 * [LayoutInflater] that is NOT shared with the host activity.  The activity's
-	 * [FontInflaterFactory2] therefore does NOT reach these views.  We override
-	 * [onGetLayoutInflater] — which is called by the Fragment framework to obtain the
-	 * inflater used in [onCreateView] — and install our factory here so that every view
-	 * in this sheet picks up the custom typeface at creation time.
-	 */
-	override fun onGetLayoutInflater(savedInstanceState: Bundle?): LayoutInflater {
-		val inflater = super.onGetLayoutInflater(savedInstanceState)
-		val context = context ?: return inflater
-		val entryPoint = EntryPointAccessors.fromApplication<BaseActivityEntryPoint>(context.applicationContext)
-		val fontKey = entryPoint.settings.appFontKey
-		FontInflaterFactory2.installFromSettings(inflater, context.applicationContext, fontKey)
-		return inflater
 	}
 
 	final override fun onCreateView(

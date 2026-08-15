@@ -10,29 +10,33 @@ import androidx.core.view.LayoutInflaterCompat
 import org.koitharu.kotatsu.core.prefs.FontTypefaceHolder
 
 /**
- * A [LayoutInflater.Factory2] wrapper that intercepts every inflated [TextView] (and
- * subclasses — Button, EditText, etc.) and applies a custom [Typeface] at creation time.
+ * A [LayoutInflater.Factory2] wrapper that applies a custom [Typeface] to every inflated
+ * [TextView] (and subclasses — Button, EditText, CheckBox, RadioButton, etc.) at creation time.
  *
- * **Why at inflation time, not after layout?**
- * - The old approach called `decorView.post { walk tree }` in `BaseActivity.onCreate`.
- *   This ran *after* the initial layout pass, missed views inflated later (fragment
- *   transactions, dialogs, bottom sheets), and never reached separate Dialog windows.
- * - By hooking the inflater factory we apply the typeface to every single view the
- *   moment it is created, regardless of which Window, Fragment, or Dialog it belongs to.
+ * ## Correct installation order
  *
- * **Chaining with AppCompat:**
- * `AppCompatActivity` installs its own `Factory2` (`AppCompatViewInflater`) via
- * `AppCompatDelegate.installViewFactory()`, which is called from `super.onCreate()`.
- * We install *our* factory **before** `super.onCreate()` using
- * [LayoutInflaterCompat.setFactory2].  AppCompat detects that a factory is already
- * present and wraps it internally (since AppCompat 1.1+), so both factories run.
- * Our factory receives the already-AppCompat-constructed view and just tweaks its
- * typeface — we never need to construct the view ourselves.
+ * **MUST be installed AFTER `super.onCreate()`**, not before.
  *
- * Usage — call [install] once at the top of `onCreate` / `onCreateDialog`:
- * ```kotlin
- * FontInflaterFactory2.install(layoutInflater, typeface)
- * ```
+ * `AppCompatActivity.super.onCreate()` calls `AppCompatDelegate.installViewFactory()` which
+ * installs AppCompat's own `WrapperFactory2` on the `LayoutInflater`.  If we install our
+ * factory *before* that, our captured `delegate` is `null`, and AppCompat wraps us on top —
+ * when AppCompat calls our `onCreateView`, we forward to `null` → **NPE / crash**.
+ *
+ * Installing *after* `super.onCreate()`:
+ * 1. `inflater.factory2` is AppCompat's `WrapperFactory2`.
+ * 2. We create `FontInflaterFactory2(delegate = appCompatFactory)`.
+ * 3. `LayoutInflaterCompat.setFactory2` uses reflection (`forceSetFactory2`) to bypass
+ *    the "factory already set" guard and replaces the factory.
+ * 4. Final chain: **Font → AppCompat → creates view → Font applies typeface**.
+ *
+ * This single installation covers:
+ * - The activity's own layout (`setContentView`)
+ * - All Fragment layouts (Fragment clones the activity's inflater, sharing the same factory)
+ * - RecyclerView adapter items inflated via `LayoutInflater.from(activity/fragment context)`
+ *
+ * Dialogs and bottom sheets have separate windows with independent inflaters — those are
+ * handled by overriding `onGetLayoutInflater()` in [BaseAdaptiveSheet] and
+ * [AlertDialogFragment], using the same after-super install approach.
  */
 class FontInflaterFactory2(
     private val delegate: LayoutInflater.Factory2?,
@@ -58,33 +62,37 @@ class FontInflaterFactory2(
 
     private fun applyTypefaceIfNeeded(view: View?) {
         if (view is TextView) {
+            // Preserve bold/italic style variant; only swap the font family.
             val existingStyle = view.typeface?.style ?: Typeface.NORMAL
-            // Preserve bold/italic style, just swap the font family.
             view.typeface = Typeface.create(typeface, existingStyle)
         }
     }
 
     companion object {
+
         /**
-         * Installs this factory on [inflater] if [typeface] is non-null.
-         * Safe to call multiple times — no-op when typeface is null.
+         * Installs this factory on [inflater].
          *
-         * Must be called **before** `super.onCreate()` in an Activity so AppCompat
-         * can chain properly, OR after `super.onCreateDialog()` in a DialogFragment.
+         * **Call AFTER `super.onCreate()`** so that AppCompat's factory is already set and can
+         * be captured as the delegate.  No-op when [typeface] is `null`.
+         *
+         * Uses [LayoutInflaterCompat.setFactory2] which internally calls `forceSetFactory2`
+         * via reflection (available in androidx.core 1.9+), bypassing the "already set" guard.
          */
         fun install(inflater: LayoutInflater, typeface: Typeface?) {
             if (typeface == null) return
-            // Grab whatever factory AppCompat (or anyone else) has already installed.
+            // Capture whatever factory is currently installed (AppCompat's WrapperFactory2
+            // when called after super.onCreate, or null in a dialog/sheet context).
             val existing = inflater.factory2
             val factory = FontInflaterFactory2(existing, typeface)
-            // setFactory2 throws if a factory is already set — use the compat wrapper
-            // which handles the "already set" case gracefully (wraps via reflection on older APIs).
+            // LayoutInflaterCompat.setFactory2 uses forceSetFactory2 (reflection) in
+            // androidx.core 1.9+, so it succeeds even when a factory is already installed.
             LayoutInflaterCompat.setFactory2(inflater, factory)
         }
 
         /**
-         * Variant that reads the typeface from [FontTypefaceHolder].
-         * Resolves the current user preference and installs if non-null.
+         * Convenience overload that resolves the typeface from [FontTypefaceHolder] before
+         * installing.  No-op when the resolved typeface is `null` (APP_DEFAULT).
          */
         fun installFromSettings(inflater: LayoutInflater, context: Context, fontKey: String) {
             val typeface = FontTypefaceHolder.resolve(context, fontKey)
