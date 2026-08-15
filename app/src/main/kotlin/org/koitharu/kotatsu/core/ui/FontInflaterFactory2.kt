@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
 import androidx.core.view.LayoutInflaterCompat
+import org.koitharu.kotatsu.core.prefs.FontTypefaceHolder
 
 /**
  * A [LayoutInflater.Factory2] wrapper that intercepts every inflated [TextView] (and
