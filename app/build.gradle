@@ -83,6 +83,9 @@ android {
     }
 
     packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
         resources {
             excludes += [
                 'META-INF/README.md',
