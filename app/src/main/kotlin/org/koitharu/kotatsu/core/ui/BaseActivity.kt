@@ -3,9 +3,11 @@ package org.koitharu.kotatsu.core.ui
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -19,7 +21,7 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
-import androidx.core.view.descendants
+import androidx.fragment.app.FragmentManager
 import androidx.viewbinding.ViewBinding
 import com.google.android.material.navigation.NavigationBarView
 import dagger.hilt.android.EntryPointAccessors
@@ -27,10 +29,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.R
-import org.koitharu.kotatsu.core.prefs.AppFont
-import org.koitharu.kotatsu.core.prefs.FontTypefaceHolder
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.nav.AppRouter
+import org.koitharu.kotatsu.core.prefs.AppFont
+import org.koitharu.kotatsu.core.prefs.SystemFontScanner
 import org.koitharu.kotatsu.core.ui.util.ActionModeDelegate
 import org.koitharu.kotatsu.core.util.ext.isWebViewUnavailable
 import org.koitharu.kotatsu.main.ui.protect.ScreenshotPolicyHelper
@@ -64,7 +66,8 @@ abstract class BaseActivity<B : ViewBinding> :
 
 	/**
 	 * If true (default), apply the app's color-scheme theme overlay on top of the manifest theme.
-	 * Override to false for activities whose manifest theme must be preserved as-is.
+	 * Override to false for activities whose manifest theme must be preserved as-is — e.g.
+	 * `CloudFlareHiddenActivity`, which needs its translucent theme intact.
 	 */
 	protected open val applyColorSchemeTheme: Boolean = true
 
@@ -76,46 +79,32 @@ abstract class BaseActivity<B : ViewBinding> :
 			if (isAmoledTheme) {
 				setTheme(R.style.ThemeOverlay_Kotatsu_Amoled)
 			}
+			// Apply card style overlay independently of colour scheme.
 			if (settings.isCoverTitleCardStyle) {
 				setTheme(R.style.ThemeOverlay_Kotatsu_CoverTitleCards)
 			} else {
 				setTheme(R.style.ThemeOverlay_Kotatsu_ClassicCards)
 			}
-
+			// Apply font theme overlay for bundled fonts.
+			// setTheme() sets android:fontFamily on the theme so Material3 components,
+			// TextAppearances and statically-inflated TextViews pick up the right typeface.
+			// For runtime fonts (SYSTEM_FONT, system:Name) there is no static resource —
+			// those are handled by getLayoutInflater() returning a TypefaceInflater.
 			val fontKey = settings.appFontKey
-
-			// For bundled fonts: apply the static ThemeOverlay so the theme attribute
-			// `android:fontFamily` is set for Material3 components and non-inflated widgets.
-			// System fonts are excluded — their overlay was wrong (mapped to Roboto, not OEM font).
-			// FontInflaterFactory2 handles all fonts uniformly at inflation time.
-			if (fontKey != AppFont.APP_DEFAULT.key &&
+			val fontOverlay = settings.appFont.themeOverlayRes
+			if (fontOverlay != 0 &&
 				fontKey != AppFont.SYSTEM_FONT.key &&
 				!fontKey.startsWith("system:")
 			) {
-				val fontOverlay = settings.appFont.themeOverlayRes
-				if (fontOverlay != 0) {
-					setTheme(fontOverlay)
-				}
+				setTheme(fontOverlay)
 			}
 		}
-
 		putDataToExtras(intent)
 		exceptionResolver = entryPoint.exceptionResolverFactory.create(this)
 		if (applyColorSchemeTheme) {
 			enableEdgeToEdge()
 		}
-
-		// super.onCreate() installs AppCompat's WrapperFactory2 on the LayoutInflater.
-		// We MUST call super first so that AppCompat's factory is in place before we wrap it.
 		super.onCreate(savedInstanceState)
-
-		// Install FontInflaterFactory2 AFTER super.onCreate() so we correctly capture
-		// AppCompat's WrapperFactory2 as our delegate.
-		// Chain: Font -> AppCompat -> creates view -> Font applies typeface.
-		// This covers: activity layout, all hosted Fragment layouts, RecyclerView adapter items.
-		if (applyColorSchemeTheme) {
-			FontInflaterFactory2.installFromSettings(layoutInflater, applicationContext, entryPoint.settings.appFontKey)
-		}
 	}
 
 	override fun onPostCreate(savedInstanceState: Bundle?) {
@@ -134,23 +123,64 @@ abstract class BaseActivity<B : ViewBinding> :
 	@Deprecated("Use ViewBinding", level = DeprecationLevel.ERROR)
 	override fun setContentView(view: View?) = throw UnsupportedOperationException()
 
+	/**
+	 * Returns a [TypefaceInflater] when a runtime font is active (SYSTEM_FONT or a device
+	 * "system:Name" font), otherwise returns the standard inflater.
+	 *
+	 * [TypefaceInflater] is a [LayoutInflater] subclass — no reflection, no factory conflicts,
+	 * no crash risk on any API level or OEM ROM.  It is cloned by the Fragment framework for
+	 * every hosted Fragment (including DialogFragments and bottom sheets), so a single override
+	 * here covers the entire app.
+	 *
+	 * Bundled fonts (Inter, Fira Sans, etc.) don't need this path — their ThemeOverlay set via
+	 * [onCreate] is sufficient because `android:fontFamily` in the theme applies to all
+	 * TextAppearances and thus to all TextViews regardless of when they are inflated.
+	 */
+	override fun getLayoutInflater(): LayoutInflater {
+		val base = super.getLayoutInflater()
+		if (!applyColorSchemeTheme) return base
+		val typeface = resolvedRuntimeTypeface ?: return base
+		return TypefaceInflater(base, this, typeface)
+	}
+
+	/**
+	 * Resolved typeface for the current runtime font selection, or null if the active font
+	 * is a bundled font (handled by ThemeOverlay) or APP_DEFAULT (no override needed).
+	 *
+	 * Computed once per activity instance and cached.  Wrapped in runCatching so that any
+	 * failure (missing font file, OEM restriction, etc.) silently falls back to the default
+	 * font — it can never propagate to [onCreate] and cause a boot-loop crash.
+	 */
+	private val resolvedRuntimeTypeface: Typeface? by lazy {
+		runCatching {
+			val fontKey = entryPoint.settings.appFontKey
+			when {
+				fontKey == AppFont.SYSTEM_FONT.key -> {
+					// Typeface.DEFAULT IS the actual device system font (set by OEM or user).
+					// The old ThemeOverlay set `android:fontFamily=sans-serif` which maps to
+					// Roboto — wrong.  Typeface.DEFAULT is correct.
+					Typeface.DEFAULT
+				}
+				fontKey.startsWith("system:") -> {
+					val fontName = fontKey.removePrefix("system:")
+					SystemFontScanner.getSystemFonts().firstOrNull { it.name == fontName }?.typeface
+				}
+				else -> null // bundled font or APP_DEFAULT — handled by ThemeOverlay
+			}
+		}.getOrNull()
+	}
+
 	protected fun setContentView(binding: B) {
 		this.viewBinding = binding
 		super.setContentView(binding.root)
 		ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
 		val toolbar = (binding.root.findViewById<View>(R.id.toolbar) as? Toolbar)
 		toolbar?.let(this::setSupportActionBar)
-
-		// NavigationBarView (bottom nav / nav rail) renders its menu item labels internally
-		// through the Material menu system — NOT through LayoutInflater — so our Factory2
-		// does not reach those TextViews.  The menu items are built lazily after setContentView,
-		// so we defer the typeface walk to the next layout pass via post().
-		if (applyColorSchemeTheme) {
-			val typeface = FontTypefaceHolder.resolve(applicationContext, entryPoint.settings.appFontKey)
-			if (typeface != null) {
-				binding.root.post { applyFontToNavBars(binding.root, typeface) }
-			}
-		}
+		// NavigationBarView (bottom/side nav) creates its menu item TextViews internally —
+		// not through LayoutInflater — so TypefaceInflater never sees them.
+		// Apply the typeface directly after the menu items are built (deferred one frame).
+		val typeface = resolvedRuntimeTypeface ?: return
+		binding.root.post { applyTypefaceToNavBars(binding.root, typeface) }
 	}
 
 	protected fun setDisplayHomeAsUp(isEnabled: Boolean, showUpAsClose: Boolean) {
@@ -240,19 +270,32 @@ abstract class BaseActivity<B : ViewBinding> :
 	protected fun hasViewBinding() = ::viewBinding.isInitialized
 
 	/**
-	 * Apply [typeface] to all [TextView] descendants inside any [NavigationBarView] found in
-	 * [root].  NavigationBarView renders its menu item labels through the Material menu system
-	 * rather than through [android.view.LayoutInflater], so [FontInflaterFactory2] never sees
-	 * those views.  A direct typeface walk is the only reliable fix.
-	 *
-	 * This is a one-time call from [setContentView] and is O(view-tree depth) — negligible cost.
+	 * Applies [typeface] to all [TextView]s inside every [NavigationBarView] found under [root].
+	 * Only called for runtime fonts; bundled fonts are covered by the ThemeOverlay.
 	 */
-	private fun applyFontToNavBars(root: View, typeface: android.graphics.Typeface) {
-		val rootGroup = root as? ViewGroup ?: return
-		rootGroup.descendants.filterIsInstance<NavigationBarView>().forEach { navBar ->
-			navBar.descendants.filterIsInstance<TextView>().forEach { tv ->
-				val style = tv.typeface?.style ?: android.graphics.Typeface.NORMAL
-				tv.typeface = android.graphics.Typeface.create(typeface, style)
+	private fun applyTypefaceToNavBars(root: View, typeface: Typeface) {
+		applyToNavBarsInGroup(root as? ViewGroup ?: return, typeface)
+	}
+
+	private fun applyToNavBarsInGroup(group: ViewGroup, typeface: Typeface) {
+		for (i in 0 until group.childCount) {
+			val child = group.getChildAt(i) ?: continue
+			if (child is NavigationBarView) {
+				applyTypefaceToGroup(child, typeface)
+			} else if (child is ViewGroup) {
+				applyToNavBarsInGroup(child, typeface)
+			}
+		}
+	}
+
+	private fun applyTypefaceToGroup(group: ViewGroup, typeface: Typeface) {
+		for (i in 0 until group.childCount) {
+			when (val child = group.getChildAt(i)) {
+				is TextView -> {
+					val style = child.typeface?.style ?: Typeface.NORMAL
+					child.typeface = Typeface.create(typeface, style)
+				}
+				is ViewGroup -> applyTypefaceToGroup(child, typeface)
 			}
 		}
 	}
