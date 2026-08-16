@@ -85,11 +85,9 @@ abstract class BaseActivity<B : ViewBinding> :
 			} else {
 				setTheme(R.style.ThemeOverlay_Kotatsu_ClassicCards)
 			}
-			// Apply font theme overlay for bundled fonts.
-			// setTheme() sets android:fontFamily on the theme so Material3 components,
-			// TextAppearances and statically-inflated TextViews pick up the right typeface.
-			// For runtime fonts (SYSTEM_FONT, system:Name) there is no static resource —
-			// those are handled by getLayoutInflater() returning a TypefaceInflater.
+			// Apply font theme overlay for bundled fonts (sets android:fontFamily on the theme).
+			// Runtime fonts (SYSTEM_FONT, system:Name) have no static resource — those are
+			// applied via getSystemService(LAYOUT_INFLATER_SERVICE) returning a TypefaceInflater.
 			val fontKey = settings.appFontKey
 			val fontOverlay = settings.appFont.themeOverlayRes
 			if (fontOverlay != 0 &&
@@ -123,64 +121,92 @@ abstract class BaseActivity<B : ViewBinding> :
 	@Deprecated("Use ViewBinding", level = DeprecationLevel.ERROR)
 	override fun setContentView(view: View?) = throw UnsupportedOperationException()
 
-	/**
-	 * Returns a [TypefaceInflater] when a runtime font is active (SYSTEM_FONT or a device
-	 * "system:Name" font), otherwise returns the standard inflater.
-	 *
-	 * [TypefaceInflater] is a [LayoutInflater] subclass — no reflection, no factory conflicts,
-	 * no crash risk on any API level or OEM ROM.  It is cloned by the Fragment framework for
-	 * every hosted Fragment (including DialogFragments and bottom sheets), so a single override
-	 * here covers the entire app.
-	 *
-	 * Bundled fonts (Inter, Fira Sans, etc.) don't need this path — their ThemeOverlay set via
-	 * [onCreate] is sufficient because `android:fontFamily` in the theme applies to all
-	 * TextAppearances and thus to all TextViews regardless of when they are inflated.
-	 */
-	override fun getLayoutInflater(): LayoutInflater {
-		val base = super.getLayoutInflater()
-		if (!applyColorSchemeTheme) return base
-		val typeface = resolvedRuntimeTypeface ?: return base
-		return TypefaceInflater(base, this, typeface)
-	}
-
-	/**
-	 * Resolved typeface for the current runtime font selection, or null if the active font
-	 * is a bundled font (handled by ThemeOverlay) or APP_DEFAULT (no override needed).
-	 *
-	 * Computed once per activity instance and cached.  Wrapped in runCatching so that any
-	 * failure (missing font file, OEM restriction, etc.) silently falls back to the default
-	 * font — it can never propagate to [onCreate] and cause a boot-loop crash.
-	 */
-	private val resolvedRuntimeTypeface: Typeface? by lazy {
-		runCatching {
-			val fontKey = entryPoint.settings.appFontKey
-			when {
-				fontKey == AppFont.SYSTEM_FONT.key -> {
-					// Typeface.DEFAULT IS the actual device system font (set by OEM or user).
-					// The old ThemeOverlay set `android:fontFamily=sans-serif` which maps to
-					// Roboto — wrong.  Typeface.DEFAULT is correct.
-					Typeface.DEFAULT
-				}
-				fontKey.startsWith("system:") -> {
-					val fontName = fontKey.removePrefix("system:")
-					SystemFontScanner.getSystemFonts().firstOrNull { it.name == fontName }?.typeface
-				}
-				else -> null // bundled font or APP_DEFAULT — handled by ThemeOverlay
-			}
-		}.getOrNull()
-	}
-
 	protected fun setContentView(binding: B) {
 		this.viewBinding = binding
 		super.setContentView(binding.root)
 		ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
 		val toolbar = (binding.root.findViewById<View>(R.id.toolbar) as? Toolbar)
 		toolbar?.let(this::setSupportActionBar)
-		// NavigationBarView (bottom/side nav) creates its menu item TextViews internally —
-		// not through LayoutInflater — so TypefaceInflater never sees them.
-		// Apply the typeface directly after the menu items are built (deferred one frame).
+		// NavigationBarView builds menu-item TextViews internally (not via LayoutInflater),
+		// so TypefaceInflater never sees them. Apply directly after menu items are built.
 		val typeface = resolvedRuntimeTypeface ?: return
 		binding.root.post { applyTypefaceToNavBars(binding.root, typeface) }
+	}
+
+	/**
+	 * Intercept [Context.LAYOUT_INFLATER_SERVICE] requests so that every
+	 * [LayoutInflater.from] call using this Activity's context returns a
+	 * [TypefaceInflater] for runtime fonts.
+	 *
+	 * This is the universal hook that covers:
+	 * - Activity layouts (setContentView)
+	 * - Fragment layouts (Fragment uses LayoutInflater.from(requireContext()))
+	 * - DialogFragment / BottomSheetDialogFragment layouts (same)
+	 * - RecyclerView adapter items (LayoutInflater.from(parent.context))
+	 *
+	 * [TypefaceInflater] overrides [LayoutInflater.inflate] to walk the returned
+	 * view tree — this fires AFTER AppCompat's factory has already created every
+	 * view, so there is no factory conflict and no crash risk.
+	 */
+	override fun getSystemService(name: String): Any? {
+		val service = super.getSystemService(name)
+		if (name == Context.LAYOUT_INFLATER_SERVICE && service is LayoutInflater) {
+			val typeface = resolvedRuntimeTypeface ?: return service
+			return cachedTypefaceInflater ?: TypefaceInflater(service, this, typeface)
+				.also { cachedTypefaceInflater = it }
+		}
+		return service
+	}
+
+	// Cached so repeated getSystemService calls (from Fragment, adapter, etc.) reuse the same instance.
+	private var cachedTypefaceInflater: TypefaceInflater? = null
+
+	/**
+	 * Resolved [Typeface] for the current runtime font (SYSTEM_FONT or a device "system:Name"
+	 * font), or `null` for bundled fonts / APP_DEFAULT (handled by ThemeOverlay).
+	 *
+	 * Lazy + runCatching: any failure silently returns null and falls back to the default font.
+	 * Cannot propagate to [onCreate] and cannot cause a boot-loop.
+	 */
+	private val resolvedRuntimeTypeface: Typeface? by lazy {
+		runCatching {
+			val fontKey = entryPoint.settings.appFontKey
+			when {
+				fontKey == AppFont.SYSTEM_FONT.key -> Typeface.DEFAULT
+				fontKey.startsWith("system:") -> {
+					val fontName = fontKey.removePrefix("system:")
+					SystemFontScanner.getSystemFonts().firstOrNull { it.name == fontName }?.typeface
+				}
+				else -> null
+			}
+		}.getOrNull()
+	}
+
+	private fun applyTypefaceToNavBars(root: View, typeface: Typeface) {
+		applyToNavBarsInGroup(root as? ViewGroup ?: return, typeface)
+	}
+
+	private fun applyToNavBarsInGroup(group: ViewGroup, typeface: Typeface) {
+		for (i in 0 until group.childCount) {
+			val child = group.getChildAt(i) ?: continue
+			if (child is NavigationBarView) {
+				applyTypefaceToGroup(child, typeface)
+			} else if (child is ViewGroup) {
+				applyToNavBarsInGroup(child, typeface)
+			}
+		}
+	}
+
+	private fun applyTypefaceToGroup(group: ViewGroup, typeface: Typeface) {
+		for (i in 0 until group.childCount) {
+			when (val child = group.getChildAt(i)) {
+				is TextView -> {
+					val style = child.typeface?.style ?: Typeface.NORMAL
+					child.typeface = Typeface.create(typeface, style)
+				}
+				is ViewGroup -> applyTypefaceToGroup(child, typeface)
+			}
+		}
 	}
 
 	protected fun setDisplayHomeAsUp(isEnabled: Boolean, showUpAsClose: Boolean) {
@@ -268,35 +294,4 @@ abstract class BaseActivity<B : ViewBinding> :
 	}
 
 	protected fun hasViewBinding() = ::viewBinding.isInitialized
-
-	/**
-	 * Applies [typeface] to all [TextView]s inside every [NavigationBarView] found under [root].
-	 * Only called for runtime fonts; bundled fonts are covered by the ThemeOverlay.
-	 */
-	private fun applyTypefaceToNavBars(root: View, typeface: Typeface) {
-		applyToNavBarsInGroup(root as? ViewGroup ?: return, typeface)
-	}
-
-	private fun applyToNavBarsInGroup(group: ViewGroup, typeface: Typeface) {
-		for (i in 0 until group.childCount) {
-			val child = group.getChildAt(i) ?: continue
-			if (child is NavigationBarView) {
-				applyTypefaceToGroup(child, typeface)
-			} else if (child is ViewGroup) {
-				applyToNavBarsInGroup(child, typeface)
-			}
-		}
-	}
-
-	private fun applyTypefaceToGroup(group: ViewGroup, typeface: Typeface) {
-		for (i in 0 until group.childCount) {
-			when (val child = group.getChildAt(i)) {
-				is TextView -> {
-					val style = child.typeface?.style ?: Typeface.NORMAL
-					child.typeface = Typeface.create(typeface, style)
-				}
-				is ViewGroup -> applyTypefaceToGroup(child, typeface)
-			}
-		}
-	}
 }

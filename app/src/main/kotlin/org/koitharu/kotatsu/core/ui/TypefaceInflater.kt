@@ -5,37 +5,30 @@ import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
+import org.xmlpull.v1.XmlPullParser
 
 /**
  * A [LayoutInflater] subclass that applies a custom [Typeface] to every [TextView]
- * (and subclasses — Button, EditText, CheckBox, etc.) at the moment it is created.
+ * (and subclasses — Button, EditText, CheckBox, etc.) after each layout is inflated.
  *
- * ## Why this approach instead of Factory2
+ * ## Why inflate() instead of onCreateView()
  *
- * Setting a [LayoutInflater.Factory2] via [androidx.core.view.LayoutInflaterCompat.setFactory2]
- * after AppCompat's own factory is installed requires reflection to bypass the "factory already
- * set" guard.  On some OEM ROMs (especially API 28 devices) this reflection silently fails or
- * throws, causing a crash in every subsequent `Activity.onCreate()` — a permanent boot-loop.
- *
- * Overriding [cloneInContext] instead is safe, reflection-free, and is the same technique used
- * by the Calligraphy and ViewPump font libraries.  The clone shares no mutable state with the
- * original inflater and carries its own [onCreateView] override cleanly.
+ * [onCreateView] is only called as a fallback when no [LayoutInflater.Factory2] is set.
+ * AppCompat installs its own `WrapperFactory2` which intercepts all view creation — so
+ * [onCreateView] is never reached.  Overriding [inflate] is safe because it fires AFTER
+ * AppCompat's factory has already created and returned the complete view tree.  We simply
+ * walk that tree and apply the typeface.
  *
  * ## Coverage
  *
- * Because [Activity.getLayoutInflater] returns an instance that Android's [FragmentManager]
- * clones (via [cloneInContext]) for every hosted Fragment, this single override covers:
- *
- * - The activity's own layout (`setContentView`)
- * - Every [androidx.fragment.app.Fragment] hosted by the activity
- * - [androidx.fragment.app.DialogFragment] and bottom-sheet fragments (they use
- *   `Fragment.layoutInflater` which comes from the host activity's inflater clone)
- * - RecyclerView adapter items inflated with `LayoutInflater.from(activity/fragment context)`
- *
- * The only views NOT covered are those whose `TextView`s are created programmatically by
- * the widget itself (e.g. [com.google.android.material.navigation.NavigationBarView] menu
- * items). Those are handled separately in [BaseActivity.setContentView].
+ * Returned by [BaseActivity.getSystemService] for [Context.LAYOUT_INFLATER_SERVICE], so
+ * every [LayoutInflater.from] call using the activity context gets this inflater:
+ * - Activity layouts (setContentView)
+ * - Fragment layouts (Fragment.onCreateView inflater comes from the activity context)
+ * - DialogFragment / BottomSheetDialogFragment (same)
+ * - RecyclerView adapter items (LayoutInflater.from(parent.context))
  */
 class TypefaceInflater(
     original: LayoutInflater,
@@ -46,17 +39,30 @@ class TypefaceInflater(
     override fun cloneInContext(newContext: Context): LayoutInflater =
         TypefaceInflater(this, newContext, typeface)
 
-    override fun onCreateView(name: String, attrs: AttributeSet): View? =
-        super.onCreateView(name, attrs)?.also { applyIfTextView(it) }
+    // onCreateView is NOT overridden — it's never reached when AppCompat's factory is set.
 
-    override fun onCreateView(parent: View?, name: String, attrs: AttributeSet): View? =
-        super.onCreateView(parent, name, attrs)?.also { applyIfTextView(it) }
+    /**
+     * Core intercept point: called after the full view tree for a layout resource is built.
+     * Walk the returned root and apply [typeface] to every [TextView].
+     */
+    override fun inflate(parser: XmlPullParser, root: ViewGroup?, attachToRoot: Boolean): View? {
+        val result = super.inflate(parser, root, attachToRoot) ?: return null
+        // `result` is the inflated view (or `root` if attachToRoot=true and root != null).
+        // Either way, walk from result downward; if attachToRoot the newly added children
+        // are the last children of root, but walking all of root is safe and still cheap.
+        applyTypefaceToTree(result)
+        return result
+    }
 
-    private fun applyIfTextView(view: View) {
+    private fun applyTypefaceToTree(view: View) {
         if (view is TextView) {
-            // Preserve any bold/italic style already set; only swap the font family.
             val style = view.typeface?.style ?: Typeface.NORMAL
             view.typeface = Typeface.create(typeface, style)
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                applyTypefaceToTree(view.getChildAt(i))
+            }
         }
     }
 }
