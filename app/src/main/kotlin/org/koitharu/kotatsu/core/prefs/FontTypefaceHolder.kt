@@ -7,22 +7,16 @@ import androidx.core.content.res.ResourcesCompat
 /**
  * Singleton that caches the currently-active [Typeface] for the user-selected font.
  *
- * Why this exists:
- * - Bundled fonts (AppFont entries with fontRes) work fine through the theme overlay
- *   (`setTheme()` in BaseActivity.onCreate), which covers ~90%+ of screens.
- * - Device/system fonts selected via the "system:Name" key have NO static theme overlay —
- *   the Typeface can only be resolved at runtime.  The previous implementation walked the
- *   view tree once with `decorView.post {}`, which races with layout and never reaches
- *   views inflated afterwards (new fragments, dialogs, bottom sheets, etc.).
+ * For bundled fonts, the theme overlay (setTheme in BaseActivity.onCreate) handles
+ * everything — this holder is not involved.
  *
- * The fix:
- * - Resolve and cache the Typeface here on first use.
- * - Inject it at *inflation time* via a [FontInflaterFactory2] installed in every host
- *   (BaseActivity, BaseAdaptiveSheet, AlertDialogFragment).
- * - For SYSTEM_FONT (the "use actual device OEM font" option), the correct Typeface is
- *   [Typeface.DEFAULT], which IS the device's system font (set by the OEM / user via
- *   manufacturer font picker).  The old ThemeOverlay that set `android:fontFamily=sans-serif`
- *   was wrong — `sans-serif` maps to Roboto, not the real device font.
+ * For runtime fonts (SYSTEM_FONT and "system:Name" device fonts), this holder resolves
+ * and caches the [Typeface]. It is used by [FontInflaterFactory2] which is installed
+ * AFTER super.onCreate() in BaseActivity.
+ *
+ * Key design: for "system:Name" fonts, only the ONE selected font is loaded — not all
+ * system fonts. This avoids blocking the main thread loading hundreds of fonts on startup,
+ * which could trigger native crashes on some OEM devices with corrupt or restricted fonts.
  */
 object FontTypefaceHolder {
 
@@ -33,13 +27,10 @@ object FontTypefaceHolder {
     private var cachedTypeface: Typeface? = null
 
     /**
-     * Returns the [Typeface] that should be applied to every TextView, or `null` when
-     * the user has chosen APP_DEFAULT (no override needed — theme handles it).
-     *
-     * Thread-safe via double-checked locking on the key.
+     * Returns the [Typeface] for [fontKey], or `null` when APP_DEFAULT (no override needed).
+     * Thread-safe via double-checked locking.
      */
     fun resolve(context: Context, fontKey: String): Typeface? {
-        // Fast path: cache hit
         if (fontKey == cachedKey) return cachedTypeface
         synchronized(this) {
             if (fontKey == cachedKey) return cachedTypeface
@@ -50,7 +41,7 @@ object FontTypefaceHolder {
         }
     }
 
-    /** Call when the user changes the font so the next [resolve] rebuilds the cache. */
+    /** Clears the cache so the next [resolve] rebuilds it. Call when the user changes the font. */
     fun invalidate() {
         synchronized(this) {
             cachedKey = null
@@ -61,26 +52,25 @@ object FontTypefaceHolder {
     private fun buildTypeface(context: Context, fontKey: String): Typeface? {
         return when {
             fontKey == AppFont.APP_DEFAULT.key -> {
-                // No override — theme's default typeface is used.
-                null
+                null // Theme handles it
             }
 
             fontKey == AppFont.SYSTEM_FONT.key -> {
-                // Typeface.DEFAULT is the actual device system font (set by OEM or user).
-                // Do NOT use "sans-serif" here — that always maps to Roboto and defeats the purpose.
+                // Typeface.DEFAULT IS the real device system font set by the OEM or user.
+                // Do NOT use "sans-serif" — that maps to Roboto, defeating the purpose.
                 Typeface.DEFAULT
             }
 
             fontKey.startsWith("system:") -> {
-                // Device font chosen from the system font list.
+                // Load ONLY the one selected font — targeted scan, no full font list load.
                 val fontName = fontKey.removePrefix("system:")
                 runCatching {
-                    SystemFontScanner.getSystemFonts().firstOrNull { it.name == fontName }?.typeface
+                    SystemFontScanner.getTypefaceForDisplayName(fontName)
                 }.getOrNull()
             }
 
             else -> {
-                // Built-in bundled AppFont — resolve from res/font/.
+                // Bundled AppFont — resolve from res/font/.
                 val appFont = AppFont.fromKey(fontKey)
                 val fontRes = appFont.fontRes ?: return null
                 runCatching {

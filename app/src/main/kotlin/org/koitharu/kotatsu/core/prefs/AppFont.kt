@@ -33,9 +33,8 @@ enum class AppFont(
 
 	/**
 	 * Android system font — the actual device OEM/user-configured typeface.
-	 * Applied at runtime via TypefaceInflater using Typeface.DEFAULT (the real system font).
-	 * themeOverlayRes is 0: the old overlay set `android:fontFamily=sans-serif` which maps
-	 * to Roboto on most devices — the opposite of the intended behaviour.
+	 * Applied at runtime via FontInflaterFactory2 using Typeface.DEFAULT (the real device font).
+	 * themeOverlayRes is 0: no static overlay exists; the factory handles it at inflation time.
 	 */
 	SYSTEM_FONT(
 		key = "system_font",
