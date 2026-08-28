@@ -32,6 +32,7 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.prefs.AppFont
+import java.io.File
 import org.koitharu.kotatsu.core.prefs.SystemFontScanner
 import org.koitharu.kotatsu.core.ui.util.ActionModeDelegate
 import org.koitharu.kotatsu.core.util.ext.isWebViewUnavailable
@@ -174,8 +175,18 @@ abstract class BaseActivity<B : ViewBinding> :
 			when {
 				fontKey == AppFont.SYSTEM_FONT.key -> Typeface.DEFAULT
 				fontKey.startsWith("system:") -> {
-					val fontName = fontKey.removePrefix("system:")
-					SystemFontScanner.getTypefaceForDisplayName(fontName)
+					// Key format (new): "system:DisplayName:/absolute/path/to/font.ttf"
+					// Key format (old): "system:DisplayName"  (no path — legacy fallback)
+					val parts = fontKey.split(":", limit = 3)
+					if (parts.size == 3 && parts[2].isNotEmpty()) {
+						// Path embedded: load the specific file directly. No scanning ever.
+						runCatching { Typeface.createFromFile(java.io.File(parts[2])) }.getOrNull()
+					} else {
+						// Legacy key (no path): use cache-only lookup. Never scans disk.
+						// If cache is cold (fresh install), falls back to null / default font.
+						val fontName = fontKey.removePrefix("system:")
+						SystemFontScanner.getCachedTypefaceForDisplayName(fontName)
+					}
 				}
 				else -> null
 			}

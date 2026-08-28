@@ -118,7 +118,7 @@ class FontChooserPreference @JvmOverloads constructor(
 			items += FontItem.Header(context.getString(R.string.font_section_device))
 			for (entry in systemFonts) {
 				items += FontItem.Entry(
-					key      = "system:${entry.name}",
+					key      = "system:${entry.name}:${entry.file.absolutePath}",
 					label    = entry.name,
 					typeface = entry.typeface,
 				)
