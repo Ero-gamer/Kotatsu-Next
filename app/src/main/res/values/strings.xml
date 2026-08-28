@@ -968,13 +968,16 @@
     <string name="donate_copy_address">Address copied</string>
     <!-- Font picker strings -->
     <string name="font_section_builtin">Built-in fonts</string>
-    <string name="font_section_device">Device fonts</string>
     <string name="font">Font</string>
     <string name="font_app_default">App default (Roboto / Material)</string>
-    <string name="font_system_font">Android system font</string>
     <string name="font_google_sans">Google Sans</string>
     <string name="font_inter">Inter</string>
     <string name="font_fira_sans">Fira Sans</string>
+    <string name="font_nunito">Nunito</string>
+    <string name="font_source_sans">Source Sans 3</string>
+    <string name="font_lexend">Lexend</string>
+    <string name="font_noto_sans">Noto Sans</string>
+    <string name="font_ubuntu">Ubuntu</string>
     <string name="font_dejavu_serif">DejaVu Serif</string>
     <string name="font_dejavu_sans_mono">DejaVu Sans Mono</string>
     <string name="font_bitstream_vera">Bitstream Vera Sans</string>

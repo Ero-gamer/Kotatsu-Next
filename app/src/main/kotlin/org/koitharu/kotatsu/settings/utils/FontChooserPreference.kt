@@ -16,16 +16,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.prefs.AppFont
-import org.koitharu.kotatsu.core.prefs.SystemFontEntry
-import org.koitharu.kotatsu.core.prefs.SystemFontScanner
 
 /**
  * A custom Preference that renders a horizontal scrolling list of fonts,
  * each font name rendered in its own typeface so the user sees a live preview.
- *
- * Fonts are separated into two sections:
- *   • "Built-in fonts"   — bundled in res/font/ (AppFont entries with fontRes != null, or system/app-default)
- *   • "Device fonts"     — scanned from the Android system font directory at runtime
  *
  * The selected font name is rendered in bold at normal text size; unselected items are at 90% alpha.
  */
@@ -86,19 +80,13 @@ class FontChooserPreference @JvmOverloads constructor(
 	private fun buildAdapter(): FontAdapter {
 		val items = mutableListOf<FontItem>()
 
-		// ── Section 1: Built-in fonts ──
+		// ── Built-in fonts ──
 		items += FontItem.Header(context.getString(R.string.font_section_builtin))
 		for (appFont in AppFont.entries) {
 			val typeface = when {
 				appFont.fontRes != null -> {
 					// Bundled font — load from resources for the preview card.
 					runCatching { ResourcesCompat.getFont(context, appFont.fontRes) }.getOrNull()
-				}
-				appFont == AppFont.SYSTEM_FONT -> {
-					// SYSTEM_FONT: preview should show the actual device OEM font.
-					// Typeface.DEFAULT IS the system font — the old code passed null here
-					// which fell back to DEFAULT in the adapter anyway, but let's be explicit.
-					Typeface.DEFAULT
 				}
 				else -> {
 					// APP_DEFAULT: null → adapter uses Typeface.DEFAULT for rendering.
@@ -112,18 +100,6 @@ class FontChooserPreference @JvmOverloads constructor(
 			)
 		}
 
-		// ── Section 2: Device fonts (async-safe: scanned once, cached) ──
-		val systemFonts = runCatching { SystemFontScanner.getSystemFonts() }.getOrElse { emptyList() }
-		if (systemFonts.isNotEmpty()) {
-			items += FontItem.Header(context.getString(R.string.font_section_device))
-			for (entry in systemFonts) {
-				items += FontItem.Entry(
-					key      = "system:${entry.name}:${entry.file.absolutePath}",
-					label    = entry.name,
-					typeface = entry.typeface,
-				)
-			}
-		}
 
 		return FontAdapter(items) { key -> setValueInternal(key, true) }
 	}
