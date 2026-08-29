@@ -28,7 +28,6 @@ abstract class MangaDao {
 	abstract suspend fun findByPublicUrl(publicUrl: String): MangaWithTags?
 
 	@Transaction
-	@Transaction
 	@Query("SELECT * FROM manga WHERE source = :source")
 	abstract suspend fun findAllBySource(source: String): List<MangaWithTags>
 
