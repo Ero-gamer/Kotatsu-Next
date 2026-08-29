@@ -44,4 +44,9 @@
 		<item quantity="one">%1$d page</item>
 		<item quantity="other">%1$d pages</item>
 	</plurals>
+
+	<plurals name="search_results_count">
+		<item quantity="one">%1$d result</item>
+		<item quantity="other">%1$d results</item>
+	</plurals>
 </resources>

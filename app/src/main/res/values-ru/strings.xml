@@ -880,4 +880,40 @@
     <string name="private_app_directory_warning">Данный каталог вместе со всеми данными будет удалён при удалении приложения</string>
     <string name="available_pattern">%1$s доступно</string>
     <string name="enter_name">Введите имя</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Выбрать источник</string>
+    <string name="compare_source_matches">Сравнить совпадения источников</string>
+    <string name="handle_remaining_manually">Обработать оставшиеся произведения вручную</string>
+    <string name="handle_remaining_manually_summary">Выберите отдельный источник для каждого оставшегося произведения</string>
+    <string name="replace">Заменить</string>
+    <string name="replace_source">Заменить источник</string>
+    <string name="source_match_rate_summary">Найдено %1$d из %2$d произведений</string>
+    <string name="source_replacement_all_completed">Заменено произведений: %d</string>
+    <string name="source_replacement_batch_completed">Заменено произведений: %1$d; ещё нужен источник: %2$d</string>
+    <string name="source_replacement_empty_summary">Измените название для поиска или выберите источник для ручного поиска</string>
+    <string name="source_replacement_remaining_checks">%1$d источников · осталось %2$d проверок</string>
+    <string name="source_replacement_remaining_mix">%1$d источников в рейтинге · осталось %2$d проверок произведений</string>
+    <string name="source_replacement_remaining_replacements">Осталось замен: %d</string>
+    <string name="source_replacement_remaining_titles">Осталось произведений: %d</string>
+    <string name="source_replacement_step_applying">Шаг 4 из 4 · Применение найденных замен</string>
+    <string name="source_replacement_step_comparing">Шаг 1 из 4 · Сравнение %d произведений</string>
+    <string name="source_replacement_step_matching">Шаг 2 из 4 · Поиск совпадений на %s</string>
+    <string name="source_replacement_step_preparing">Шаг 1 из 4 · Подготовка сравнения источников…</string>
+    <string name="source_replacement_step_smart_mix">Шаг 3 из 4 · Умное сочетание с %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">На рабочие источники перенесено произведений: %d.</string>
+    <string name="source_replacement_summary_many_title">Замена завершена</string>
+    <string name="source_replacement_summary_mix">Сочетание источников</string>
+    <string name="source_replacement_summary_one_message">Одно произведение перенесено на рабочий источник.</string>
+    <string name="source_replacement_summary_one_title">Источник заменён</string>
+    <string name="source_replacement_summary_replaced">Заменено</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Источников использовано</string>
+    <string name="source_replacement_summary_title">Сводка замены</string>
+    <string name="source_replacement_summary_zero_message">Ни одну запись библиотеки не потребовалось изменять.</string>
+    <string name="source_replacement_summary_zero_title">Всё уже настроено</string>
+    <string name="source_selected">Источник: %s</string>
+    <string name="top_source_matches">Лучшие совпадения источников</string>
 </resources>

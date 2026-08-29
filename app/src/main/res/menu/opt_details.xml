@@ -73,4 +73,11 @@
 		android:title="@string/create_shortcut"
 		app:showAsAction="never" />
 
+
+	<item
+		android:id="@+id/action_replace_source"
+		android:orderInCategory="51"
+		android:title="@string/replace_source"
+		app:showAsAction="never" />
+
 </menu>

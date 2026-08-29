@@ -1,6 +1,8 @@
 package org.koitharu.kotatsu.alternatives.domain
 
+import android.util.Log
 import androidx.room.withTransaction
+import kotlinx.coroutines.CancellationException
 import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.model.getPreferredBranch
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
@@ -30,21 +32,47 @@ constructor(
 		oldManga: Manga,
 		newManga: Manga,
 	) {
+		Log.i(TAG, "Migration started: ${oldManga.debugRef()} -> ${newManga.debugRef()}")
+		try {
+			migrateInternal(oldManga, newManga)
+			Log.i(TAG, "Migration completed: ${oldManga.debugRef()} -> ${newManga.debugRef()}")
+		} catch (e: CancellationException) {
+			Log.d(TAG, "Migration cancelled: ${oldManga.debugRef()} -> ${newManga.debugRef()}")
+			throw e
+		} catch (e: Throwable) {
+			Log.e(TAG, "Migration failed: ${oldManga.debugRef()} -> ${newManga.debugRef()}", e)
+			throw e
+		}
+	}
+
+	private suspend fun migrateInternal(
+		oldManga: Manga,
+		newManga: Manga,
+	) {
+		Log.d(TAG, "Migration stage=load_old_details old=${oldManga.debugRef()}")
 		val oldDetails = if (oldManga.chapters.isNullOrEmpty()) {
-			runCatchingCancellable {
+			val result = runCatchingCancellable {
 				mangaRepositoryFactory.create(oldManga.source).getDetails(oldManga)
-			}.getOrDefault(oldManga)
+			}
+			result.exceptionOrNull()?.let {
+				Log.w(TAG, "Could not load old details; using cached manga: ${oldManga.debugRef()}", it)
+			}
+			result.getOrDefault(oldManga)
 		} else {
 			oldManga
 		}
+		Log.d(TAG, "Migration stage=load_target_details target=${newManga.debugRef()}")
 		val newDetails = if (newManga.chapters.isNullOrEmpty()) {
 			mangaRepositoryFactory.create(newManga.source).getDetails(newManga)
 		} else {
 			newManga
 		}
+		Log.d(TAG, "Migration stage=store_target target=${newDetails.debugRef()} chapters=${newDetails.chapters?.size ?: 0}")
 		mangaDataRepository.storeManga(newDetails, replaceExisting = true)
+		Log.d(TAG, "Migration stage=database_transaction oldId=${oldDetails.id} targetId=${newDetails.id}")
 		database.withTransaction {
 			// replace favorites
+			Log.d(TAG, "Migration stage=favorites oldId=${oldDetails.id} targetId=${newDetails.id}")
 			val favoritesDao = database.getFavouritesDao()
 			val oldFavourites = favoritesDao.findAllRaw(oldDetails.id)
 			if (oldFavourites.isNotEmpty()) {
@@ -58,6 +86,7 @@ constructor(
 				}
 			}
 			// replace history
+			Log.d(TAG, "Migration stage=history oldId=${oldDetails.id} targetId=${newDetails.id}")
 			val historyDao = database.getHistoryDao()
 			val oldHistory = historyDao.find(oldDetails.id)
 			val newHistory =
@@ -70,6 +99,7 @@ constructor(
 					null
 				}
 			// track
+			Log.d(TAG, "Migration stage=tracking oldId=${oldDetails.id} targetId=${newDetails.id}")
 			val tracksDao = database.getTracksDao()
 			val oldTrack = tracksDao.find(oldDetails.id)
 			if (oldTrack != null) {
@@ -88,6 +118,7 @@ constructor(
 				tracksDao.upsert(newTrack)
 			}
 			// scrobbling
+			Log.d(TAG, "Migration stage=scrobbling oldId=${oldDetails.id} targetId=${newDetails.id}")
 			for (scrobbler in scrobblers) {
 				if (!scrobbler.isEnabled) {
 					continue
@@ -114,8 +145,11 @@ constructor(
 				}
 			}
 		}
+		Log.d(TAG, "Migration stage=progress_update target=${newManga.debugRef()}")
 		progressUpdateUseCase(newManga)
 	}
+
+	private fun Manga.debugRef(): String = "title=\"$title\" id=$id source=${source.name}"
 
 	private fun makeNewHistory(
 		oldManga: Manga,
@@ -190,4 +224,8 @@ constructor(
 		} else {
 			firstOrNull { it.volume == volume && it.number == number }
 		}
+
+	private companion object {
+		const val TAG = "SourceReplacement"
+	}
 }

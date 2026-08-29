@@ -33,6 +33,13 @@
 		android:title="@string/fix"
 		app:showAsAction="ifRoom|withText" />
 
+		<item
+			android:id="@+id/action_replace_source"
+			android:orderInCategory="50"
+			android:icon="@drawable/ic_replace"
+			android:title="@string/replace_source"
+			app:showAsAction="never" />
+
 	<item
 		android:id="@+id/action_edit_override"
 		android:icon="@drawable/ic_edit"

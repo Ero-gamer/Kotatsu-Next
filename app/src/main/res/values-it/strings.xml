@@ -882,4 +882,40 @@
     <string name="download_default_directory">Cartella predefinita per scaricare manga</string>
     <string name="private_app_directory_warning">Questa cartella e tutti i suoi dati verranno eliminati se disinstalli l\'applicazione</string>
     <string name="available_pattern">%1$s disponibile</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Scegli fonte</string>
+    <string name="compare_source_matches">Confronta le corrispondenze delle fonti</string>
+    <string name="handle_remaining_manually">Gestisci manualmente i titoli rimanenti</string>
+    <string name="handle_remaining_manually_summary">Scegli una fonte separata per ogni titolo rimanente</string>
+    <string name="replace">Sostituisci</string>
+    <string name="replace_source">Sostituisci fonte</string>
+    <string name="source_match_rate_summary">%1$d titoli corrispondenti su %2$d</string>
+    <string name="source_replacement_all_completed">%d titoli sostituiti</string>
+    <string name="source_replacement_batch_completed">%1$d titoli sostituiti; %2$d richiedono ancora una fonte</string>
+    <string name="source_replacement_empty_summary">Modifica il titolo di ricerca o scegli una fonte in cui cercare manualmente</string>
+    <string name="source_replacement_remaining_checks">%1$d fonti · %2$d controlli rimanenti</string>
+    <string name="source_replacement_remaining_mix">%1$d fonti classificate rimanenti · %2$d titoli da controllare</string>
+    <string name="source_replacement_remaining_replacements">%d sostituzioni rimanenti</string>
+    <string name="source_replacement_remaining_titles">%d titoli rimanenti</string>
+    <string name="source_replacement_step_applying">Passaggio 4 di 4 · Applicazione delle sostituzioni trovate</string>
+    <string name="source_replacement_step_comparing">Passaggio 1 di 4 · Confronto di %d titoli</string>
+    <string name="source_replacement_step_matching">Passaggio 2 di 4 · Ricerca di corrispondenze su %s</string>
+    <string name="source_replacement_step_preparing">Passaggio 1 di 4 · Preparazione del confronto tra le fonti…</string>
+    <string name="source_replacement_step_smart_mix">Passaggio 3 di 4 · Combinazione intelligente con %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">%d titoli sono stati spostati su fonti funzionanti.</string>
+    <string name="source_replacement_summary_many_title">Sostituzione completata</string>
+    <string name="source_replacement_summary_mix">Combinazione delle sostituzioni</string>
+    <string name="source_replacement_summary_one_message">Un titolo è stato spostato su una fonte funzionante.</string>
+    <string name="source_replacement_summary_one_title">Fonte sostituita</string>
+    <string name="source_replacement_summary_replaced">Sostituiti</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Fonti utilizzate</string>
+    <string name="source_replacement_summary_title">Riepilogo sostituzioni</string>
+    <string name="source_replacement_summary_zero_message">Non è stato necessario modificare alcun elemento della raccolta.</string>
+    <string name="source_replacement_summary_zero_title">È già tutto a posto</string>
+    <string name="source_selected">Fonte: %s</string>
+    <string name="top_source_matches">Migliori corrispondenze delle fonti</string>
 </resources>

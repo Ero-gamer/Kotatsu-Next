@@ -1,14 +1,21 @@
 package org.koitharu.kotatsu.alternatives.ui
 
 import android.os.Bundle
+import android.view.Menu
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import coil3.ImageLoader
+import com.google.android.material.chip.Chip
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.alternatives.domain.AlternativeSearchStatus
+import org.koitharu.kotatsu.alternatives.domain.AlternativeSortOrder
+import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScope
 import org.koitharu.kotatsu.core.exceptions.resolve.SnackbarErrorObserver
 import org.koitharu.kotatsu.core.model.getTitle
 import org.koitharu.kotatsu.core.nav.router
@@ -16,7 +23,10 @@ import org.koitharu.kotatsu.core.ui.BaseActivity
 import org.koitharu.kotatsu.core.ui.BaseListAdapter
 import org.koitharu.kotatsu.core.ui.dialog.buildAlertDialog
 import org.koitharu.kotatsu.core.ui.list.OnListItemClickListener
+import org.koitharu.kotatsu.core.ui.util.OptionsMenuBadgeHelper
+import org.koitharu.kotatsu.core.ui.widgets.ChipsView
 import org.koitharu.kotatsu.core.util.ext.consumeAllSystemBarsInsets
+import org.koitharu.kotatsu.core.util.ext.getQuantityStringSafe
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.systemBarsInsets
@@ -24,37 +34,46 @@ import org.koitharu.kotatsu.databinding.ActivityAlternativesBinding
 import org.koitharu.kotatsu.list.ui.adapter.ListItemType
 import org.koitharu.kotatsu.list.ui.adapter.ListStateHolderListener
 import org.koitharu.kotatsu.list.ui.adapter.TypedListSpacingDecoration
-import org.koitharu.kotatsu.list.ui.adapter.buttonFooterAD
 import org.koitharu.kotatsu.list.ui.adapter.emptyStateListAD
 import org.koitharu.kotatsu.list.ui.adapter.loadingFooterAD
 import org.koitharu.kotatsu.list.ui.adapter.loadingStateAD
 import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.parsers.model.Manga
+import org.koitharu.kotatsu.parsers.model.MangaParserSource
 import javax.inject.Inject
+import androidx.appcompat.R as appcompatR
 
 @AndroidEntryPoint
 class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 	ListStateHolderListener,
-	OnListItemClickListener<MangaAlternativeModel> {
+	OnListItemClickListener<MangaAlternativeModel>,
+	ChipsView.OnChipClickListener,
+	ChipsView.OnChipCloseClickListener {
 
 	@Inject
 	lateinit var coil: ImageLoader
 
 	private val viewModel by viewModels<AlternativesViewModel>()
+	private lateinit var filterBadge: OptionsMenuBadgeHelper
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setContentView(ActivityAlternativesBinding.inflate(layoutInflater))
-		supportActionBar?.run {
-			setDisplayHomeAsUpEnabled(true)
-			subtitle = viewModel.manga.title
-		}
+		supportActionBar?.setDisplayHomeAsUpEnabled(true)
+		viewBinding.planningProgressContainer.isVisible = false
+		viewBinding.summaryContainer.isVisible = false
+		viewBinding.recyclerView.isVisible = true
+		supportActionBar?.subtitle = buildReferenceSubtitle(MangaAlternativeReference(viewModel.manga))
+		addMenuProvider(AlternativesMenuProvider(this, viewModel))
+		filterBadge = OptionsMenuBadgeHelper(viewBinding.toolbar, R.id.action_alternatives_filter)
+		viewBinding.chipsSummary.onChipClickListener = this
+		viewBinding.chipsSummary.onChipCloseClickListener = this
+
 		val listAdapter = BaseListAdapter<ListModel>()
 			.addDelegate(ListItemType.MANGA_LIST_DETAILED, alternativeAD(coil, this, this))
 			.addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
 			.addDelegate(ListItemType.FOOTER_LOADING, loadingFooterAD())
 			.addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
-			.addDelegate(ListItemType.FOOTER_BUTTON, buttonFooterAD(this))
 		with(viewBinding.recyclerView) {
 			setHasFixedSize(true)
 			addItemDecoration(TypedListSpacingDecoration(context, addHorizontalPadding = false))
@@ -63,6 +82,22 @@ class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 
 		viewModel.onError.observeEvent(this, SnackbarErrorObserver(viewBinding.recyclerView, null))
 		viewModel.list.observe(this, listAdapter)
+		viewModel.options.observe(this) {
+			updateSummaryChips()
+			viewBinding.toolbar.post { filterBadge.setBadgeVisible(viewModel.hasCustomOptions()) }
+			invalidateMenu()
+		}
+		viewModel.activePresetTitle.observe(this) {
+			updateSummaryChips()
+			invalidateMenu()
+		}
+		viewModel.searchStatus.observe(this) {
+			updateSearchProgress(it)
+			updateSummaryChips()
+		}
+		viewModel.referenceManga.observe(this) {
+			supportActionBar?.subtitle = buildReferenceSubtitle(it)
+		}
 		viewModel.onMigrated.observeEvent(this) {
 			Toast.makeText(this, R.string.migration_completed, Toast.LENGTH_SHORT).show()
 			router.openDetails(it)
@@ -70,10 +105,7 @@ class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 		}
 	}
 
-	override fun onApplyWindowInsets(
-		v: View,
-		insets: WindowInsetsCompat
-	): WindowInsetsCompat {
+	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
 		val barsInsets = insets.systemBarsInsets
 		viewBinding.recyclerView.updatePadding(
 			left = barsInsets.left,
@@ -90,8 +122,10 @@ class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 
 	override fun onItemClick(item: MangaAlternativeModel, view: View) {
 		when (view.id) {
-			R.id.chip_source -> router.openSearch(item.manga.source, viewModel.manga.title)
-			R.id.button_migrate -> confirmMigration(item.manga)
+			R.id.chip_source -> router.openSearch(item.manga.source, viewModel.options.value.query)
+			R.id.button_migrate -> if (item.isMigrationEnabled && item.chaptersCount > 0) {
+				confirmMigration(item.manga)
+			}
 			else -> router.openDetails(item.manga)
 		}
 	}
@@ -100,7 +134,68 @@ class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 
 	override fun onEmptyActionClick() = Unit
 
-	override fun onFooterButtonClick() = viewModel.continueSearch()
+	override fun onChipClick(chip: Chip, data: Any?) {
+		when (data as? SummaryChip) {
+			SummaryChip.QUERY -> viewBinding.toolbar.menu.findItem(R.id.action_search)?.expandActionView()
+			SummaryChip.SOURCE_SCOPE -> showSourceScopeMenu(chip)
+			SummaryChip.SORT -> showSortMenu(chip)
+			SummaryChip.RESET -> viewModel.resetOptions()
+			SummaryChip.STATUS, null -> Unit
+			else -> viewBinding.toolbar.menu.performIdentifierAction(R.id.action_alternatives_filter, 0)
+		}
+	}
+
+	private fun showSourceScopeMenu(anchor: View) {
+		PopupMenu(this, anchor).apply {
+			viewModel.activePresetTitle.value?.let { presetTitle ->
+				menu.add(POPUP_GROUP, ACTION_SCOPE_PRESET, Menu.NONE, presetTitle).isChecked =
+					viewModel.options.value.sourceScope == AlternativeSourceScope.CURRENT_PRESET
+			}
+			menu.add(POPUP_GROUP, ACTION_SCOPE_ENABLED, Menu.NONE, R.string.enabled_sources).isChecked =
+				viewModel.options.value.sourceScope == AlternativeSourceScope.ENABLED
+			menu.setGroupCheckable(POPUP_GROUP, true, true)
+			setOnMenuItemClickListener { item ->
+				when (item.itemId) {
+					ACTION_SCOPE_PRESET -> viewModel.setSourceScope(AlternativeSourceScope.CURRENT_PRESET)
+					ACTION_SCOPE_ENABLED -> viewModel.setSourceScope(AlternativeSourceScope.ENABLED)
+					else -> return@setOnMenuItemClickListener false
+				}
+				true
+			}
+			show()
+		}
+	}
+
+	private fun showSortMenu(anchor: View) {
+		PopupMenu(this, anchor).apply {
+			AlternativeSortOrder.entries.forEachIndexed { index, sortOrder ->
+				menu.add(POPUP_GROUP, ACTION_SORT_FIRST + index, index, sortOrder.titleRes).apply {
+					isChecked = viewModel.options.value.sortOrder == sortOrder
+				}
+			}
+			menu.setGroupCheckable(POPUP_GROUP, true, true)
+			setOnMenuItemClickListener { item ->
+				val sortOrder = AlternativeSortOrder.entries.getOrNull(item.itemId - ACTION_SORT_FIRST)
+					?: return@setOnMenuItemClickListener false
+				viewModel.setSortOrder(sortOrder)
+				true
+			}
+			show()
+		}
+	}
+
+	override fun onChipCloseClick(chip: Chip, data: Any?) {
+		when (data as? SummaryChip) {
+			SummaryChip.QUERY -> viewModel.setQuery(viewModel.manga.title)
+			SummaryChip.SOURCE_SCOPE -> viewModel.setSourceScope(viewModel.defaultScopeForReset())
+			SummaryChip.LANGUAGE -> viewModel.setSameLanguageOnly(false)
+			SummaryChip.CONTENT_TYPE -> viewModel.setSameContentTypeOnly(false)
+			SummaryChip.HAS_CHAPTERS -> viewModel.setHideNoChapters(false)
+			SummaryChip.SORT -> viewModel.setSortOrder(AlternativeSortOrder.BEST_MATCH)
+			SummaryChip.RESET -> viewModel.resetOptions()
+			SummaryChip.STATUS, null -> Unit
+		}
+	}
 
 	private fun confirmMigration(target: Manga) {
 		buildAlertDialog(this, isCentered = true) {
@@ -116,9 +211,138 @@ class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 				),
 			)
 			setNegativeButton(android.R.string.cancel, null)
-			setPositiveButton(R.string.migrate) { _, _ ->
-				viewModel.migrate(target)
-			}
+			setPositiveButton(R.string.migrate) { _, _ -> viewModel.migrate(target) }
 		}.show()
+	}
+
+	private fun buildReferenceSubtitle(reference: MangaAlternativeReference): String = buildList {
+		add(reference.manga.source.getTitle(this@AlternativesActivity))
+		(reference.manga.source as? MangaParserSource)?.locale?.uppercase()?.let(::add)
+		add(
+			resources.getQuantityStringSafe(
+				R.plurals.chapters,
+				reference.chaptersCount,
+				reference.chaptersCount,
+			),
+		)
+	}.joinToString(" • ")
+
+	private fun updateSummaryChips() {
+		val options = viewModel.options.value
+		val status = viewModel.searchStatus.value
+		val resultCount = resources.getQuantityString(
+			R.plurals.search_results_count,
+			status.resultsCount,
+			status.resultsCount,
+		)
+		val statusText = when {
+			!status.isRunning -> resultCount
+			status.totalSources == 0 -> getString(R.string.preparing_search)
+			else -> getString(R.string.searching_sources_progress, status.completedSources, status.totalSources)
+		}
+		val sourceScopeTitle = when (options.sourceScope) {
+			AlternativeSourceScope.CURRENT_PRESET ->
+				viewModel.activePresetTitle.value ?: getString(R.string.source_presets)
+
+			AlternativeSourceScope.ENABLED -> getString(R.string.enabled_sources)
+		}
+		viewBinding.chipsSummary.setChips(
+			buildList {
+				add(
+					ChipsView.ChipModel(
+						title = options.query,
+						icon = appcompatR.drawable.abc_ic_search_api_material,
+						isCloseable = options.query != viewModel.manga.title,
+						data = SummaryChip.QUERY,
+					),
+				)
+				add(ChipsView.ChipModel(title = statusText, isLoading = status.isRunning, data = SummaryChip.STATUS))
+				add(
+					ChipsView.ChipModel(
+						title = sourceScopeTitle,
+						icon = R.drawable.ic_manga_source,
+						isCloseable = options.sourceScope != viewModel.defaultScopeForReset(),
+						data = SummaryChip.SOURCE_SCOPE,
+					),
+				)
+				if (options.sameLanguageOnly) add(
+					ChipsView.ChipModel(
+						titleResId = R.string.same_language,
+						icon = R.drawable.ic_language,
+						isCloseable = true,
+						data = SummaryChip.LANGUAGE,
+					),
+				)
+				if (options.sameContentTypeOnly) add(
+					ChipsView.ChipModel(
+						titleResId = R.string.same_content_type,
+						isCloseable = true,
+						data = SummaryChip.CONTENT_TYPE,
+					),
+				)
+				if (options.hideNoChapters) add(
+					ChipsView.ChipModel(
+						titleResId = R.string.has_chapters,
+						icon = R.drawable.ic_current_chapter,
+						isCloseable = true,
+						data = SummaryChip.HAS_CHAPTERS,
+					),
+				)
+				add(
+					ChipsView.ChipModel(
+						titleResId = options.sortOrder.titleRes,
+						icon = R.drawable.ic_sort_desc,
+						isCloseable = options.sortOrder != AlternativeSortOrder.BEST_MATCH,
+						data = SummaryChip.SORT,
+					),
+				)
+				if (viewModel.hasCustomOptions()) add(
+					ChipsView.ChipModel(
+						titleResId = R.string.reset,
+						icon = R.drawable.ic_clear_all,
+						data = SummaryChip.RESET,
+					),
+				)
+			},
+		)
+	}
+
+	private fun updateSearchProgress(status: AlternativeSearchStatus) {
+		with(viewBinding.progressSources) {
+			if (status.totalSources > 0) {
+				isIndeterminate = false
+				max = status.totalSources
+				setProgressCompat(status.completedSources.coerceAtMost(status.totalSources), true)
+			} else {
+				isIndeterminate = true
+			}
+			isVisible = status.isRunning
+		}
+	}
+
+	private val AlternativeSortOrder.titleRes: Int
+		get() = when (this) {
+			AlternativeSortOrder.BEST_MATCH -> R.string.best_match
+			AlternativeSortOrder.MOST_CHAPTERS -> R.string.most_chapters
+			AlternativeSortOrder.CLOSEST_CHAPTER_COUNT -> R.string.closest_chapter_count
+			AlternativeSortOrder.SOURCE_PRIORITY -> R.string.source_priority
+		}
+
+	private enum class SummaryChip {
+		QUERY,
+		SOURCE_SCOPE,
+		LANGUAGE,
+		CONTENT_TYPE,
+		HAS_CHAPTERS,
+		SORT,
+		STATUS,
+		RESET,
+	}
+
+	private companion object {
+		const val POPUP_GROUP = Menu.FIRST + 2000
+		const val ACTION_SCOPE_PRESET = Menu.FIRST + 2001
+		const val ACTION_SCOPE_ENABLED = Menu.FIRST + 2002
+		const val ACTION_SORT_FIRST = Menu.FIRST + 2010
 	}
 }

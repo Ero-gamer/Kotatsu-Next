@@ -885,4 +885,40 @@
     <string name="auto_double_foldable">Автоматичне двосторінкове розміщення на складному</string>
     <string name="pinned_sources_only">Тільки закріплені джерела</string>
     <string name="hide_empty_sources">Приховати порожні джерела</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Вибрати джерело</string>
+    <string name="compare_source_matches">Порівняти збіги джерел</string>
+    <string name="handle_remaining_manually">Опрацювати решту творів вручну</string>
+    <string name="handle_remaining_manually_summary">Виберіть окреме джерело для кожного твору, що залишився</string>
+    <string name="replace">Замінити</string>
+    <string name="replace_source">Замінити джерело</string>
+    <string name="source_match_rate_summary">Знайдено %1$d із %2$d творів</string>
+    <string name="source_replacement_all_completed">Замінено творів: %d</string>
+    <string name="source_replacement_batch_completed">Замінено творів: %1$d; ще потребують джерела: %2$d</string>
+    <string name="source_replacement_empty_summary">Змініть назву для пошуку або виберіть джерело для ручного пошуку</string>
+    <string name="source_replacement_remaining_checks">%1$d джерел · залишилося %2$d перевірок</string>
+    <string name="source_replacement_remaining_mix">%1$d рейтингових джерел · залишилося %2$d перевірок творів</string>
+    <string name="source_replacement_remaining_replacements">Залишилося замін: %d</string>
+    <string name="source_replacement_remaining_titles">Залишилося творів: %d</string>
+    <string name="source_replacement_step_applying">Крок 4 із 4 · Застосування знайдених замін</string>
+    <string name="source_replacement_step_comparing">Крок 1 із 4 · Порівняння %d творів</string>
+    <string name="source_replacement_step_matching">Крок 2 із 4 · Пошук збігів на %s</string>
+    <string name="source_replacement_step_preparing">Крок 1 із 4 · Підготовка порівняння джерел…</string>
+    <string name="source_replacement_step_smart_mix">Крок 3 із 4 · Розумне поєднання з %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">На робочі джерела перенесено творів: %d.</string>
+    <string name="source_replacement_summary_many_title">Заміну завершено</string>
+    <string name="source_replacement_summary_mix">Поєднання джерел</string>
+    <string name="source_replacement_summary_one_message">Один твір перенесено на робоче джерело.</string>
+    <string name="source_replacement_summary_one_title">Джерело замінено</string>
+    <string name="source_replacement_summary_replaced">Замінено</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Джерел використано</string>
+    <string name="source_replacement_summary_title">Підсумок заміни</string>
+    <string name="source_replacement_summary_zero_message">Жоден запис бібліотеки не потребував змін.</string>
+    <string name="source_replacement_summary_zero_title">Усе вже налаштовано</string>
+    <string name="source_selected">Джерело: %s</string>
+    <string name="top_source_matches">Найкращі збіги джерел</string>
 </resources>

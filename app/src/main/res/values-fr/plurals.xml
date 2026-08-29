@@ -50,4 +50,9 @@
         <item quantity="many">%1$d sources</item>
         <item quantity="other">%1$d sources</item>
     </plurals>
+	<plurals name="search_results_count">
+		<item quantity="one">%1$d résultat</item>
+		<item quantity="many">%1$d résultats</item>
+		<item quantity="other">%1$d résultats</item>
+	</plurals>
 </resources>

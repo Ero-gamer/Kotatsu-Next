@@ -813,4 +813,40 @@
     <string name="pin">ピン</string>
     <string name="unpin">ピンを外す</string>
     <string name="source_pinned">ソース ピン留め</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">ソースを選択</string>
+    <string name="compare_source_matches">ソースの一致率を比較</string>
+    <string name="handle_remaining_manually">残りのタイトルを手動で処理</string>
+    <string name="handle_remaining_manually_summary">残りのタイトルごとにソースを選択します</string>
+    <string name="replace">置き換える</string>
+    <string name="replace_source">ソースを置き換え</string>
+    <string name="source_match_rate_summary">%2$d件中%1$d件が一致</string>
+    <string name="source_replacement_all_completed">%d件を置き換えました</string>
+    <string name="source_replacement_batch_completed">%1$d件を置き換えました。%2$d件はソースの選択が必要です</string>
+    <string name="source_replacement_empty_summary">検索タイトルを変更するか、手動検索するソースを選択してください</string>
+    <string name="source_replacement_remaining_checks">%1$d個のソース · 残り%2$d回の確認</string>
+    <string name="source_replacement_remaining_mix">候補ソース残り%1$d個 · タイトル確認残り%2$d件</string>
+    <string name="source_replacement_remaining_replacements">置き換え残り%d件</string>
+    <string name="source_replacement_remaining_titles">残り%d件</string>
+    <string name="source_replacement_step_applying">ステップ4/4 · 見つかった置き換えを適用中</string>
+    <string name="source_replacement_step_comparing">ステップ1/4 · %d件のタイトルを比較中</string>
+    <string name="source_replacement_step_matching">ステップ2/4 · %sで一致を検索中</string>
+    <string name="source_replacement_step_preparing">ステップ1/4 · ソース比較を準備中…</string>
+    <string name="source_replacement_step_smart_mix">ステップ3/4 · %sでスマートミックス</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s（%2$d/%3$d）• %4$s</string>
+    <string name="source_replacement_summary_many_message">%d件のタイトルを利用可能なソースへ移動しました。</string>
+    <string name="source_replacement_summary_many_title">置き換えが完了しました</string>
+    <string name="source_replacement_summary_mix">置き換え先の内訳</string>
+    <string name="source_replacement_summary_one_message">1件のタイトルを利用可能なソースへ移動しました。</string>
+    <string name="source_replacement_summary_one_title">ソースを置き換えました</string>
+    <string name="source_replacement_summary_replaced">置き換え済み</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">使用したソース</string>
+    <string name="source_replacement_summary_title">置き換えの概要</string>
+    <string name="source_replacement_summary_zero_message">ライブラリを変更する必要はありませんでした。</string>
+    <string name="source_replacement_summary_zero_title">すべて設定済みです</string>
+    <string name="source_selected">ソース：%s</string>
+    <string name="top_source_matches">一致率の高いソース</string>
 </resources>

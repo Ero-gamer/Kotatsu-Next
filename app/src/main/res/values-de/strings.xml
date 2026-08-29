@@ -661,4 +661,40 @@
 	<string name="password_reset">Passwort erfolgreich zurückgesetzt</string>
 	<string name="sync_login">Melde dich an, um deine Daten zu synchronisieren</string>
 	<string name="no_reset_token">Reset-Token wurde nicht übergeben</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Quelle auswählen</string>
+    <string name="compare_source_matches">Quelltreffer vergleichen</string>
+    <string name="handle_remaining_manually">Verbleibende Titel manuell bearbeiten</string>
+    <string name="handle_remaining_manually_summary">Wähle für jeden verbleibenden Titel eine eigene Quelle aus</string>
+    <string name="replace">Ersetzen</string>
+    <string name="replace_source">Quelle ersetzen</string>
+    <string name="source_match_rate_summary">%1$d von %2$d Titeln gefunden</string>
+    <string name="source_replacement_all_completed">%d Titel ersetzt</string>
+    <string name="source_replacement_batch_completed">%1$d Titel ersetzt; %2$d benötigen noch eine Quelle</string>
+    <string name="source_replacement_empty_summary">Ändere den Suchtitel oder wähle eine Quelle für die manuelle Suche aus</string>
+    <string name="source_replacement_remaining_checks">%1$d Quellen · %2$d Prüfungen übrig</string>
+    <string name="source_replacement_remaining_mix">%1$d bewertete Quellen übrig · %2$d Titelprüfungen übrig</string>
+    <string name="source_replacement_remaining_replacements">%d Ersetzungen übrig</string>
+    <string name="source_replacement_remaining_titles">%d Titel übrig</string>
+    <string name="source_replacement_step_applying">Schritt 4 von 4 · Gefundene Ersetzungen werden angewendet</string>
+    <string name="source_replacement_step_comparing">Schritt 1 von 4 · %d Titel werden verglichen</string>
+    <string name="source_replacement_step_matching">Schritt 2 von 4 · Treffer auf %s werden gesucht</string>
+    <string name="source_replacement_step_preparing">Schritt 1 von 4 · Quellenvergleich wird vorbereitet…</string>
+    <string name="source_replacement_step_smart_mix">Schritt 3 von 4 · Intelligente Mischung mit %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">%d Titel wurden zu funktionierenden Quellen verschoben.</string>
+    <string name="source_replacement_summary_many_title">Ersetzung abgeschlossen</string>
+    <string name="source_replacement_summary_mix">Verteilung der Ersetzungen</string>
+    <string name="source_replacement_summary_one_message">Ein Titel wurde zu einer funktionierenden Quelle verschoben.</string>
+    <string name="source_replacement_summary_one_title">Quelle ersetzt</string>
+    <string name="source_replacement_summary_replaced">Ersetzt</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Verwendete Quellen</string>
+    <string name="source_replacement_summary_title">Zusammenfassung</string>
+    <string name="source_replacement_summary_zero_message">Keine Bibliothekseinträge mussten geändert werden.</string>
+    <string name="source_replacement_summary_zero_title">Alles ist bereits eingerichtet</string>
+    <string name="source_selected">Quelle: %s</string>
+    <string name="top_source_matches">Beste Quelltreffer</string>
 </resources>

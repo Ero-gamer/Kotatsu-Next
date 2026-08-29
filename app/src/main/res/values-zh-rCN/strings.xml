@@ -865,4 +865,40 @@
     <string name="enable_pull_gesture_title">启用推拉手势</string>
     <string name="enable_pull_gesture_summary">条漫模式下使用推拉手势切换章节</string>
     <string name="auto_double_foldable">折叠设备自动双页</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">选择图源</string>
+    <string name="compare_source_matches">比较图源匹配情况</string>
+    <string name="handle_remaining_manually">手动处理剩余作品</string>
+    <string name="handle_remaining_manually_summary">为每个剩余作品单独选择图源</string>
+    <string name="replace">替换</string>
+    <string name="replace_source">替换图源</string>
+    <string name="source_match_rate_summary">共 %2$d 部作品，匹配 %1$d 部</string>
+    <string name="source_replacement_all_completed">已替换 %d 部作品</string>
+    <string name="source_replacement_batch_completed">已替换 %1$d 部作品；仍有 %2$d 部需要选择图源</string>
+    <string name="source_replacement_empty_summary">更改搜索标题，或选择图源进行手动搜索</string>
+    <string name="source_replacement_remaining_checks">%1$d 个图源 · 剩余 %2$d 次检查</string>
+    <string name="source_replacement_remaining_mix">剩余 %1$d 个候选图源 · %2$d 部作品待检查</string>
+    <string name="source_replacement_remaining_replacements">剩余 %d 个替换项</string>
+    <string name="source_replacement_remaining_titles">剩余 %d 部作品</string>
+    <string name="source_replacement_step_applying">第 4/4 步 · 正在应用匹配的替换项</string>
+    <string name="source_replacement_step_comparing">第 1/4 步 · 正在比较 %d 部作品</string>
+    <string name="source_replacement_step_matching">第 2/4 步 · 正在 %s 中查找匹配项</string>
+    <string name="source_replacement_step_preparing">第 1/4 步 · 正在准备图源比较…</string>
+    <string name="source_replacement_step_smart_mix">第 3/4 步 · 正在使用 %s 智能混合</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s（%2$d/%3$d）• %4$s</string>
+    <string name="source_replacement_summary_many_message">已将 %d 部作品迁移到可用图源。</string>
+    <string name="source_replacement_summary_many_title">替换完成</string>
+    <string name="source_replacement_summary_mix">替换图源分布</string>
+    <string name="source_replacement_summary_one_message">已将 1 部作品迁移到可用图源。</string>
+    <string name="source_replacement_summary_one_title">图源已替换</string>
+    <string name="source_replacement_summary_replaced">已替换</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">使用的图源</string>
+    <string name="source_replacement_summary_title">替换摘要</string>
+    <string name="source_replacement_summary_zero_message">无需更改任何书架条目。</string>
+    <string name="source_replacement_summary_zero_title">一切已准备就绪</string>
+    <string name="source_selected">图源：%s</string>
+    <string name="top_source_matches">最佳匹配图源</string>
 </resources>

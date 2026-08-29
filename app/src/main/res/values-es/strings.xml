@@ -862,4 +862,40 @@
     <string name="pull_bottom_no_next">No existe capítulo siguiente</string>
     <string name="enable_pull_gesture_title">Habilitar gesto de arrastrar</string>
     <string name="enable_pull_gesture_summary">Usa el gesto de arrastrar para cambiar de capítulo en webtoon</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Elegir fuente</string>
+    <string name="compare_source_matches">Comparar coincidencias de fuentes</string>
+    <string name="handle_remaining_manually">Gestionar manualmente los títulos restantes</string>
+    <string name="handle_remaining_manually_summary">Elige una fuente por separado para cada título restante</string>
+    <string name="replace">Reemplazar</string>
+    <string name="replace_source">Reemplazar fuente</string>
+    <string name="source_match_rate_summary">%1$d de %2$d títulos coinciden</string>
+    <string name="source_replacement_all_completed">%d títulos reemplazados</string>
+    <string name="source_replacement_batch_completed">%1$d títulos reemplazados; %2$d todavía necesitan una fuente</string>
+    <string name="source_replacement_empty_summary">Cambia el título de búsqueda o elige una fuente para buscar manualmente</string>
+    <string name="source_replacement_remaining_checks">%1$d fuentes · %2$d comprobaciones restantes</string>
+    <string name="source_replacement_remaining_mix">%1$d fuentes clasificadas restantes · %2$d títulos por comprobar</string>
+    <string name="source_replacement_remaining_replacements">%d reemplazos restantes</string>
+    <string name="source_replacement_remaining_titles">%d títulos restantes</string>
+    <string name="source_replacement_step_applying">Paso 4 de 4 · Aplicando los reemplazos encontrados</string>
+    <string name="source_replacement_step_comparing">Paso 1 de 4 · Comparando %d títulos</string>
+    <string name="source_replacement_step_matching">Paso 2 de 4 · Buscando coincidencias en %s</string>
+    <string name="source_replacement_step_preparing">Paso 1 de 4 · Preparando la comparación de fuentes…</string>
+    <string name="source_replacement_step_smart_mix">Paso 3 de 4 · Combinación inteligente con %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">%d títulos se movieron a fuentes funcionales.</string>
+    <string name="source_replacement_summary_many_title">Reemplazo completado</string>
+    <string name="source_replacement_summary_mix">Combinación de reemplazos</string>
+    <string name="source_replacement_summary_one_message">Un título se movió a una fuente funcional.</string>
+    <string name="source_replacement_summary_one_title">Fuente reemplazada</string>
+    <string name="source_replacement_summary_replaced">Reemplazados</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Fuentes usadas</string>
+    <string name="source_replacement_summary_title">Resumen del reemplazo</string>
+    <string name="source_replacement_summary_zero_message">No fue necesario cambiar ninguna entrada de la biblioteca.</string>
+    <string name="source_replacement_summary_zero_title">Todo está en orden</string>
+    <string name="source_selected">Fuente: %s</string>
+    <string name="top_source_matches">Mejores coincidencias de fuentes</string>
 </resources>

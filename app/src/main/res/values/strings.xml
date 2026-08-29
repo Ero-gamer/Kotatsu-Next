@@ -1009,4 +1009,69 @@
     <string name="theme_name_sakura_noir">Sakura Noir</string>
     <string name="theme_name_cloudflare">Cloudflare</string>
     <string name="theme_name_matrix">Matrix</string>
+
+    <!-- Added from Redo commits -->
+    <string name="automatic_all_sources">Automatic (all sources)</string>
+    <string name="automatic_all_sources_summary">Search every compatible source</string>
+    <string name="best_match">Best match</string>
+    <string name="choose_source">Choose source</string>
+    <string name="closest_chapter_count">Closest chapter count</string>
+    <string name="compare_source_matches">Compare source matches</string>
+    <string name="enabled_sources">Enabled sources</string>
+    <string name="filter_active">Filter, active filters</string>
+    <string name="handle_remaining_manually">Handle remaining titles manually</string>
+    <string name="handle_remaining_manually_summary">Choose a source separately for each remaining title</string>
+    <string name="has_chapters">Has chapters</string>
+    <string name="hide_results_without_chapters">Hide results without chapters</string>
+    <string name="migration_unavailable_no_chapters">Migration unavailable because this result has no chapters</string>
+    <string name="migration_unavailable_search_in_progress">Migration unavailable while search results are updating</string>
+    <string name="most_chapters">Most chapters</string>
+    <string name="percent_format" translatable="false">%d%%</string>
+    <string name="preparing_search">Preparing search…</string>
+    <string name="replace">Replace</string>
+    <string name="replace_matched">Replace matched</string>
+    <string name="replace_matched_confirmation">Replace %1$d of %2$d titles with matches from %3$s? The remaining %4$d titles will stay here so you can choose another source or search manually.</string>
+    <string name="replace_matched_count">Replace %d matched</string>
+    <string name="replace_source">Replace source</string>
+    <string name="same_content_type">Same content type</string>
+    <string name="same_content_type_as_current">Same content type as current</string>
+    <string name="same_language">Same language</string>
+    <string name="same_language_as_current">Same language as current</string>
+    <string name="search_manga_title">Search manga title</string>
+    <string name="searching_sources_progress">%1$d/%2$d sources</string>
+    <string name="selected">Selected</string>
+    <string name="source_match_rate">%1$s — %2$d/%3$d (%4$d%%)</string>
+    <string name="source_match_rate_summary">%1$d of %2$d titles matched</string>
+    <string name="source_priority">Source priority</string>
+    <string name="source_replacement_all_completed">%d titles replaced</string>
+    <string name="source_replacement_batch_completed">%1$d titles replaced; %2$d still need a source</string>
+    <string name="source_replacement_empty_summary">Change the search title or choose a source to search manually</string>
+    <string name="source_replacement_remaining_checks">%1$d sources · %2$d checks left</string>
+    <string name="source_replacement_remaining_mix">%1$d ranked sources left · %2$d title checks left</string>
+    <string name="source_replacement_remaining_replacements">%d replacements left</string>
+    <string name="source_replacement_remaining_titles">%d titles left</string>
+    <string name="source_replacement_step_applying">Step 4 of 4 · Applying matched replacements</string>
+    <string name="source_replacement_step_comparing">Step 1 of 4 · Comparing %d titles</string>
+    <string name="source_replacement_step_matching">Step 2 of 4 · Matching %s</string>
+    <string name="source_replacement_step_preparing">Step 1 of 4 · Preparing source comparison…</string>
+    <string name="source_replacement_step_smart_mix">Step 3 of 4 · Smart mix with %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">%d titles were moved to working sources.</string>
+    <string name="source_replacement_summary_many_title">Replacement complete</string>
+    <string name="source_replacement_summary_mix">Replacement mix</string>
+    <string name="source_replacement_summary_one_message">One title was moved to a working source.</string>
+    <string name="source_replacement_summary_one_title">Source replaced</string>
+    <string name="source_replacement_summary_replaced">Replaced</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Sources used</string>
+    <string name="source_replacement_summary_title">Replacement summary</string>
+    <string name="source_replacement_summary_zero_message">No library entries needed to be changed.</string>
+    <string name="source_replacement_summary_zero_title">Everything is already set</string>
+    <string name="source_selected">Source: %s</string>
+    <string name="top_source_matches">Top source matches</string>
+
+    <!-- Telegram backup bot config (intentionally empty - set per build) -->
+    <string name="tg_backup_bot_token" translatable="false"></string>
+    <string name="tg_backup_bot_name" translatable="false"></string>
 </resources>

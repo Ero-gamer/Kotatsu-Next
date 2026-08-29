@@ -137,6 +137,15 @@ class MangaDataRepository @Inject constructor(
 		else -> null
 	}
 
+
+	suspend fun findLibraryMangaBySource(source: MangaSource): List<Manga> {
+		return db.getMangaDao().findLibraryBySource(source.name).map { it.toManga() }
+	}
+
+	suspend fun findAllMangaBySource(source: MangaSource): List<Manga> {
+		return db.getMangaDao().findAllBySource(source.name).map { it.toManga() }
+	}
+
 	suspend fun storeManga(manga: Manga, replaceExisting: Boolean) {
 		if (!replaceExisting && db.getMangaDao().find(manga.id) != null) {
 			return

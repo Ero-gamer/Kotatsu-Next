@@ -885,4 +885,40 @@
     <string name="pinned_sources_only">Yalnızca sabitlenen kaynaklar</string>
     <string name="hide_empty_sources">Boş kaynakları gizle</string>
     <string name="auto_double_foldable">Otomatik İki Sayfa Katlanabilir</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Kaynak seç</string>
+    <string name="compare_source_matches">Kaynak eşleşmelerini karşılaştır</string>
+    <string name="handle_remaining_manually">Kalan başlıkları elle yönet</string>
+    <string name="handle_remaining_manually_summary">Kalan her başlık için ayrı bir kaynak seç</string>
+    <string name="replace">Değiştir</string>
+    <string name="replace_source">Kaynağı değiştir</string>
+    <string name="source_match_rate_summary">%2$d başlıktan %1$d tanesi eşleşti</string>
+    <string name="source_replacement_all_completed">%d başlık değiştirildi</string>
+    <string name="source_replacement_batch_completed">%1$d başlık değiştirildi; %2$d başlık için hâlâ kaynak gerekli</string>
+    <string name="source_replacement_empty_summary">Arama başlığını değiştir veya elle aramak için bir kaynak seç</string>
+    <string name="source_replacement_remaining_checks">%1$d kaynak · %2$d kontrol kaldı</string>
+    <string name="source_replacement_remaining_mix">%1$d sıralanmış kaynak kaldı · %2$d başlık kontrolü kaldı</string>
+    <string name="source_replacement_remaining_replacements">%d değişiklik kaldı</string>
+    <string name="source_replacement_remaining_titles">%d başlık kaldı</string>
+    <string name="source_replacement_step_applying">Adım 4/4 · Bulunan değişiklikler uygulanıyor</string>
+    <string name="source_replacement_step_comparing">Adım 1/4 · %d başlık karşılaştırılıyor</string>
+    <string name="source_replacement_step_matching">Adım 2/4 · %s üzerinde eşleşmeler aranıyor</string>
+    <string name="source_replacement_step_preparing">Adım 1/4 · Kaynak karşılaştırması hazırlanıyor…</string>
+    <string name="source_replacement_step_smart_mix">Adım 3/4 · %s ile akıllı karışım</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">%d başlık çalışan kaynaklara taşındı.</string>
+    <string name="source_replacement_summary_many_title">Değişiklik tamamlandı</string>
+    <string name="source_replacement_summary_mix">Kaynak dağılımı</string>
+    <string name="source_replacement_summary_one_message">Bir başlık çalışan bir kaynağa taşındı.</string>
+    <string name="source_replacement_summary_one_title">Kaynak değiştirildi</string>
+    <string name="source_replacement_summary_replaced">Değiştirilen</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Kullanılan kaynak</string>
+    <string name="source_replacement_summary_title">Değişiklik özeti</string>
+    <string name="source_replacement_summary_zero_message">Hiçbir kitaplık kaydının değiştirilmesi gerekmedi.</string>
+    <string name="source_replacement_summary_zero_title">Her şey zaten hazır</string>
+    <string name="source_selected">Kaynak: %s</string>
+    <string name="top_source_matches">En iyi kaynak eşleşmeleri</string>
 </resources>

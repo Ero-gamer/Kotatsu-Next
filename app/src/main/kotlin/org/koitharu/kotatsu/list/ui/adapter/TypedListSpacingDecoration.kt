@@ -45,6 +45,7 @@ class TypedListSpacingDecoration(
 			ListItemType.DOWNLOAD,
 			ListItemType.HINT_EMPTY,
 			ListItemType.MANGA_LIST_DETAILED,
+			ListItemType.SOURCE_REPLACEMENT,
 				-> outRect.set(spacingNormal)
 
 			ListItemType.PAGE_THUMB -> outRect.set(spacingNormal)

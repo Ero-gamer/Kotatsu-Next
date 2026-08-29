@@ -882,4 +882,40 @@
     <string name="hide_empty_sources">Esconder fontes vazias</string>
     <string name="pinned_sources_only">Apenas fontes fixadas</string>
     <string name="auto_double_foldable">Duas Páginas Automático em Tela Dobrável</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">Escolher fonte</string>
+    <string name="compare_source_matches">Comparar correspondências das fontes</string>
+    <string name="handle_remaining_manually">Gerenciar manualmente os títulos restantes</string>
+    <string name="handle_remaining_manually_summary">Escolha uma fonte separadamente para cada título restante</string>
+    <string name="replace">Substituir</string>
+    <string name="replace_source">Substituir fonte</string>
+    <string name="source_match_rate_summary">%1$d de %2$d títulos encontrados</string>
+    <string name="source_replacement_all_completed">%d títulos substituídos</string>
+    <string name="source_replacement_batch_completed">%1$d títulos substituídos; %2$d ainda precisam de uma fonte</string>
+    <string name="source_replacement_empty_summary">Altere o título da pesquisa ou escolha uma fonte para pesquisar manualmente</string>
+    <string name="source_replacement_remaining_checks">%1$d fontes · %2$d verificações restantes</string>
+    <string name="source_replacement_remaining_mix">%1$d fontes classificadas restantes · %2$d títulos para verificar</string>
+    <string name="source_replacement_remaining_replacements">%d substituições restantes</string>
+    <string name="source_replacement_remaining_titles">%d títulos restantes</string>
+    <string name="source_replacement_step_applying">Etapa 4 de 4 · Aplicando as substituições encontradas</string>
+    <string name="source_replacement_step_comparing">Etapa 1 de 4 · Comparando %d títulos</string>
+    <string name="source_replacement_step_matching">Etapa 2 de 4 · Procurando correspondências em %s</string>
+    <string name="source_replacement_step_preparing">Etapa 1 de 4 · Preparando a comparação das fontes…</string>
+    <string name="source_replacement_step_smart_mix">Etapa 3 de 4 · Combinação inteligente com %s</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">%d títulos foram movidos para fontes funcionais.</string>
+    <string name="source_replacement_summary_many_title">Substituição concluída</string>
+    <string name="source_replacement_summary_mix">Combinação das substituições</string>
+    <string name="source_replacement_summary_one_message">Um título foi movido para uma fonte funcional.</string>
+    <string name="source_replacement_summary_one_title">Fonte substituída</string>
+    <string name="source_replacement_summary_replaced">Substituídos</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">Fontes usadas</string>
+    <string name="source_replacement_summary_title">Resumo da substituição</string>
+    <string name="source_replacement_summary_zero_message">Nenhum item da biblioteca precisou ser alterado.</string>
+    <string name="source_replacement_summary_zero_title">Tudo já está em ordem</string>
+    <string name="source_selected">Fonte: %s</string>
+    <string name="top_source_matches">Melhores correspondências de fontes</string>
 </resources>

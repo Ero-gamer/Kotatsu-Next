@@ -662,4 +662,40 @@
     <string name="enable_all_sources">啟用所有漫畫來源</string>
     <string name="all_sources_enabled">所有漫畫來源已啟用</string>
     <string name="auto_double_foldable">摺疊設備自動雙頁</string>
+
+    <!-- Added from Redo commits -->
+    <string name="choose_source">選擇來源</string>
+    <string name="compare_source_matches">比較來源配對情況</string>
+    <string name="handle_remaining_manually">手動處理剩餘作品</string>
+    <string name="handle_remaining_manually_summary">為每個剩餘作品個別選擇來源</string>
+    <string name="replace">替換</string>
+    <string name="replace_source">替換來源</string>
+    <string name="source_match_rate_summary">共 %2$d 部作品，配對 %1$d 部</string>
+    <string name="source_replacement_all_completed">已替換 %d 部作品</string>
+    <string name="source_replacement_batch_completed">已替換 %1$d 部作品；仍有 %2$d 部需要選擇來源</string>
+    <string name="source_replacement_empty_summary">變更搜尋標題，或選擇來源進行手動搜尋</string>
+    <string name="source_replacement_remaining_checks">%1$d 個來源 · 剩餘 %2$d 次檢查</string>
+    <string name="source_replacement_remaining_mix">剩餘 %1$d 個候選來源 · %2$d 部作品待檢查</string>
+    <string name="source_replacement_remaining_replacements">剩餘 %d 個替換項目</string>
+    <string name="source_replacement_remaining_titles">剩餘 %d 部作品</string>
+    <string name="source_replacement_step_applying">第 4/4 步 · 正在套用配對的替換項目</string>
+    <string name="source_replacement_step_comparing">第 1/4 步 · 正在比較 %d 部作品</string>
+    <string name="source_replacement_step_matching">第 2/4 步 · 正在 %s 中尋找配對項目</string>
+    <string name="source_replacement_step_preparing">第 1/4 步 · 正在準備來源比較…</string>
+    <string name="source_replacement_step_smart_mix">第 3/4 步 · 正在使用 %s 智慧混合</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s（%2$d/%3$d）• %4$s</string>
+    <string name="source_replacement_summary_many_message">已將 %d 部作品移至可用來源。</string>
+    <string name="source_replacement_summary_many_title">替換完成</string>
+    <string name="source_replacement_summary_mix">替換來源分布</string>
+    <string name="source_replacement_summary_one_message">已將 1 部作品移至可用來源。</string>
+    <string name="source_replacement_summary_one_title">來源已替換</string>
+    <string name="source_replacement_summary_replaced">已替換</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">使用的來源</string>
+    <string name="source_replacement_summary_title">替換摘要</string>
+    <string name="source_replacement_summary_zero_message">無需變更任何書庫項目。</string>
+    <string name="source_replacement_summary_zero_title">一切已準備就緒</string>
+    <string name="source_selected">來源：%s</string>
+    <string name="top_source_matches">最佳配對來源</string>
 </resources>

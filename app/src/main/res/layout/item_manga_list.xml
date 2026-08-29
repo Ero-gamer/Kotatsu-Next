@@ -61,8 +61,8 @@
 		android:layout_height="wrap_content"
 		android:layout_margin="@dimen/margin_small"
 		android:visibility="gone"
-		app:layout_constraintEnd_toEndOf="parent"
-		app:layout_constraintTop_toTopOf="parent"
+		app:layout_constraintEnd_toEndOf="@id/imageView_cover"
+		app:layout_constraintTop_toTopOf="@id/imageView_cover"
 		app:maxCharacterCount="@integer/manga_badge_max_character_count"
 		tools:number="8"
 		tools:visibility="visible" />

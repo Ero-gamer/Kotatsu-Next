@@ -94,7 +94,7 @@
 			android:layout_height="wrap_content"
 			android:layout_marginEnd="12dp"
 			android:layout_marginBottom="12dp"
-			android:text="@string/migrate"
+			android:text="@string/replace"
 			app:icon="@drawable/ic_replace"
 			app:layout_constraintBottom_toBottomOf="parent"
 			app:layout_constraintEnd_toEndOf="parent"

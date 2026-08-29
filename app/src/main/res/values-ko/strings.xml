@@ -336,4 +336,44 @@
     <string name="reset">초기화</string>
     <string name="text_unsaved_changes_prompt">저장되지 않은 변경 사항을 저장하거나 삭제하시겠습니까\?</string>
     <string name="manga_error_description_pattern">오류 세부정보:&lt;br&gt;&lt;tt&gt;%1$s&lt;/tt&gt;&lt;br&gt;&lt;br&gt;1. &lt;a href=%2$s&gt;웹 브라우저에서 만화를 열어&lt;/a&gt; 소스에서 사용할 수 있는지 확인하세요&lt;br&gt;2. &lt;a href=kotatsu://about&gt;최신 버전의 Kotatsu&lt;/a&gt;&lt;br&gt;를 사용하고 있는지 확인하세요.3. 사용 가능한 경우 개발자에게 오류 보고서를 보냅니다.</string>
+
+    <!-- Added from Redo commits -->
+    <string name="alternatives">대체 항목</string>
+    <string name="choose_source">소스 선택</string>
+    <string name="compare_source_matches">소스 일치 결과 비교</string>
+    <string name="handle_remaining_manually">남은 작품을 수동으로 처리</string>
+    <string name="handle_remaining_manually_summary">남은 작품마다 소스를 따로 선택합니다</string>
+    <string name="migrate">이전</string>
+    <string name="migrate_confirmation">기록과 즐겨찾기(있는 경우)의 “%2$s” 소스 작품 “%1$s”을(를) “%4$s” 소스의 “%3$s”(으)로 교체합니다</string>
+    <string name="migration_completed">이전 완료</string>
+    <string name="replace">교체</string>
+    <string name="replace_source">소스 교체</string>
+    <string name="source_match_rate_summary">%2$d개 중 %1$d개 일치</string>
+    <string name="source_replacement_all_completed">작품 %d개 교체됨</string>
+    <string name="source_replacement_batch_completed">작품 %1$d개 교체됨, %2$d개는 소스가 더 필요함</string>
+    <string name="source_replacement_empty_summary">검색 제목을 바꾸거나 수동 검색할 소스를 선택하세요</string>
+    <string name="source_replacement_remaining_checks">소스 %1$d개 · 확인 %2$d회 남음</string>
+    <string name="source_replacement_remaining_mix">후보 소스 %1$d개 · 작품 확인 %2$d개 남음</string>
+    <string name="source_replacement_remaining_replacements">교체 %d개 남음</string>
+    <string name="source_replacement_remaining_titles">작품 %d개 남음</string>
+    <string name="source_replacement_step_applying">4/4단계 · 찾은 교체 항목 적용 중</string>
+    <string name="source_replacement_step_comparing">1/4단계 · 작품 %d개 비교 중</string>
+    <string name="source_replacement_step_matching">2/4단계 · %s에서 일치 항목 검색 중</string>
+    <string name="source_replacement_step_preparing">1/4단계 · 소스 비교 준비 중…</string>
+    <string name="source_replacement_step_smart_mix">3/4단계 · %s 스마트 조합</string>
+    <string name="source_replacement_subtitle">%1$s • %2$s</string>
+    <string name="source_replacement_subtitle_batch">%1$s (%2$d/%3$d) • %4$s</string>
+    <string name="source_replacement_summary_many_message">작품 %d개를 작동하는 소스로 옮겼습니다.</string>
+    <string name="source_replacement_summary_many_title">교체 완료</string>
+    <string name="source_replacement_summary_mix">교체 소스 구성</string>
+    <string name="source_replacement_summary_one_message">작품 1개를 작동하는 소스로 옮겼습니다.</string>
+    <string name="source_replacement_summary_one_title">소스를 교체했습니다</string>
+    <string name="source_replacement_summary_replaced">교체됨</string>
+    <string name="source_replacement_summary_source_item">%1$s · %2$d</string>
+    <string name="source_replacement_summary_sources">사용한 소스</string>
+    <string name="source_replacement_summary_title">교체 요약</string>
+    <string name="source_replacement_summary_zero_message">변경해야 할 라이브러리 항목이 없습니다.</string>
+    <string name="source_replacement_summary_zero_title">이미 모두 준비되었습니다</string>
+    <string name="source_selected">소스: %s</string>
+    <string name="top_source_matches">가장 잘 맞는 소스</string>
 </resources>

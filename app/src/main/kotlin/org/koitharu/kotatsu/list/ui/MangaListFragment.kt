@@ -278,7 +278,9 @@ abstract class MangaListFragment :
 		val hasNoLocal = selectedItems.none { it.isLocal }
 		val isSingleSelection = controller.count == 1
 		menu.findItem(R.id.action_save)?.isVisible = hasNoLocal
+		val hasSingleSource = selectedItems.map { it.source }.distinct().size == 1
 		menu.findItem(R.id.action_fix)?.isVisible = hasNoLocal
+		menu.findItem(R.id.action_replace_source)?.isVisible = hasNoLocal && hasSingleSource
 		menu.findItem(R.id.action_edit_override)?.isVisible = isSingleSelection
 		return super.onPrepareActionMode(controller, mode, menu)
 	}
@@ -336,6 +338,11 @@ abstract class MangaListFragment :
 						AutoFixService.start(context, itemsSnapshot)
 						mode?.finish()
 					}
+				}
+
+				R.id.action_replace_source -> {
+					router.openSourceReplacement(selectedItems.toList())
+					mode?.finish()
 				}.show()
 				true
 			}
