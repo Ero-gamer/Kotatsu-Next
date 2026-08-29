@@ -338,12 +338,13 @@ abstract class MangaListFragment :
 						AutoFixService.start(context, itemsSnapshot)
 						mode?.finish()
 					}
-				}
-
-				R.id.action_replace_source -> {
-					router.openSourceReplacement(selectedItems.toList())
-					mode?.finish()
 				}.show()
+				true
+			}
+
+			R.id.action_replace_source -> {
+				router.openSourceReplacement(selectedItems.toList())
+				mode?.finish()
 				true
 			}
 
