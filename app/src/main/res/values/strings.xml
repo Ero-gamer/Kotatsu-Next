@@ -1071,7 +1071,4 @@
     <string name="source_selected">Source: %s</string>
     <string name="top_source_matches">Top source matches</string>
 
-    <!-- Telegram backup bot config (intentionally empty - set per build) -->
-    <string name="tg_backup_bot_token" translatable="false"></string>
-    <string name="tg_backup_bot_name" translatable="false"></string>
 </resources>
