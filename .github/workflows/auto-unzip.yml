@@ -10,31 +10,95 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Needed to commit the extracted files
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
 
       - name: Extract zip
         run: |
           # Find the zip file
           ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
           
-          # Unzip it, overwriting existing files
-          unzip -o "$ZIP_FILE" -d .
-          
-          # Remove the zip file after extraction
-          rm "$ZIP_FILE"
+          if [ -n "$ZIP_FILE" ]; then
+            # Unzip, overwriting existing files
+            unzip -o "$ZIP_FILE" -d .
+            # Remove the zip file after extraction
+            rm "$ZIP_FILE"
+          fi
+
+      - name: Stage Changes
+        run: |
+          git add .
+
+      - name: Generate AI Commit Message
+        id: ai_summary
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python3 -c '
+          import os, subprocess, json, urllib.request
+
+          api_key = os.environ.get("GEMINI_API_KEY", "")
+          if not api_key:
+              print("COMMIT_MSG=Auto-extract: GEMINI_API_KEY secret is missing")
+              exit(0)
+
+          # Get status and detailed diff while explicitly ignoring .zip archive deletions
+          diff_stat = subprocess.getoutput("git status --short -- . \":(exclude)*.zip\"")
+          diff_patch = subprocess.getoutput("git diff --cached --stat -p -- . \":(exclude)*.zip\" | head -n 150")
+
+          if not diff_stat.strip():
+              print("COMMIT_MSG=Auto-extract: Code files updated from zip archive")
+              exit(0)
+
+          prompt = (
+              "Analyze the following git changes extracted from a zip archive. "
+              "Provide a concise commit title (max 50 characters) summarizing the primary changes, "
+              "followed by detailed bullet points describing important additions, refactors, or modifications across the source code files. "
+              "Focus strictly on actual code changes and technical implementation details. "
+              "Do NOT mention, summarize, or note the removal or deletion of any .zip archive file. "
+              "Do not use markdown code blocks.\n\n"
+              f"Changed Files Summary:\n{diff_stat}\n\n"
+              f"Diff Snippet:\n{diff_patch}"
+          )
+
+          # Primary Flash models with fallback order
+          models = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"]
+          msg = None
+
+          for model in models:
+              url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+              payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+              headers = {"Content-Type": "application/json"}
+
+              try:
+                  req = urllib.request.Request(url, data=payload, headers=headers)
+                  with urllib.request.urlopen(req) as response:
+                      res_data = json.loads(response.read().decode("utf-8"))
+                      msg = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                      if msg:
+                          break
+              except Exception as e:
+                  print(f"Model {model} failed ({e}), trying next fallback...")
+                  continue
+
+          if not msg:
+              msg = "Auto-extract: Code files updated from archive (API Unavailable)"
+
+          # Save to multiline environment variable for GitHub Actions
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write("COMMIT_MSG<<EOF\n" + msg + "\nEOF\n")
+          '
 
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Stage all extracted files
-          git add .
-          
-          # Commit the changes
-          git commit -m "Auto-extract: Decompressed $(basename "$ZIP_FILE")"
-          
-          # Push to the current branch
-          git push
+          if ! git diff --cached --quiet; then
+            git commit -m "$COMMIT_MSG"
+            git push
+          else
+            echo "No changes to commit."
+          fi
