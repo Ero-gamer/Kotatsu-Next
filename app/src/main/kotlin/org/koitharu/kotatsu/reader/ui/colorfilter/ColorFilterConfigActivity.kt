@@ -46,20 +46,8 @@ class ColorFilterConfigActivity :
 
     private val viewModel: ColorFilterConfigViewModel by viewModels()
 
-    /**
-     * The source bitmap extracted from imageViewBefore after it loads.
-     * Owned by Coil's BitmapDrawable — never recycled here.
-     * Coil3 does not use a bitmap pool by default, so this reference is safe to hold.
-     */
     private var sourceBitmap: Bitmap? = null
-
-    /**
-     * In-flight sharpening coroutine. Cancelled when the user moves the slider
-     * again before the previous GPU pass finishes.
-     */
-    private var sharpenJob: Job? = null
-
-    /** True once the before-image has loaded and [sourceBitmap] is populated. */
+    private var previewJob: Job? = null
     private var beforeImageReady = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,35 +55,30 @@ class ColorFilterConfigActivity :
         setContentView(ActivityColorFilterBinding.inflate(layoutInflater))
         setDisplayHomeAsUp(isEnabled = true, showUpAsClose = true)
 
-        val percentFormatter = PercentLabelFormatter(resources)
-        val signedFormatter  = SignedPercentLabelFormatter(resources)
+        val percentFormatter  = PercentLabelFormatter(resources)
+        val signedFormatter   = SignedPercentLabelFormatter(resources)
         val unsignedFormatter = UnsignedPercentLabelFormatter(resources)
 
         viewBinding.sliderBrightness.addOnChangeListener(this)
         viewBinding.sliderContrast.addOnChangeListener(this)
-        viewBinding.sliderSharpening?.addOnChangeListener(this)
-        viewBinding.sliderSaturation?.addOnChangeListener(this)
-        viewBinding.sliderVibrance?.addOnChangeListener(this)
-        viewBinding.sliderDenoise?.addOnChangeListener(this)
-        viewBinding.sliderDither?.addOnChangeListener(this)
-        viewBinding.sliderGrain?.addOnChangeListener(this)
+        viewBinding.sliderSharpening.addOnChangeListener(this)
+        viewBinding.sliderSaturation.addOnChangeListener(this)
+        viewBinding.sliderVibrance.addOnChangeListener(this)
+        viewBinding.sliderDenoise.addOnChangeListener(this)
+        // Dither and Grain sliders removed — those CPU filters are eliminated
 
         viewBinding.sliderBrightness.setLabelFormatter(percentFormatter)
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
-        // Sharpening's range is 0..1 (off..max), not -1..1 like Brightness/Contrast, so it
-        // needs a plain 0%..100% formatter instead of the +1 offset one (which made 0 = "100%").
-        viewBinding.sliderSharpening?.setLabelFormatter(unsignedFormatter)
-        viewBinding.sliderSaturation?.setLabelFormatter(signedFormatter)
-        viewBinding.sliderVibrance?.setLabelFormatter(signedFormatter)
-        viewBinding.sliderDenoise?.setLabelFormatter(unsignedFormatter)
-        viewBinding.sliderDither?.setLabelFormatter(unsignedFormatter)
-        viewBinding.sliderGrain?.setLabelFormatter(unsignedFormatter)
+        viewBinding.sliderSharpening.setLabelFormatter(unsignedFormatter)
+        viewBinding.sliderSaturation.setLabelFormatter(signedFormatter)
+        viewBinding.sliderVibrance.setLabelFormatter(signedFormatter)
+        viewBinding.sliderDenoise.setLabelFormatter(unsignedFormatter)
 
         viewBinding.switchInvert.setOnCheckedChangeListener(this)
         viewBinding.switchGrayscale.setOnCheckedChangeListener(this)
         viewBinding.switchBook.setOnCheckedChangeListener(this)
         viewBinding.buttonDone.setOnClickListener(this)
-        viewBinding.buttonReset?.setOnClickListener(this)
+        viewBinding.buttonReset.setOnClickListener(this)
 
         onBackPressedDispatcher.addCallback(ColorFilterConfigBackPressedDispatcher(this, viewModel))
 
@@ -121,8 +104,6 @@ class ColorFilterConfigActivity :
             R.id.slider_saturation -> viewModel.setSaturation(value)
             R.id.slider_vibrance   -> viewModel.setVibrance(value)
             R.id.slider_denoise    -> viewModel.setDenoise(value)
-            R.id.slider_dither     -> viewModel.setDither(value)
-            R.id.slider_grain      -> viewModel.setGrain(value)
         }
     }
 
@@ -154,12 +135,10 @@ class ColorFilterConfigActivity :
     private fun onColorFilterChanged(cf: ReaderColorFilter?) {
         viewBinding.sliderBrightness.setValueRounded(cf?.brightness ?: 0f)
         viewBinding.sliderContrast.setValueRounded(cf?.contrast ?: 0f)
-        viewBinding.sliderSharpening?.setValueRounded(cf?.sharpening ?: 0f)
-        viewBinding.sliderSaturation?.setValueRounded(cf?.saturation ?: 0f)
-        viewBinding.sliderVibrance?.setValueRounded(cf?.vibrance ?: 0f)
-        viewBinding.sliderDenoise?.setValueRounded(cf?.denoise ?: 0f)
-        viewBinding.sliderDither?.setValueRounded(cf?.dither ?: 0f)
-        viewBinding.sliderGrain?.setValueRounded(cf?.grain ?: 0f)
+        viewBinding.sliderSharpening.setValueRounded(cf?.sharpening ?: 0f)
+        viewBinding.sliderSaturation.setValueRounded(cf?.saturation ?: 0f)
+        viewBinding.sliderVibrance.setValueRounded(cf?.vibrance ?: 0f)
+        viewBinding.sliderDenoise.setValueRounded(cf?.denoise ?: 0f)
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
         viewBinding.switchBook.setChecked(cf?.isBookBackground == true, false)
@@ -167,64 +146,45 @@ class ColorFilterConfigActivity :
         if (!beforeImageReady) return
 
         val sharpening = cf?.sharpening ?: 0f
-        val vibrance = cf?.vibrance ?: 0f
+        val vibrance   = cf?.vibrance   ?: 0f
         if (sharpening > 0.01f || vibrance != 0f) {
             applyAfterFilter(cf)
         } else {
-            sharpenJob?.cancel()
+            previewJob?.cancel()
             showSourceWithColorMatrix(cf)
         }
     }
 
-    /**
-     * Shows [sourceBitmap] on imageViewAfter with [cf]'s ColorMatrix applied as
-     * a paint colorFilter — zero GPU work, instant update.
-     */
     private fun showSourceWithColorMatrix(cf: ReaderColorFilter?) {
         val bmp = sourceBitmap ?: return
         viewBinding.imageViewAfter.setImageBitmap(bmp)
         viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
     }
 
-    /** Bumped on every applyAfterFilter() call; lets in-flight jobs detect they're stale. */
     private var filterRequestId = 0
 
     /**
-     * Applies sharpening and/or vibrance to [sourceBitmap] on a background thread.
-     * Shows the unfiltered image immediately (with ColorMatrix paint) while processing,
-     * then swaps to the filtered result when the job completes.
-     *
-     * Uses a request-id check (not job cancellation) to decide whether to show the
-     * result: process() is a tight synchronous pixel loop with no suspension points,
-     * so cancel() can't interrupt it — it always runs to completion. Relying on
-     * isActive/cancellation here would mean withContext(Main) throws
-     * CancellationException right as a freshly-computed result is about to be shown,
-     * silently discarding it. The request-id check sidesteps that race: only the
-     * single latest request is ever allowed to update the UI, regardless of completion
-     * order, with zero risk of a finished result getting thrown away.
-     *
-     * Uses [sourceBitmap] directly — no Coil request, no cache writes,
-     * no gallery thumbnail pollution.
+     * Applies sharpening/vibrance to [sourceBitmap] on a background thread for the preview.
+     * Uses [ImageFiltersTransformation] (CPU, allocation-light) for the preview bitmap only —
+     * actual reader tiles go through the GPU shader.
      */
     private fun applyAfterFilter(cf: ReaderColorFilter?) {
         val sharpening = cf?.sharpening ?: 0f
-        val vibrance = cf?.vibrance ?: 0f
-        val source = sourceBitmap ?: return
+        val vibrance   = cf?.vibrance   ?: 0f
+        val source     = sourceBitmap ?: return
 
-        // Show unfiltered + ColorMatrix immediately so the panel is never blank.
         viewBinding.imageViewAfter.setImageBitmap(source)
         viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
 
-        sharpenJob?.cancel() // best-effort early exit if still waiting on the semaphore
+        previewJob?.cancel()
         val requestId = ++filterRequestId
-        sharpenJob = lifecycleScope.launch(Dispatchers.Default) {
+        previewJob = lifecycleScope.launch(Dispatchers.Default) {
             val result = runCatching {
                 ImageFiltersTransformation(sharpening, vibrance)
                     .transform(source, Size.ORIGINAL)
             }.getOrNull() ?: return@launch
 
             if (requestId != filterRequestId) {
-                // Superseded by a newer slider change while we were processing.
                 if (result !== source) result.recycle()
                 return@launch
             }
@@ -232,8 +192,8 @@ class ColorFilterConfigActivity :
             withContext(Dispatchers.Main) {
                 if (!isDestroyed && requestId == filterRequestId) {
                     viewBinding.imageViewAfter.setImageBitmap(result)
-                    // Re-apply ColorMatrix paint after bitmap swap so it's never lost.
-                    viewBinding.imageViewAfter.colorFilter = viewModel.colorFilter.value?.toColorFilter()
+                    viewBinding.imageViewAfter.colorFilter =
+                        viewModel.colorFilter.value?.toColorFilter()
                 } else if (result !== source) {
                     result.recycle()
                 }
@@ -246,29 +206,22 @@ class ColorFilterConfigActivity :
             ImageRequestIndicatorListener(listOf(viewBinding.progressBefore, viewBinding.progressAfter)),
         )
         addImageRequestListener(BeforeImageListener())
-        // allowHardware(false): sourceBitmap is read pixel-by-pixel by ImageFiltersTransformation
-        // (vibrance/sharpening preview). A HARDWARE-config bitmap requires a GPU readback to copy
-        // out, which is unreliable on this device's driver and produces corrupted/noisy output
-        // instead of a clean failure — same root cause as the earlier reader crash fix.
         setImageAsync(page, allowHardware = false)
     }
 
     private fun onLoadingChanged(isLoading: Boolean) {
         viewBinding.sliderBrightness.isEnabled  = !isLoading
         viewBinding.sliderContrast.isEnabled    = !isLoading
-        viewBinding.sliderSharpening?.isEnabled = !isLoading
-        viewBinding.sliderSaturation?.isEnabled = !isLoading
-        viewBinding.sliderVibrance?.isEnabled   = !isLoading
-        viewBinding.sliderDenoise?.isEnabled    = !isLoading
-        viewBinding.sliderDither?.isEnabled     = !isLoading
-        viewBinding.sliderGrain?.isEnabled      = !isLoading
+        viewBinding.sliderSharpening.isEnabled = !isLoading
+        viewBinding.sliderSaturation.isEnabled = !isLoading
+        viewBinding.sliderVibrance.isEnabled   = !isLoading
+        viewBinding.sliderDenoise.isEnabled    = !isLoading
         viewBinding.switchInvert.isEnabled      = !isLoading
         viewBinding.switchGrayscale.isEnabled   = !isLoading
         viewBinding.buttonDone.isEnabled        = !isLoading
     }
 
-
-    // ─── Label formatters ────────────────────────────────────────────────────
+    // ── Label formatters ──────────────────────────────────────────────────────
 
     private class PercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)
@@ -284,34 +237,19 @@ class ColorFilterConfigActivity :
         }
     }
 
-    /** For sliders whose native range is 0..1 (off..max), e.g. Sharpening — plain 0%..100%. */
     private class UnsignedPercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)
         override fun getFormattedValue(value: Float): String =
             pattern.format((value * 100).format(0))
     }
 
-    // ─── Before-image listener ───────────────────────────────────────────────
+    // ── Before-image listener ─────────────────────────────────────────────────
 
-    /**
-     * Listens for the before-image finishing load in [imageViewBefore].
-     *
-     * On success:
-     *   1. Extracts the Bitmap for use in sharpening preview coroutines.
-     *   2. Copies the image to imageViewAfter as the baseline (unfiltered state).
-     *   3. Applies the current filter state (ColorMatrix + optional GPU sharpening).
-     *
-     * Does NOT fire any additional Coil requests — after-panel updates use the
-     * already-loaded bitmap directly, so Coil's cache is never written with a
-     * transformed result, and gallery thumbnail loading is completely unaffected.
-     */
     private inner class BeforeImageListener : ImageRequest.Listener {
-
         override fun onSuccess(request: ImageRequest, result: SuccessResult) {
             sourceBitmap = (result.image.asDrawable(resources) as? BitmapDrawable)?.bitmap
             beforeImageReady = true
             viewBinding.imageViewAfter.setImageDrawable(result.image.asDrawable(resources))
-            // Apply the current filter state now that the source is ready.
             onColorFilterChanged(viewModel.colorFilter.value)
         }
 

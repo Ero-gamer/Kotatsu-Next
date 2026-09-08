@@ -270,16 +270,45 @@
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
 				app:layout_constraintTop_toBottomOf="@id/textView_sharpening" />
 
-			<TextView android:id="@+id/textView_denoise" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_normal" android:text="@string/denoise" android:textAppearance="?textAppearanceTitleMedium" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/slider_sharpening" />
-			<com.google.android.material.slider.Slider android:id="@+id/slider_denoise" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_small" android:value="0.0" android:valueFrom="0.0" android:valueTo="1.0" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/textView_denoise" />
+			<TextView
+				android:id="@+id/textView_denoise"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/denoise"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/slider_sharpening" />
 
-			<TextView android:id="@+id/textView_dither" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_small" android:text="@string/dither" android:textAppearance="?textAppearanceTitleMedium" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/slider_denoise" />
-			<com.google.android.material.slider.Slider android:id="@+id/slider_dither" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_small" android:value="0.0" android:valueFrom="0.0" android:valueTo="1.0" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/textView_dither" />
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_denoise"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_small"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_denoise" />
 
-			<TextView android:id="@+id/textView_grain" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_small" android:text="@string/grain" android:textAppearance="?textAppearanceTitleMedium" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/slider_dither" />
-			<com.google.android.material.slider.Slider android:id="@+id/slider_grain" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_small" android:value="0.0" android:valueFrom="0.0" android:valueTo="1.0" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/textView_grain" />
+			<!-- Dither and Grain (textView_dither/slider_dither/textView_grain/slider_grain)
+			     REMOVED — CPU loops eliminated. Matches the base layout/ folder variant. -->
 
-			<com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/switch_book" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="@dimen/margin_normal" android:layout_marginTop="@dimen/margin_normal" android:text="@string/book_effect" android:textAppearance="?textAppearanceTitleMedium" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/guideline_vertical" app:layout_constraintTop_toBottomOf="@id/slider_grain" />
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_book"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/book_effect"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/slider_denoise" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

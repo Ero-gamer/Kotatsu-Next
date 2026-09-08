@@ -20,7 +20,6 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.image.CoilImageView
 import org.koitharu.kotatsu.core.os.NetworkState
-import org.koitharu.kotatsu.core.ui.image.VibranceProcessor
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
@@ -65,8 +64,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 	private var lastColorFilter: Any? = UNSET_SENTINEL
 	private var tileLoadErrorCount = 0
 
-	val context
-		get() = itemView.context
+	val context get() = itemView.context
 
 	var boundData: ReaderPage? = null
 		private set
@@ -87,7 +85,6 @@ abstract class BasePageHolder<B : ViewBinding>(
 					page = boundData?.toMangaPage() ?: return@OnClickListener,
 					isFromUser = true,
 				)
-
 				R.id.button_error_details -> viewModel.showErrorDetails(boundData?.url)
 			}
 		}
@@ -100,14 +97,16 @@ abstract class BasePageHolder<B : ViewBinding>(
 		settings.applyBackground(itemView)
 		val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
 		lastColorFilter = settings.colorFilter
+
 		when {
-			// BitmapConfig or filter params (sharpening/vibrance) changed: reinstall the
-			// region decoder (now a FilteringRegionDecoder when filters are active) and
-			// reload SSIV tiles so the new per-tile filter takes effect immediately.
+			// BitmapConfig or GPU filter params changed: reinstall the region decoder factory
+			// (GpuFilteringDecoder when any GPU filter is active) and reload SSIV tiles so
+			// the new per-tile GPU shader pass takes effect immediately.
 			settings.applyBitmapConfig(ssiv) -> reloadImage()
 
-			// ColorFilter (contrast/saturation/brightness/etc) changed while page is displayed:
-			// re-apply ColorMatrix paint filter to SSIV — instant, zero re-decode cost.
+			// CPU ColorMatrix (brightness/contrast/saturation/grayscale/invert) changed while
+			// the page is already displayed: re-apply paint filter to SSIV — instant, zero
+			// re-decode cost, no tile reload needed.
 			colorFilterChanged && viewModel.state.value is PageState.Shown -> onReady()
 		}
 		ssiv.applyDownSampling(isResumed())
@@ -157,7 +156,6 @@ abstract class BasePageHolder<B : ViewBinding>(
 	}
 
 	open fun onAttachedToWindow() = Unit
-
 	open fun onDetachedFromWindow() = Unit
 
 	@CallSuper
@@ -174,17 +172,20 @@ abstract class BasePageHolder<B : ViewBinding>(
 	override fun onTileLoadError(e: Throwable) {
 		tileLoadErrorCount++
 		when {
-			tileLoadErrorCount == TILE_ERROR_SOFT && viewModel.state.value is PageState.Shown -> reloadImage()
+			tileLoadErrorCount == TILE_ERROR_SOFT && viewModel.state.value is PageState.Shown ->
+				reloadImage()
 			tileLoadErrorCount >= TILE_ERROR_HARD && viewModel.state.value is PageState.Shown ->
 				boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
 		}
 	}
 
-	override fun onTrimMemory(level: Int) {
-		if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
-			VibranceProcessor.trimMemory()
-		}
-	}
+	/**
+	 * No GPU caches to trim — the EGL off-screen renderer in [GpuTileRenderer] holds no
+	 * persistent tile cache; each tile is decoded → filtered → returned as a Bitmap and the
+	 * GL texture is immediately deleted. Nothing to release here on memory pressure.
+	 * PageLoader's own LRU file cache is trimmed separately by its own ComponentCallbacks2.
+	 */
+	override fun onTrimMemory(level: Int) = Unit
 
 	override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
@@ -198,16 +199,15 @@ abstract class BasePageHolder<B : ViewBinding>(
 		if (progress in 0..100) {
 			bindingInfo.progressBar.isIndeterminate = false
 			bindingInfo.progressBar.setProgressCompat(progress, true)
-			bindingInfo.textViewStatus.text = context.getString(R.string.percent_string_pattern, progress.toString())
+			bindingInfo.textViewStatus.text =
+				context.getString(R.string.percent_string_pattern, progress.toString())
 		} else {
 			bindingInfo.progressBar.isIndeterminate = true
 			bindingInfo.textViewStatus.setText(R.string.loading_)
 		}
 		val isAnimated = boundData?.url?.isAnimatedImage() == true
 		when (state) {
-			is PageState.Converting -> {
-				bindingInfo.textViewStatus.setText(R.string.processing_)
-			}
+			is PageState.Converting -> bindingInfo.textViewStatus.setText(R.string.processing_)
 
 			is PageState.Empty -> Unit
 
@@ -248,15 +248,12 @@ abstract class BasePageHolder<B : ViewBinding>(
 		}
 	}
 
-	// ── Color filter ─────────────────────────────────────────────────────────
-	// Vibrance and sharpening are NOT part of this — they are applied per-tile inside
-	// FilteringRegionDecoder (installed in applyBitmapConfig when filters are active).
-	// ssiv.colorFilter only ever carries brightness/contrast/saturation/grayscale/invert.
+	// ── Color filter ──────────────────────────────────────────────────────────
+	// GPU filters (denoise, vibrance, sharpening) are installed via GpuFilteringDecoder
+	// in applyBitmapConfig and take effect per-tile on decode.
+	// ssiv.colorFilter carries only the CPU/Canvas ColorMatrix:
+	//   brightness / contrast / saturation / grayscale / invert / book-tint.
 
-	/**
-	 * Sets ssiv.colorFilter from the current settings. Call this any time the base
-	 * settings change — never set ssiv.colorFilter directly elsewhere.
-	 */
 	protected fun applyColorFilter() {
 		if (ssiv.isReady) {
 			ssiv.colorFilter = settings.colorFilter?.toColorFilter()
@@ -292,9 +289,8 @@ abstract class BasePageHolder<B : ViewBinding>(
 		private const val TILE_ERROR_SOFT = 1
 		private const val TILE_ERROR_HARD = 3
 
-		// 4 = Cortex-A53 core count. All cores decode in parallel for fast initial load.
-		// Memory is kept in check by RGB_565 (half memory per tile) + eager loading off
-		// + reduced prefetch — not by fragmenting tiles or throttling decode concurrency.
+		// 4 = Cortex-A53 core count. Decode tiles in parallel for fast initial load.
+		// Memory is kept in check by RGB_565 (half per tile) + eager loading off.
 		@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 		private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(4)
 		private val UNSET_SENTINEL = Any()
