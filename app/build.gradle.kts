@@ -12,7 +12,6 @@ plugins {
     alias(libs.plugins.room)
     alias(libs.plugins.kotlinx.serizliation)
     alias(libs.plugins.compose.compiler)
-    // id("dev.reformator.stacktracedecoroutinator")
 }
 
 configurations.all {
@@ -146,10 +145,10 @@ android {
     applicationVariants.configureEach {
         if (name == "nightly") {
             outputs.configureEach {
-                val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+                val output = this as? com.android.build.gradle.internal.api.ApkVariantOutputImpl
                 val now = LocalDateTime.now()
-                output.versionCodeOverride = now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInt()
-                output.versionNameOverride = "N" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                output?.versionCodeOverride = now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInt()
+                output?.versionNameOverride = "N" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
             }
         }
     }
