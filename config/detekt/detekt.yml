@@ -1,0 +1,33 @@
+build:
+  maxIssues: 0
+
+style:
+  UnusedPrivateMember:
+    active: true
+    allowedNames: '(_|ignored|expected)'
+  UnusedPrivateClass:
+    active: true
+  UnusedImports:
+    active: true
+  RedundantVisibilityModifierRule:
+    active: true
+    autoCorrect: true
+
+potential-bugs:
+  UnreachableCode:
+    active: true
+  EqualsNullCall:
+    active: true
+
+empty-blocks:
+  EmptyFunctionBlock:
+    active: true
+    ignoreOverridden: true
+
+complexity:
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 30
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 15
