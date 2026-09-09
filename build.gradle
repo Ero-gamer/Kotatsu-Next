@@ -7,4 +7,44 @@ plugins {
 	alias(libs.plugins.kotlinx.serizliation) apply false
 	alias(libs.plugins.compose.compiler) apply false
 //	alias(libs.plugins.decoroutinator) apply false
+
+	// Formatting & Static Analysis
+	id("com.diffplug.spotless") version "8.10.2" apply false
+	id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
+}
+
+subprojects {
+	// ---- Spotless Formatting Configuration ----
+	apply(plugin = "com.diffplug.spotless")
+	configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+		kotlin {
+			target("**/*.kt")
+			targetExclude("**/build/**/*.kt", "**/bin/**/*.kt")
+
+			// Auto-fixes formatting, spacing, & removes unused imports
+			ktlint("1.2.1").editorConfigOverride(
+				mapOf(
+					"indent_size" to "4",
+					"continuation_indent_size" to "4",
+					"ij_kotlin_allow_trailing_comma" to "true",
+					"ktlint_standard_no-unused-imports" to "enabled"
+				)
+			)
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+		kotlinGradle {
+			target("**/*.gradle.kts")
+			ktlint("1.2.1")
+		}
+	}
+
+	// ---- Detekt Static Analysis Configuration ----
+	apply(plugin = "io.gitlab.arturbosch.detekt")
+	configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {
+		buildUponDefaultConfig = true
+		allRules = false
+		config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+		autoCorrect = true
+	}
 }
