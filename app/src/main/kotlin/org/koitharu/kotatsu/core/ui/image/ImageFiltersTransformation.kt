@@ -32,13 +32,20 @@ class ImageFiltersTransformation(
         return cpuSemaphore.withPermit { process(input, doSharpen, doVibrance) }
     }
 
+    /**
+     * Always copies [input] — even when it is already ARGB_8888 and mutable. Coil
+     * deliberately hands transformations mutable bitmaps for in-place editing, but here
+     * [input] is *also* the same object held by the caller and bound directly to an
+     * ImageView (see [ColorFilterConfigActivity]'s `sourceBitmap`). Mutating it in place
+     * would race the main thread's concurrent rendering of that exact Bitmap and corrupt
+     * it permanently for every subsequent preview render. A copy is the only safe option.
+     */
     private fun process(input: Bitmap, doSharpen: Boolean, doVibrance: Boolean): Bitmap {
         val w = input.width
         val h = input.height
         if (w < 3 || h < 3) return input
 
-        val needsCopy = input.config != Bitmap.Config.ARGB_8888 || !input.isMutable
-        val working   = if (needsCopy) input.copy(Bitmap.Config.ARGB_8888, true) else input
+        val working = input.copy(Bitmap.Config.ARGB_8888, true)
 
         val src = IntArray(w * h)
         working.getPixels(src, 0, w, 0, 0, w, h)
