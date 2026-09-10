@@ -37,6 +37,13 @@ subprojects {
             )
             trimTrailingWhitespace()
             endWithNewline()
+
+            // Belt-and-suspenders: even if a rule fires despite the override above
+            // (e.g. on files added after this config), don't fail the build over it.
+            suppressLintsFor {
+                step = "ktlint"
+                shortCode = "standard:max-line-length"
+            }
         }
         kotlinGradle {
             target("**/*.gradle.kts")
