@@ -13,7 +13,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import org.koitharu.kotatsu.core.db.*
+import org.koitharu.kotatsu.core.db.MangaDatabase
 import java.util.concurrent.Callable
 
 abstract class SyncProvider : ContentProvider() {

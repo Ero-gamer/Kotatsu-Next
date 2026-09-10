@@ -92,7 +92,7 @@ android {
         resources {
             excludes += listOf(
                 "META-INF/README.md",
-                "META-INF/NOTICE.md"
+                "META-INF/NOTICE.md",
             )
         }
     }
@@ -123,7 +123,7 @@ android {
                 "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
                 "-Xjspecify-annotations=strict",
                 "-Xannotation-default-target=first-only",
-                "-Xtype-enhancement-improvements-strict-mode"
+                "-Xtype-enhancement-improvements-strict-mode",
             )
         }
     }

@@ -25,7 +25,7 @@ interface ChaptersSelectMacro {
 
 		override fun getChaptersIds(
 			mangaId: Long,
-			chapters: List<MangaChapter>
+			chapters: List<MangaChapter>,
 		): Set<Long> = chapters.mapNotNullToSet { c ->
 			if (c.branch == selectedBranch) {
 				c.id

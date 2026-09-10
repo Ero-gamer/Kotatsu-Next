@@ -213,7 +213,7 @@ abstract class MangaListFragment :
 	@CallSuper
 	protected open fun onLoadingStateChanged(isLoading: Boolean) {
 		requireViewBinding().swipeRefreshLayout.isEnabled = requireViewBinding().swipeRefreshLayout.isRefreshing ||
-			isSwipeRefreshEnabled && !isLoading
+			(isSwipeRefreshEnabled && !isLoading)
 		if (!isLoading) {
 			requireViewBinding().swipeRefreshLayout.isRefreshing = false
 		}

@@ -25,7 +25,8 @@ class ReadingTimeUseCase @Inject constructor(
 		}
 		val isOnHistoryBranch = history != null && chapters.findById(history.chapterId) != null
 		// Impossible task, I guess. Good luck on this.
-		var averageTimeSec: Int = 20 /* pages */ * getSecondsPerPage(manga.id) * chapters.size
+		// 20 pages
+		var averageTimeSec: Int = 20 * getSecondsPerPage(manga.id) * chapters.size
 		if (isOnHistoryBranch) {
 			averageTimeSec = (averageTimeSec * (1f - history.percent)).roundToInt()
 		}

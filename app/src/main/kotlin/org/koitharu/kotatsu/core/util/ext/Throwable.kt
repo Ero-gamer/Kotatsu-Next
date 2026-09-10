@@ -229,7 +229,7 @@ fun Throwable.isNetworkError(): Boolean {
         || this is SocketTimeoutException
         || this is StreamResetException
         || this is SocketException
-        || this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT
+        || (this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT)
 }
 
 fun Throwable.report(silent: Boolean = false) {
