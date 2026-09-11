@@ -43,6 +43,10 @@ subprojects {
                 step = "ktlint"
                 shortCode = "standard:max-line-length"
             }
+            suppressLintsFor {
+                step = "ktlint"
+                shortCode = "standard:function-naming"
+            }
         }
         kotlinGradle {
             target("**/*.gradle.kts")
