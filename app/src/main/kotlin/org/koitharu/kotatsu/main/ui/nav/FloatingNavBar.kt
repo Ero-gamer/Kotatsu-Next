@@ -73,6 +73,7 @@ private val SpringFloat = spring<Float>(dampingRatio = 0.9f, stiffness = 380f)
 private val SpringColor = spring<Color>(dampingRatio = 0.9f, stiffness = 380f)
 private val SpringSize = spring<IntSize>(dampingRatio = 0.9f, stiffness = 380f)
 
+@Suppress("ktlint:standard:function-naming")
 @Composable
 fun FloatingNavBar(
 	items: List<FloatingNavBarItem>,
