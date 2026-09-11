@@ -28,7 +28,6 @@ subprojects {
                     "continuation_indent_size" to "4",
                     "ij_kotlin_allow_trailing_comma" to "true",
                     "ktlint_standard_no-unused-imports" to "enabled",
-                    "ktlint_function_naming_ignore-when-annotated-with" to "Composable",
                     // Long single-line @Query/SQL strings (DAOs, Room migrations) are more
                     // readable unwrapped; enforcing 120 cols here would require breaking SQL
                     // literals across dozens of pre-existing files for no functional benefit.
