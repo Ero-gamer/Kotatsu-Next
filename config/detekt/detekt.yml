@@ -16,8 +16,6 @@ style:
 potential-bugs:
   UnreachableCode:
     active: true
-  EqualsNullCheck:
-    active: true
 
 empty-blocks:
   EmptyFunctionBlock:
