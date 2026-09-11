@@ -17,4 +17,4 @@ ij_xml_attribute_wrap = on_every_item
 ij_kotlin_allow_trailing_comma_on_call_site = true
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_code_style_defaults = KOTLIN_OFFICIAL
-ktlint_function_naming_ignore-when-annotated-with = Composable
+ktlint_function-naming_ignore-when-annotated-with = Composable
