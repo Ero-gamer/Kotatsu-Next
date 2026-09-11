@@ -7,3 +7,5 @@ package org.koitharu.kotatsu.core.ui.image
  * This file is intentionally empty to satisfy any remaining import references during
  * the migration period. Remove once all call-sites are confirmed gone.
  */
+
+// TODO: Add implementation
