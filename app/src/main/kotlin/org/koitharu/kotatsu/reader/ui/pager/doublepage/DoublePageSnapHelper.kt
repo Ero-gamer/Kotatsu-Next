@@ -163,10 +163,6 @@ class DoublePageSnapHelper(private val settings: AppSettings) : SnapHelper() {
 		return trialPosition and 1.inv()
 	}
 
-	private fun roundUpToBlockSize(trialPosition: Int): Int {
-		return roundDownToBlockSize(trialPosition + blockSize - 1)
-	}
-
 	override fun createScroller(layoutManager: RecyclerView.LayoutManager): RecyclerView.SmoothScroller? {
 		return if (layoutManager !is ScrollVectorProvider) {
 			null

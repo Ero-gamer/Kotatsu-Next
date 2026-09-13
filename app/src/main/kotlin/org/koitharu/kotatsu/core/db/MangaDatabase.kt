@@ -160,6 +160,7 @@ fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
 	Migration31To32(),
 )
 
+@Suppress("SpreadOperator") // Room's addMigrations is vararg; an array is unavoidable here
 fun MangaDatabase(context: Context): MangaDatabase = Room
 	.databaseBuilder(context, MangaDatabase::class.java, "kotatsu-db")
 	.addMigrations(*getDatabaseMigrations(context))

@@ -22,6 +22,7 @@ class ExploreRepository @Inject constructor(
 	private val mangaRepositoryFactory: MangaRepository.Factory,
 ) {
 
+	@Suppress("UnusedPrivateProperty")
 	suspend fun findRandomManga(tagsLimit: Int): Manga {
 		val tagsBlacklist = TagsBlacklist(settings.suggestionsTagsBlacklist, 0.4f)
 		val tags = historyRepository.getPopularTags(tagsLimit).mapNotNull {
@@ -43,6 +44,7 @@ class ExploreRepository @Inject constructor(
 		throw NoSuchElementException()
 	}
 
+	@Suppress("UnusedPrivateProperty")
 	suspend fun findRandomManga(source: MangaSource, tagsLimit: Int): Manga {
 		val tagsBlacklist = TagsBlacklist(settings.suggestionsTagsBlacklist, 0.4f)
 		val skipNsfw = settings.isSuggestionsExcludeNsfw && !source.isNsfw()

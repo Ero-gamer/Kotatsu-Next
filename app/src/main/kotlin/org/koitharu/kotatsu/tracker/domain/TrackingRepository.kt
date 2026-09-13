@@ -1,11 +1,9 @@
 package org.koitharu.kotatsu.tracker.domain
 
-import android.content.Context
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.room.withTransaction
 import dagger.Reusable
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onStart
@@ -41,7 +39,6 @@ class TrackingRepository @Inject constructor(
 	private val db: MangaDatabase,
 	private val settings: AppSettings,
 	private val progressUpdateUseCase: ProgressUpdateUseCase,
-	@ApplicationContext private val context: Context,
 	private val mangaRepositoryFactory: MangaRepository.Factory,
 ) {
 

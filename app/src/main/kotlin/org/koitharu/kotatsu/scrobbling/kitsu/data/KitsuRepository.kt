@@ -38,7 +38,9 @@ class KitsuRepository(
 ) : ScrobblerRepository {
 
 	// not in use yet
+	@Suppress("UnusedPrivateProperty")
 	private val clientId = context.getString(R.string.kitsu_clientId)
+	@Suppress("UnusedPrivateProperty")
 	private val clientSecret = context.getString(R.string.kitsu_clientSecret)
 
 	override val oauthUrl: String = "kotatsu+kitsu://auth"

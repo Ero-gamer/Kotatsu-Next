@@ -207,9 +207,7 @@ suspend fun Bitmap.compressToPNG(output: File) = runInterruptible(Dispatchers.IO
 }
 
 fun Context.ensureRamAtLeast(requiredSize: Long) {
-	if (ramAvailable < requiredSize) {
-		throw IllegalStateException("Not enough free memory")
-	}
+	check(ramAvailable >= requiredSize) { "Not enough free memory" }
 }
 
 fun WebView.configureForParser(userAgentOverride: String?) = with(settings) {

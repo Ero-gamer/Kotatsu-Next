@@ -184,6 +184,7 @@ class FilterSheetFragment : BaseAdaptiveSheet<SheetFilterBinding>(),
         }
     }
 
+    @Suppress("UnusedParameter")
     private fun onRangeSliderValueChange(slider: RangeSlider, value: Float, fromUser: Boolean) {
         if (!fromUser) {
             return

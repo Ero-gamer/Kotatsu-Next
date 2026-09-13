@@ -874,7 +874,6 @@ class AppRouter private constructor(
         private const val EXTRA_SHOW_FRAGMENT_ARGUMENTS = ":settings:show_fragment_args"
 
         private const val TYPE_TEXT = "text/plain"
-        private const val TYPE_IMAGE = "image/*"
         private const val TYPE_CBZ = "application/x-cbz"
 
         private fun Class<out Fragment>.fragmentTag() = name // TODO

@@ -17,8 +17,6 @@ sealed class DateTimeAgo {
 		}
 
 		override fun toString() = "just_now"
-
-		override fun equals(other: Any?): Boolean = other === JustNow
 	}
 
 	data class MinutesAgo(val minutes: Int) : DateTimeAgo() {
@@ -51,8 +49,6 @@ sealed class DateTimeAgo {
 		}
 
 		override fun toString() = "today"
-
-		override fun equals(other: Any?): Boolean = other === Today
 	}
 
 	object Yesterday : DateTimeAgo() {
@@ -61,8 +57,6 @@ sealed class DateTimeAgo {
 		}
 
 		override fun toString() = "yesterday"
-
-		override fun equals(other: Any?): Boolean = other === Yesterday
 	}
 
 	data class DaysAgo(val days: Int) : DateTimeAgo() {
@@ -109,7 +103,5 @@ sealed class DateTimeAgo {
 		}
 
 		override fun toString() = "long_ago"
-
-		override fun equals(other: Any?): Boolean = other === LongAgo
 	}
 }

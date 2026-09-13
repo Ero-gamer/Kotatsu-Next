@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName") // file name follows the project's "*AD.kt" adapter-delegate convention
+
 package org.koitharu.kotatsu.alternatives.ui
 
 import android.view.ViewGroup

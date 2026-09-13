@@ -6,7 +6,6 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.annotation.WorkerThread
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.koitharu.kotatsu.browser.BrowserCallback
 import org.koitharu.kotatsu.browser.BrowserClient
@@ -26,7 +25,6 @@ class RequestInterceptorWebViewClient(
 ) : BrowserClient(callback, adBlock) {
 
     private val capturedRequests = Collections.synchronizedList(mutableListOf<InterceptedRequest>())
-    private val mutex = Mutex()
     private val isCapturing = AtomicBoolean(true)
     private val startTime = System.currentTimeMillis()
     private val scriptInjected = AtomicBoolean(false)

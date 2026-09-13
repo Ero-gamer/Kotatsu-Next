@@ -8,6 +8,7 @@ import com.google.android.material.R
 import com.google.android.material.color.MaterialColors
 import org.koitharu.kotatsu.core.util.ext.getThemeColor
 import org.koitharu.kotatsu.parsers.model.Manga
+import java.util.Locale
 import kotlin.math.absoluteValue
 
 object KotatsuColors {
@@ -15,7 +16,7 @@ object KotatsuColors {
 	@ColorInt
 	@Deprecated("")
 	fun segmentColor(context: Context, @AttrRes resId: Int): Int {
-		val colorHex = String.format("%06x", context.getThemeColor(resId))
+		val colorHex = String.format(Locale.ROOT, "%06x", context.getThemeColor(resId))
 		val hue = getHue(colorHex)
 		val color = ColorUtils.HSLToColor(floatArrayOf(hue, 0.5f, 0.5f))
 		val backgroundColor = context.getThemeColor(R.attr.colorSurfaceContainerHigh)

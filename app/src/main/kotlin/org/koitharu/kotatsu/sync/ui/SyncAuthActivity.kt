@@ -212,6 +212,7 @@ class SyncAuthActivity : BaseActivity<ActivitySyncAuthBinding>(), View.OnClickLi
 		finish()
 	}
 
+	@Suppress("UnusedParameter")
 	private fun onPasswordReset(unit: Unit) {
 		MaterialAlertDialogBuilder(this)
 			.setNegativeButton(R.string.close, null)

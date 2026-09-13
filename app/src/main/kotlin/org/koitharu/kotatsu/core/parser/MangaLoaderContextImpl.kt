@@ -144,6 +144,8 @@ class MangaLoaderContextImpl @Inject constructor(
         }
     }
 
+    // Not yet wired up: intended to back InterceptionConfig.filterScript evaluation.
+    @Suppress("UnusedPrivateMember")
     private fun evaluateFilterPredicate(script: String, requestUrl: String): Boolean {
         // Extract the last `return ...;` expression from the script
         val returnIdx = script.lastIndexOf("return")

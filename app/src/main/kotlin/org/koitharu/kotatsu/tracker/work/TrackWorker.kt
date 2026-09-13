@@ -156,18 +156,18 @@ class TrackWorker @AssistedInject constructor(
 					}
 				}
 			}
-		}.onEachIndexed { index, it ->
+		}.onEachIndexed { index, update ->
 			if (applicationContext.checkNotificationPermission(WORKER_CHANNEL_ID)) {
 				notificationManager.notify(WORKER_NOTIFICATION_ID, createWorkerNotification(tracks.size, index + 1))
 			}
-			when (it) {
+			when (update) {
 				is MangaUpdates.Failure -> {
 					Log.w(
 						LOG_TAG,
-						"[${it.manga.id}] \"${it.manga.title}\" check failed: " +
-							"${it.error?.javaClass?.simpleName} ${it.error?.message}",
+						"[${update.manga.id}] \"${update.manga.title}\" check failed: " +
+							"${update.error?.javaClass?.simpleName} ${update.error?.message}",
 					)
-					val e = it.error
+					val e = update.error
 					if (e is CloudFlareException) {
 						// Don't block the update check on solving captchas; just notify the user
 						captchaHandler.handle(e, tryAutoResolve = false)
@@ -177,10 +177,10 @@ class TrackWorker @AssistedInject constructor(
 				is MangaUpdates.Success -> {
 					Log.i(
 						LOG_TAG,
-						"[${it.manga.id}] \"${it.manga.title}\" checked: isValid=${it.isValid} " +
-							"newChapters=${it.newChapters.size}",
+						"[${update.manga.id}] \"${update.manga.title}\" checked: isValid=${update.isValid} " +
+							"newChapters=${update.newChapters.size}",
 					)
-					processDownload(it)
+					processDownload(update)
 				}
 			}
 		}.mapNotNull {

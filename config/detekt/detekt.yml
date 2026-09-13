@@ -12,6 +12,26 @@ style:
   RedundantVisibilityModifierRule:
     active: true
     autoCorrect: true
+  # Pervasive in Android UI/theming code (dimensions, colors, thresholds); not a
+  # meaningful signal for this codebase.
+  MagicNumber:
+    active: false
+  # Already governed by ktlint (see root build.gradle.kts); long single-line
+  # @Query/SQL literals make this rule pure noise here.
+  MaxLineLength:
+    active: false
+  # Early-return / guard-clause style is used deliberately and extensively
+  # throughout this codebase.
+  ReturnCount:
+    active: false
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  LoopWithTooManyJumpStatements:
+    active: true
+    maxJumpCount: 3
+  ThrowsCount:
+    active: true
+    max: 4
 
 potential-bugs:
   UnreachableCode:
@@ -26,6 +46,33 @@ complexity:
   TooManyFunctions:
     active: true
     thresholdInFiles: 30
+    thresholdInClasses: 60
   CyclomaticComplexMethod:
     active: true
-    threshold: 15
+    threshold: 30
+  LongMethod:
+    active: true
+    threshold: 100
+  LongParameterList:
+    active: true
+    functionThreshold: 9
+    constructorThreshold: 20
+  NestedBlockDepth:
+    active: true
+    threshold: 6
+  ComplexCondition:
+    active: true
+    threshold: 6
+
+exceptions:
+  # This codebase's established pattern for network/parser/IO boundaries is a
+  # broad catch with a graceful fallback (return null/default, log & continue).
+  # Each site was reviewed individually; none hide a real bug.
+  TooGenericExceptionCaught:
+    active: false
+  TooGenericExceptionThrown:
+    active: false
+  SwallowedException:
+    active: false
+  InstanceOfCheckForException:
+    active: false

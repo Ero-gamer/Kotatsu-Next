@@ -212,7 +212,5 @@ class EdgeDetector(private val context: Context) {
 		}
 
 		private fun Int.isNotWhite() = !isColorTheSame(this, Color.WHITE, COLOR_TOLERANCE)
-
-		private fun region(x: Int, y: Int) = Rect(x, y, x + BLOCK_SIZE, y + BLOCK_SIZE)
 	}
 }

@@ -64,6 +64,7 @@ class BackupDialogFragment : AlertDialogFragment<DialogProgressBinding>() {
 		}
 	}
 
+	@Suppress("UnusedParameter")
 	private fun onBackupDone(uri: Uri) {
 		Toast.makeText(requireContext(), R.string.backup_saved, Toast.LENGTH_SHORT).show()
 		dismiss()

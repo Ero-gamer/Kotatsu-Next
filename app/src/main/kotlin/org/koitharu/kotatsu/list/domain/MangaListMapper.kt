@@ -1,11 +1,9 @@
 package org.koitharu.kotatsu.list.domain
 
 import android.annotation.SuppressLint
-import android.content.Context
 import androidx.annotation.ColorRes
 import androidx.annotation.IntDef
 import dagger.Reusable
-import dagger.hilt.android.qualifiers.ApplicationContext
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
@@ -28,7 +26,6 @@ import javax.inject.Inject
 
 @Reusable
 class MangaListMapper @Inject constructor(
-	@ApplicationContext context: Context,
 	private val settings: AppSettings,
 	private val trackingRepository: TrackingRepository,
 	private val historyRepository: HistoryRepository,
@@ -100,7 +97,7 @@ class MangaListMapper @Inject constructor(
 		manga = manga,
 		override = override,
 		subtitle = manga.tags.joinToString(", ") { it.title },
-		counter = getCounter(manga.id, options),
+		counter = getCounter(manga.id),
 	)
 
 	private suspend fun toDetailedListModel(
@@ -112,7 +109,7 @@ class MangaListMapper @Inject constructor(
 		subtitle = manga.altTitles.firstOrNull(),
 		manga = manga,
 		override = override,
-		counter = getCounter(manga.id, options),
+		counter = getCounter(manga.id),
 		progress = getProgress(manga.id, options),
 		isFavorite = isFavorite(manga.id, options),
 		isSaved = isSaved(manga.id, options),
@@ -128,7 +125,7 @@ class MangaListMapper @Inject constructor(
 	) = MangaGridModel(
 		manga = manga,
 		override = override,
-		counter = getCounter(manga.id, options),
+		counter = getCounter(manga.id),
 		progress = getProgress(manga.id, options),
 		isFavorite = isFavorite(manga.id, options),
 		isSaved = isSaved(manga.id, options),
@@ -147,7 +144,7 @@ class MangaListMapper @Inject constructor(
 		ListMode.GRID -> toGridModel(manga, options, override, isPinned)
 	}
 
-	private suspend fun getCounter(mangaId: Long, @Options options: Int): Int {
+	private suspend fun getCounter(mangaId: Long): Int {
 		return if (settings.isTrackerEnabled) {
 			trackingRepository.getNewChaptersCount(mangaId)
 		} else {
@@ -172,6 +169,7 @@ class MangaListMapper @Inject constructor(
 	}
 
 	@ColorRes
+	@Suppress("UnusedParameter", "FunctionOnlyReturningConstant")
 	private fun getTagTint(tag: MangaTag): Int {
 		return 0
 	}

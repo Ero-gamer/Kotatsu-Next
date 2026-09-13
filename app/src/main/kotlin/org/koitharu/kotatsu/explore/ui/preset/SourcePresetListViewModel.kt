@@ -11,7 +11,6 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.BaseViewModel
 import org.koitharu.kotatsu.core.util.ext.MutableEventFlow
 import org.koitharu.kotatsu.core.util.ext.call
-import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
 import org.koitharu.kotatsu.explore.data.SourcePreset
 import org.koitharu.kotatsu.explore.data.SourcePresetsRepository
 import javax.inject.Inject
@@ -20,7 +19,6 @@ import javax.inject.Inject
 class SourcePresetListViewModel @Inject constructor(
 	private val presetsRepository: SourcePresetsRepository,
 	private val settings: AppSettings,
-	private val sourcesRepository: MangaSourcesRepository,
 ) : BaseViewModel() {
 
 	val presets: StateFlow<List<SourcePreset>> = presetsRepository.observeAll()

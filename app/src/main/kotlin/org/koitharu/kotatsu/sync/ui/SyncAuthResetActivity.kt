@@ -120,6 +120,7 @@ class SyncAuthResetActivity : BaseActivity<ActivitySyncAuthResetBinding>(), View
 			.show()
 	}
 
+	@Suppress("UnusedParameter")
 	private fun onPasswordResetSucceeded(unit: Unit) {
 		Toast.makeText(this, getString(R.string.password_reset), Toast.LENGTH_SHORT)
 			.show()

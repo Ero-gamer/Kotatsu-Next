@@ -546,7 +546,7 @@ class FilterCoordinator @Inject constructor(
         }
 
         fun require(fragment: Fragment): FilterCoordinator {
-            return find(fragment) ?: throw IllegalStateException("FilterCoordinator cannot be found")
+            return find(fragment) ?: error("FilterCoordinator cannot be found")
         }
     }
 }

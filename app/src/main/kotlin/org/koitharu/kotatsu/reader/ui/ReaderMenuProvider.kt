@@ -7,6 +7,7 @@ import androidx.core.view.MenuProvider
 import org.koitharu.kotatsu.R
 
 class ReaderMenuProvider(
+	@Suppress("UnusedPrivateProperty") // reserved for the action_info handler below, not yet implemented
 	private val viewModel: ReaderViewModel,
 ) : MenuProvider {
 

@@ -26,10 +26,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val CONTENT_TYPE_APK = "application/vnd.android.package-archive"
-private const val BUILD_TYPE_RELEASE = "release"
 
 @Singleton
 class AppUpdateRepository @Inject constructor(
+	// Reserved for a future release-signature gate on self-updates; see AppValidator.isOriginalApp.
+	@Suppress("UnusedPrivateProperty")
 	private val appValidator: AppValidator,
 	private val settings: AppSettings,
 	@BaseHttpClient private val okHttp: OkHttpClient,
@@ -146,7 +147,7 @@ class AppUpdateRepository @Inject constructor(
 		}.getOrNull()
 	}
 
-	@Suppress("KotlinConstantConditions")
+	@Suppress("KotlinConstantConditions", "FunctionOnlyReturningConstant")
     fun isUpdateSupported(): Boolean {
 		return true
 	}

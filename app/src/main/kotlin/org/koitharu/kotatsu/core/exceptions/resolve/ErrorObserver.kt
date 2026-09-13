@@ -43,7 +43,7 @@ abstract class ErrorObserver(
 	 * that should auto-resolve are those that handle it explicitly (e.g. the catalog via its
 	 * `onCaptchaRequired` event). Other screens will just show the standard "Solve" error UI.
 	 */
-	@Suppress("UNUSED_PARAMETER")
+	@Suppress("UNUSED_PARAMETER", "UnusedParameter", "FunctionOnlyReturningConstant")
 	protected fun tryAutoResolve(error: Throwable): Boolean = false
 
 	protected fun router() = fragment?.router ?: (activity as? FragmentActivity)?.router

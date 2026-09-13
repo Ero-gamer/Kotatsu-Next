@@ -15,7 +15,6 @@ class TypedListSpacingDecoration(
 	private val spacingSmall = context.resources.getDimensionPixelOffset(R.dimen.list_spacing_small)
 	private val spacingNormal =
 		context.resources.getDimensionPixelOffset(R.dimen.list_spacing_normal)
-	private val spacingLarge = context.resources.getDimensionPixelOffset(R.dimen.list_spacing_large)
 
 	override fun getItemOffsets(
 		outRect: Rect,

@@ -83,9 +83,13 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
 			?.complete(success)
 	}
 
+	// NOTE: ignores `source` on purpose today (kept for call-site symmetry with notifyResolveResult);
+	// flagged for review, see chat notes.
+	@Suppress("UnusedParameter")
 	fun isResolveActive(source: MangaSource): Boolean = activeSession != null
 
 	/** Waits for whichever global session is active. This method never starts verification. */
+	@Suppress("UnusedParameter")
 	suspend fun awaitActiveResolve(source: MangaSource): Boolean? = activeSession?.result?.await()
 
 	/**

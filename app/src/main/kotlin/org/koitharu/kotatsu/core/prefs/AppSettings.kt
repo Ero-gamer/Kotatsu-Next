@@ -38,7 +38,6 @@ import org.koitharu.kotatsu.parsers.util.mapNotNullToSet
 import org.koitharu.kotatsu.parsers.util.mapToSet
 import org.koitharu.kotatsu.parsers.util.nullIfEmpty
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
-import org.koitharu.kotatsu.core.prefs.EInkFlashColor
 import java.io.File
 import java.net.Proxy
 import java.util.EnumSet

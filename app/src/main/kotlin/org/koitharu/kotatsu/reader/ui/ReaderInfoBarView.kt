@@ -75,9 +75,6 @@ class ReaderInfoBarView @JvmOverloads constructor(
 	private val innerHeight
 		get() = height - paddingTop - paddingBottom - insetTop
 
-	private val innerWidth
-		get() = width - paddingLeft - paddingRight - insetLeft - insetRight
-
 	var drawBackground: Boolean = false
 		set(value) {
 			field = value
