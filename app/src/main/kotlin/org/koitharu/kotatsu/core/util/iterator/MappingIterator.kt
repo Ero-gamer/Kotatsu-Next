@@ -1,5 +1,8 @@
 package org.koitharu.kotatsu.core.util.iterator
 
+// next() delegates to `upstream`, which already throws NoSuchElementException when
+// exhausted (per the Iterator contract); detekt can't see through the delegation statically.
+@Suppress("IteratorNotThrowingNoSuchElementException")
 class MappingIterator<T, R>(
 	private val upstream: Iterator<T>,
 	private val mapper: (T) -> R,

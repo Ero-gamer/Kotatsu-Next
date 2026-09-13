@@ -113,12 +113,12 @@ fun SortOrder(name: String, fallback: SortOrder): SortOrder = runCatching {
 	SortOrder.valueOf(name)
 }.getOrDefault(fallback)
 
-@Suppress("ktlint:standard:function-naming")
+@Suppress("ktlint:standard:function-naming", "FunctionNaming")
 fun MangaState(name: String): MangaState? = runCatching {
 	MangaState.valueOf(name)
 }.getOrNull()
 
-@Suppress("ktlint:standard:function-naming")
+@Suppress("ktlint:standard:function-naming", "FunctionNaming")
 fun ContentRating(name: String?): ContentRating? = runCatching {
 	ContentRating.valueOf(name ?: return@runCatching null)
 }.getOrNull()

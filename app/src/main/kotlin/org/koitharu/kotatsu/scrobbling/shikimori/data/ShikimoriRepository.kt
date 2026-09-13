@@ -195,6 +195,7 @@ class ShikimoriRepository @Inject constructor(
 		db.getScrobblingDao().upsert(entity)
 	}
 
+	@Suppress("FunctionNaming")
 	private fun ScrobblerManga(json: JSONObject, sourceTitle: String) = ScrobblerManga(
 		id = json.getLong("id"),
 		name = json.getString("name"),
@@ -205,6 +206,7 @@ class ShikimoriRepository @Inject constructor(
 			|| json.getStringOrNull("russian")?.equals(sourceTitle, ignoreCase = true) == true
 	)
 
+	@Suppress("FunctionNaming")
 	private fun ScrobblerMangaInfo(json: JSONObject) = ScrobblerMangaInfo(
 		id = json.getLong("id"),
 		name = json.getString("name"),

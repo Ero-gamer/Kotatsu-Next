@@ -244,6 +244,7 @@ class AniListRepository @Inject constructor(
 		)
 	}
 
+	@Suppress("FunctionNaming")
 	private fun ScrobblerMangaInfo(json: JSONObject) = ScrobblerMangaInfo(
 		id = json.getLong("id"),
 		name = json.getJSONObject("title").getString("userPreferred"),

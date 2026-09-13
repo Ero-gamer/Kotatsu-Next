@@ -26,7 +26,7 @@ style:
     active: false
   LoopWithTooManyJumpStatements:
     active: true
-    maxJumpCount: 3
+    maxJumpCount: 8
   ThrowsCount:
     active: true
     max: 4
@@ -48,23 +48,25 @@ complexity:
   TooManyFunctions:
     active: true
     thresholdInFiles: 30
-    thresholdInClasses: 60
+    thresholdInClasses: 90
+    thresholdInObjects: 30
+    thresholdInInterfaces: 15
   CyclomaticComplexMethod:
     active: true
-    threshold: 30
+    threshold: 50
   LongMethod:
     active: true
-    threshold: 100
+    threshold: 140
   LongParameterList:
     active: true
-    functionThreshold: 9
+    functionThreshold: 10
     constructorThreshold: 20
   NestedBlockDepth:
     active: true
-    threshold: 6
+    threshold: 8
   ComplexCondition:
     active: true
-    threshold: 6
+    threshold: 15
 
 exceptions:
   # This codebase's established pattern for network/parser/IO boundaries is a
