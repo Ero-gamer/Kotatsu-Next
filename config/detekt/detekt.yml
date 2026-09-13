@@ -24,14 +24,16 @@ style:
   # throughout this codebase.
   ReturnCount:
     active: false
-  FunctionNaming:
-    ignoreAnnotated: ['Composable']
   LoopWithTooManyJumpStatements:
     active: true
     maxJumpCount: 3
   ThrowsCount:
     active: true
     max: 4
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
 
 potential-bugs:
   UnreachableCode:
