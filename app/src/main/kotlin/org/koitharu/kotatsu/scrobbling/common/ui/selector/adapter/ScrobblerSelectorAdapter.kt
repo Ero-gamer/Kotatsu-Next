@@ -10,14 +10,14 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblerManga
 
 class ScrobblerSelectorAdapter(
-	clickListener: OnListItemClickListener<ScrobblerManga>,
-	stateHolderListener: ListStateHolderListener,
+    clickListener: OnListItemClickListener<ScrobblerManga>,
+    stateHolderListener: ListStateHolderListener,
 ) : BaseListAdapter<ListModel>() {
 
-	init {
-		addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
-		addDelegate(ListItemType.MANGA_SCROBBLING, scrobblingMangaAD(clickListener))
-		addDelegate(ListItemType.FOOTER_LOADING, loadingFooterAD())
-		addDelegate(ListItemType.HINT_EMPTY, scrobblerHintAD(stateHolderListener))
-	}
+    init {
+        addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
+        addDelegate(ListItemType.MANGA_SCROBBLING, scrobblingMangaAD(clickListener))
+        addDelegate(ListItemType.FOOTER_LOADING, loadingFooterAD())
+        addDelegate(ListItemType.HINT_EMPTY, scrobblerHintAD(stateHolderListener))
+    }
 }

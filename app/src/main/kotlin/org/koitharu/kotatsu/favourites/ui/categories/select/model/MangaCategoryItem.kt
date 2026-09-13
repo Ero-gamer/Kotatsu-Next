@@ -6,20 +6,16 @@ import org.koitharu.kotatsu.list.ui.ListModelDiffCallback
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 data class MangaCategoryItem(
-	val category: FavouriteCategory,
-	@CheckedState val checkedState: Int,
-	val isTrackerEnabled: Boolean,
+    val category: FavouriteCategory,
+    @CheckedState val checkedState: Int,
+    val isTrackerEnabled: Boolean,
 ) : ListModel {
 
-	override fun areItemsTheSame(other: ListModel): Boolean {
-		return other is MangaCategoryItem && other.category.id == category.id
-	}
+    override fun areItemsTheSame(other: ListModel): Boolean = other is MangaCategoryItem && other.category.id == category.id
 
-	override fun getChangePayload(previousState: ListModel): Any? {
-		return if (previousState is MangaCategoryItem && previousState.checkedState != checkedState) {
-			ListModelDiffCallback.PAYLOAD_CHECKED_CHANGED
-		} else {
-			super.getChangePayload(previousState)
-		}
-	}
+    override fun getChangePayload(previousState: ListModel): Any? = if (previousState is MangaCategoryItem && previousState.checkedState != checkedState) {
+        ListModelDiffCallback.PAYLOAD_CHECKED_CHANGED
+    } else {
+        super.getChangePayload(previousState)
+    }
 }

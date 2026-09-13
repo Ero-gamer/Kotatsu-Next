@@ -10,32 +10,38 @@ import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
 import org.koitharu.kotatsu.core.util.ext.isOnScreen
 
 inline val FragmentActivity.router: AppRouter
-	get() = AppRouter(this)
+    get() = AppRouter(this)
 
 inline val Fragment.router: AppRouter
-	get() = AppRouter(this)
+    get() = AppRouter(this)
 
 tailrec fun Fragment.dismissParentDialog(): Boolean {
-	return when (val parent = parentFragment) {
-		null -> return false
-		is DialogFragment -> {
-			parent.dismiss()
-			true
-		}
+    return when (val parent = parentFragment) {
+        null -> return false
 
-		else -> parent.dismissParentDialog()
-	}
+        is DialogFragment -> {
+            parent.dismiss()
+            true
+        }
+
+        else -> parent.dismissParentDialog()
+    }
 }
 
 fun scaleUpActivityOptionsOf(view: View): Bundle? {
-	if (!view.context.isAnimationsEnabled || !view.isOnScreen()) {
-		return null
-	}
-	return ActivityOptions.makeScaleUpAnimation(
-		/* source = */ view,
-		/* startX = */ 0,
-		/* startY = */ 0,
-		/* width = */ view.width,
-		/* height = */ view.height,
-	).toBundle()
+    if (!view.context.isAnimationsEnabled || !view.isOnScreen()) {
+        return null
+    }
+    return ActivityOptions.makeScaleUpAnimation(
+        /* source = */
+        view,
+        /* startX = */
+        0,
+        /* startY = */
+        0,
+        /* width = */
+        view.width,
+        /* height = */
+        view.height,
+    ).toBundle()
 }

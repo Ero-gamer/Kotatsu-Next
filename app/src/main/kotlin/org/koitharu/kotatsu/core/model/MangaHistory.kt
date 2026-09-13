@@ -6,11 +6,11 @@ import java.time.Instant
 
 @Parcelize
 data class MangaHistory(
-	val createdAt: Instant,
-	val updatedAt: Instant,
-	val chapterId: Long,
-	val page: Int,
-	val scroll: Int,
-	val percent: Float,
-	val chaptersCount: Int,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val chapterId: Long,
+    val page: Int,
+    val scroll: Int,
+    val percent: Float,
+    val chaptersCount: Int,
 ) : Parcelable

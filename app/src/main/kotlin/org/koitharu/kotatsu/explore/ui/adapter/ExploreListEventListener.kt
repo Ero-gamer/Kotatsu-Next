@@ -4,4 +4,7 @@ import android.view.View
 import org.koitharu.kotatsu.list.ui.adapter.ListHeaderClickListener
 import org.koitharu.kotatsu.list.ui.adapter.ListStateHolderListener
 
-interface ExploreListEventListener : ListStateHolderListener, View.OnClickListener, ListHeaderClickListener
+interface ExploreListEventListener :
+    ListStateHolderListener,
+    View.OnClickListener,
+    ListHeaderClickListener

@@ -34,89 +34,89 @@ import com.google.android.material.R as materialR
 
 @AndroidEntryPoint
 abstract class BasePreferenceFragment(@StringRes private val titleId: Int) :
-	PreferenceFragmentCompat(),
-	OnApplyWindowInsetsListener,
-	RecyclerViewOwner {
+    PreferenceFragmentCompat(),
+    OnApplyWindowInsetsListener,
+    RecyclerViewOwner {
 
-	protected lateinit var exceptionResolver: ExceptionResolver
-		private set
+    protected lateinit var exceptionResolver: ExceptionResolver
+        private set
 
-	@Inject
-	lateinit var settings: AppSettings
+    @Inject
+    lateinit var settings: AppSettings
 
-	override val recyclerView: RecyclerView?
-		get() = listView
+    override val recyclerView: RecyclerView?
+        get() = listView
 
-	override fun onAttach(context: Context) {
-		super.onAttach(context)
-		val entryPoint = EntryPointAccessors.fromApplication<BaseActivityEntryPoint>(context)
-		exceptionResolver = entryPoint.exceptionResolverFactory.create(this)
-	}
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        val entryPoint = EntryPointAccessors.fromApplication<BaseActivityEntryPoint>(context)
+        exceptionResolver = entryPoint.exceptionResolverFactory.create(this)
+    }
 
-	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-		super.onViewCreated(view, savedInstanceState)
-		ViewCompat.setOnApplyWindowInsetsListener(view, this)
-		val themedContext = (view.parentView ?: view).context
-		view.setBackgroundColor(themedContext.getThemeColor(android.R.attr.colorBackground))
-		listView.clipToPadding = false
-	}
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        ViewCompat.setOnApplyWindowInsetsListener(view, this)
+        val themedContext = (view.parentView ?: view).context
+        view.setBackgroundColor(themedContext.getThemeColor(android.R.attr.colorBackground))
+        listView.clipToPadding = false
+    }
 
-	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
-		val barsInsets = insets.systemBarsInsets
-		val isTablet = !resources.getBoolean(R.bool.is_tablet)
-		val isMaster = container?.id == R.id.container_master
-		listView.setPaddingRelative(
-			if (isTablet && !isMaster) 0 else barsInsets.start(v),
-			0,
-			if (isTablet && isMaster) 0 else barsInsets.end(v),
-			barsInsets.bottom,
-		)
-		return insets.consumeAllSystemBarsInsets()
-	}
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val barsInsets = insets.systemBarsInsets
+        val isTablet = !resources.getBoolean(R.bool.is_tablet)
+        val isMaster = container?.id == R.id.container_master
+        listView.setPaddingRelative(
+            if (isTablet && !isMaster) 0 else barsInsets.start(v),
+            0,
+            if (isTablet && isMaster) 0 else barsInsets.end(v),
+            barsInsets.bottom,
+        )
+        return insets.consumeAllSystemBarsInsets()
+    }
 
-	override fun onResume() {
-		super.onResume()
-		setTitle(if (titleId != 0) getString(titleId) else null)
-		arguments?.getString(SettingsActivity.ARG_PREF_KEY)?.let {
-			focusPreference(it)
-			arguments?.remove(SettingsActivity.ARG_PREF_KEY)
-		}
-	}
+    override fun onResume() {
+        super.onResume()
+        setTitle(if (titleId != 0) getString(titleId) else null)
+        arguments?.getString(SettingsActivity.ARG_PREF_KEY)?.let {
+            focusPreference(it)
+            arguments?.remove(SettingsActivity.ARG_PREF_KEY)
+        }
+    }
 
-	protected open fun setTitle(title: CharSequence?) {
-		(activity as? SettingsActivity)?.setSectionTitle(title)
-	}
+    protected open fun setTitle(title: CharSequence?) {
+        (activity as? SettingsActivity)?.setSectionTitle(title)
+    }
 
-	protected fun getWarningIcon(): Drawable? = context?.let { ctx ->
-		ContextCompat.getDrawable(ctx, R.drawable.ic_alert_outline)?.also {
-			it.setTint(ContextCompat.getColor(ctx, R.color.warning))
-		}
-	}
+    protected fun getWarningIcon(): Drawable? = context?.let { ctx ->
+        ContextCompat.getDrawable(ctx, R.drawable.ic_alert_outline)?.also {
+            it.setTint(ContextCompat.getColor(ctx, R.color.warning))
+        }
+    }
 
-	private fun focusPreference(key: String) {
-		val pref = findPreference<Preference>(key)
-		if (pref == null) {
-			scrollToPreference(key)
-			return
-		}
-		scrollToPreference(pref)
-		val prefIndex = preferenceScreen.indexOf(key)
-		val view = if (prefIndex >= 0) {
-			listView.findViewHolderForAdapterPosition(prefIndex)?.itemView ?: return
-		} else {
-			return
-		}
-		view.context.getThemeDrawable(materialR.attr.colorTertiaryContainer)?.let {
-			view.background = it
-		}
-	}
+    private fun focusPreference(key: String) {
+        val pref = findPreference<Preference>(key)
+        if (pref == null) {
+            scrollToPreference(key)
+            return
+        }
+        scrollToPreference(pref)
+        val prefIndex = preferenceScreen.indexOf(key)
+        val view = if (prefIndex >= 0) {
+            listView.findViewHolderForAdapterPosition(prefIndex)?.itemView ?: return
+        } else {
+            return
+        }
+        view.context.getThemeDrawable(materialR.attr.colorTertiaryContainer)?.let {
+            view.background = it
+        }
+    }
 
-	private fun PreferenceScreen.indexOf(key: String): Int {
-		for (i in 0 until preferenceCount) {
-			if (get(i).key == key) {
-				return i
-			}
-		}
-		return -1
-	}
+    private fun PreferenceScreen.indexOf(key: String): Int {
+        for (i in 0 until preferenceCount) {
+            if (get(i).key == key) {
+                return i
+            }
+        }
+        return -1
+    }
 }

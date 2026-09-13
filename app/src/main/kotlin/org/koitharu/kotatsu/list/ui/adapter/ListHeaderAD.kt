@@ -9,28 +9,28 @@ import org.koitharu.kotatsu.list.ui.model.ListHeader
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 fun listHeaderAD(
-	listener: ListHeaderClickListener?,
+    listener: ListHeaderClickListener?,
 ) = adapterDelegateViewBinding<ListHeader, ListModel, ItemHeaderBinding>(
-	{ inflater, parent -> ItemHeaderBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemHeaderBinding.inflate(inflater, parent, false) },
 ) {
-	var badge: BadgeDrawable? = null
+    var badge: BadgeDrawable? = null
 
-	if (listener != null) {
-		binding.buttonMore.setOnClickListener {
-			listener.onListHeaderClick(item, it)
-		}
-	}
+    if (listener != null) {
+        binding.buttonMore.setOnClickListener {
+            listener.onListHeaderClick(item, it)
+        }
+    }
 
-	bind {
-		binding.textViewTitle.text = item.getText(context)
-		if (item.buttonTextRes == 0) {
-			binding.buttonMore.isInvisible = true
-			binding.buttonMore.text = null
-			binding.buttonMore.clearBadge(badge)
-		} else {
-			binding.buttonMore.setText(item.buttonTextRes)
-			binding.buttonMore.isVisible = true
-			badge = itemView.bindBadge(badge, item.badge)
-		}
-	}
+    bind {
+        binding.textViewTitle.text = item.getText(context)
+        if (item.buttonTextRes == 0) {
+            binding.buttonMore.isInvisible = true
+            binding.buttonMore.text = null
+            binding.buttonMore.clearBadge(badge)
+        } else {
+            binding.buttonMore.setText(item.buttonTextRes)
+            binding.buttonMore.isVisible = true
+            badge = itemView.bindBadge(badge, item.badge)
+        }
+    }
 }

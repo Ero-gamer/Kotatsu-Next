@@ -21,7 +21,8 @@ import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.tryLaunch
 
 @AndroidEntryPoint
-class BackupsSettingsFragment : BasePreferenceFragment(R.string.backup_restore),
+class BackupsSettingsFragment :
+    BasePreferenceFragment(R.string.backup_restore),
     ActivityResultCallback<Uri?> {
 
     private val viewModel: BackupsSettingsViewModel by viewModels()
@@ -37,7 +38,9 @@ class BackupsSettingsFragment : BasePreferenceFragment(R.string.backup_restore),
         if (uri != null) {
             if (!BackupService.start(requireContext(), uri)) {
                 Snackbar.make(
-                    listView, R.string.operation_not_supported, Snackbar.LENGTH_SHORT,
+                    listView,
+                    R.string.operation_not_supported,
+                    Snackbar.LENGTH_SHORT,
                 ).show()
             }
         }
@@ -53,28 +56,30 @@ class BackupsSettingsFragment : BasePreferenceFragment(R.string.backup_restore),
         viewModel.onError.observeEvent(viewLifecycleOwner, SnackbarErrorObserver(listView, this))
     }
 
-    override fun onPreferenceTreeClick(preference: Preference): Boolean {
-        return when (preference.key) {
-            AppSettings.KEY_BACKUP -> {
-                if (!backupCreateCall.tryLaunch(BackupUtils.generateFileName(preference.context))) {
-                    Snackbar.make(
-                        listView, R.string.operation_not_supported, Snackbar.LENGTH_SHORT,
-                    ).show()
-                }
-                true
+    override fun onPreferenceTreeClick(preference: Preference): Boolean = when (preference.key) {
+        AppSettings.KEY_BACKUP -> {
+            if (!backupCreateCall.tryLaunch(BackupUtils.generateFileName(preference.context))) {
+                Snackbar.make(
+                    listView,
+                    R.string.operation_not_supported,
+                    Snackbar.LENGTH_SHORT,
+                ).show()
             }
-
-            AppSettings.KEY_RESTORE -> {
-                if (!backupSelectCall.tryLaunch(arrayOf("*/*"))) {
-                    Snackbar.make(
-                        listView, R.string.operation_not_supported, Snackbar.LENGTH_SHORT,
-                    ).show()
-                }
-                true
-            }
-
-            else -> super.onPreferenceTreeClick(preference)
+            true
         }
+
+        AppSettings.KEY_RESTORE -> {
+            if (!backupSelectCall.tryLaunch(arrayOf("*/*"))) {
+                Snackbar.make(
+                    listView,
+                    R.string.operation_not_supported,
+                    Snackbar.LENGTH_SHORT,
+                ).show()
+            }
+            true
+        }
+
+        else -> super.onPreferenceTreeClick(preference)
     }
 
     override fun onActivityResult(result: Uri?) {

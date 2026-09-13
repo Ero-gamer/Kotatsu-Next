@@ -8,18 +8,17 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.list.ui.model.QuickFilter
 
 fun quickFilterAD(
-	listener: QuickFilterClickListener,
+    listener: QuickFilterClickListener,
 ) = adapterDelegateViewBinding<QuickFilter, ListModel, ItemQuickFilterBinding>(
-	{ layoutInflater, parent -> ItemQuickFilterBinding.inflate(layoutInflater, parent, false) }
+    { layoutInflater, parent -> ItemQuickFilterBinding.inflate(layoutInflater, parent, false) },
 ) {
+    binding.chipsTags.onChipClickListener = ChipsView.OnChipClickListener { chip, data ->
+        if (data is ListFilterOption) {
+            listener.onFilterOptionClick(data)
+        }
+    }
 
-	binding.chipsTags.onChipClickListener = ChipsView.OnChipClickListener { chip, data ->
-		if (data is ListFilterOption) {
-			listener.onFilterOptionClick(data)
-		}
-	}
-
-	bind {
-		binding.chipsTags.setChips(item.items)
-	}
+    bind {
+        binding.chipsTags.setChips(item.items)
+    }
 }

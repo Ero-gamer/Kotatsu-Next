@@ -5,7 +5,7 @@ import okhttp3.Response
 
 class CurlLoggingInterceptor : Interceptor {
 
-	override fun intercept(chain: Interceptor.Chain): Response {
-		return chain.proceed(chain.request()) // no-op implementation
-	}
+    override fun intercept(chain: Interceptor.Chain): Response {
+        return chain.proceed(chain.request()) // no-op implementation
+    }
 }

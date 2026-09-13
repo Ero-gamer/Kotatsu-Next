@@ -55,8 +55,8 @@ class ColorFilterConfigActivity :
         setContentView(ActivityColorFilterBinding.inflate(layoutInflater))
         setDisplayHomeAsUp(isEnabled = true, showUpAsClose = true)
 
-        val percentFormatter  = PercentLabelFormatter(resources)
-        val signedFormatter   = SignedPercentLabelFormatter(resources)
+        val percentFormatter = PercentLabelFormatter(resources)
+        val signedFormatter = SignedPercentLabelFormatter(resources)
         val unsignedFormatter = UnsignedPercentLabelFormatter(resources)
 
         viewBinding.sliderBrightness.addOnChangeListener(this)
@@ -99,25 +99,25 @@ class ColorFilterConfigActivity :
         if (!fromUser) return
         when (slider.id) {
             R.id.slider_brightness -> viewModel.setBrightness(value)
-            R.id.slider_contrast   -> viewModel.setContrast(value)
+            R.id.slider_contrast -> viewModel.setContrast(value)
             R.id.slider_sharpening -> viewModel.setSharpening(value)
             R.id.slider_saturation -> viewModel.setSaturation(value)
-            R.id.slider_vibrance   -> viewModel.setVibrance(value)
-            R.id.slider_denoise    -> viewModel.setDenoise(value)
+            R.id.slider_vibrance -> viewModel.setVibrance(value)
+            R.id.slider_denoise -> viewModel.setDenoise(value)
         }
     }
 
     override fun onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) {
         when (buttonView.id) {
-            R.id.switch_invert    -> viewModel.setInversion(isChecked)
+            R.id.switch_invert -> viewModel.setInversion(isChecked)
             R.id.switch_grayscale -> viewModel.setGrayscale(isChecked)
-            R.id.switch_book      -> viewModel.setBookEffect(isChecked)
+            R.id.switch_book -> viewModel.setBookEffect(isChecked)
         }
     }
 
     override fun onClick(v: View) {
         when (v.id) {
-            R.id.button_done  -> showSaveConfirmation()
+            R.id.button_done -> showSaveConfirmation()
             R.id.button_reset -> viewModel.reset()
         }
     }
@@ -127,8 +127,8 @@ class ColorFilterConfigActivity :
             .setTitle(R.string.apply)
             .setMessage(R.string.color_correction_apply_text)
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.this_manga)  { _, _ -> viewModel.save() }
-            .setNeutralButton(R.string.globally)     { _, _ -> viewModel.saveGlobally() }
+            .setPositiveButton(R.string.this_manga) { _, _ -> viewModel.save() }
+            .setNeutralButton(R.string.globally) { _, _ -> viewModel.saveGlobally() }
             .show()
     }
 
@@ -146,7 +146,7 @@ class ColorFilterConfigActivity :
         if (!beforeImageReady) return
 
         val sharpening = cf?.sharpening ?: 0f
-        val vibrance   = cf?.vibrance   ?: 0f
+        val vibrance = cf?.vibrance ?: 0f
         if (sharpening > 0.01f || vibrance != 0f) {
             applyAfterFilter(cf)
         } else {
@@ -170,8 +170,8 @@ class ColorFilterConfigActivity :
      */
     private fun applyAfterFilter(cf: ReaderColorFilter?) {
         val sharpening = cf?.sharpening ?: 0f
-        val vibrance   = cf?.vibrance   ?: 0f
-        val source     = sourceBitmap ?: return
+        val vibrance = cf?.vibrance ?: 0f
+        val source = sourceBitmap ?: return
 
         viewBinding.imageViewAfter.setImageBitmap(source)
         viewBinding.imageViewAfter.colorFilter = cf?.toColorFilter()
@@ -210,23 +210,22 @@ class ColorFilterConfigActivity :
     }
 
     private fun onLoadingChanged(isLoading: Boolean) {
-        viewBinding.sliderBrightness.isEnabled  = !isLoading
-        viewBinding.sliderContrast.isEnabled    = !isLoading
+        viewBinding.sliderBrightness.isEnabled = !isLoading
+        viewBinding.sliderContrast.isEnabled = !isLoading
         viewBinding.sliderSharpening.isEnabled = !isLoading
         viewBinding.sliderSaturation.isEnabled = !isLoading
-        viewBinding.sliderVibrance.isEnabled   = !isLoading
-        viewBinding.sliderDenoise.isEnabled    = !isLoading
-        viewBinding.switchInvert.isEnabled      = !isLoading
-        viewBinding.switchGrayscale.isEnabled   = !isLoading
-        viewBinding.buttonDone.isEnabled        = !isLoading
+        viewBinding.sliderVibrance.isEnabled = !isLoading
+        viewBinding.sliderDenoise.isEnabled = !isLoading
+        viewBinding.switchInvert.isEnabled = !isLoading
+        viewBinding.switchGrayscale.isEnabled = !isLoading
+        viewBinding.buttonDone.isEnabled = !isLoading
     }
 
     // ── Label formatters ──────────────────────────────────────────────────────
 
     private class PercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)
-        override fun getFormattedValue(value: Float): String =
-            pattern.format(((value + 1f) * 100).format(0))
+        override fun getFormattedValue(value: Float): String = pattern.format(((value + 1f) * 100).format(0))
     }
 
     private class SignedPercentLabelFormatter(resources: Resources) : LabelFormatter {
@@ -239,8 +238,7 @@ class ColorFilterConfigActivity :
 
     private class UnsignedPercentLabelFormatter(resources: Resources) : LabelFormatter {
         private val pattern = resources.getString(R.string.percent_string_pattern)
-        override fun getFormattedValue(value: Float): String =
-            pattern.format((value * 100).format(0))
+        override fun getFormattedValue(value: Float): String = pattern.format((value * 100).format(0))
     }
 
     // ── Before-image listener ─────────────────────────────────────────────────

@@ -56,7 +56,8 @@ class StorageAndNetworkSettingsFragment :
 
             AppSettings.KEY_PROXY_TYPE,
             AppSettings.KEY_PROXY_ADDRESS,
-            AppSettings.KEY_PROXY_PORT -> {
+            AppSettings.KEY_PROXY_PORT,
+            -> {
                 bindProxySummary()
             }
         }

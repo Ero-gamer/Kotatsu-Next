@@ -5,9 +5,9 @@ package org.koitharu.kotatsu.list.ui.model
 @Suppress("EqualsWithHashCodeExist")
 interface ListModel {
 
-	override fun equals(other: Any?): Boolean
+    override fun equals(other: Any?): Boolean
 
-	fun areItemsTheSame(other: ListModel): Boolean
+    fun areItemsTheSame(other: ListModel): Boolean
 
-	fun getChangePayload(previousState: ListModel): Any? = null
+    fun getChangePayload(previousState: ListModel): Any? = null
 }

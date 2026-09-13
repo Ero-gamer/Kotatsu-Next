@@ -5,14 +5,10 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.list.ui.model.MangaListModel
 
 data class UpdatedMangaHeader(
-	val list: List<MangaListModel>,
+    val list: List<MangaListModel>,
 ) : ListModel {
 
-	override fun areItemsTheSame(other: ListModel): Boolean {
-		return other is UpdatedMangaHeader
-	}
+    override fun areItemsTheSame(other: ListModel): Boolean = other is UpdatedMangaHeader
 
-	override fun getChangePayload(previousState: ListModel): Any {
-		return ListModelDiffCallback.PAYLOAD_NESTED_LIST_CHANGED
-	}
+    override fun getChangePayload(previousState: ListModel): Any = ListModelDiffCallback.PAYLOAD_NESTED_LIST_CHANGED
 }

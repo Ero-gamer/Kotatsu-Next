@@ -24,64 +24,64 @@ import org.koitharu.kotatsu.parsers.util.replaceWith
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 
 class RecentListFactory(
-	private val context: Context,
-	private val historyRepository: HistoryRepository,
-	private val coilLazy: Lazy<ImageLoader>,
-	private val settings: AppSettings,
+    private val context: Context,
+    private val historyRepository: HistoryRepository,
+    private val coilLazy: Lazy<ImageLoader>,
+    private val settings: AppSettings,
 ) : RemoteViewsService.RemoteViewsFactory {
 
-	private val dataSet = ArrayList<Manga>()
-	private val transformation = RoundedCornersTransformation(
-		context.resources.getDimension(R.dimen.appwidget_corner_radius_inner),
-	)
-	private val coverSize = Size(
-		context.resources.getDimensionPixelSize(R.dimen.widget_cover_width),
-		context.resources.getDimensionPixelSize(R.dimen.widget_cover_height),
-	)
+    private val dataSet = ArrayList<Manga>()
+    private val transformation = RoundedCornersTransformation(
+        context.resources.getDimension(R.dimen.appwidget_corner_radius_inner),
+    )
+    private val coverSize = Size(
+        context.resources.getDimensionPixelSize(R.dimen.widget_cover_width),
+        context.resources.getDimensionPixelSize(R.dimen.widget_cover_height),
+    )
 
-	override fun onCreate() = Unit
+    override fun onCreate() = Unit
 
-	override fun getLoadingView() = null
+    override fun getLoadingView() = null
 
-	override fun getItemId(position: Int) = dataSet.getOrNull(position)?.id ?: 0L
+    override fun getItemId(position: Int) = dataSet.getOrNull(position)?.id ?: 0L
 
-	override fun onDataSetChanged() {
-		val data = if (settings.appPassword.isNullOrEmpty()) {
-			runBlocking { historyRepository.getList(0, 10) }
-		} else {
-			emptyList()
-		}
-		dataSet.replaceWith(data)
-	}
+    override fun onDataSetChanged() {
+        val data = if (settings.appPassword.isNullOrEmpty()) {
+            runBlocking { historyRepository.getList(0, 10) }
+        } else {
+            emptyList()
+        }
+        dataSet.replaceWith(data)
+    }
 
-	override fun hasStableIds() = true
+    override fun hasStableIds() = true
 
-	override fun getViewAt(position: Int): RemoteViews {
-		val views = RemoteViews(context.packageName, R.layout.item_recent)
-		val item = dataSet.getOrNull(position) ?: return views
-		runCatchingCancellable {
-			coilLazy.get().executeBlocking(
-				ImageRequest.Builder(context)
-					.data(item.coverUrl)
-					.size(coverSize)
-					.mangaExtra(item)
-					.transformations(transformation)
-					.build(),
-			).getDrawableOrThrow().toBitmap()
-		}.onSuccess { cover ->
-			views.setImageViewBitmap(R.id.imageView_cover, cover)
-		}.onFailure {
-			views.setImageViewResource(R.id.imageView_cover, R.drawable.ic_placeholder)
-		}
-		val intent = Intent()
-		intent.putExtra(AppRouter.KEY_ID, item.id)
-		views.setOnClickFillInIntent(R.id.imageView_cover, intent)
-		return views
-	}
+    override fun getViewAt(position: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.item_recent)
+        val item = dataSet.getOrNull(position) ?: return views
+        runCatchingCancellable {
+            coilLazy.get().executeBlocking(
+                ImageRequest.Builder(context)
+                    .data(item.coverUrl)
+                    .size(coverSize)
+                    .mangaExtra(item)
+                    .transformations(transformation)
+                    .build(),
+            ).getDrawableOrThrow().toBitmap()
+        }.onSuccess { cover ->
+            views.setImageViewBitmap(R.id.imageView_cover, cover)
+        }.onFailure {
+            views.setImageViewResource(R.id.imageView_cover, R.drawable.ic_placeholder)
+        }
+        val intent = Intent()
+        intent.putExtra(AppRouter.KEY_ID, item.id)
+        views.setOnClickFillInIntent(R.id.imageView_cover, intent)
+        return views
+    }
 
-	override fun getCount() = dataSet.size
+    override fun getCount() = dataSet.size
 
-	override fun getViewTypeCount() = 1
+    override fun getViewTypeCount() = 1
 
-	override fun onDestroy() = Unit
+    override fun onDestroy() = Unit
 }

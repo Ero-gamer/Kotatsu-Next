@@ -10,15 +10,15 @@ import org.koitharu.kotatsu.core.util.ext.recyclerView
 
 class PagerEventSupplier(private val pager: ViewPager2) : View.OnKeyListener {
 
-	fun attach() {
-		pager.recyclerView?.setOnKeyListener(this)
-	}
+    fun attach() {
+        pager.recyclerView?.setOnKeyListener(this)
+    }
 
-	override fun onKey(v: View?, keyCode: Int, event: KeyEvent?): Boolean {
-		val rootView = pager.recyclerView?.findViewHolderForAdapterPosition(pager.currentItem)?.itemView as? ViewGroup
-			?: return false
-		return rootView.children.firstNotNullOfOrNull { x ->
-			x as? SubsamplingScaleImageView
-		}?.dispatchKeyEvent(event) == true
-	}
+    override fun onKey(v: View?, keyCode: Int, event: KeyEvent?): Boolean {
+        val rootView = pager.recyclerView?.findViewHolderForAdapterPosition(pager.currentItem)?.itemView as? ViewGroup
+            ?: return false
+        return rootView.children.firstNotNullOfOrNull { x ->
+            x as? SubsamplingScaleImageView
+        }?.dispatchKeyEvent(event) == true
+    }
 }

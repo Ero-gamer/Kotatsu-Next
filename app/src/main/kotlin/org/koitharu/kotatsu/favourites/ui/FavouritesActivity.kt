@@ -7,11 +7,11 @@ import org.koitharu.kotatsu.favourites.ui.list.FavouritesListFragment
 
 class FavouritesActivity : FragmentContainerActivity(FavouritesListFragment::class.java) {
 
-	override fun onCreate(savedInstanceState: Bundle?) {
-		super.onCreate(savedInstanceState)
-		val categoryTitle = intent.getStringExtra(AppRouter.KEY_TITLE)
-		if (categoryTitle != null) {
-			title = categoryTitle
-		}
-	}
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val categoryTitle = intent.getStringExtra(AppRouter.KEY_TITLE)
+        if (categoryTitle != null) {
+            title = categoryTitle
+        }
+    }
 }

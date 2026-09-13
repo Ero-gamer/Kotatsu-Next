@@ -10,19 +10,18 @@ import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.stats.domain.StatsRecord
 
 fun statsAD(
-	listener: OnListItemClickListener<Manga>,
+    listener: OnListItemClickListener<Manga>,
 ) = adapterDelegateViewBinding<StatsRecord, StatsRecord, ItemStatsBinding>(
-	{ layoutInflater, parent -> ItemStatsBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemStatsBinding.inflate(layoutInflater, parent, false) },
 ) {
+    binding.root.setOnClickListener { v ->
+        listener.onItemClick(item.manga ?: return@setOnClickListener, v)
+    }
 
-	binding.root.setOnClickListener { v ->
-		listener.onItemClick(item.manga ?: return@setOnClickListener, v)
-	}
-
-	bind {
-		binding.textViewTitle.text = item.manga?.title ?: getString(R.string.other_manga)
-		binding.textViewSummary.text = item.time.format(context.resources)
-		binding.imageViewBadge.imageTintList = ColorStateList.valueOf(KotatsuColors.ofManga(context, item.manga))
-		binding.root.isClickable = item.manga != null
-	}
+    bind {
+        binding.textViewTitle.text = item.manga?.title ?: getString(R.string.other_manga)
+        binding.textViewSummary.text = item.time.format(context.resources)
+        binding.imageViewBadge.imageTintList = ColorStateList.valueOf(KotatsuColors.ofManga(context, item.manga))
+        binding.root.isClickable = item.manga != null
+    }
 }

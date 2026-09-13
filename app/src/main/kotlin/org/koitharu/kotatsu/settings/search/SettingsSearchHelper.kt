@@ -92,7 +92,7 @@ class SettingsSearchHelper @Inject constructor(
         result: MutableList<SettingsItem>,
         @XmlRes resId: Int,
         breadcrumbs: List<String>,
-        fragmentClass: Class<out PreferenceFragmentCompat>
+        fragmentClass: Class<out PreferenceFragmentCompat>,
     ) {
         val screen = inflateFromResource(context, resId, null)
         val screenTitle = screen.title?.toString()
@@ -106,7 +106,7 @@ class SettingsSearchHelper @Inject constructor(
     private fun PreferenceScreen.inflateTo(
         result: MutableList<SettingsItem>,
         breadcrumbs: List<String>,
-        fragmentClass: Class<out PreferenceFragmentCompat>
+        fragmentClass: Class<out PreferenceFragmentCompat>,
     ): Unit = repeat(preferenceCount) { i ->
         val pref = this[i]
         if (pref is PreferenceScreen) {

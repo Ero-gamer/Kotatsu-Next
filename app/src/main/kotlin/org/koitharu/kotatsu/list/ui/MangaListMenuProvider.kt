@@ -14,26 +14,26 @@ import org.koitharu.kotatsu.suggestions.ui.SuggestionsFragment
 import org.koitharu.kotatsu.tracker.ui.updates.UpdatesFragment
 
 class MangaListMenuProvider(
-	private val fragment: Fragment,
+    private val fragment: Fragment,
 ) : MenuProvider {
 
-	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-		menuInflater.inflate(R.menu.opt_list, menu)
-	}
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.opt_list, menu)
+    }
 
-	override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
-		R.id.action_list_mode -> {
-			val section: ListConfigSection = when (fragment) {
-				is HistoryListFragment -> ListConfigSection.History
-				is SuggestionsFragment -> ListConfigSection.Suggestions
-				is FavouritesListFragment -> ListConfigSection.Favorites(fragment.categoryId)
-				is UpdatesFragment -> ListConfigSection.Updated
-				else -> ListConfigSection.General
-			}
-			fragment.router.showListConfigSheet(section)
-			true
-		}
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
+        R.id.action_list_mode -> {
+            val section: ListConfigSection = when (fragment) {
+                is HistoryListFragment -> ListConfigSection.History
+                is SuggestionsFragment -> ListConfigSection.Suggestions
+                is FavouritesListFragment -> ListConfigSection.Favorites(fragment.categoryId)
+                is UpdatesFragment -> ListConfigSection.Updated
+                else -> ListConfigSection.General
+            }
+            fragment.router.showListConfigSheet(section)
+            true
+        }
 
-		else -> false
-	}
+        else -> false
+    }
 }

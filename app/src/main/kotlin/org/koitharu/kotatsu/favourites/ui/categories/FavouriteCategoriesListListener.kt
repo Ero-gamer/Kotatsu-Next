@@ -7,9 +7,9 @@ import org.koitharu.kotatsu.core.ui.list.OnListItemClickListener
 
 interface FavouriteCategoriesListListener : OnListItemClickListener<FavouriteCategory?> {
 
-	fun onDragHandleTouch(holder: RecyclerView.ViewHolder): Boolean
+    fun onDragHandleTouch(holder: RecyclerView.ViewHolder): Boolean
 
-	fun onEditClick(item: FavouriteCategory, view: View)
+    fun onEditClick(item: FavouriteCategory, view: View)
 
-	fun onShowAllClick(isChecked: Boolean)
+    fun onShowAllClick(isChecked: Boolean)
 }

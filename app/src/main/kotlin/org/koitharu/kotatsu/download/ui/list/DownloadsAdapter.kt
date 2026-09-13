@@ -9,14 +9,14 @@ import org.koitharu.kotatsu.list.ui.adapter.loadingStateAD
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 class DownloadsAdapter(
-	lifecycleOwner: LifecycleOwner,
-	listener: DownloadItemListener,
+    lifecycleOwner: LifecycleOwner,
+    listener: DownloadItemListener,
 ) : BaseListAdapter<ListModel>() {
 
-	init {
-		addDelegate(ListItemType.DOWNLOAD, downloadItemAD(lifecycleOwner, listener))
-		addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
-		addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
-		addDelegate(ListItemType.HEADER, listHeaderAD(null))
-	}
+    init {
+        addDelegate(ListItemType.DOWNLOAD, downloadItemAD(lifecycleOwner, listener))
+        addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
+        addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
+        addDelegate(ListItemType.HEADER, listHeaderAD(null))
+    }
 }

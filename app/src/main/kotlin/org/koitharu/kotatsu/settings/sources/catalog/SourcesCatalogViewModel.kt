@@ -34,161 +34,161 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SourcesCatalogViewModel @Inject constructor(
-	private val repository: MangaSourcesRepository,
-	db: MangaDatabase,
-	private val settings: AppSettings,
-	private val presetsRepository: SourcePresetsRepository,
+    private val repository: MangaSourcesRepository,
+    db: MangaDatabase,
+    private val settings: AppSettings,
+    private val presetsRepository: SourcePresetsRepository,
 ) : BaseViewModel() {
 
-	val onActionDone = MutableEventFlow<ReversibleAction>()
-	val locales: Set<String?> = repository.allMangaSources.mapTo(HashSet<String?>()) { it.locale }.also {
-		it.add(null)
-	}
+    val onActionDone = MutableEventFlow<ReversibleAction>()
+    val locales: Set<String?> = repository.allMangaSources.mapTo(HashSet<String?>()) { it.locale }.also {
+        it.add(null)
+    }
 
-	private val searchQuery = MutableStateFlow<String?>(null)
-	val appliedFilter = MutableStateFlow(
-		SourcesCatalogFilter(
-			types = emptySet(),
-			locale = Locale.getDefault().language.takeIf { it in locales },
-			isNewOnly = false,
-		),
-	)
+    private val searchQuery = MutableStateFlow<String?>(null)
+    val appliedFilter = MutableStateFlow(
+        SourcesCatalogFilter(
+            types = emptySet(),
+            locale = Locale.getDefault().language.takeIf { it in locales },
+            isNewOnly = false,
+        ),
+    )
 
-	val hasNewSources = repository.observeHasNewSources()
-		.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, false)
+    val hasNewSources = repository.observeHasNewSources()
+        .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, false)
 
-	val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
+    val contentTypes = MutableStateFlow<List<ContentType>>(emptyList())
 
-	private val activePresetId = settings.activeSourcePresetId
-	private val presetSources = MutableStateFlow<Set<String>>(emptySet())
+    private val activePresetId = settings.activeSourcePresetId
+    private val presetSources = MutableStateFlow<Set<String>>(emptySet())
 
-	val isPresetMode: Boolean
-		get() = activePresetId != 0L
+    val isPresetMode: Boolean
+        get() = activePresetId != 0L
 
-	val content: StateFlow<List<ListModel>> = combine(
-		searchQuery,
-		appliedFilter,
-		presetSources,
-		db.invalidationTrackerFlow(TABLE_SOURCES),
-	) { q, f, ps, _ ->
-		buildSourcesList(f, q, ps)
-	}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState()))
+    val content: StateFlow<List<ListModel>> = combine(
+        searchQuery,
+        appliedFilter,
+        presetSources,
+        db.invalidationTrackerFlow(TABLE_SOURCES),
+    ) { q, f, ps, _ ->
+        buildSourcesList(f, q, ps)
+    }.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState()))
 
-	init {
-		repository.clearNewSourcesBadge()
-		launchJob(Dispatchers.Default) {
-			contentTypes.value = getContentTypes(settings.isNsfwContentDisabled)
-			loadActivePreset()
-		}
-	}
+    init {
+        repository.clearNewSourcesBadge()
+        launchJob(Dispatchers.Default) {
+            contentTypes.value = getContentTypes(settings.isNsfwContentDisabled)
+            loadActivePreset()
+        }
+    }
 
-	fun performSearch(query: String?) {
-		searchQuery.value = query?.trim()
-	}
+    fun performSearch(query: String?) {
+        searchQuery.value = query?.trim()
+    }
 
-	fun setLocale(value: String?) {
-		appliedFilter.value = appliedFilter.value.copy(locale = value)
-	}
+    fun setLocale(value: String?) {
+        appliedFilter.value = appliedFilter.value.copy(locale = value)
+    }
 
-	fun addSource(source: MangaSource) {
-		launchJob(Dispatchers.Default) {
-			val rollback = repository.setSourcesEnabled(setOf(source), true)
-			onActionDone.call(ReversibleAction(R.string.source_enabled, rollback))
-		}
-	}
+    fun addSource(source: MangaSource) {
+        launchJob(Dispatchers.Default) {
+            val rollback = repository.setSourcesEnabled(setOf(source), true)
+            onActionDone.call(ReversibleAction(R.string.source_enabled, rollback))
+        }
+    }
 
-	fun togglePresetSource(source: MangaParserSource) {
-		if (activePresetId == 0L) return
-		launchJob(Dispatchers.Default) {
-			val current = presetSources.value.toMutableSet()
-			val name = source.name
-			if (name in current) {
-				current.remove(name)
-			} else {
-				current.add(name)
-			}
-			presetsRepository.updatePresetSources(activePresetId, current)
-			presetSources.value = current
-		}
-	}
+    fun togglePresetSource(source: MangaParserSource) {
+        if (activePresetId == 0L) return
+        launchJob(Dispatchers.Default) {
+            val current = presetSources.value.toMutableSet()
+            val name = source.name
+            if (name in current) {
+                current.remove(name)
+            } else {
+                current.add(name)
+            }
+            presetsRepository.updatePresetSources(activePresetId, current)
+            presetSources.value = current
+        }
+    }
 
-	fun setContentType(value: ContentType, isAdd: Boolean) {
-		val filter = appliedFilter.value
-		val types = EnumSet.noneOf(ContentType::class.java)
-		types.addAll(filter.types)
-		if (isAdd) {
-			types.add(value)
-		} else {
-			types.remove(value)
-		}
-		appliedFilter.value = filter.copy(types = types)
-	}
+    fun setContentType(value: ContentType, isAdd: Boolean) {
+        val filter = appliedFilter.value
+        val types = EnumSet.noneOf(ContentType::class.java)
+        types.addAll(filter.types)
+        if (isAdd) {
+            types.add(value)
+        } else {
+            types.remove(value)
+        }
+        appliedFilter.value = filter.copy(types = types)
+    }
 
-	fun setNewOnly(value: Boolean) {
-		appliedFilter.value = appliedFilter.value.copy(isNewOnly = value)
-	}
+    fun setNewOnly(value: Boolean) {
+        appliedFilter.value = appliedFilter.value.copy(isNewOnly = value)
+    }
 
-	private suspend fun buildSourcesList(
-		filter: SourcesCatalogFilter,
-		query: String?,
-		presetSourceNames: Set<String>,
-	): List<SourceCatalogItem> {
-		val isPreset = activePresetId != 0L
-		val sources = repository.queryParserSources(
-			isDisabledOnly = !isPreset,
-			isNewOnly = filter.isNewOnly,
-			excludeBroken = isPreset,
-			types = filter.types,
-			query = query,
-			locale = filter.locale,
-			sortOrder = SourcesSortOrder.ALPHABETIC,
-		)
-		return if (sources.isEmpty()) {
-			listOf(
-				if (query == null) {
-					SourceCatalogItem.Hint(
-						icon = R.drawable.ic_empty_feed,
-						title = R.string.no_manga_sources,
-						text = R.string.no_manga_sources_catalog_text,
-					)
-				} else {
-					SourceCatalogItem.Hint(
-						icon = R.drawable.ic_empty_feed,
-						title = R.string.nothing_found,
-						text = R.string.no_manga_sources_found,
-					)
-				},
-			)
-		} else {
-			sources.map {
-				SourceCatalogItem.Source(
-					source = it,
-					isInPreset = isPreset && it.name in presetSourceNames,
-				)
-			}
-		}
-	}
+    private suspend fun buildSourcesList(
+        filter: SourcesCatalogFilter,
+        query: String?,
+        presetSourceNames: Set<String>,
+    ): List<SourceCatalogItem> {
+        val isPreset = activePresetId != 0L
+        val sources = repository.queryParserSources(
+            isDisabledOnly = !isPreset,
+            isNewOnly = filter.isNewOnly,
+            excludeBroken = isPreset,
+            types = filter.types,
+            query = query,
+            locale = filter.locale,
+            sortOrder = SourcesSortOrder.ALPHABETIC,
+        )
+        return if (sources.isEmpty()) {
+            listOf(
+                if (query == null) {
+                    SourceCatalogItem.Hint(
+                        icon = R.drawable.ic_empty_feed,
+                        title = R.string.no_manga_sources,
+                        text = R.string.no_manga_sources_catalog_text,
+                    )
+                } else {
+                    SourceCatalogItem.Hint(
+                        icon = R.drawable.ic_empty_feed,
+                        title = R.string.nothing_found,
+                        text = R.string.no_manga_sources_found,
+                    )
+                },
+            )
+        } else {
+            sources.map {
+                SourceCatalogItem.Source(
+                    source = it,
+                    isInPreset = isPreset && it.name in presetSourceNames,
+                )
+            }
+        }
+    }
 
-	@WorkerThread
-	private fun getContentTypes(isNsfwDisabled: Boolean): List<ContentType> {
-		val result = repository.allMangaSources.mapSortedByCount { it.contentType }
-		return if (isNsfwDisabled) {
-			result.filterNot { it == ContentType.HENTAI }
-		} else {
-			result
-		}
-	}
+    @WorkerThread
+    private fun getContentTypes(isNsfwDisabled: Boolean): List<ContentType> {
+        val result = repository.allMangaSources.mapSortedByCount { it.contentType }
+        return if (isNsfwDisabled) {
+            result.filterNot { it == ContentType.HENTAI }
+        } else {
+            result
+        }
+    }
 
-	private suspend fun loadActivePreset() {
-		if (activePresetId != 0L) {
-			val preset = presetsRepository.getById(activePresetId)
-			if (preset != null) {
-				presetSources.value = preset.sources
-				val presetLocale = preset.languages.firstOrNull()
-				if (presetLocale != null && presetLocale in locales) {
-					appliedFilter.value = appliedFilter.value.copy(locale = presetLocale)
-				}
-			}
-		}
-	}
+    private suspend fun loadActivePreset() {
+        if (activePresetId != 0L) {
+            val preset = presetsRepository.getById(activePresetId)
+            if (preset != null) {
+                presetSources.value = preset.sources
+                val presetLocale = preset.languages.firstOrNull()
+                if (presetLocale != null && presetLocale in locales) {
+                    appliedFilter.value = appliedFilter.value.copy(locale = presetLocale)
+                }
+            }
+        }
+    }
 }

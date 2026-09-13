@@ -10,27 +10,25 @@ import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.explore.ui.preset.SourcePresetListActivity
 
 class ExploreMenuProvider(
-	private val context: Context,
-	private val router: AppRouter,
+    private val context: Context,
+    private val router: AppRouter,
 ) : MenuProvider {
 
-	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-		menuInflater.inflate(R.menu.opt_explore, menu)
-	}
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.opt_explore, menu)
+    }
 
-	override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-		return when (menuItem.itemId) {
-			R.id.action_manage -> {
-				router.openSourcesSettings()
-				true
-			}
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
+        R.id.action_manage -> {
+            router.openSourcesSettings()
+            true
+        }
 
-			R.id.action_presets -> {
-				context.startActivity(android.content.Intent(context, SourcePresetListActivity::class.java))
-				true
-			}
+        R.id.action_presets -> {
+            context.startActivity(android.content.Intent(context, SourcePresetListActivity::class.java))
+            true
+        }
 
-			else -> false
-		}
-	}
+        else -> false
+    }
 }

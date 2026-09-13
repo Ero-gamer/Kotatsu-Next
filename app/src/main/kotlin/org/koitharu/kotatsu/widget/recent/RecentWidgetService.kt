@@ -12,16 +12,14 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class RecentWidgetService : RemoteViewsService() {
 
-	@Inject
-	lateinit var historyRepository: HistoryRepository
+    @Inject
+    lateinit var historyRepository: HistoryRepository
 
-	@Inject
-	lateinit var settings: AppSettings
+    @Inject
+    lateinit var settings: AppSettings
 
-	@Inject
-	lateinit var coilLazy: Lazy<ImageLoader>
+    @Inject
+    lateinit var coilLazy: Lazy<ImageLoader>
 
-	override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-		return RecentListFactory(applicationContext, historyRepository, coilLazy, settings)
-	}
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory = RecentListFactory(applicationContext, historyRepository, coilLazy, settings)
 }

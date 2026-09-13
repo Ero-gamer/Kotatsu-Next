@@ -14,57 +14,53 @@ import org.koitharu.kotatsu.parsers.util.nullIfEmpty
 
 @Deprecated("")
 @CheckResult
-fun View.bindBadge(badge: BadgeDrawable?, counter: Int): BadgeDrawable? {
-	return bindBadgeImpl(badge, null, counter)
-}
+fun View.bindBadge(badge: BadgeDrawable?, counter: Int): BadgeDrawable? = bindBadgeImpl(badge, null, counter)
 
 @Deprecated("")
 @CheckResult
-fun View.bindBadge(badge: BadgeDrawable?, text: String?): BadgeDrawable? {
-	return bindBadgeImpl(badge, text, 0)
-}
+fun View.bindBadge(badge: BadgeDrawable?, text: String?): BadgeDrawable? = bindBadgeImpl(badge, text, 0)
 
 @Deprecated("")
 fun View.clearBadge(badge: BadgeDrawable?) {
-	BadgeUtils.detachBadgeDrawable(badge, this)
+    BadgeUtils.detachBadgeDrawable(badge, this)
 }
 
 private fun View.bindBadgeImpl(
-	badge: BadgeDrawable?,
-	text: String?,
-	counter: Int,
+    badge: BadgeDrawable?,
+    text: String?,
+    counter: Int,
 ): BadgeDrawable? = if (text != null || counter > 0) {
-	val badgeDrawable = badge ?: initBadge(this)
-	if (counter > 0) {
-		badgeDrawable.number = counter
-	} else {
-		badgeDrawable.text = text?.nullIfEmpty()
-	}
-	badgeDrawable.isVisible = true
-	badgeDrawable.align(this)
-	badgeDrawable
+    val badgeDrawable = badge ?: initBadge(this)
+    if (counter > 0) {
+        badgeDrawable.number = counter
+    } else {
+        badgeDrawable.text = text?.nullIfEmpty()
+    }
+    badgeDrawable.isVisible = true
+    badgeDrawable.align(this)
+    badgeDrawable
 } else {
-	badge?.isVisible = false
-	badge
+    badge?.isVisible = false
+    badge
 }
 
 private fun initBadge(anchor: View): BadgeDrawable {
-	val badge = BadgeDrawable.create(anchor.context)
-	val resources = anchor.resources
-	badge.maxCharacterCount = resources.getInteger(R.integer.manga_badge_max_character_count)
-	anchor.doOnNextLayout {
-		BadgeUtils.attachBadgeDrawable(badge, it)
-		badge.align(it)
-	}
-	return badge
+    val badge = BadgeDrawable.create(anchor.context)
+    val resources = anchor.resources
+    badge.maxCharacterCount = resources.getInteger(R.integer.manga_badge_max_character_count)
+    anchor.doOnNextLayout {
+        BadgeUtils.attachBadgeDrawable(badge, it)
+        badge.align(it)
+    }
+    return badge
 }
 
 private fun BadgeDrawable.align(anchor: View) {
-	val extraOffset = if (anchor is CardView) {
-		(anchor.radius / 2f).toInt()
-	} else {
-		anchor.resources.getDimensionPixelOffset(R.dimen.badge_offset)
-	}
-	horizontalOffset = intrinsicWidth + extraOffset
-	verticalOffset = intrinsicHeight + extraOffset
+    val extraOffset = if (anchor is CardView) {
+        (anchor.radius / 2f).toInt()
+    } else {
+        anchor.resources.getDimensionPixelOffset(R.dimen.badge_offset)
+    }
+    horizontalOffset = intrinsicWidth + extraOffset
+    verticalOffset = intrinsicHeight + extraOffset
 }

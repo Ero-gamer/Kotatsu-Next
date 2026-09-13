@@ -80,98 +80,97 @@ import org.koitharu.kotatsu.tracker.data.TracksDao
 const val DATABASE_VERSION = 32
 
 @Database(
-	entities = [
-		MangaEntity::class, TagEntity::class, HistoryEntity::class, MangaTagsEntity::class, ChapterEntity::class,
-		FavouriteCategoryEntity::class, FavouriteEntity::class, MangaPrefsEntity::class, TrackEntity::class,
-		TrackLogEntity::class, SuggestionEntity::class, BookmarkEntity::class, ScrobblingEntity::class,
-		MangaSourceEntity::class, StatsEntity::class, LocalMangaIndexEntity::class,
-		SourcePresetEntity::class,
-	],
-	version = DATABASE_VERSION,
+    entities = [
+        MangaEntity::class, TagEntity::class, HistoryEntity::class, MangaTagsEntity::class, ChapterEntity::class,
+        FavouriteCategoryEntity::class, FavouriteEntity::class, MangaPrefsEntity::class, TrackEntity::class,
+        TrackLogEntity::class, SuggestionEntity::class, BookmarkEntity::class, ScrobblingEntity::class,
+        MangaSourceEntity::class, StatsEntity::class, LocalMangaIndexEntity::class,
+        SourcePresetEntity::class,
+    ],
+    version = DATABASE_VERSION,
 )
 abstract class MangaDatabase : RoomDatabase() {
 
-	abstract fun getHistoryDao(): HistoryDao
+    abstract fun getHistoryDao(): HistoryDao
 
-	abstract fun getTagsDao(): TagsDao
+    abstract fun getTagsDao(): TagsDao
 
-	abstract fun getMangaDao(): MangaDao
+    abstract fun getMangaDao(): MangaDao
 
-	abstract fun getFavouritesDao(): FavouritesDao
+    abstract fun getFavouritesDao(): FavouritesDao
 
-	abstract fun getPreferencesDao(): PreferencesDao
+    abstract fun getPreferencesDao(): PreferencesDao
 
-	abstract fun getFavouriteCategoriesDao(): FavouriteCategoriesDao
+    abstract fun getFavouriteCategoriesDao(): FavouriteCategoriesDao
 
-	abstract fun getTracksDao(): TracksDao
+    abstract fun getTracksDao(): TracksDao
 
-	abstract fun getTrackLogsDao(): TrackLogsDao
+    abstract fun getTrackLogsDao(): TrackLogsDao
 
-	abstract fun getSuggestionDao(): SuggestionDao
+    abstract fun getSuggestionDao(): SuggestionDao
 
-	abstract fun getBookmarksDao(): BookmarksDao
+    abstract fun getBookmarksDao(): BookmarksDao
 
-	abstract fun getScrobblingDao(): ScrobblingDao
+    abstract fun getScrobblingDao(): ScrobblingDao
 
-	abstract fun getSourcesDao(): MangaSourcesDao
+    abstract fun getSourcesDao(): MangaSourcesDao
 
-	abstract fun getStatsDao(): StatsDao
+    abstract fun getStatsDao(): StatsDao
 
-	abstract fun getLocalMangaIndexDao(): LocalMangaIndexDao
+    abstract fun getLocalMangaIndexDao(): LocalMangaIndexDao
 
-	abstract fun getChaptersDao(): ChaptersDao
+    abstract fun getChaptersDao(): ChaptersDao
 
-	abstract fun getSourcePresetsDao(): SourcePresetsDao
-
+    abstract fun getSourcePresetsDao(): SourcePresetsDao
 }
 
 fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
-	Migration1To2(),
-	Migration2To3(),
-	Migration3To4(),
-	Migration4To5(),
-	Migration5To6(),
-	Migration6To7(),
-	Migration7To8(),
-	Migration8To9(),
-	Migration9To10(),
-	Migration10To11(),
-	Migration11To12(),
-	Migration12To13(),
-	Migration13To14(),
-	Migration14To15(),
-	Migration15To16(),
-	Migration16To17(context),
-	Migration17To18(),
-	Migration18To19(),
-	Migration19To20(),
-	Migration20To21(),
-	Migration21To22(),
-	Migration22To23(),
-	Migration23To24(),
-	Migration24To23(),
-	Migration24To25(),
-	Migration25To26(),
-	Migration26To27(),
-	Migration27To28(),
-	Migration28To29(),
-	Migration29To30(),
-	Migration30To31(),
-	Migration31To32(),
+    Migration1To2(),
+    Migration2To3(),
+    Migration3To4(),
+    Migration4To5(),
+    Migration5To6(),
+    Migration6To7(),
+    Migration7To8(),
+    Migration8To9(),
+    Migration9To10(),
+    Migration10To11(),
+    Migration11To12(),
+    Migration12To13(),
+    Migration13To14(),
+    Migration14To15(),
+    Migration15To16(),
+    Migration16To17(context),
+    Migration17To18(),
+    Migration18To19(),
+    Migration19To20(),
+    Migration20To21(),
+    Migration21To22(),
+    Migration22To23(),
+    Migration23To24(),
+    Migration24To23(),
+    Migration24To25(),
+    Migration25To26(),
+    Migration26To27(),
+    Migration27To28(),
+    Migration28To29(),
+    Migration29To30(),
+    Migration30To31(),
+    Migration31To32(),
 )
 
 @Suppress("SpreadOperator") // Room's addMigrations is vararg; an array is unavoidable here
 fun MangaDatabase(context: Context): MangaDatabase = Room
-	.databaseBuilder(context, MangaDatabase::class.java, "kotatsu-db")
-	.addMigrations(*getDatabaseMigrations(context))
-	.addCallback(DatabasePrePopulateCallback(context.resources))
-	.build()
+    .databaseBuilder(context, MangaDatabase::class.java, "kotatsu-db")
+    .addMigrations(*getDatabaseMigrations(context))
+    .addCallback(DatabasePrePopulateCallback(context.resources))
+    .build()
 
 fun InvalidationTracker.removeObserverAsync(observer: InvalidationTracker.Observer) {
-	val scope = processLifecycleScope
-	if (scope.isActive) {
-		processLifecycleScope.launch(Dispatchers.Default, CoroutineStart.ATOMIC) {
-			removeObserver(observer)
-		}
-	}
+    val scope = processLifecycleScope
+    if (scope.isActive) {
+        processLifecycleScope.launch(Dispatchers.Default, CoroutineStart.ATOMIC) {
+            removeObserver(observer)
+        }
+    }
 }

@@ -16,103 +16,99 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.parsers.util.replaceWith
 
 class MultiAutoCompleteTextViewPreference @JvmOverloads constructor(
-	context: Context,
-	attrs: AttributeSet? = null,
-	@AttrRes defStyleAttr: Int = R.attr.multiAutoCompleteTextViewPreferenceStyle,
-	@StyleRes defStyleRes: Int = R.style.Preference_MultiAutoCompleteTextView,
+    context: Context,
+    attrs: AttributeSet? = null,
+    @AttrRes defStyleAttr: Int = R.attr.multiAutoCompleteTextViewPreferenceStyle,
+    @StyleRes defStyleRes: Int = R.style.Preference_MultiAutoCompleteTextView,
 ) : EditTextPreference(context, attrs, defStyleAttr, defStyleRes) {
 
-	private val autoCompleteBindListener = AutoCompleteBindListener()
+    private val autoCompleteBindListener = AutoCompleteBindListener()
 
-	var autoCompleteProvider: AutoCompleteProvider? = null
+    var autoCompleteProvider: AutoCompleteProvider? = null
 
-	init {
-		super.setOnBindEditTextListener(autoCompleteBindListener)
-	}
+    init {
+        super.setOnBindEditTextListener(autoCompleteBindListener)
+    }
 
-	override fun setOnBindEditTextListener(onBindEditTextListener: OnBindEditTextListener?) {
-		autoCompleteBindListener.delegate = onBindEditTextListener
-	}
+    override fun setOnBindEditTextListener(onBindEditTextListener: OnBindEditTextListener?) {
+        autoCompleteBindListener.delegate = onBindEditTextListener
+    }
 
-	private inner class AutoCompleteBindListener : OnBindEditTextListener {
+    private inner class AutoCompleteBindListener : OnBindEditTextListener {
 
-		var delegate: OnBindEditTextListener? = null
+        var delegate: OnBindEditTextListener? = null
 
-		override fun onBindEditText(editText: EditText) {
-			delegate?.onBindEditText(editText)
-			if (editText !is MultiAutoCompleteTextView) {
-				return
-			}
-			editText.setTokenizer(MultiAutoCompleteTextView.CommaTokenizer())
-			editText.setAdapter(
-				autoCompleteProvider?.let {
-					CompletionAdapter(editText.context, it, ArrayList())
-				}
-			)
-			editText.threshold = 1
-		}
-	}
+        override fun onBindEditText(editText: EditText) {
+            delegate?.onBindEditText(editText)
+            if (editText !is MultiAutoCompleteTextView) {
+                return
+            }
+            editText.setTokenizer(MultiAutoCompleteTextView.CommaTokenizer())
+            editText.setAdapter(
+                autoCompleteProvider?.let {
+                    CompletionAdapter(editText.context, it, ArrayList())
+                },
+            )
+            editText.threshold = 1
+        }
+    }
 
-	interface AutoCompleteProvider {
+    interface AutoCompleteProvider {
 
-		suspend fun getSuggestions(query: String): List<String>
-	}
+        suspend fun getSuggestions(query: String): List<String>
+    }
 
-	class SimpleSummaryProvider(
-		private val emptySummary: CharSequence?,
-	) : SummaryProvider<MultiAutoCompleteTextViewPreference> {
+    class SimpleSummaryProvider(
+        private val emptySummary: CharSequence?,
+    ) : SummaryProvider<MultiAutoCompleteTextViewPreference> {
 
-		override fun provideSummary(preference: MultiAutoCompleteTextViewPreference): CharSequence? {
-			return if (preference.text.isNullOrEmpty()) {
-				emptySummary
-			} else {
-				preference.text?.trimEnd(' ', ',')
-			}
-		}
-	}
+        override fun provideSummary(preference: MultiAutoCompleteTextViewPreference): CharSequence? = if (preference.text.isNullOrEmpty()) {
+            emptySummary
+        } else {
+            preference.text?.trimEnd(' ', ',')
+        }
+    }
 
-	private class CompletionAdapter(
-		context: Context,
-		private val completionProvider: AutoCompleteProvider,
-		private val dataset: MutableList<String>,
-	) : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, dataset) {
+    private class CompletionAdapter(
+        context: Context,
+        private val completionProvider: AutoCompleteProvider,
+        private val dataset: MutableList<String>,
+    ) : ArrayAdapter<String>(context, android.R.layout.simple_dropdown_item_1line, dataset) {
 
-		override fun getFilter(): Filter {
-			return CompletionFilter(this, completionProvider)
-		}
+        override fun getFilter(): Filter = CompletionFilter(this, completionProvider)
 
-		fun publishResults(results: List<String>) {
-			dataset.replaceWith(results)
-			notifyDataSetChanged()
-		}
-	}
+        fun publishResults(results: List<String>) {
+            dataset.replaceWith(results)
+            notifyDataSetChanged()
+        }
+    }
 
-	private class CompletionFilter(
-		private val adapter: CompletionAdapter,
-		private val provider: AutoCompleteProvider,
-	) : Filter() {
+    private class CompletionFilter(
+        private val adapter: CompletionAdapter,
+        private val provider: AutoCompleteProvider,
+    ) : Filter() {
 
-		@WorkerThread
-		override fun performFiltering(constraint: CharSequence?): FilterResults {
-			val query = constraint?.toString().orEmpty()
-			val suggestions = runBlocking { provider.getSuggestions(query) }
-			return CompletionResults(suggestions)
-		}
+        @WorkerThread
+        override fun performFiltering(constraint: CharSequence?): FilterResults {
+            val query = constraint?.toString().orEmpty()
+            val suggestions = runBlocking { provider.getSuggestions(query) }
+            return CompletionResults(suggestions)
+        }
 
-		@MainThread
-		override fun publishResults(constraint: CharSequence?, results: FilterResults) {
-			val completions = (results as CompletionResults).completions
-			adapter.publishResults(completions)
-		}
+        @MainThread
+        override fun publishResults(constraint: CharSequence?, results: FilterResults) {
+            val completions = (results as CompletionResults).completions
+            adapter.publishResults(completions)
+        }
 
-		private class CompletionResults(
-			val completions: List<String>,
-		) : FilterResults() {
+        private class CompletionResults(
+            val completions: List<String>,
+        ) : FilterResults() {
 
-			init {
-				values = completions
-				count = completions.size
-			}
-		}
-	}
+            init {
+                values = completions
+                count = completions.size
+            }
+        }
+    }
 }

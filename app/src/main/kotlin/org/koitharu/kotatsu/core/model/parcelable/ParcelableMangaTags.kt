@@ -9,17 +9,17 @@ import org.koitharu.kotatsu.core.model.MangaSource
 import org.koitharu.kotatsu.parsers.model.MangaTag
 
 object MangaTagParceler : Parceler<MangaTag> {
-	override fun create(parcel: Parcel) = MangaTag(
-		title = requireNotNull(parcel.readString()),
-		key = requireNotNull(parcel.readString()),
-		source = MangaSource(parcel.readString()),
-	)
+    override fun create(parcel: Parcel) = MangaTag(
+        title = requireNotNull(parcel.readString()),
+        key = requireNotNull(parcel.readString()),
+        source = MangaSource(parcel.readString()),
+    )
 
-	override fun MangaTag.write(parcel: Parcel, flags: Int) {
-		parcel.writeString(title)
-		parcel.writeString(key)
-		parcel.writeString(source.name)
-	}
+    override fun MangaTag.write(parcel: Parcel, flags: Int) {
+        parcel.writeString(title)
+        parcel.writeString(key)
+        parcel.writeString(source.name)
+    }
 }
 
 @Parcelize

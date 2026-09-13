@@ -5,20 +5,21 @@ import android.view.MenuItem.OnActionExpandListener
 import androidx.activity.OnBackPressedCallback
 
 class CollapseActionViewCallback(
-	private val menuItem: MenuItem
-) : OnBackPressedCallback(menuItem.isActionViewExpanded), OnActionExpandListener {
+    private val menuItem: MenuItem,
+) : OnBackPressedCallback(menuItem.isActionViewExpanded),
+    OnActionExpandListener {
 
-	override fun handleOnBackPressed() {
-		menuItem.collapseActionView()
-	}
+    override fun handleOnBackPressed() {
+        menuItem.collapseActionView()
+    }
 
-	override fun onMenuItemActionExpand(item: MenuItem): Boolean {
-		isEnabled = true
-		return true
-	}
+    override fun onMenuItemActionExpand(item: MenuItem): Boolean {
+        isEnabled = true
+        return true
+    }
 
-	override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
-		isEnabled = false
-		return true
-	}
+    override fun onMenuItemActionCollapse(item: MenuItem): Boolean {
+        isEnabled = false
+        return true
+    }
 }

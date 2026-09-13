@@ -6,11 +6,11 @@ import org.koitharu.kotatsu.history.ui.util.ReadingProgressView
 
 interface ItemSizeResolver {
 
-	val cellWidth: Int
+    val cellWidth: Int
 
-	fun attachToView(
-		view: View,
-		textView: TextView?,
-		progressView: ReadingProgressView?,
-	)
+    fun attachToView(
+        view: View,
+        textView: TextView?,
+        progressView: ReadingProgressView?,
+    )
 }

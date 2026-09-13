@@ -20,41 +20,41 @@ import com.google.android.material.R as materialR
 
 open class MangaSelectionDecoration(context: Context) : AbstractSelectionItemDecoration() {
 
-	protected val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-	protected val strokeColor = context.getThemeColor(appcompatR.attr.colorPrimary, Color.RED)
-	protected val fillColor = ColorUtils.setAlphaComponent(
-		ColorUtils.blendARGB(strokeColor, context.getThemeColor(materialR.attr.colorSurface), 0.8f),
-		0x74,
-	)
-	protected val defaultRadius = context.resources.getDimension(R.dimen.list_selector_corner)
+    protected val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    protected val strokeColor = context.getThemeColor(appcompatR.attr.colorPrimary, Color.RED)
+    protected val fillColor = ColorUtils.setAlphaComponent(
+        ColorUtils.blendARGB(strokeColor, context.getThemeColor(materialR.attr.colorSurface), 0.8f),
+        0x74,
+    )
+    protected val defaultRadius = context.resources.getDimension(R.dimen.list_selector_corner)
 
-	init {
-		hasBackground = false
-		hasForeground = true
-		isIncludeDecorAndMargins = false
+    init {
+        hasBackground = false
+        hasForeground = true
+        isIncludeDecorAndMargins = false
 
-		paint.strokeWidth = context.resources.getDimension(R.dimen.selection_stroke_width)
-	}
+        paint.strokeWidth = context.resources.getDimension(R.dimen.selection_stroke_width)
+    }
 
-	override fun getItemId(parent: RecyclerView, child: View): Long {
-		val holder = parent.getChildViewHolder(child) ?: return NO_ID
-		val item = holder.getItem(MangaListModel::class.java) ?: return NO_ID
-		return item.id
-	}
+    override fun getItemId(parent: RecyclerView, child: View): Long {
+        val holder = parent.getChildViewHolder(child) ?: return NO_ID
+        val item = holder.getItem(MangaListModel::class.java) ?: return NO_ID
+        return item.id
+    }
 
-	override fun onDrawForeground(
-		canvas: Canvas,
-		parent: RecyclerView,
-		child: View,
-		bounds: RectF,
-		state: RecyclerView.State,
-	) {
-		val radius = (child as? CardView)?.radius ?: defaultRadius
-		paint.color = fillColor
-		paint.style = Paint.Style.FILL
-		canvas.drawRoundRect(bounds, radius, radius, paint)
-		paint.color = strokeColor
-		paint.style = Paint.Style.STROKE
-		canvas.drawRoundRect(bounds, radius, radius, paint)
-	}
+    override fun onDrawForeground(
+        canvas: Canvas,
+        parent: RecyclerView,
+        child: View,
+        bounds: RectF,
+        state: RecyclerView.State,
+    ) {
+        val radius = (child as? CardView)?.radius ?: defaultRadius
+        paint.color = fillColor
+        paint.style = Paint.Style.FILL
+        canvas.drawRoundRect(bounds, radius, radius, paint)
+        paint.color = strokeColor
+        paint.style = Paint.Style.STROKE
+        canvas.drawRoundRect(bounds, radius, radius, paint)
+    }
 }

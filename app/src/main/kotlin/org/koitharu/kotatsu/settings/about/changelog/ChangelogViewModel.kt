@@ -10,22 +10,22 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChangelogViewModel @Inject constructor(
-	private val appUpdateRepository: AppUpdateRepository,
+    private val appUpdateRepository: AppUpdateRepository,
 ) : BaseViewModel() {
 
-	val changelog = MutableStateFlow<String?>(null)
+    val changelog = MutableStateFlow<String?>(null)
 
-	init {
-		launchLoadingJob(Dispatchers.Default) {
-			val versions = appUpdateRepository.getAvailableVersions()
-			val stringJoiner = StringUtil.StringJoiner("\n\n\n")
-			for (version in versions) {
-				stringJoiner.add("# ")
-					.append(version.name)
-					.append("\n\n")
-					.append(version.description)
-			}
-			changelog.value = stringJoiner.complete()
-		}
-	}
+    init {
+        launchLoadingJob(Dispatchers.Default) {
+            val versions = appUpdateRepository.getAvailableVersions()
+            val stringJoiner = StringUtil.StringJoiner("\n\n\n")
+            for (version in versions) {
+                stringJoiner.add("# ")
+                    .append(version.name)
+                    .append("\n\n")
+                    .append(version.description)
+            }
+            changelog.value = stringJoiner.complete()
+        }
+    }
 }

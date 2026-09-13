@@ -25,74 +25,74 @@ import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.replaceWith
 
 class ShelfListFactory(
-	private val context: Context,
-	private val favouritesRepository: FavouritesRepository,
-	private val coilLazy: Lazy<ImageLoader>,
-	private val settings: AppSettings,
-	widgetId: Int,
+    private val context: Context,
+    private val favouritesRepository: FavouritesRepository,
+    private val coilLazy: Lazy<ImageLoader>,
+    private val settings: AppSettings,
+    widgetId: Int,
 ) : RemoteViewsService.RemoteViewsFactory {
 
-	private val dataSet = ArrayList<Manga>()
-	private val config = AppWidgetConfig(context, ShelfWidgetProvider::class.java, widgetId)
-	private val transformation = RoundedCornersTransformation(
-		context.resources.getDimension(R.dimen.appwidget_corner_radius_inner),
-	)
-	private val coverSize = Size(
-		context.resources.getDimensionPixelSize(R.dimen.widget_cover_width),
-		context.resources.getDimensionPixelSize(R.dimen.widget_cover_height),
-	)
+    private val dataSet = ArrayList<Manga>()
+    private val config = AppWidgetConfig(context, ShelfWidgetProvider::class.java, widgetId)
+    private val transformation = RoundedCornersTransformation(
+        context.resources.getDimension(R.dimen.appwidget_corner_radius_inner),
+    )
+    private val coverSize = Size(
+        context.resources.getDimensionPixelSize(R.dimen.widget_cover_width),
+        context.resources.getDimensionPixelSize(R.dimen.widget_cover_height),
+    )
 
-	override fun onCreate() = Unit
+    override fun onCreate() = Unit
 
-	override fun getLoadingView() = null
+    override fun getLoadingView() = null
 
-	override fun getItemId(position: Int) = dataSet.getOrNull(position)?.id ?: 0L
+    override fun getItemId(position: Int) = dataSet.getOrNull(position)?.id ?: 0L
 
-	override fun onDataSetChanged() {
-		val data = if (settings.appPassword.isNullOrEmpty()) {
-			runBlocking {
-				val category = config.categoryId
-				if (category == 0L) {
-					favouritesRepository.getAllManga()
-				} else {
-					favouritesRepository.getManga(category)
-				}
-			}
-		} else {
-			emptyList()
-		}
-		dataSet.replaceWith(data)
-	}
+    override fun onDataSetChanged() {
+        val data = if (settings.appPassword.isNullOrEmpty()) {
+            runBlocking {
+                val category = config.categoryId
+                if (category == 0L) {
+                    favouritesRepository.getAllManga()
+                } else {
+                    favouritesRepository.getManga(category)
+                }
+            }
+        } else {
+            emptyList()
+        }
+        dataSet.replaceWith(data)
+    }
 
-	override fun hasStableIds() = true
+    override fun hasStableIds() = true
 
-	override fun getViewAt(position: Int): RemoteViews {
-		val views = RemoteViews(context.packageName, R.layout.item_shelf)
-		val item = dataSet.getOrNull(position) ?: return views
-		views.setTextViewText(R.id.textView_title, item.title)
-		runCatching {
-			coilLazy.get().executeBlocking(
-				ImageRequest.Builder(context)
-					.data(item.coverUrl)
-					.size(coverSize)
-					.mangaExtra(item)
-					.transformations(transformation, TrimTransformation())
-					.build(),
-			).getDrawableOrThrow().toBitmap()
-		}.onSuccess { cover ->
-			views.setImageViewBitmap(R.id.imageView_cover, cover)
-		}.onFailure {
-			views.setImageViewResource(R.id.imageView_cover, R.drawable.ic_placeholder)
-		}
-		val intent = Intent()
-		intent.putExtra(AppRouter.KEY_ID, item.id)
-		views.setOnClickFillInIntent(R.id.rootLayout, intent)
-		return views
-	}
+    override fun getViewAt(position: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.item_shelf)
+        val item = dataSet.getOrNull(position) ?: return views
+        views.setTextViewText(R.id.textView_title, item.title)
+        runCatching {
+            coilLazy.get().executeBlocking(
+                ImageRequest.Builder(context)
+                    .data(item.coverUrl)
+                    .size(coverSize)
+                    .mangaExtra(item)
+                    .transformations(transformation, TrimTransformation())
+                    .build(),
+            ).getDrawableOrThrow().toBitmap()
+        }.onSuccess { cover ->
+            views.setImageViewBitmap(R.id.imageView_cover, cover)
+        }.onFailure {
+            views.setImageViewResource(R.id.imageView_cover, R.drawable.ic_placeholder)
+        }
+        val intent = Intent()
+        intent.putExtra(AppRouter.KEY_ID, item.id)
+        views.setOnClickFillInIntent(R.id.rootLayout, intent)
+        return views
+    }
 
-	override fun getCount() = dataSet.size
+    override fun getCount() = dataSet.size
 
-	override fun getViewTypeCount() = 1
+    override fun getViewTypeCount() = 1
 
-	override fun onDestroy() = Unit
+    override fun onDestroy() = Unit
 }

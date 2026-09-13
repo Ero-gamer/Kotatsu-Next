@@ -11,23 +11,23 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadSlowdownDispatcher @Inject constructor(
-	private val mangaRepositoryFactory: MangaRepository.Factory,
+    private val mangaRepositoryFactory: MangaRepository.Factory,
 ) {
-	private val timeMap = MutableObjectLongMap<MangaSource>()
-	private val defaultDelay = 1_600L
+    private val timeMap = MutableObjectLongMap<MangaSource>()
+    private val defaultDelay = 1_600L
 
-	suspend fun delay(source: MangaSource) {
-		val repo = mangaRepositoryFactory.create(source) as? ParserMangaRepository ?: return
-		if (!repo.isSlowdownEnabled()) {
-			return
-		}
-		val lastRequest = synchronized(timeMap) {
-			val res = timeMap.getOrDefault(source, 0L)
-			timeMap[source] = SystemClock.elapsedRealtime()
-			res
-		}
-		if (lastRequest != 0L) {
-			delay(lastRequest + defaultDelay - SystemClock.elapsedRealtime())
-		}
-	}
+    suspend fun delay(source: MangaSource) {
+        val repo = mangaRepositoryFactory.create(source) as? ParserMangaRepository ?: return
+        if (!repo.isSlowdownEnabled()) {
+            return
+        }
+        val lastRequest = synchronized(timeMap) {
+            val res = timeMap.getOrDefault(source, 0L)
+            timeMap[source] = SystemClock.elapsedRealtime()
+            res
+        }
+        if (lastRequest != 0L) {
+            delay(lastRequest + defaultDelay - SystemClock.elapsedRealtime())
+        }
+    }
 }

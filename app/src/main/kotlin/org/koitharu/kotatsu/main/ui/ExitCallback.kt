@@ -19,54 +19,55 @@ import org.koitharu.kotatsu.core.prefs.observeAsFlow
 import org.koitharu.kotatsu.main.ui.owners.BottomNavOwner
 
 class ExitCallback(
-	private val activity: MainActivity,
-	private val snackbarHost: View,
-) : OnBackPressedCallback(false), SearchView.TransitionListener {
+    private val activity: MainActivity,
+    private val snackbarHost: View,
+) : OnBackPressedCallback(false),
+    SearchView.TransitionListener {
 
-	private var job: Job? = null
-	private val isSearchOpen = MutableStateFlow(activity.viewBinding.searchView.isShowing)
-	private val isDisabledByTimeout = MutableStateFlow(false)
+    private var job: Job? = null
+    private val isSearchOpen = MutableStateFlow(activity.viewBinding.searchView.isShowing)
+    private val isDisabledByTimeout = MutableStateFlow(false)
 
-	init {
-		activity.lifecycleScope.launch {
-			combine(
-				observeSettings(),
-				isSearchOpen,
-				isDisabledByTimeout,
-			) { enabledInSettings, searchOpen, disabledTemporary ->
-				enabledInSettings && !searchOpen && !disabledTemporary
-			}.collect {
-				isEnabled = it
-			}
-		}
-	}
+    init {
+        activity.lifecycleScope.launch {
+            combine(
+                observeSettings(),
+                isSearchOpen,
+                isDisabledByTimeout,
+            ) { enabledInSettings, searchOpen, disabledTemporary ->
+                enabledInSettings && !searchOpen && !disabledTemporary
+            }.collect {
+                isEnabled = it
+            }
+        }
+    }
 
-	override fun handleOnBackPressed() {
-		job?.cancel()
-		job = activity.lifecycleScope.launch {
-			resetExitConfirmation()
-		}
-	}
+    override fun handleOnBackPressed() {
+        job?.cancel()
+        job = activity.lifecycleScope.launch {
+            resetExitConfirmation()
+        }
+    }
 
-	override fun onStateChanged(
-		searchView: SearchView,
-		previousState: SearchView.TransitionState,
-		newState: SearchView.TransitionState
-	) {
-		isSearchOpen.value = newState >= SearchView.TransitionState.SHOWING
-	}
+    override fun onStateChanged(
+        searchView: SearchView,
+        previousState: SearchView.TransitionState,
+        newState: SearchView.TransitionState,
+    ) {
+        isSearchOpen.value = newState >= SearchView.TransitionState.SHOWING
+    }
 
-	private suspend fun resetExitConfirmation() {
-		isDisabledByTimeout.value = true
-		val snackbar = Snackbar.make(snackbarHost, R.string.confirm_exit, Snackbar.LENGTH_INDEFINITE)
-		snackbar.anchorView = (activity as? BottomNavOwner)?.bottomNav
-		snackbar.show()
-		delay(2000)
-		snackbar.dismiss()
-		isDisabledByTimeout.value = false
-	}
+    private suspend fun resetExitConfirmation() {
+        isDisabledByTimeout.value = true
+        val snackbar = Snackbar.make(snackbarHost, R.string.confirm_exit, Snackbar.LENGTH_INDEFINITE)
+        snackbar.anchorView = (activity as? BottomNavOwner)?.bottomNav
+        snackbar.show()
+        delay(2000)
+        snackbar.dismiss()
+        isDisabledByTimeout.value = false
+    }
 
-	private fun observeSettings(): Flow<Boolean> = activity.settings
-		.observeAsFlow(AppSettings.KEY_EXIT_CONFIRM) { isExitConfirmationEnabled }
-		.flowOn(Dispatchers.Default)
+    private fun observeSettings(): Flow<Boolean> = activity.settings
+        .observeAsFlow(AppSettings.KEY_EXIT_CONFIRM) { isExitConfirmationEnabled }
+        .flowOn(Dispatchers.Default)
 }

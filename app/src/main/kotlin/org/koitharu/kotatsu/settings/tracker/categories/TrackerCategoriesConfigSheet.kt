@@ -18,33 +18,31 @@ import org.koitharu.kotatsu.databinding.SheetBaseBinding
 
 @AndroidEntryPoint
 class TrackerCategoriesConfigSheet :
-	BaseAdaptiveSheet<SheetBaseBinding>(),
-	OnListItemClickListener<FavouriteCategory> {
+    BaseAdaptiveSheet<SheetBaseBinding>(),
+    OnListItemClickListener<FavouriteCategory> {
 
-	private val viewModel by viewModels<TrackerCategoriesConfigViewModel>()
+    private val viewModel by viewModels<TrackerCategoriesConfigViewModel>()
 
-	override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): SheetBaseBinding {
-		return SheetBaseBinding.inflate(inflater, container, false)
-	}
+    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): SheetBaseBinding = SheetBaseBinding.inflate(inflater, container, false)
 
-	override fun onViewBindingCreated(binding: SheetBaseBinding, savedInstanceState: Bundle?) {
-		super.onViewBindingCreated(binding, savedInstanceState)
-		binding.headerBar.setTitle(R.string.favourites_categories)
-		val adapter = TrackerCategoriesConfigAdapter(this)
-		binding.recyclerView.adapter = adapter
+    override fun onViewBindingCreated(binding: SheetBaseBinding, savedInstanceState: Bundle?) {
+        super.onViewBindingCreated(binding, savedInstanceState)
+        binding.headerBar.setTitle(R.string.favourites_categories)
+        val adapter = TrackerCategoriesConfigAdapter(this)
+        binding.recyclerView.adapter = adapter
 
-		viewModel.content.observe(viewLifecycleOwner, adapter)
-	}
+        viewModel.content.observe(viewLifecycleOwner, adapter)
+    }
 
-	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
-		val typeMask = WindowInsetsCompat.Type.systemBars()
-		viewBinding?.recyclerView?.updatePadding(
-			bottom = insets.getInsets(typeMask).bottom,
-		)
-		return insets.consume(v, typeMask, bottom = true)
-	}
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val typeMask = WindowInsetsCompat.Type.systemBars()
+        viewBinding?.recyclerView?.updatePadding(
+            bottom = insets.getInsets(typeMask).bottom,
+        )
+        return insets.consume(v, typeMask, bottom = true)
+    }
 
-	override fun onItemClick(item: FavouriteCategory, view: View) {
-		viewModel.toggleItem(item)
-	}
+    override fun onItemClick(item: FavouriteCategory, view: View) {
+        viewModel.toggleItem(item)
+    }
 }

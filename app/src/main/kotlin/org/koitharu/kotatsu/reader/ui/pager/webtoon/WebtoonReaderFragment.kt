@@ -33,290 +33,291 @@ import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class WebtoonReaderFragment : BaseReaderFragment<FragmentReaderWebtoonBinding>(),
-	WebtoonRecyclerView.OnWebtoonScrollListener,
-	WebtoonRecyclerView.OnPullGestureListener {
+class WebtoonReaderFragment :
+    BaseReaderFragment<FragmentReaderWebtoonBinding>(),
+    WebtoonRecyclerView.OnWebtoonScrollListener,
+    WebtoonRecyclerView.OnPullGestureListener {
 
-	@Inject
-	lateinit var networkState: NetworkState
+    @Inject
+    lateinit var networkState: NetworkState
 
-	@Inject
-	lateinit var pageLoader: PageLoader
+    @Inject
+    lateinit var pageLoader: PageLoader
 
-	@Inject
-	lateinit var appSettings: AppSettings
+    @Inject
+    lateinit var appSettings: AppSettings
 
-	private val scrollInterpolator = DecelerateInterpolator()
+    private val scrollInterpolator = DecelerateInterpolator()
 
-	private var recyclerLifecycleDispatcher: RecyclerViewLifecycleDispatcher? = null
-	private var canGoPrev = true
-	private var canGoNext = true
+    private var recyclerLifecycleDispatcher: RecyclerViewLifecycleDispatcher? = null
+    private var canGoPrev = true
+    private var canGoNext = true
 
-	override fun onCreateViewBinding(
-		inflater: LayoutInflater,
-		container: ViewGroup?,
-	) = FragmentReaderWebtoonBinding.inflate(inflater, container, false)
+    override fun onCreateViewBinding(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+    ) = FragmentReaderWebtoonBinding.inflate(inflater, container, false)
 
-	override fun onViewBindingCreated(binding: FragmentReaderWebtoonBinding, savedInstanceState: Bundle?) {
-		super.onViewBindingCreated(binding, savedInstanceState)
-		with(binding.recyclerView) {
-			setHasFixedSize(true)
-			adapter = readerAdapter
-			addOnPageScrollListener(this@WebtoonReaderFragment)
-			recyclerLifecycleDispatcher = RecyclerViewLifecycleDispatcher().also {
-				addOnScrollListener(it)
-			}
-			setOnPullGestureListener(this@WebtoonReaderFragment)
-			applyMemorySaverMode(this, appSettings.isWebtoonMemorySaverEnabled)
-		}
-		viewModel.isWebtoonZooEnabled.observe(viewLifecycleOwner) {
-			binding.frame.isZoomEnable = it
-		}
-		viewModel.defaultWebtoonZoomOut.take(1).observe(viewLifecycleOwner) {
-			binding.frame.zoom = 1f - it
-		}
-		viewModel.isWebtoonGapsEnabled.observe(viewLifecycleOwner) {
-			val rv = binding.recyclerView
-			rv.removeItemDecoration(WebtoonGapsDecoration::class.java)
-			if (it) {
-				rv.addItemDecoration(WebtoonGapsDecoration())
-			}
-		}
-		viewModel.readerSettingsProducer.observe(viewLifecycleOwner) {
-			it.applyBackground(binding.root)
-		}
-		viewModel.isWebtoonPullGestureEnabled.observe(viewLifecycleOwner) { enabled ->
-			binding.recyclerView.isPullGestureEnabled = enabled
-		}
-		appSettings.observe(AppSettings.KEY_WEBTOON_MEMORY_SAVER)
-			.observe(viewLifecycleOwner) {
-				applyMemorySaverMode(binding.recyclerView, appSettings.isWebtoonMemorySaverEnabled)
-			}
-		viewModel.uiState.observe(viewLifecycleOwner) { state ->
-			if (state != null) {
-				canGoPrev = state.chapterIndex > 0
-				canGoNext = state.chapterIndex < state.chaptersTotal - 1
-			} else {
-				canGoPrev = true
-				canGoNext = true
-			}
-		}
-	}
+    override fun onViewBindingCreated(binding: FragmentReaderWebtoonBinding, savedInstanceState: Bundle?) {
+        super.onViewBindingCreated(binding, savedInstanceState)
+        with(binding.recyclerView) {
+            setHasFixedSize(true)
+            adapter = readerAdapter
+            addOnPageScrollListener(this@WebtoonReaderFragment)
+            recyclerLifecycleDispatcher = RecyclerViewLifecycleDispatcher().also {
+                addOnScrollListener(it)
+            }
+            setOnPullGestureListener(this@WebtoonReaderFragment)
+            applyMemorySaverMode(this, appSettings.isWebtoonMemorySaverEnabled)
+        }
+        viewModel.isWebtoonZooEnabled.observe(viewLifecycleOwner) {
+            binding.frame.isZoomEnable = it
+        }
+        viewModel.defaultWebtoonZoomOut.take(1).observe(viewLifecycleOwner) {
+            binding.frame.zoom = 1f - it
+        }
+        viewModel.isWebtoonGapsEnabled.observe(viewLifecycleOwner) {
+            val rv = binding.recyclerView
+            rv.removeItemDecoration(WebtoonGapsDecoration::class.java)
+            if (it) {
+                rv.addItemDecoration(WebtoonGapsDecoration())
+            }
+        }
+        viewModel.readerSettingsProducer.observe(viewLifecycleOwner) {
+            it.applyBackground(binding.root)
+        }
+        viewModel.isWebtoonPullGestureEnabled.observe(viewLifecycleOwner) { enabled ->
+            binding.recyclerView.isPullGestureEnabled = enabled
+        }
+        appSettings.observe(AppSettings.KEY_WEBTOON_MEMORY_SAVER)
+            .observe(viewLifecycleOwner) {
+                applyMemorySaverMode(binding.recyclerView, appSettings.isWebtoonMemorySaverEnabled)
+            }
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            if (state != null) {
+                canGoPrev = state.chapterIndex > 0
+                canGoNext = state.chapterIndex < state.chaptersTotal - 1
+            } else {
+                canGoPrev = true
+                canGoNext = true
+            }
+        }
+    }
 
-	override fun onDestroyView() {
-		recyclerLifecycleDispatcher = null
-		requireViewBinding().recyclerView.adapter = null
-		super.onDestroyView()
-	}
+    override fun onDestroyView() {
+        recyclerLifecycleDispatcher = null
+        requireViewBinding().recyclerView.adapter = null
+        super.onDestroyView()
+    }
 
-	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
-		val offsetInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-		viewBinding?.apply {
-			feedbackTop.updateLayoutParams<MarginLayoutParams> {
-				topMargin = bottomMargin + offsetInsets.top
-			}
-			feedbackBottom.updateLayoutParams<MarginLayoutParams> {
-				bottomMargin = topMargin + offsetInsets.bottom
-			}
-		}
-		return super.onApplyWindowInsets(v, insets)
-	}
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val offsetInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+        viewBinding?.apply {
+            feedbackTop.updateLayoutParams<MarginLayoutParams> {
+                topMargin = bottomMargin + offsetInsets.top
+            }
+            feedbackBottom.updateLayoutParams<MarginLayoutParams> {
+                bottomMargin = topMargin + offsetInsets.bottom
+            }
+        }
+        return super.onApplyWindowInsets(v, insets)
+    }
 
-	override fun onCreateAdapter() = WebtoonAdapter(
-		lifecycleOwner = viewLifecycleOwner,
-		loader = pageLoader,
-		readerSettingsProducer = viewModel.readerSettingsProducer,
-		networkState = networkState,
-		exceptionResolver = exceptionResolver,
-	)
+    override fun onCreateAdapter() = WebtoonAdapter(
+        lifecycleOwner = viewLifecycleOwner,
+        loader = pageLoader,
+        readerSettingsProducer = viewModel.readerSettingsProducer,
+        networkState = networkState,
+        exceptionResolver = exceptionResolver,
+    )
 
-	override fun onScrollChanged(
-		recyclerView: WebtoonRecyclerView,
-		dy: Int,
-		firstVisiblePosition: Int,
-		lastVisiblePosition: Int,
-	) {
-		viewModel.onCurrentPageChanged(firstVisiblePosition, lastVisiblePosition)
-	}
+    override fun onScrollChanged(
+        recyclerView: WebtoonRecyclerView,
+        dy: Int,
+        firstVisiblePosition: Int,
+        lastVisiblePosition: Int,
+    ) {
+        viewModel.onCurrentPageChanged(firstVisiblePosition, lastVisiblePosition)
+    }
 
-	override suspend fun onPagesChanged(pages: List<ReaderPage>, pendingState: ReaderState?) = coroutineScope {
-		val setItems = launch {
-			requireAdapter().setItems(pages)
-			yield()
-			viewBinding?.recyclerView?.let { rv ->
-				recyclerLifecycleDispatcher?.invalidate(rv)
-			}
-		}
-		if (pendingState != null) {
-			val position = pages.indexOfFirst {
-				it.chapterId == pendingState.chapterId && it.index == pendingState.page
-			}
-			setItems.join()
-			if (position != -1) {
-				with(requireViewBinding().recyclerView) {
-					firstVisibleItemPosition = position
-					post {
-						(findViewHolderForAdapterPosition(position) as? WebtoonHolder)
-							?.restoreScroll(pendingState.scroll)
-					}
-				}
-				viewModel.onCurrentPageChanged(position, position)
-			} else {
-				Snackbar.make(requireView(), R.string.not_found_404, Snackbar.LENGTH_SHORT)
-					.show()
-			}
-		} else {
-			setItems.join()
-		}
-	}
+    override suspend fun onPagesChanged(pages: List<ReaderPage>, pendingState: ReaderState?) = coroutineScope {
+        val setItems = launch {
+            requireAdapter().setItems(pages)
+            yield()
+            viewBinding?.recyclerView?.let { rv ->
+                recyclerLifecycleDispatcher?.invalidate(rv)
+            }
+        }
+        if (pendingState != null) {
+            val position = pages.indexOfFirst {
+                it.chapterId == pendingState.chapterId && it.index == pendingState.page
+            }
+            setItems.join()
+            if (position != -1) {
+                with(requireViewBinding().recyclerView) {
+                    firstVisibleItemPosition = position
+                    post {
+                        (findViewHolderForAdapterPosition(position) as? WebtoonHolder)
+                            ?.restoreScroll(pendingState.scroll)
+                    }
+                }
+                viewModel.onCurrentPageChanged(position, position)
+            } else {
+                Snackbar.make(requireView(), R.string.not_found_404, Snackbar.LENGTH_SHORT)
+                    .show()
+            }
+        } else {
+            setItems.join()
+        }
+    }
 
-	override fun getCurrentState(): ReaderState? = viewBinding?.run {
-		val currentItem = recyclerView.findCurrentPagePosition()
-		val adapter = recyclerView.adapter as? BaseReaderAdapter<*>
-		val page = adapter?.getItemOrNull(currentItem) ?: return@run null
-		ReaderState(
-			chapterId = page.chapterId,
-			page = page.index,
-			scroll = (recyclerView.findViewHolderForAdapterPosition(currentItem) as? WebtoonHolder)?.getScrollY() ?: 0,
-		)
-	}
+    override fun getCurrentState(): ReaderState? = viewBinding?.run {
+        val currentItem = recyclerView.findCurrentPagePosition()
+        val adapter = recyclerView.adapter as? BaseReaderAdapter<*>
+        val page = adapter?.getItemOrNull(currentItem) ?: return@run null
+        ReaderState(
+            chapterId = page.chapterId,
+            page = page.index,
+            scroll = (recyclerView.findViewHolderForAdapterPosition(currentItem) as? WebtoonHolder)?.getScrollY() ?: 0,
+        )
+    }
 
-	override fun onZoomIn() {
-		viewBinding?.frame?.onZoomIn()
-	}
+    override fun onZoomIn() {
+        viewBinding?.frame?.onZoomIn()
+    }
 
-	override fun onZoomOut() {
-		viewBinding?.frame?.onZoomOut()
-	}
+    override fun onZoomOut() {
+        viewBinding?.frame?.onZoomOut()
+    }
 
-	override fun switchPageBy(delta: Int) {
-		with(requireViewBinding().recyclerView) {
-			if (isAnimationEnabled()) {
-				smoothScrollBy(0, (height * 0.9).toInt() * delta, scrollInterpolator)
-			} else {
-				nestedScrollBy(0, (height * 0.9).toInt() * delta)
-			}
-		}
-	}
+    override fun switchPageBy(delta: Int) {
+        with(requireViewBinding().recyclerView) {
+            if (isAnimationEnabled()) {
+                smoothScrollBy(0, (height * 0.9).toInt() * delta, scrollInterpolator)
+            } else {
+                nestedScrollBy(0, (height * 0.9).toInt() * delta)
+            }
+        }
+    }
 
-	override fun switchPageTo(position: Int, smooth: Boolean) {
-		requireViewBinding().recyclerView.firstVisibleItemPosition = position
-	}
+    override fun switchPageTo(position: Int, smooth: Boolean) {
+        requireViewBinding().recyclerView.firstVisibleItemPosition = position
+    }
 
-	override fun scrollBy(delta: Int, smooth: Boolean): Boolean {
-		if (smooth && isAnimationEnabled()) {
-			requireViewBinding().recyclerView.smoothScrollBy(0, delta, scrollInterpolator)
-		} else {
-			requireViewBinding().recyclerView.nestedScrollBy(0, delta)
-		}
-		return true
-	}
+    override fun scrollBy(delta: Int, smooth: Boolean): Boolean {
+        if (smooth && isAnimationEnabled()) {
+            requireViewBinding().recyclerView.smoothScrollBy(0, delta, scrollInterpolator)
+        } else {
+            requireViewBinding().recyclerView.nestedScrollBy(0, delta)
+        }
+        return true
+    }
 
-	override fun onPullProgressTop(progress: Float) {
-		val binding = viewBinding ?: return
-		if (canGoPrev) {
-			binding.feedbackTop.setFeedbackText(getString(R.string.pull_to_prev_chapter))
-		} else {
-			binding.feedbackTop.setFeedbackText(getString(R.string.pull_top_no_prev))
-		}
-		binding.feedbackTop.updateFeedback(progress)
-	}
+    override fun onPullProgressTop(progress: Float) {
+        val binding = viewBinding ?: return
+        if (canGoPrev) {
+            binding.feedbackTop.setFeedbackText(getString(R.string.pull_to_prev_chapter))
+        } else {
+            binding.feedbackTop.setFeedbackText(getString(R.string.pull_top_no_prev))
+        }
+        binding.feedbackTop.updateFeedback(progress)
+    }
 
-	override fun onPullProgressBottom(progress: Float) {
-		val binding = viewBinding ?: return
-		if (canGoNext) {
-			binding.feedbackBottom.setFeedbackText(getString(R.string.pull_to_next_chapter))
-		} else {
-			binding.feedbackBottom.setFeedbackText(getString(R.string.pull_bottom_no_next))
-		}
-		binding.feedbackBottom.updateFeedback(progress)
-	}
+    override fun onPullProgressBottom(progress: Float) {
+        val binding = viewBinding ?: return
+        if (canGoNext) {
+            binding.feedbackBottom.setFeedbackText(getString(R.string.pull_to_next_chapter))
+        } else {
+            binding.feedbackBottom.setFeedbackText(getString(R.string.pull_bottom_no_next))
+        }
+        binding.feedbackBottom.updateFeedback(progress)
+    }
 
-	override fun onPullTriggeredTop() {
-		(viewBinding ?: return).feedbackTop.hideFeedback()
-		if (canGoPrev) {
-			viewModel.switchChapterBy(-1)
-		}
-	}
+    override fun onPullTriggeredTop() {
+        (viewBinding ?: return).feedbackTop.hideFeedback()
+        if (canGoPrev) {
+            viewModel.switchChapterBy(-1)
+        }
+    }
 
-	override fun onPullTriggeredBottom() {
-		(viewBinding ?: return).feedbackBottom.hideFeedback()
-		if (canGoNext) {
-			viewModel.switchChapterBy(1)
-		}
-	}
+    override fun onPullTriggeredBottom() {
+        (viewBinding ?: return).feedbackBottom.hideFeedback()
+        if (canGoNext) {
+            viewModel.switchChapterBy(1)
+        }
+    }
 
-	override fun onPullCancelled() {
-		viewBinding?.apply {
-			feedbackTop.hideFeedback()
-			feedbackBottom.hideFeedback()
-		}
-	}
+    override fun onPullCancelled() {
+        viewBinding?.apply {
+            feedbackTop.hideFeedback()
+            feedbackBottom.hideFeedback()
+        }
+    }
 
-	/**
-	 * When [enabled], caps the number of fully-decoded webtoon pages kept in RAM to
-	 * roughly previous + current + next (~3) by forcing RecyclerView to recycle a
-	 * holder (calling onViewRecycled() → ssiv.recycle(), releasing all tile bitmaps)
-	 * the instant it leaves the laid-out window, and disabling fling-ahead prefetch
-	 * decoding. When disabled, restores the stock defaults (viewCacheSize=2, prefetch
-	 * on) which give smoother instant scroll-back at the cost of more memory — the
-	 * right tradeoff for standard-resolution pages where memory isn't a concern.
-	 *
-	 * Safe to call at any time, including while the list is mid-scroll: it only
-	 * changes how future recycle/bind decisions are made, it doesn't force-recycle
-	 * currently bound holders.
-	 */
-	private fun applyMemorySaverMode(recyclerView: RecyclerView, enabled: Boolean) {
-		val cacheSize = if (enabled) 0 else 2
-		val poolSize = if (enabled) 1 else 5
-		recyclerView.setItemViewCacheSize(cacheSize)
-		(recyclerView.layoutManager as? LinearLayoutManager)?.isItemPrefetchEnabled = !enabled
-		recyclerView.recycledViewPool.setMaxRecycledViews(0, poolSize)
-	}
+    /**
+     * When [enabled], caps the number of fully-decoded webtoon pages kept in RAM to
+     * roughly previous + current + next (~3) by forcing RecyclerView to recycle a
+     * holder (calling onViewRecycled() → ssiv.recycle(), releasing all tile bitmaps)
+     * the instant it leaves the laid-out window, and disabling fling-ahead prefetch
+     * decoding. When disabled, restores the stock defaults (viewCacheSize=2, prefetch
+     * on) which give smoother instant scroll-back at the cost of more memory — the
+     * right tradeoff for standard-resolution pages where memory isn't a concern.
+     *
+     * Safe to call at any time, including while the list is mid-scroll: it only
+     * changes how future recycle/bind decisions are made, it doesn't force-recycle
+     * currently bound holders.
+     */
+    private fun applyMemorySaverMode(recyclerView: RecyclerView, enabled: Boolean) {
+        val cacheSize = if (enabled) 0 else 2
+        val poolSize = if (enabled) 1 else 5
+        recyclerView.setItemViewCacheSize(cacheSize)
+        (recyclerView.layoutManager as? LinearLayoutManager)?.isItemPrefetchEnabled = !enabled
+        recyclerView.recycledViewPool.setMaxRecycledViews(0, poolSize)
+    }
 
-	private fun RecyclerView.findCurrentPagePosition(): Int {
-		val centerX = width / 2f
-		val centerY = height - resources.getDimension(R.dimen.webtoon_pages_gap)
-		if (centerY <= 0) {
-			return RecyclerView.NO_POSITION
-		}
-		val view = findChildViewUnder(centerX, centerY) ?: return RecyclerView.NO_POSITION
-		return getChildAdapterPosition(view)
-	}
+    private fun RecyclerView.findCurrentPagePosition(): Int {
+        val centerX = width / 2f
+        val centerY = height - resources.getDimension(R.dimen.webtoon_pages_gap)
+        if (centerY <= 0) {
+            return RecyclerView.NO_POSITION
+        }
+        val view = findChildViewUnder(centerX, centerY) ?: return RecyclerView.NO_POSITION
+        return getChildAdapterPosition(view)
+    }
 
-	private fun TextView.updateFeedback(progress: Float) {
-		val clamped = progress.coerceIn(0f, 1.2f)
-		val isReady = clamped >= 1f
-		val wasReady = getTag(R.id.tag_pull_feedback_ready) as? Boolean ?: false
-		if (wasReady != isReady) {
-			setTag(R.id.tag_pull_feedback_ready, isReady)
-			setBackgroundResource(
-				if (isReady) {
-					R.drawable.bg_reader_indicator_ready
-				} else {
-					R.drawable.bg_reader_indicator
-				},
-			)
-		}
-		animate().cancel()
-		alpha = if (clamped > 0f) {
-			(0.15f + 0.85f * clamped.coerceAtMost(1f)).coerceAtMost(1f)
-		} else {
-			0f
-		}
-		val scale = 0.9f + 0.1f * clamped.coerceAtMost(1f)
-		scaleX = scale
-		scaleY = scale
-	}
+    private fun TextView.updateFeedback(progress: Float) {
+        val clamped = progress.coerceIn(0f, 1.2f)
+        val isReady = clamped >= 1f
+        val wasReady = getTag(R.id.tag_pull_feedback_ready) as? Boolean ?: false
+        if (wasReady != isReady) {
+            setTag(R.id.tag_pull_feedback_ready, isReady)
+            setBackgroundResource(
+                if (isReady) {
+                    R.drawable.bg_reader_indicator_ready
+                } else {
+                    R.drawable.bg_reader_indicator
+                },
+            )
+        }
+        animate().cancel()
+        alpha = if (clamped > 0f) {
+            (0.15f + 0.85f * clamped.coerceAtMost(1f)).coerceAtMost(1f)
+        } else {
+            0f
+        }
+        val scale = 0.9f + 0.1f * clamped.coerceAtMost(1f)
+        scaleX = scale
+        scaleY = scale
+    }
 
-	private fun TextView.hideFeedback() {
-		animate().cancel()
-		alpha = 0f
-	}
+    private fun TextView.hideFeedback() {
+        animate().cancel()
+        alpha = 0f
+    }
 
-	private fun TextView.setFeedbackText(text: CharSequence) {
-		if (this.text != text) {
-			this.text = text
-		}
-	}
+    private fun TextView.setFeedbackText(text: CharSequence) {
+        if (this.text != text) {
+            this.text = text
+        }
+    }
 }

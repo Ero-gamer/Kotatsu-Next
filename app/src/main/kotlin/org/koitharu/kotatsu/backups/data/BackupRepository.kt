@@ -160,7 +160,9 @@ class BackupRepository @Inject constructor(
             val section = BackupSection.of(entry)
             if (section in sections) {
                 result += when (section) {
-                    BackupSection.INDEX -> CompositeResult.EMPTY // useless in our case
+                    BackupSection.INDEX -> CompositeResult.EMPTY
+
+                    // useless in our case
                     BackupSection.HISTORY -> input.readJsonArray<HistoryBackup>(serializer()).restoreToDb {
                         upsertManga(it.manga)
                         getHistoryDao().upsert(it.toEntity())
@@ -284,9 +286,7 @@ class BackupRepository @Inject constructor(
         return JSONObject(map).toString()
     }
 
-    private fun dumpReaderGridSettings(): String {
-        return JSONObject(tapGridSettings.getAllValues()).toString()
-    }
+    private fun dumpReaderGridSettings(): String = JSONObject(tapGridSettings.getAllValues()).toString()
 
     private suspend fun MangaDatabase.upsertManga(manga: MangaBackup) {
         val tags = manga.tags.map { it.toEntity() }
@@ -294,21 +294,17 @@ class BackupRepository @Inject constructor(
         getMangaDao().upsert(manga.toEntity(), tags)
     }
 
-    private suspend inline fun <T> Sequence<T>.restoreToDb(crossinline block: suspend MangaDatabase.(T) -> Unit): CompositeResult {
-        return fold(CompositeResult.EMPTY) { result, item ->
-            result + runCatchingCancellable {
-                database.withTransaction {
-                    database.block(item)
-                }
+    private suspend inline fun <T> Sequence<T>.restoreToDb(crossinline block: suspend MangaDatabase.(T) -> Unit): CompositeResult = fold(CompositeResult.EMPTY) { result, item ->
+        result + runCatchingCancellable {
+            database.withTransaction {
+                database.block(item)
             }
         }
     }
 
-    private suspend inline fun <T> Sequence<T>.restoreWithoutTransaction(crossinline block: suspend (T) -> Unit): CompositeResult {
-        return fold(CompositeResult.EMPTY) { result, item ->
-            result + runCatchingCancellable {
-                block(item)
-            }
+    private suspend inline fun <T> Sequence<T>.restoreWithoutTransaction(crossinline block: suspend (T) -> Unit): CompositeResult = fold(CompositeResult.EMPTY) { result, item ->
+        result + runCatchingCancellable {
+            block(item)
         }
     }
 }

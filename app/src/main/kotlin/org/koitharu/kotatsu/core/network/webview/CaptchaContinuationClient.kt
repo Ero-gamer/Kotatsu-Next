@@ -4,12 +4,12 @@ import android.graphics.Bitmap
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
-import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
-import org.koitharu.kotatsu.parsers.network.CloudFlareHelper
-import kotlin.coroutines.Continuation
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
+import org.koitharu.kotatsu.parsers.network.CloudFlareHelper
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.Continuation
 import kotlin.toString
 
 class CaptchaContinuationClient(

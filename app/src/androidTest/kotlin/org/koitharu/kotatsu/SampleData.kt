@@ -20,77 +20,77 @@ import kotlin.reflect.KClass
 
 object SampleData {
 
-	private val moshi = Moshi.Builder()
-		.add(DateAdapter())
-		.add(InstantAdapter())
-		.add(MangaSourceAdapter())
-		.add(KotlinJsonAdapterFactory())
-		.build()
+    private val moshi = Moshi.Builder()
+        .add(DateAdapter())
+        .add(InstantAdapter())
+        .add(MangaSourceAdapter())
+        .add(KotlinJsonAdapterFactory())
+        .build()
 
-	val manga: Manga = loadAsset("manga/header.json", Manga::class)
+    val manga: Manga = loadAsset("manga/header.json", Manga::class)
 
-	val mangaDetails: Manga = loadAsset("manga/full.json", Manga::class)
+    val mangaDetails: Manga = loadAsset("manga/full.json", Manga::class)
 
-	val tag = mangaDetails.tags.elementAt(2)
+    val tag = mangaDetails.tags.elementAt(2)
 
-	val chapter = checkNotNull(mangaDetails.chapters)[2]
+    val chapter = checkNotNull(mangaDetails.chapters)[2]
 
-	val favouriteCategory: FavouriteCategory = loadAsset("categories/simple.json", FavouriteCategory::class)
+    val favouriteCategory: FavouriteCategory = loadAsset("categories/simple.json", FavouriteCategory::class)
 
-	fun <T : Any> loadAsset(name: String, cls: KClass<T>): T {
-		val assets = InstrumentationRegistry.getInstrumentation().context.assets
-		return assets.open(name).use {
-			moshi.adapter(cls.java).fromJson(it.source().buffer())
-		} ?: throw RuntimeException("Cannot read asset from json \"$name\"")
-	}
+    fun <T : Any> loadAsset(name: String, cls: KClass<T>): T {
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        return assets.open(name).use {
+            moshi.adapter(cls.java).fromJson(it.source().buffer())
+        } ?: throw RuntimeException("Cannot read asset from json \"$name\"")
+    }
 
-	private class DateAdapter : JsonAdapter<Date>() {
+    private class DateAdapter : JsonAdapter<Date>() {
 
-		@FromJson
-		override fun fromJson(reader: JsonReader): Date? {
-			val ms = reader.nextLong()
-			return if (ms == 0L) {
-				null
-			} else {
-				Date(ms)
-			}
-		}
+        @FromJson
+        override fun fromJson(reader: JsonReader): Date? {
+            val ms = reader.nextLong()
+            return if (ms == 0L) {
+                null
+            } else {
+                Date(ms)
+            }
+        }
 
-		@ToJson
-		override fun toJson(writer: JsonWriter, value: Date?) {
-			writer.value(value?.time ?: 0L)
-		}
-	}
+        @ToJson
+        override fun toJson(writer: JsonWriter, value: Date?) {
+            writer.value(value?.time ?: 0L)
+        }
+    }
 
-	private class MangaSourceAdapter : JsonAdapter<MangaSource>() {
+    private class MangaSourceAdapter : JsonAdapter<MangaSource>() {
 
-		@FromJson
-		override fun fromJson(reader: JsonReader): MangaSource? {
-			val name = reader.nextString() ?: return null
-			return MangaSource(name)
-		}
+        @FromJson
+        override fun fromJson(reader: JsonReader): MangaSource? {
+            val name = reader.nextString() ?: return null
+            return MangaSource(name)
+        }
 
-		@ToJson
-		override fun toJson(writer: JsonWriter, value: MangaSource?) {
-			writer.value(value?.name)
-		}
-	}
+        @ToJson
+        override fun toJson(writer: JsonWriter, value: MangaSource?) {
+            writer.value(value?.name)
+        }
+    }
 
-	private class InstantAdapter : JsonAdapter<Instant>() {
+    private class InstantAdapter : JsonAdapter<Instant>() {
 
-		@FromJson
-		override fun fromJson(reader: JsonReader): Instant? {
-			val ms = reader.nextLong()
-			return if (ms == 0L) {
-				null
-			} else {
-				Instant.ofEpochMilli(ms)
-			}
-		}
+        @FromJson
+        override fun fromJson(reader: JsonReader): Instant? {
+            val ms = reader.nextLong()
+            return if (ms == 0L) {
+                null
+            } else {
+                Instant.ofEpochMilli(ms)
+            }
+        }
 
-		@ToJson
-		override fun toJson(writer: JsonWriter, value: Instant?) {
-			writer.value(value?.toEpochMilli() ?: 0L)
-		}
-	}
+        @ToJson
+        override fun toJson(writer: JsonWriter, value: Instant?) {
+            writer.value(value?.toEpochMilli() ?: 0L)
+        }
+    }
 }

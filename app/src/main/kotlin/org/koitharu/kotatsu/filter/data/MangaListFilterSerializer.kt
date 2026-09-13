@@ -51,7 +51,7 @@ object MangaListFilterSerializer : KSerializer<MangaListFilter> {
 
     override fun serialize(
         encoder: Encoder,
-        value: MangaListFilter
+        value: MangaListFilter,
     ) = encoder.encodeStructure(descriptor) {
         encodeNullableSerializableElement(descriptor, 0, String.serializer(), value.query)
         encodeSerializableElement(descriptor, 1, SetSerializer(MangaTagSerializer), value.tags)
@@ -69,7 +69,7 @@ object MangaListFilterSerializer : KSerializer<MangaListFilter> {
     }
 
     override fun deserialize(
-        decoder: Decoder
+        decoder: Decoder,
     ): MangaListFilter = decoder.decodeStructure(descriptor) {
         var query: String? = MangaListFilter.EMPTY.query
         var tags: Set<MangaTag> = MangaListFilter.EMPTY.tags
@@ -88,20 +88,33 @@ object MangaListFilterSerializer : KSerializer<MangaListFilter> {
         while (true) {
             when (decodeElementIndex(descriptor)) {
                 0 -> query = decodeNullableSerializableElement(descriptor, 0, serializer<String>())
+
                 1 -> tags = decodeSerializableElement(descriptor, 1, SetSerializer(MangaTagSerializer))
+
                 2 -> tagsExclude = decodeSerializableElement(descriptor, 2, SetSerializer(MangaTagSerializer))
+
                 3 -> locale = decodeNullableSerializableElement(descriptor, 3, serializer<String>())?.toLocaleOrNull()
-                4 -> originalLocale =
-                    decodeNullableSerializableElement(descriptor, 4, serializer<String>())?.toLocaleOrNull()
+
+                4 ->
+                    originalLocale =
+                        decodeNullableSerializableElement(descriptor, 4, serializer<String>())?.toLocaleOrNull()
 
                 5 -> states = decodeSerializableElement(descriptor, 5, SetSerializer(serializer()))
+
                 6 -> contentRating = decodeSerializableElement(descriptor, 6, SetSerializer(serializer()))
+
                 7 -> types = decodeSerializableElement(descriptor, 7, SetSerializer(serializer()))
+
                 8 -> demographics = decodeSerializableElement(descriptor, 8, SetSerializer(serializer()))
+
                 9 -> year = decodeIntElement(descriptor, 9)
+
                 10 -> yearFrom = decodeIntElement(descriptor, 10)
+
                 11 -> yearTo = decodeIntElement(descriptor, 11)
+
                 12 -> author = decodeNullableSerializableElement(descriptor, 12, serializer<String>())
+
                 CompositeDecoder.DECODE_DONE -> break
             }
         }

@@ -8,7 +8,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class CloudFlareHiddenActivity : CloudFlareActivity() {
 
-	override val applyColorSchemeTheme: Boolean = false
+    override val applyColorSchemeTheme: Boolean = false
 
-	override val isHiddenAutoResolveActivity = true
+    override val isHiddenAutoResolveActivity = true
 }

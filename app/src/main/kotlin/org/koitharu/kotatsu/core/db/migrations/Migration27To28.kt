@@ -5,9 +5,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 class Migration27To28 : Migration(27, 28) {
 
-	override fun migrate(db: SupportSQLiteDatabase) {
-		db.execSQL(
-			"""CREATE TABLE IF NOT EXISTS source_presets (
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS source_presets (
 				preset_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 				title TEXT NOT NULL,
 				languages TEXT NOT NULL,
@@ -16,6 +16,6 @@ class Migration27To28 : Migration(27, 28) {
 				sort_key INTEGER NOT NULL,
 				deleted_at INTEGER NOT NULL DEFAULT 0
 			)""",
-		)
-	}
+        )
+    }
 }

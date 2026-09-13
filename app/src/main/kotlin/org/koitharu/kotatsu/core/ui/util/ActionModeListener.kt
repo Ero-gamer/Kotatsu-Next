@@ -4,7 +4,7 @@ import androidx.appcompat.view.ActionMode
 
 interface ActionModeListener {
 
-	fun onActionModeStarted(mode: ActionMode)
+    fun onActionModeStarted(mode: ActionMode)
 
-	fun onActionModeFinished(mode: ActionMode)
+    fun onActionModeFinished(mode: ActionMode)
 }

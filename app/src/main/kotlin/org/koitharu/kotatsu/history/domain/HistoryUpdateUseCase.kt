@@ -14,31 +14,31 @@ import org.koitharu.kotatsu.reader.ui.ReaderState
 import javax.inject.Inject
 
 class HistoryUpdateUseCase @Inject constructor(
-	private val historyRepository: HistoryRepository,
+    private val historyRepository: HistoryRepository,
 ) {
 
-	suspend operator fun invoke(manga: Manga, readerState: ReaderState, percent: Float) {
-		historyRepository.addOrUpdate(
-			manga = manga,
-			chapterId = readerState.chapterId,
-			page = readerState.page,
-			scroll = readerState.scroll,
-			percent = percent,
-			force = false,
-		)
-	}
+    suspend operator fun invoke(manga: Manga, readerState: ReaderState, percent: Float) {
+        historyRepository.addOrUpdate(
+            manga = manga,
+            chapterId = readerState.chapterId,
+            page = readerState.page,
+            scroll = readerState.scroll,
+            percent = percent,
+            force = false,
+        )
+    }
 
-	fun invokeAsync(
-		manga: Manga,
-		readerState: ReaderState,
-		percent: Float
-	) = processLifecycleScope.launch(Dispatchers.Default, CoroutineStart.ATOMIC) {
-		runCatchingCancellable {
-			withContext(NonCancellable) {
-				invoke(manga, readerState, percent)
-			}
-		}.onFailure {
-			it.printStackTraceDebug()
-		}
-	}
+    fun invokeAsync(
+        manga: Manga,
+        readerState: ReaderState,
+        percent: Float,
+    ) = processLifecycleScope.launch(Dispatchers.Default, CoroutineStart.ATOMIC) {
+        runCatchingCancellable {
+            withContext(NonCancellable) {
+                invoke(manga, readerState, percent)
+            }
+        }.onFailure {
+            it.printStackTraceDebug()
+        }
+    }
 }

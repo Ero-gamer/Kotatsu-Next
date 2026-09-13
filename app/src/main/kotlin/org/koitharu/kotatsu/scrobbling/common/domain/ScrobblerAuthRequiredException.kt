@@ -4,5 +4,5 @@ import okio.IOException
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblerService
 
 class ScrobblerAuthRequiredException(
-	val scrobbler: ScrobblerService,
+    val scrobbler: ScrobblerService,
 ) : IOException()

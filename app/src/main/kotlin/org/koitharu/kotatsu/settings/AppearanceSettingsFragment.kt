@@ -20,7 +20,6 @@ import org.koitharu.kotatsu.core.prefs.ListMode
 import org.koitharu.kotatsu.core.prefs.ProgressIndicatorMode
 import org.koitharu.kotatsu.core.prefs.ScreenshotsPolicy
 import org.koitharu.kotatsu.core.prefs.SearchSuggestionType
-import org.koitharu.kotatsu.core.prefs.TriStateOption
 import org.koitharu.kotatsu.core.ui.BasePreferenceFragment
 import org.koitharu.kotatsu.core.ui.util.ActivityRecreationHandle
 import org.koitharu.kotatsu.core.util.LocaleComparator
@@ -115,7 +114,7 @@ class AppearanceSettingsFragment :
             AppSettings.KEY_THEME_AMOLED,
             AppSettings.KEY_MANGA_CARD_STYLE,
             AppSettings.KEY_APP_FONT,
-                -> {
+            -> {
                 postRestart()
             }
 

@@ -24,65 +24,62 @@ import org.koitharu.kotatsu.core.util.ext.tryLaunch
 import org.koitharu.kotatsu.databinding.DialogDirectorySelectBinding
 
 @AndroidEntryPoint
-class MangaDirectorySelectDialog : AlertDialogFragment<DialogDirectorySelectBinding>(),
-	OnListItemClickListener<DirectoryModel> {
+class MangaDirectorySelectDialog :
+    AlertDialogFragment<DialogDirectorySelectBinding>(),
+    OnListItemClickListener<DirectoryModel> {
 
-	private val viewModel: MangaDirectorySelectViewModel by viewModels()
-	private val pickFileTreeLauncher = OpenDocumentTreeHelper(
-		activityResultCaller = this,
-		flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-			or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-			or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
-	) {
-		if (it != null) viewModel.onCustomDirectoryPicked(it)
-	}
-	private val permissionRequestLauncher = registerForActivityResult(
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-			RequestStorageManagerPermissionContract()
-		} else {
-			ActivityResultContracts.RequestPermission()
-		},
-	) {
-		if (it) {
-			viewModel.refresh()
-			if (!pickFileTreeLauncher.tryLaunch(null)) {
-				Toast.makeText(
-					context ?: return@registerForActivityResult,
-					R.string.operation_not_supported,
-					Toast.LENGTH_SHORT,
-				).show()
-			}
-		}
-	}
+    private val viewModel: MangaDirectorySelectViewModel by viewModels()
+    private val pickFileTreeLauncher = OpenDocumentTreeHelper(
+        activityResultCaller = this,
+        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+    ) {
+        if (it != null) viewModel.onCustomDirectoryPicked(it)
+    }
+    private val permissionRequestLauncher = registerForActivityResult(
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            RequestStorageManagerPermissionContract()
+        } else {
+            ActivityResultContracts.RequestPermission()
+        },
+    ) {
+        if (it) {
+            viewModel.refresh()
+            if (!pickFileTreeLauncher.tryLaunch(null)) {
+                Toast.makeText(
+                    context ?: return@registerForActivityResult,
+                    R.string.operation_not_supported,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
 
-	override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): DialogDirectorySelectBinding {
-		return DialogDirectorySelectBinding.inflate(inflater, container, false)
-	}
+    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): DialogDirectorySelectBinding = DialogDirectorySelectBinding.inflate(inflater, container, false)
 
-	override fun onViewBindingCreated(binding: DialogDirectorySelectBinding, savedInstanceState: Bundle?) {
-		super.onViewBindingCreated(binding, savedInstanceState)
-		val adapter = AsyncListDifferDelegationAdapter(DirectoryDiffCallback(), directoryAD(this))
-		binding.root.adapter = adapter
-		viewModel.items.observe(viewLifecycleOwner) { adapter.items = it }
-		viewModel.onDismissDialog.observeEvent(viewLifecycleOwner) { dismiss() }
-		viewModel.onPickDirectory.observeEvent(viewLifecycleOwner) { pickCustomDirectory() }
-		viewModel.onError.observeEvent(viewLifecycleOwner, ToastErrorObserver(binding.root, this))
-	}
+    override fun onViewBindingCreated(binding: DialogDirectorySelectBinding, savedInstanceState: Bundle?) {
+        super.onViewBindingCreated(binding, savedInstanceState)
+        val adapter = AsyncListDifferDelegationAdapter(DirectoryDiffCallback(), directoryAD(this))
+        binding.root.adapter = adapter
+        viewModel.items.observe(viewLifecycleOwner) { adapter.items = it }
+        viewModel.onDismissDialog.observeEvent(viewLifecycleOwner) { dismiss() }
+        viewModel.onPickDirectory.observeEvent(viewLifecycleOwner) { pickCustomDirectory() }
+        viewModel.onError.observeEvent(viewLifecycleOwner, ToastErrorObserver(binding.root, this))
+    }
 
-	override fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder {
-		return super.onBuildDialog(builder)
-			.setCancelable(true)
-			.setTitle(R.string.manga_save_location)
-			.setNegativeButton(android.R.string.cancel, null)
-	}
+    override fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder = super.onBuildDialog(builder)
+        .setCancelable(true)
+        .setTitle(R.string.manga_save_location)
+        .setNegativeButton(android.R.string.cancel, null)
 
-	override fun onItemClick(item: DirectoryModel, view: View) {
-		viewModel.onItemClick(item)
-	}
+    override fun onItemClick(item: DirectoryModel, view: View) {
+        viewModel.onItemClick(item)
+    }
 
-	private fun pickCustomDirectory() {
-		if (!permissionRequestLauncher.tryLaunch(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-			Toast.makeText(context ?: return, R.string.operation_not_supported, Toast.LENGTH_SHORT).show()
-		}
-	}
+    private fun pickCustomDirectory() {
+        if (!permissionRequestLauncher.tryLaunch(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            Toast.makeText(context ?: return, R.string.operation_not_supported, Toast.LENGTH_SHORT).show()
+        }
+    }
 }

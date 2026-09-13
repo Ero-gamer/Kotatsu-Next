@@ -68,9 +68,12 @@ class ExceptionResolver private constructor(
     suspend fun resolve(e: Throwable, tryAutoResolve: Boolean = true): Boolean = host.lifecycleScope.async {
         when (e) {
             is CloudFlareProtectedException -> resolveCF(e, tryAutoResolve)
+
             is AuthRequiredException -> resolveAuthException(e.source)
+
             is SSLException,
-            is CertPathValidatorException -> {
+            is CertPathValidatorException,
+            -> {
                 showSslErrorDialog()
                 false
             }
@@ -119,7 +122,7 @@ class ExceptionResolver private constructor(
     }.await()
 
     private suspend fun resolveBrowserAction(
-        e: InteractiveActionRequiredException
+        e: InteractiveActionRequiredException,
     ): Boolean = suspendCoroutine { cont ->
         continuations[BrowserActivity.TAG] = cont
         browserActionContract.launch(e)
@@ -201,7 +204,9 @@ class ExceptionResolver private constructor(
         )
     }
 
-    private sealed interface Host : ActivityResultCaller, LifecycleOwner {
+    private sealed interface Host :
+        ActivityResultCaller,
+        LifecycleOwner {
 
         val context: Context?
 
@@ -213,7 +218,8 @@ class ExceptionResolver private constructor(
             context?.apply(block)
         }
 
-        class ActivityHost(val activity: FragmentActivity) : Host,
+        class ActivityHost(val activity: FragmentActivity) :
+            Host,
             ActivityResultCaller by activity,
             LifecycleOwner by activity {
 
@@ -227,7 +233,8 @@ class ExceptionResolver private constructor(
                 get() = activity.supportFragmentManager
         }
 
-        class FragmentHost(val fragment: Fragment) : Host,
+        class FragmentHost(val fragment: Fragment) :
+            Host,
             ActivityResultCaller by fragment {
 
             override val context: Context?
@@ -249,13 +256,18 @@ class ExceptionResolver private constructor(
         @StringRes
         fun getResolveStringId(e: Throwable) = when (e) {
             is CloudFlareProtectedException -> R.string.captcha_solve
+
             is ScrobblerAuthRequiredException,
-            is AuthRequiredException -> R.string.sign_in
+            is AuthRequiredException,
+            -> R.string.sign_in
 
             is NotFoundException -> if (e.url.isHttpUrl()) R.string.open_in_browser else 0
+
             is UnsupportedSourceException -> if (e.manga != null) R.string.alternatives else 0
+
             is SSLException,
-            is CertPathValidatorException -> R.string.fix
+            is CertPathValidatorException,
+            -> R.string.fix
 
             is ProxyConfigException -> R.string.settings
 

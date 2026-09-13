@@ -8,18 +8,17 @@ import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionListener
 import org.koitharu.kotatsu.search.ui.suggestion.model.SearchSuggestionItem
 
 fun searchSuggestionQueryHintAD(
-	listener: SearchSuggestionListener,
+    listener: SearchSuggestionListener,
 ) = adapterDelegateViewBinding<SearchSuggestionItem.Hint, SearchSuggestionItem, ItemSearchSuggestionQueryHintBinding>(
-	{ inflater, parent -> ItemSearchSuggestionQueryHintBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemSearchSuggestionQueryHintBinding.inflate(inflater, parent, false) },
 ) {
+    val viewClickListener = View.OnClickListener { _ ->
+        listener.onQueryClick(item.query, SearchKind.SIMPLE, true)
+    }
 
-	val viewClickListener = View.OnClickListener { _ ->
-		listener.onQueryClick(item.query, SearchKind.SIMPLE, true)
-	}
+    binding.root.setOnClickListener(viewClickListener)
 
-	binding.root.setOnClickListener(viewClickListener)
-
-	bind {
-		binding.root.text = item.query
-	}
+    bind {
+        binding.root.text = item.query
+    }
 }

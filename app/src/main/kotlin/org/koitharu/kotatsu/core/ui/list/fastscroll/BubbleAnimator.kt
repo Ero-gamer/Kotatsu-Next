@@ -13,72 +13,72 @@ import org.koitharu.kotatsu.core.util.ext.measureWidth
 import kotlin.math.hypot
 
 class BubbleAnimator(
-	private val bubble: View,
+    private val bubble: View,
 ) {
 
-	private val animationDuration = (
-		bubble.resources.getInteger(android.R.integer.config_shortAnimTime) *
-			bubble.context.animatorDurationScale
-		).toLong()
-	private var animator: Animator? = null
-	private var isHiding = false
+    private val animationDuration = (
+        bubble.resources.getInteger(android.R.integer.config_shortAnimTime) *
+            bubble.context.animatorDurationScale
+        ).toLong()
+    private var animator: Animator? = null
+    private var isHiding = false
 
-	fun show() {
-		if (bubble.isVisible && !isHiding) {
-			return
-		}
-		isHiding = false
-		animator?.cancel()
-		animator = ViewAnimationUtils.createCircularReveal(
-			bubble,
-			bubble.measureWidth(),
-			bubble.measuredHeight,
-			0f,
-			hypot(bubble.width.toDouble(), bubble.height.toDouble()).toFloat(),
-		).apply {
-			bubble.isVisible = true
-			duration = animationDuration
-			interpolator = DecelerateInterpolator()
-			start()
-		}
-	}
+    fun show() {
+        if (bubble.isVisible && !isHiding) {
+            return
+        }
+        isHiding = false
+        animator?.cancel()
+        animator = ViewAnimationUtils.createCircularReveal(
+            bubble,
+            bubble.measureWidth(),
+            bubble.measuredHeight,
+            0f,
+            hypot(bubble.width.toDouble(), bubble.height.toDouble()).toFloat(),
+        ).apply {
+            bubble.isVisible = true
+            duration = animationDuration
+            interpolator = DecelerateInterpolator()
+            start()
+        }
+    }
 
-	fun hide() {
-		if (!bubble.isVisible || isHiding) {
-			return
-		}
-		animator?.cancel()
-		isHiding = true
-		animator = ViewAnimationUtils.createCircularReveal(
-			bubble,
-			bubble.width,
-			bubble.height,
-			hypot(bubble.width.toDouble(), bubble.height.toDouble()).toFloat(),
-			0f,
-		).apply {
-			duration = animationDuration
-			interpolator = AccelerateInterpolator()
-			addListener(HideListener())
-			start()
-		}
-	}
+    fun hide() {
+        if (!bubble.isVisible || isHiding) {
+            return
+        }
+        animator?.cancel()
+        isHiding = true
+        animator = ViewAnimationUtils.createCircularReveal(
+            bubble,
+            bubble.width,
+            bubble.height,
+            hypot(bubble.width.toDouble(), bubble.height.toDouble()).toFloat(),
+            0f,
+        ).apply {
+            duration = animationDuration
+            interpolator = AccelerateInterpolator()
+            addListener(HideListener())
+            start()
+        }
+    }
 
-	private inner class HideListener : AnimatorListenerAdapter() {
+    private inner class HideListener : AnimatorListenerAdapter() {
 
-		private var isCancelled = false
+        private var isCancelled = false
 
-		override fun onAnimationCancel(animation: Animator) {
-			super.onAnimationCancel(animation)
-			isCancelled = true
-		}
+        override fun onAnimationCancel(animation: Animator) {
+            super.onAnimationCancel(animation)
+            isCancelled = true
+        }
 
-		override fun onAnimationEnd(animation: Animator) {
-			super.onAnimationEnd(animation)
-			if (!isCancelled && animation === this@BubbleAnimator.animator) {
-				bubble.isInvisible = true
-				isHiding = false
-				this@BubbleAnimator.animator = null
-			}
-		}
-	}
+        override fun onAnimationEnd(animation: Animator) {
+            super.onAnimationEnd(animation)
+            if (!isCancelled && animation === this@BubbleAnimator.animator) {
+                bubble.isInvisible = true
+                isHiding = false
+                this@BubbleAnimator.animator = null
+            }
+        }
+    }
 }

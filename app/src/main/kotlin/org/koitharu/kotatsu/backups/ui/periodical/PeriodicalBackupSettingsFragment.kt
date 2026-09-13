@@ -26,82 +26,84 @@ import java.util.Date
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class PeriodicalBackupSettingsFragment : BasePreferenceFragment(R.string.periodic_backups),
-	ActivityResultCallback<Uri?> {
+class PeriodicalBackupSettingsFragment :
+    BasePreferenceFragment(R.string.periodic_backups),
+    ActivityResultCallback<Uri?> {
 
-	@Inject
-	lateinit var telegramBackupUploader: TelegramBackupUploader
+    @Inject
+    lateinit var telegramBackupUploader: TelegramBackupUploader
 
-	private val viewModel by viewModels<PeriodicalBackupSettingsViewModel>()
+    private val viewModel by viewModels<PeriodicalBackupSettingsViewModel>()
 
-	private val outputSelectCall = OpenDocumentTreeHelper(this, this)
+    private val outputSelectCall = OpenDocumentTreeHelper(this, this)
 
-	override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-		addPreferencesFromResource(R.xml.pref_backup_periodic)
-		findPreference<PreferenceCategory>(AppSettings.KEY_BACKUP_TG)?.isVisible = viewModel.isTelegramAvailable
-		findPreference<EditTextPreference>(AppSettings.KEY_BACKUP_TG_CHAT)?.summaryProvider =
-			EditTextFallbackSummaryProvider(R.string.telegram_chat_id_summary)
-	}
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        addPreferencesFromResource(R.xml.pref_backup_periodic)
+        findPreference<PreferenceCategory>(AppSettings.KEY_BACKUP_TG)?.isVisible = viewModel.isTelegramAvailable
+        findPreference<EditTextPreference>(AppSettings.KEY_BACKUP_TG_CHAT)?.summaryProvider =
+            EditTextFallbackSummaryProvider(R.string.telegram_chat_id_summary)
+    }
 
-	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-		super.onViewCreated(view, savedInstanceState)
-		viewModel.lastBackupDate.observe(viewLifecycleOwner, ::bindLastBackupInfo)
-		viewModel.backupsDirectory.observe(viewLifecycleOwner, ::bindOutputSummary)
-		viewModel.onError.observeEvent(viewLifecycleOwner, SnackbarErrorObserver(listView, this))
-		viewModel.isTelegramCheckLoading.observe(viewLifecycleOwner) {
-			findPreference<Preference>(AppSettings.KEY_BACKUP_TG_TEST)?.isEnabled = !it
-		}
-	}
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.lastBackupDate.observe(viewLifecycleOwner, ::bindLastBackupInfo)
+        viewModel.backupsDirectory.observe(viewLifecycleOwner, ::bindOutputSummary)
+        viewModel.onError.observeEvent(viewLifecycleOwner, SnackbarErrorObserver(listView, this))
+        viewModel.isTelegramCheckLoading.observe(viewLifecycleOwner) {
+            findPreference<Preference>(AppSettings.KEY_BACKUP_TG_TEST)?.isEnabled = !it
+        }
+    }
 
-	override fun onPreferenceTreeClick(preference: Preference): Boolean {
-		val result = when (preference.key) {
-			AppSettings.KEY_BACKUP_PERIODICAL_OUTPUT -> outputSelectCall.tryLaunch(null)
-			AppSettings.KEY_BACKUP_TG_OPEN -> telegramBackupUploader.openBotInApp(router)
-			AppSettings.KEY_BACKUP_TG_TEST -> {
-				viewModel.checkTelegram()
-				true
-			}
+    override fun onPreferenceTreeClick(preference: Preference): Boolean {
+        val result = when (preference.key) {
+            AppSettings.KEY_BACKUP_PERIODICAL_OUTPUT -> outputSelectCall.tryLaunch(null)
 
-			else -> return super.onPreferenceTreeClick(preference)
-		}
-		if (!result) {
-			Snackbar.make(listView, R.string.operation_not_supported, Snackbar.LENGTH_SHORT).show()
-		}
-		return true
-	}
+            AppSettings.KEY_BACKUP_TG_OPEN -> telegramBackupUploader.openBotInApp(router)
 
-	override fun onActivityResult(result: Uri?) {
-		if (result != null) {
-			val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-			context?.contentResolver?.takePersistableUriPermission(result, takeFlags)
-			settings.periodicalBackupDirectory = result
-			viewModel.updateSummaryData()
-		}
-	}
+            AppSettings.KEY_BACKUP_TG_TEST -> {
+                viewModel.checkTelegram()
+                true
+            }
 
-	private fun bindOutputSummary(path: String?) {
-		val preference = findPreference<Preference>(AppSettings.KEY_BACKUP_PERIODICAL_OUTPUT) ?: return
-		preference.summary = when (path) {
-			null -> getString(R.string.invalid_value_message)
-			"" -> null
-			else -> path
-		}
-		preference.icon = if (path == null) {
-			getWarningIcon()
-		} else {
-			null
-		}
-	}
+            else -> return super.onPreferenceTreeClick(preference)
+        }
+        if (!result) {
+            Snackbar.make(listView, R.string.operation_not_supported, Snackbar.LENGTH_SHORT).show()
+        }
+        return true
+    }
 
-	private fun bindLastBackupInfo(lastBackupDate: Date?) {
-		val preference = findPreference<Preference>(AppSettings.KEY_BACKUP_PERIODICAL_LAST) ?: return
-		preference.summary = lastBackupDate?.let {
-			preference.context.getString(
-				R.string.last_successful_backup,
-				DateUtils.getRelativeTimeSpanString(it.time),
-			)
-		}
-		preference.isVisible = lastBackupDate != null
-	}
+    override fun onActivityResult(result: Uri?) {
+        if (result != null) {
+            val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context?.contentResolver?.takePersistableUriPermission(result, takeFlags)
+            settings.periodicalBackupDirectory = result
+            viewModel.updateSummaryData()
+        }
+    }
+
+    private fun bindOutputSummary(path: String?) {
+        val preference = findPreference<Preference>(AppSettings.KEY_BACKUP_PERIODICAL_OUTPUT) ?: return
+        preference.summary = when (path) {
+            null -> getString(R.string.invalid_value_message)
+            "" -> null
+            else -> path
+        }
+        preference.icon = if (path == null) {
+            getWarningIcon()
+        } else {
+            null
+        }
+    }
+
+    private fun bindLastBackupInfo(lastBackupDate: Date?) {
+        val preference = findPreference<Preference>(AppSettings.KEY_BACKUP_PERIODICAL_LAST) ?: return
+        preference.summary = lastBackupDate?.let {
+            preference.context.getString(
+                R.string.last_successful_backup,
+                DateUtils.getRelativeTimeSpanString(it.time),
+            )
+        }
+        preference.isVisible = lastBackupDate != null
+    }
 }
-

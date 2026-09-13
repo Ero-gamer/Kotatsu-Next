@@ -545,8 +545,6 @@ class FilterCoordinator @Inject constructor(
             return null
         }
 
-        fun require(fragment: Fragment): FilterCoordinator {
-            return find(fragment) ?: error("FilterCoordinator cannot be found")
-        }
+        fun require(fragment: Fragment): FilterCoordinator = find(fragment) ?: error("FilterCoordinator cannot be found")
     }
 }

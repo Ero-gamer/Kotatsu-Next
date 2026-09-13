@@ -38,96 +38,94 @@ import androidx.appcompat.R as appcompatR
 @SuppressLint("InlinedApi")
 class BackupService : BaseBackupRestoreService() {
 
-	override val notificationTag = TAG
-	override val isRestoreService = false
+    override val notificationTag = TAG
+    override val isRestoreService = false
 
-	@Inject
-	lateinit var repository: BackupRepository
+    @Inject
+    lateinit var repository: BackupRepository
 
-	override suspend fun IntentJobContext.processIntent(intent: Intent) {
-		val notification = buildNotification(Progress.INDETERMINATE)
-		setForeground(
-			FOREGROUND_NOTIFICATION_ID,
-			notification,
-			ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-		)
-		val destination = intent.getStringExtra(AppRouter.KEY_DATA)?.toUriOrNull() ?: throw FileNotFoundException()
-		powerManager.withPartialWakeLock(TAG) {
-			val progress = MutableStateFlow(Progress.INDETERMINATE)
-			val progressUpdateJob = if (checkNotificationPermission(CHANNEL_ID)) {
-				launch {
-					progress.collect {
-						notificationManager.notify(FOREGROUND_NOTIFICATION_ID, buildNotification(it))
-					}
-				}
-			} else {
-				null
-			}
-			try {
-				ZipOutputStream(BufferedOutputStream(contentResolver.openOutputStream(destination))).use { output ->
-					repository.createBackup(output, progress)
-				}
-			} catch (e: Throwable) {
-				try {
-					DocumentFile.fromSingleUri(applicationContext, destination)?.delete()
-				} catch (e2: Throwable) {
-					e.addSuppressed(e2)
-				}
-				throw e
-			}
-			progressUpdateJob?.cancelAndJoin()
-			notificationManager.cancel(FOREGROUND_NOTIFICATION_ID)
-			contentResolver.notifyChange(destination, null)
-			showResultNotification(destination, CompositeResult.success())
-			withContext(Dispatchers.Main) {
-				Toast.makeText(this@BackupService, R.string.backup_saved, Toast.LENGTH_SHORT).show()
-			}
-		}
-	}
+    override suspend fun IntentJobContext.processIntent(intent: Intent) {
+        val notification = buildNotification(Progress.INDETERMINATE)
+        setForeground(
+            FOREGROUND_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+        val destination = intent.getStringExtra(AppRouter.KEY_DATA)?.toUriOrNull() ?: throw FileNotFoundException()
+        powerManager.withPartialWakeLock(TAG) {
+            val progress = MutableStateFlow(Progress.INDETERMINATE)
+            val progressUpdateJob = if (checkNotificationPermission(CHANNEL_ID)) {
+                launch {
+                    progress.collect {
+                        notificationManager.notify(FOREGROUND_NOTIFICATION_ID, buildNotification(it))
+                    }
+                }
+            } else {
+                null
+            }
+            try {
+                ZipOutputStream(BufferedOutputStream(contentResolver.openOutputStream(destination))).use { output ->
+                    repository.createBackup(output, progress)
+                }
+            } catch (e: Throwable) {
+                try {
+                    DocumentFile.fromSingleUri(applicationContext, destination)?.delete()
+                } catch (e2: Throwable) {
+                    e.addSuppressed(e2)
+                }
+                throw e
+            }
+            progressUpdateJob?.cancelAndJoin()
+            notificationManager.cancel(FOREGROUND_NOTIFICATION_ID)
+            contentResolver.notifyChange(destination, null)
+            showResultNotification(destination, CompositeResult.success())
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@BackupService, R.string.backup_saved, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
-	private fun IntentJobContext.buildNotification(progress: Progress): Notification {
-		return NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-			.setContentTitle(getString(R.string.creating_backup))
-			.setPriority(NotificationCompat.PRIORITY_HIGH)
-			.setDefaults(0)
-			.setSilent(true)
-			.setOngoing(true)
-			.setProgress(
-				progress.total.coerceAtLeast(0),
-				progress.progress.coerceAtLeast(0),
-				progress.isIndeterminate,
-			)
-			.setContentText(
-				if (progress.isIndeterminate) {
-					getString(R.string.processing_)
-				} else {
-					getString(R.string.fraction_pattern, progress.progress, progress.total)
-				},
-			)
-			.setSmallIcon(android.R.drawable.stat_sys_upload)
-			.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-			.setCategory(NotificationCompat.CATEGORY_PROGRESS)
-			.addAction(
-				appcompatR.drawable.abc_ic_clear_material,
-				applicationContext.getString(android.R.string.cancel),
-				getCancelIntent(),
-			).build()
-	}
+    private fun IntentJobContext.buildNotification(progress: Progress): Notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+        .setContentTitle(getString(R.string.creating_backup))
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setDefaults(0)
+        .setSilent(true)
+        .setOngoing(true)
+        .setProgress(
+            progress.total.coerceAtLeast(0),
+            progress.progress.coerceAtLeast(0),
+            progress.isIndeterminate,
+        )
+        .setContentText(
+            if (progress.isIndeterminate) {
+                getString(R.string.processing_)
+            } else {
+                getString(R.string.fraction_pattern, progress.progress, progress.total)
+            },
+        )
+        .setSmallIcon(android.R.drawable.stat_sys_upload)
+        .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+        .addAction(
+            appcompatR.drawable.abc_ic_clear_material,
+            applicationContext.getString(android.R.string.cancel),
+            getCancelIntent(),
+        ).build()
 
-	companion object {
+    companion object {
 
-		private const val TAG = "BACKUP"
-		private const val FOREGROUND_NOTIFICATION_ID = 33
+        private const val TAG = "BACKUP"
+        private const val FOREGROUND_NOTIFICATION_ID = 33
 
-		@CheckResult
-		fun start(context: Context, uri: Uri): Boolean = try {
-			val intent = Intent(context, BackupService::class.java)
-			intent.putExtra(AppRouter.KEY_DATA, uri.toString())
-			ContextCompat.startForegroundService(context, intent)
-			true
-		} catch (e: Exception) {
-			e.printStackTraceDebug()
-			false
-		}
-	}
+        @CheckResult
+        fun start(context: Context, uri: Uri): Boolean = try {
+            val intent = Intent(context, BackupService::class.java)
+            intent.putExtra(AppRouter.KEY_DATA, uri.toString())
+            ContextCompat.startForegroundService(context, intent)
+            true
+        } catch (e: Exception) {
+            e.printStackTraceDebug()
+            false
+        }
+    }
 }

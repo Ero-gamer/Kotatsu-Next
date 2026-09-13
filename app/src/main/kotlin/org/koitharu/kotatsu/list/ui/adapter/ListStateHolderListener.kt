@@ -2,11 +2,11 @@ package org.koitharu.kotatsu.list.ui.adapter
 
 interface ListStateHolderListener {
 
-	fun onRetryClick(error: Throwable)
+    fun onRetryClick(error: Throwable)
 
-	fun onSecondaryErrorActionClick(error: Throwable) = Unit
+    fun onSecondaryErrorActionClick(error: Throwable) = Unit
 
-	fun onEmptyActionClick()
+    fun onEmptyActionClick()
 
-	fun onFooterButtonClick() = Unit
+    fun onFooterButtonClick() = Unit
 }

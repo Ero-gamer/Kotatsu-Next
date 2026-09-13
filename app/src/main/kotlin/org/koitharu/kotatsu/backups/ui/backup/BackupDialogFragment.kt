@@ -20,53 +20,51 @@ import org.koitharu.kotatsu.databinding.DialogProgressBinding
 @AndroidEntryPoint
 class BackupDialogFragment : AlertDialogFragment<DialogProgressBinding>() {
 
-	private val viewModel by viewModels<BackupViewModel>()
+    private val viewModel by viewModels<BackupViewModel>()
 
-	override fun onCreateViewBinding(
-		inflater: LayoutInflater,
-		container: ViewGroup?,
-	) = DialogProgressBinding.inflate(inflater, container, false)
+    override fun onCreateViewBinding(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+    ) = DialogProgressBinding.inflate(inflater, container, false)
 
-	override fun onViewBindingCreated(binding: DialogProgressBinding, savedInstanceState: Bundle?) {
-		super.onViewBindingCreated(binding, savedInstanceState)
-		binding.textViewTitle.setText(R.string.create_backup)
-		binding.textViewSubtitle.setText(R.string.processing_)
+    override fun onViewBindingCreated(binding: DialogProgressBinding, savedInstanceState: Bundle?) {
+        super.onViewBindingCreated(binding, savedInstanceState)
+        binding.textViewTitle.setText(R.string.create_backup)
+        binding.textViewSubtitle.setText(R.string.processing_)
 
-		viewModel.progress.observe(viewLifecycleOwner, this::onProgressChanged)
-		viewModel.onBackupDone.observeEvent(viewLifecycleOwner, this::onBackupDone)
-		viewModel.onError.observeEvent(viewLifecycleOwner, this::onError)
-	}
+        viewModel.progress.observe(viewLifecycleOwner, this::onProgressChanged)
+        viewModel.onBackupDone.observeEvent(viewLifecycleOwner, this::onBackupDone)
+        viewModel.onError.observeEvent(viewLifecycleOwner, this::onError)
+    }
 
-	override fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder {
-		return super.onBuildDialog(builder)
-			.setCancelable(false)
-			.setNegativeButton(android.R.string.cancel, null)
-	}
+    override fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder = super.onBuildDialog(builder)
+        .setCancelable(false)
+        .setNegativeButton(android.R.string.cancel, null)
 
-	private fun onError(e: Throwable) {
-		MaterialAlertDialogBuilder(context ?: return)
-			.setNegativeButton(R.string.close, null)
-			.setTitle(R.string.error)
-			.setMessage(e.getDisplayMessage(resources))
-			.show()
-		dismiss()
-	}
+    private fun onError(e: Throwable) {
+        MaterialAlertDialogBuilder(context ?: return)
+            .setNegativeButton(R.string.close, null)
+            .setTitle(R.string.error)
+            .setMessage(e.getDisplayMessage(resources))
+            .show()
+        dismiss()
+    }
 
-	private fun onProgressChanged(value: Progress) {
-		with(requireViewBinding().progressBar) {
-			isVisible = true
-			val wasIndeterminate = isIndeterminate
-			isIndeterminate = value.isIndeterminate
-			if (!value.isIndeterminate) {
-				max = value.total
-				setProgressCompat(value.progress, !wasIndeterminate)
-			}
-		}
-	}
+    private fun onProgressChanged(value: Progress) {
+        with(requireViewBinding().progressBar) {
+            isVisible = true
+            val wasIndeterminate = isIndeterminate
+            isIndeterminate = value.isIndeterminate
+            if (!value.isIndeterminate) {
+                max = value.total
+                setProgressCompat(value.progress, !wasIndeterminate)
+            }
+        }
+    }
 
-	@Suppress("UnusedParameter")
-	private fun onBackupDone(uri: Uri) {
-		Toast.makeText(requireContext(), R.string.backup_saved, Toast.LENGTH_SHORT).show()
-		dismiss()
-	}
+    @Suppress("UnusedParameter")
+    private fun onBackupDone(uri: Uri) {
+        Toast.makeText(requireContext(), R.string.backup_saved, Toast.LENGTH_SHORT).show()
+        dismiss()
+    }
 }

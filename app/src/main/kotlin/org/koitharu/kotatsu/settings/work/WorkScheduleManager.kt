@@ -14,57 +14,59 @@ import javax.inject.Singleton
 
 @Singleton
 class WorkScheduleManager @Inject constructor(
-	private val settings: AppSettings,
-	private val suggestionScheduler: SuggestionsWorker.Scheduler,
-	private val trackerScheduler: TrackWorker.Scheduler,
-	private val trackerUnstuckMigrationProvider: Provider<TrackerUnstuckMigrationUseCase>,
+    private val settings: AppSettings,
+    private val suggestionScheduler: SuggestionsWorker.Scheduler,
+    private val trackerScheduler: TrackWorker.Scheduler,
+    private val trackerUnstuckMigrationProvider: Provider<TrackerUnstuckMigrationUseCase>,
 ) : SharedPreferences.OnSharedPreferenceChangeListener {
 
-	override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-		when (key) {
-			AppSettings.KEY_TRACKER_ENABLED,
-			AppSettings.KEY_TRACKER_FREQUENCY,
-			AppSettings.KEY_TRACKER_WIFI_ONLY -> updateWorker(
-				scheduler = trackerScheduler,
-				isEnabled = settings.isTrackerEnabled,
-				force = key != AppSettings.KEY_TRACKER_ENABLED,
-			)
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        when (key) {
+            AppSettings.KEY_TRACKER_ENABLED,
+            AppSettings.KEY_TRACKER_FREQUENCY,
+            AppSettings.KEY_TRACKER_WIFI_ONLY,
+            -> updateWorker(
+                scheduler = trackerScheduler,
+                isEnabled = settings.isTrackerEnabled,
+                force = key != AppSettings.KEY_TRACKER_ENABLED,
+            )
 
-			AppSettings.KEY_SUGGESTIONS,
-			AppSettings.KEY_SUGGESTIONS_WIFI_ONLY -> updateWorker(
-				scheduler = suggestionScheduler,
-				isEnabled = settings.isSuggestionsEnabled,
-				force = key != AppSettings.KEY_SUGGESTIONS,
-			)
-		}
-	}
+            AppSettings.KEY_SUGGESTIONS,
+            AppSettings.KEY_SUGGESTIONS_WIFI_ONLY,
+            -> updateWorker(
+                scheduler = suggestionScheduler,
+                isEnabled = settings.isSuggestionsEnabled,
+                force = key != AppSettings.KEY_SUGGESTIONS,
+            )
+        }
+    }
 
-	fun init() {
-		settings.subscribe(this)
-		processLifecycleScope.launch(Dispatchers.Default) {
-			updateWorkerImpl(trackerScheduler, settings.isTrackerEnabled, true) // always force due to adaptive interval
-			updateWorkerImpl(suggestionScheduler, settings.isSuggestionsEnabled, false)
-		}
-		processLifecycleScope.launch(Dispatchers.Default) {
-			// Recovery for tracks bugged by the previous reader-side use case.
-			// Runs at most once per install (gated by a settings flag).
-			trackerUnstuckMigrationProvider.get().runIfNeeded()
-		}
-	}
+    fun init() {
+        settings.subscribe(this)
+        processLifecycleScope.launch(Dispatchers.Default) {
+            updateWorkerImpl(trackerScheduler, settings.isTrackerEnabled, true) // always force due to adaptive interval
+            updateWorkerImpl(suggestionScheduler, settings.isSuggestionsEnabled, false)
+        }
+        processLifecycleScope.launch(Dispatchers.Default) {
+            // Recovery for tracks bugged by the previous reader-side use case.
+            // Runs at most once per install (gated by a settings flag).
+            trackerUnstuckMigrationProvider.get().runIfNeeded()
+        }
+    }
 
-	private fun updateWorker(scheduler: PeriodicWorkScheduler, isEnabled: Boolean, force: Boolean) {
-		processLifecycleScope.launch(Dispatchers.Default) {
-			updateWorkerImpl(scheduler, isEnabled, force)
-		}
-	}
+    private fun updateWorker(scheduler: PeriodicWorkScheduler, isEnabled: Boolean, force: Boolean) {
+        processLifecycleScope.launch(Dispatchers.Default) {
+            updateWorkerImpl(scheduler, isEnabled, force)
+        }
+    }
 
-	private suspend fun updateWorkerImpl(scheduler: PeriodicWorkScheduler, isEnabled: Boolean, force: Boolean) {
-		if (force || scheduler.isScheduled() != isEnabled) {
-			if (isEnabled) {
-				scheduler.schedule()
-			} else {
-				scheduler.unschedule()
-			}
-		}
-	}
+    private suspend fun updateWorkerImpl(scheduler: PeriodicWorkScheduler, isEnabled: Boolean, force: Boolean) {
+        if (force || scheduler.isScheduled() != isEnabled) {
+            if (isEnabled) {
+                scheduler.schedule()
+            } else {
+                scheduler.unschedule()
+            }
+        }
+    }
 }

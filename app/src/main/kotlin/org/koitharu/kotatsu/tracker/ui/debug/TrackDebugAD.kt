@@ -16,44 +16,44 @@ import org.koitharu.kotatsu.tracker.data.TrackEntity
 import androidx.appcompat.R as appcompatR
 
 fun trackDebugAD(
-	clickListener: OnListItemClickListener<TrackDebugItem>,
+    clickListener: OnListItemClickListener<TrackDebugItem>,
 ) = adapterDelegateViewBinding<TrackDebugItem, TrackDebugItem, ItemTrackDebugBinding>(
-	{ layoutInflater, parent -> ItemTrackDebugBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemTrackDebugBinding.inflate(layoutInflater, parent, false) },
 ) {
-	val indicatorNew = ContextCompat.getDrawable(context, R.drawable.ic_new)
+    val indicatorNew = ContextCompat.getDrawable(context, R.drawable.ic_new)
 
-	itemView.setOnClickListener { v ->
-		clickListener.onItemClick(item, v)
-	}
+    itemView.setOnClickListener { v ->
+        clickListener.onItemClick(item, v)
+    }
 
-	bind {
-		binding.imageViewCover.setImageAsync(item.manga.coverUrl, item.manga)
-		binding.textViewTitle.text = item.manga.title
-		binding.textViewSummary.text = buildSpannedString {
-			append(
-				item.lastCheckTime?.let {
-					DateUtils.getRelativeDateTimeString(
-						context,
-						it.toEpochMilli(),
-						DateUtils.MINUTE_IN_MILLIS,
-						DateUtils.WEEK_IN_MILLIS,
-						0,
-					)
-				} ?: getString(R.string.never),
-			)
-			if (item.lastResult == TrackEntity.RESULT_FAILED) {
-				append(" - ")
-				bold {
-					color(context.getThemeColor(appcompatR.attr.colorError, Color.RED)) {
-						append(item.lastError ?: getString(R.string.error))
-					}
-				}
-			}
-		}
-		binding.textViewTitle.drawableStart = if (item.newChapters > 0) {
-			indicatorNew
-		} else {
-			null
-		}
-	}
+    bind {
+        binding.imageViewCover.setImageAsync(item.manga.coverUrl, item.manga)
+        binding.textViewTitle.text = item.manga.title
+        binding.textViewSummary.text = buildSpannedString {
+            append(
+                item.lastCheckTime?.let {
+                    DateUtils.getRelativeDateTimeString(
+                        context,
+                        it.toEpochMilli(),
+                        DateUtils.MINUTE_IN_MILLIS,
+                        DateUtils.WEEK_IN_MILLIS,
+                        0,
+                    )
+                } ?: getString(R.string.never),
+            )
+            if (item.lastResult == TrackEntity.RESULT_FAILED) {
+                append(" - ")
+                bold {
+                    color(context.getThemeColor(appcompatR.attr.colorError, Color.RED)) {
+                        append(item.lastError ?: getString(R.string.error))
+                    }
+                }
+            }
+        }
+        binding.textViewTitle.drawableStart = if (item.newChapters > 0) {
+            indicatorNew
+        } else {
+            null
+        }
+    }
 }

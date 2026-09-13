@@ -9,19 +9,18 @@ import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionListener
 import org.koitharu.kotatsu.search.ui.suggestion.model.SearchSuggestionItem
 
 fun searchSuggestionAuthorAD(
-	listener: SearchSuggestionListener,
+    listener: SearchSuggestionListener,
 ) = adapterDelegateViewBinding<SearchSuggestionItem.Author, SearchSuggestionItem, ItemSearchSuggestionQueryHintBinding>(
-	{ inflater, parent -> ItemSearchSuggestionQueryHintBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemSearchSuggestionQueryHintBinding.inflate(inflater, parent, false) },
 ) {
+    val viewClickListener = View.OnClickListener { _ ->
+        listener.onQueryClick(item.name, SearchKind.AUTHOR, true)
+    }
 
-	val viewClickListener = View.OnClickListener { _ ->
-		listener.onQueryClick(item.name, SearchKind.AUTHOR, true)
-	}
+    binding.root.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_user, 0, 0, 0)
+    binding.root.setOnClickListener(viewClickListener)
 
-	binding.root.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_user, 0, 0, 0)
-	binding.root.setOnClickListener(viewClickListener)
-
-	bind {
-		binding.root.text = item.name
-	}
+    bind {
+        binding.root.text = item.name
+    }
 }

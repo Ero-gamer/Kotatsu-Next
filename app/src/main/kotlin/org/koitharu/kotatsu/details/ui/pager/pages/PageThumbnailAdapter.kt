@@ -9,15 +9,14 @@ import org.koitharu.kotatsu.list.ui.adapter.listHeaderAD
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 class PageThumbnailAdapter(
-	clickListener: OnListItemClickListener<PageThumbnail>,
-) : BaseListAdapter<ListModel>(), FastScroller.SectionIndexer {
+    clickListener: OnListItemClickListener<PageThumbnail>,
+) : BaseListAdapter<ListModel>(),
+    FastScroller.SectionIndexer {
 
-	init {
-		addDelegate(ListItemType.PAGE_THUMB, pageThumbnailAD(clickListener))
-		addDelegate(ListItemType.HEADER, listHeaderAD(null))
-	}
+    init {
+        addDelegate(ListItemType.PAGE_THUMB, pageThumbnailAD(clickListener))
+        addDelegate(ListItemType.HEADER, listHeaderAD(null))
+    }
 
-	override fun getSectionText(context: Context, position: Int): CharSequence? {
-		return findHeader(position)?.getText(context)
-	}
+    override fun getSectionText(context: Context, position: Int): CharSequence? = findHeader(position)?.getText(context)
 }

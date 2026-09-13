@@ -267,7 +267,7 @@ class ReaderViewModel @Inject constructor(
     }
 
     fun saveCurrentPage(
-        pageSaveHelper: PageSaveHelper
+        pageSaveHelper: PageSaveHelper,
     ) {
         val prevJob = pageSaveJob
         pageSaveJob = launchLoadingJob(Dispatchers.Default) {
@@ -508,7 +508,9 @@ class ReaderViewModel @Inject constructor(
                 }
                 val loadingError = when {
                     exception != null -> exception
+
                     loadedManga == null || !loadedManga.isLoaded -> null
+
                     loadedManga.isRestricted -> EmptyMangaException(
                         EmptyMangaReason.RESTRICTED,
                         loadedManga.toManga(),
@@ -524,9 +526,11 @@ class ReaderViewModel @Inject constructor(
                     else -> null
                 } ?: IllegalStateException("Unable to load manga. This should never happen. Please report")
                 onLoadingError.call(loadingError)
-            } else exception?.let { e ->
-                // manga has been loaded but error occurred
-                errorEvent.call(e)
+            } else {
+                exception?.let { e ->
+                    // manga has been loaded but error occurred
+                    errorEvent.call(e)
+                }
             }
         }
     }
@@ -612,6 +616,7 @@ class ReaderViewModel @Inject constructor(
                 .collect {
                     when (it) {
                         TriStateOption.ENABLED -> isIncognitoMode.value = true
+
                         TriStateOption.ASK -> {
                             onAskNsfwIncognito.call(Unit)
                             return@collect

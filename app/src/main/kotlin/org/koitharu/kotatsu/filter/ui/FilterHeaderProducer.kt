@@ -21,26 +21,24 @@ class FilterHeaderProducer @Inject constructor(
     private val searchRepository: MangaSearchRepository,
 ) {
 
-    fun observeHeader(filterCoordinator: FilterCoordinator): Flow<FilterHeaderModel> {
-        return combine(
-            filterCoordinator.savedFilters,
-            filterCoordinator.tags,
-            filterCoordinator.observe(),
-        ) { saved, tags, snapshot ->
-            val chipList = createChipsList(
-                source = filterCoordinator.mangaSource,
-                capabilities = filterCoordinator.capabilities,
-                savedFilters = saved,
-                tagsProperty = tags,
-                snapshot = snapshot.listFilter,
-                limit = 12,
-            )
-            FilterHeaderModel(
-                chips = chipList,
-                sortOrder = snapshot.sortOrder,
-                isFilterApplied = !snapshot.listFilter.isEmpty(),
-            )
-        }
+    fun observeHeader(filterCoordinator: FilterCoordinator): Flow<FilterHeaderModel> = combine(
+        filterCoordinator.savedFilters,
+        filterCoordinator.tags,
+        filterCoordinator.observe(),
+    ) { saved, tags, snapshot ->
+        val chipList = createChipsList(
+            source = filterCoordinator.mangaSource,
+            capabilities = filterCoordinator.capabilities,
+            savedFilters = saved,
+            tagsProperty = tags,
+            snapshot = snapshot.listFilter,
+            limit = 12,
+        )
+        FilterHeaderModel(
+            chips = chipList,
+            sortOrder = snapshot.sortOrder,
+            isFilterApplied = !snapshot.listFilter.isEmpty(),
+        )
     }
 
     private suspend fun createChipsList(

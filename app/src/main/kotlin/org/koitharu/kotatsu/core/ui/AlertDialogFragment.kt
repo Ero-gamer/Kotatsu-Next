@@ -13,45 +13,45 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 abstract class AlertDialogFragment<B : ViewBinding> : DialogFragment() {
 
-	var viewBinding: B? = null
-		private set
+    var viewBinding: B? = null
+        private set
 
-	final override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-		val binding = onCreateViewBinding(layoutInflater, null)
-		viewBinding = binding
-		return MaterialAlertDialogBuilder(requireContext(), theme)
-			.setView(binding.root)
-			.run(::onBuildDialog)
-			.create()
-			.also(::onDialogCreated)
-	}
+    final override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val binding = onCreateViewBinding(layoutInflater, null)
+        viewBinding = binding
+        return MaterialAlertDialogBuilder(requireContext(), theme)
+            .setView(binding.root)
+            .run(::onBuildDialog)
+            .create()
+            .also(::onDialogCreated)
+    }
 
-	final override fun onCreateView(
-		inflater: LayoutInflater,
-		container: ViewGroup?,
-		savedInstanceState: Bundle?,
-	) = viewBinding?.root
+    final override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ) = viewBinding?.root
 
-	final override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-		super.onViewCreated(view, savedInstanceState)
-		onViewBindingCreated(requireViewBinding(), savedInstanceState)
-	}
+    final override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        onViewBindingCreated(requireViewBinding(), savedInstanceState)
+    }
 
-	@CallSuper
-	override fun onDestroyView() {
-		viewBinding = null
-		super.onDestroyView()
-	}
+    @CallSuper
+    override fun onDestroyView() {
+        viewBinding = null
+        super.onDestroyView()
+    }
 
-	open fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder = builder
+    open fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder = builder
 
-	open fun onDialogCreated(dialog: AlertDialog) = Unit
+    open fun onDialogCreated(dialog: AlertDialog) = Unit
 
-	fun requireViewBinding(): B = checkNotNull(viewBinding) {
-		"Fragment $this did not return a ViewBinding from onCreateView() or this was called before onCreateView()."
-	}
+    fun requireViewBinding(): B = checkNotNull(viewBinding) {
+        "Fragment $this did not return a ViewBinding from onCreateView() or this was called before onCreateView()."
+    }
 
-	protected abstract fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): B
+    protected abstract fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): B
 
-	protected open fun onViewBindingCreated(binding: B, savedInstanceState: Bundle?) = Unit
+    protected open fun onViewBindingCreated(binding: B, savedInstanceState: Bundle?) = Unit
 }

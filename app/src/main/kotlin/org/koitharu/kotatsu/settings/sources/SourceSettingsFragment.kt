@@ -28,168 +28,170 @@ import org.koitharu.kotatsu.parsers.model.MangaSource
 import java.io.File
 
 @AndroidEntryPoint
-class SourceSettingsFragment : BasePreferenceFragment(0), Preference.OnPreferenceChangeListener {
+class SourceSettingsFragment :
+    BasePreferenceFragment(0),
+    Preference.OnPreferenceChangeListener {
 
-	private val viewModel: SourceSettingsViewModel by viewModels()
+    private val viewModel: SourceSettingsViewModel by viewModels()
 
-	override fun onResume() {
-		super.onResume()
-		context?.let { ctx ->
-			setTitle(viewModel.source.getTitle(ctx))
-		}
-		viewModel.onResume()
-		// Re-check in case global setting changed while this screen was in the back stack.
-		updateCfAutoSolvePrefState()
-	}
+    override fun onResume() {
+        super.onResume()
+        context?.let { ctx ->
+            setTitle(viewModel.source.getTitle(ctx))
+        }
+        viewModel.onResume()
+        // Re-check in case global setting changed while this screen was in the back stack.
+        updateCfAutoSolvePrefState()
+    }
 
-	override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-		preferenceManager.sharedPreferencesName = viewModel.source.name.replace(File.separatorChar, '$')
-		addPreferencesFromResource(R.xml.pref_source)
-		addPreferencesFromRepository(viewModel.repository)
-		val isValidSource = viewModel.repository !is EmptyMangaRepository
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        preferenceManager.sharedPreferencesName = viewModel.source.name.replace(File.separatorChar, '$')
+        addPreferencesFromResource(R.xml.pref_source)
+        addPreferencesFromRepository(viewModel.repository)
+        val isValidSource = viewModel.repository !is EmptyMangaRepository
 
-		findPreference<SwitchPreferenceCompat>(KEY_ENABLE)?.run {
-			isVisible = isValidSource && !settings.isAllSourcesEnabled
-			onPreferenceChangeListener = this@SourceSettingsFragment
-		}
-		findPreference<Preference>(KEY_AUTH)?.run {
-			val authProvider = (viewModel.repository as? ParserMangaRepository)?.getAuthProvider()
-			isVisible = authProvider != null
-		}
-		findPreference<Preference>(SourceSettings.KEY_SLOWDOWN)?.isVisible = isValidSource
-		updateCfAutoSolvePrefState()
-	}
+        findPreference<SwitchPreferenceCompat>(KEY_ENABLE)?.run {
+            isVisible = isValidSource && !settings.isAllSourcesEnabled
+            onPreferenceChangeListener = this@SourceSettingsFragment
+        }
+        findPreference<Preference>(KEY_AUTH)?.run {
+            val authProvider = (viewModel.repository as? ParserMangaRepository)?.getAuthProvider()
+            isVisible = authProvider != null
+        }
+        findPreference<Preference>(SourceSettings.KEY_SLOWDOWN)?.isVisible = isValidSource
+        updateCfAutoSolvePrefState()
+    }
 
-	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-		super.onViewCreated(view, savedInstanceState)
-		viewModel.isAuthorized.filterNotNull().observe(viewLifecycleOwner) { isAuthorized ->
-			findPreference<Preference>(KEY_AUTH)?.isEnabled = !isAuthorized
-		}
-		viewModel.username.observe(viewLifecycleOwner) { username ->
-			findPreference<Preference>(KEY_AUTH)?.summary = username?.let {
-				getString(R.string.logged_in_as, it)
-			}
-		}
-		viewModel.onError.observeEvent(
-			viewLifecycleOwner,
-			SnackbarErrorObserver(
-				listView,
-				this,
-				exceptionResolver,
-			) { viewModel.onResume() },
-		)
-		viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-			findPreference<Preference>(KEY_AUTH)?.isEnabled = !isLoading
-		}
-		viewModel.isEnabled.observe(viewLifecycleOwner) { enabled ->
-			findPreference<SwitchPreferenceCompat>(KEY_ENABLE)?.isChecked = enabled
-		}
-		viewModel.browserUrl.observe(viewLifecycleOwner) {
-			findPreference<Preference>(AppSettings.KEY_OPEN_BROWSER)?.run {
-				isVisible = it != null
-				summary = it
-			}
-		}
-		viewModel.onActionDone.observeEvent(viewLifecycleOwner, ReversibleActionObserver(listView))
-	}
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.isAuthorized.filterNotNull().observe(viewLifecycleOwner) { isAuthorized ->
+            findPreference<Preference>(KEY_AUTH)?.isEnabled = !isAuthorized
+        }
+        viewModel.username.observe(viewLifecycleOwner) { username ->
+            findPreference<Preference>(KEY_AUTH)?.summary = username?.let {
+                getString(R.string.logged_in_as, it)
+            }
+        }
+        viewModel.onError.observeEvent(
+            viewLifecycleOwner,
+            SnackbarErrorObserver(
+                listView,
+                this,
+                exceptionResolver,
+            ) { viewModel.onResume() },
+        )
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            findPreference<Preference>(KEY_AUTH)?.isEnabled = !isLoading
+        }
+        viewModel.isEnabled.observe(viewLifecycleOwner) { enabled ->
+            findPreference<SwitchPreferenceCompat>(KEY_ENABLE)?.isChecked = enabled
+        }
+        viewModel.browserUrl.observe(viewLifecycleOwner) {
+            findPreference<Preference>(AppSettings.KEY_OPEN_BROWSER)?.run {
+                isVisible = it != null
+                summary = it
+            }
+        }
+        viewModel.onActionDone.observeEvent(viewLifecycleOwner, ReversibleActionObserver(listView))
+    }
 
-	override fun onPreferenceTreeClick(preference: Preference): Boolean {
-		return when (preference.key) {
-			KEY_AUTH -> {
-				router.openSourceAuth(viewModel.source)
-				true
-			}
+    override fun onPreferenceTreeClick(preference: Preference): Boolean {
+        return when (preference.key) {
+            KEY_AUTH -> {
+                router.openSourceAuth(viewModel.source)
+                true
+            }
 
-			AppSettings.KEY_OPEN_BROWSER -> {
-				router.openBrowser(
-					url = viewModel.browserUrl.value ?: return false,
-					source = viewModel.source,
-					title = viewModel.source.getTitle(preference.context),
-				)
-				true
-			}
+            AppSettings.KEY_OPEN_BROWSER -> {
+                router.openBrowser(
+                    url = viewModel.browserUrl.value ?: return false,
+                    source = viewModel.source,
+                    title = viewModel.source.getTitle(preference.context),
+                )
+                true
+            }
 
-			AppSettings.KEY_COOKIES_CLEAR -> {
-				viewModel.clearCookies()
-				true
-			}
+            AppSettings.KEY_COOKIES_CLEAR -> {
+                viewModel.clearCookies()
+                true
+            }
 
-			else -> super.onPreferenceTreeClick(preference)
-		}
-	}
+            else -> super.onPreferenceTreeClick(preference)
+        }
+    }
 
-	override fun onDisplayPreferenceDialog(preference: Preference) {
-		if (preference.key == SourceSettings.KEY_DOMAIN) {
-			if (parentFragmentManager.findFragmentByTag(DomainDialogFragment.DIALOG_FRAGMENT_TAG) != null) {
-				return
-			}
-			val f = DomainDialogFragment.newInstance(preference.key)
-			@Suppress("DEPRECATION")
-			f.setTargetFragment(this, 0)
-			f.show(parentFragmentManager, DomainDialogFragment.DIALOG_FRAGMENT_TAG)
-			return
-		}
-		super.onDisplayPreferenceDialog(preference)
-	}
+    override fun onDisplayPreferenceDialog(preference: Preference) {
+        if (preference.key == SourceSettings.KEY_DOMAIN) {
+            if (parentFragmentManager.findFragmentByTag(DomainDialogFragment.DIALOG_FRAGMENT_TAG) != null) {
+                return
+            }
+            val f = DomainDialogFragment.newInstance(preference.key)
+            @Suppress("DEPRECATION")
+            f.setTargetFragment(this, 0)
+            f.show(parentFragmentManager, DomainDialogFragment.DIALOG_FRAGMENT_TAG)
+            return
+        }
+        super.onDisplayPreferenceDialog(preference)
+    }
 
-	override fun onPreferenceChange(preference: Preference, newValue: Any?): Boolean {
-		when (preference.key) {
-			KEY_ENABLE -> viewModel.setEnabled(newValue == true)
-			else -> return false
-		}
-		return true
-	}
+    override fun onPreferenceChange(preference: Preference, newValue: Any?): Boolean {
+        when (preference.key) {
+            KEY_ENABLE -> viewModel.setEnabled(newValue == true)
+            else -> return false
+        }
+        return true
+    }
 
-	class DomainDialogFragment : EditTextPreferenceDialogFragmentCompat() {
+    class DomainDialogFragment : EditTextPreferenceDialogFragmentCompat() {
 
-		override fun onPrepareDialogBuilder(builder: AlertDialog.Builder) {
-			super.onPrepareDialogBuilder(builder)
-			builder.setNeutralButton(R.string.reset) { _, _ ->
-				resetValue()
-			}
-		}
+        override fun onPrepareDialogBuilder(builder: AlertDialog.Builder) {
+            super.onPrepareDialogBuilder(builder)
+            builder.setNeutralButton(R.string.reset) { _, _ ->
+                resetValue()
+            }
+        }
 
-		private fun resetValue() {
-			val editTextPreference = preference as EditTextPreference
-			if (editTextPreference.callChangeListener("")) {
-				editTextPreference.text = ""
-			}
-		}
+        private fun resetValue() {
+            val editTextPreference = preference as EditTextPreference
+            if (editTextPreference.callChangeListener("")) {
+                editTextPreference.text = ""
+            }
+        }
 
-		companion object {
+        companion object {
 
-			const val DIALOG_FRAGMENT_TAG: String = "androidx.preference.PreferenceFragment.DIALOG"
+            const val DIALOG_FRAGMENT_TAG: String = "androidx.preference.PreferenceFragment.DIALOG"
 
-			fun newInstance(key: String) = DomainDialogFragment().withArgs(1) {
-				putString(ARG_KEY, key)
-			}
-		}
-	}
+            fun newInstance(key: String) = DomainDialogFragment().withArgs(1) {
+                putString(ARG_KEY, key)
+            }
+        }
+    }
 
-	/**
-	 * Grays out the per-source "disable CF auto-solve" toggle when the global
-	 * kill-switch in Settings → Network is ON, since the per-source setting
-	 * has no effect when the global flag is already disabling it for all sources.
-	 */
-	private fun updateCfAutoSolvePrefState() {
-		val globalDisabled = settings.isCfAutoSolveDisabled
-		findPreference<SwitchPreferenceCompat>(SourceSettings.KEY_NO_AUTO_CAPTCHA)?.apply {
-			isEnabled = !globalDisabled
-			summary = if (globalDisabled) {
-				context.getString(R.string.disable_captcha_auto_solve_global_hint)
-			} else {
-				context.getString(R.string.disable_captcha_auto_solve_summary)
-			}
-		}
-	}
+    /**
+     * Grays out the per-source "disable CF auto-solve" toggle when the global
+     * kill-switch in Settings → Network is ON, since the per-source setting
+     * has no effect when the global flag is already disabling it for all sources.
+     */
+    private fun updateCfAutoSolvePrefState() {
+        val globalDisabled = settings.isCfAutoSolveDisabled
+        findPreference<SwitchPreferenceCompat>(SourceSettings.KEY_NO_AUTO_CAPTCHA)?.apply {
+            isEnabled = !globalDisabled
+            summary = if (globalDisabled) {
+                context.getString(R.string.disable_captcha_auto_solve_global_hint)
+            } else {
+                context.getString(R.string.disable_captcha_auto_solve_summary)
+            }
+        }
+    }
 
-	companion object {
+    companion object {
 
-		private const val KEY_AUTH = "auth"
-		private const val KEY_ENABLE = "enable"
+        private const val KEY_AUTH = "auth"
+        private const val KEY_ENABLE = "enable"
 
-		fun newInstance(source: MangaSource) = SourceSettingsFragment().withArgs(1) {
-			putString(AppRouter.KEY_SOURCE, source.name)
-		}
-	}
+        fun newInstance(source: MangaSource) = SourceSettingsFragment().withArgs(1) {
+            putString(AppRouter.KEY_SOURCE, source.name)
+        }
+    }
 }

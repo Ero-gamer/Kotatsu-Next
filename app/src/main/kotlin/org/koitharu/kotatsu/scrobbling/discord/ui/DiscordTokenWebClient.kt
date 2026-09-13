@@ -8,27 +8,27 @@ import org.koitharu.kotatsu.parsers.util.removeSurrounding
 
 class DiscordTokenWebClient(private val callback: Callback) : BrowserClient(callback, null) {
 
-	override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-		super.onPageStarted(view, url, favicon)
-		if (view != null) {
-			checkToken(view)
-		}
-	}
+    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+        super.onPageStarted(view, url, favicon)
+        if (view != null) {
+            checkToken(view)
+        }
+    }
 
-	private fun checkToken(view: WebView) {
-		view.evaluateJavascript("window.localStorage.token") { result ->
-			val token = result
-				?.replace("\\\"", "")
-				?.removeSurrounding('"')
-				?.takeUnless { it == "null" }
-			if (!token.isNullOrEmpty()) {
-				callback.onTokenObtained(token)
-			}
-		}
-	}
+    private fun checkToken(view: WebView) {
+        view.evaluateJavascript("window.localStorage.token") { result ->
+            val token = result
+                ?.replace("\\\"", "")
+                ?.removeSurrounding('"')
+                ?.takeUnless { it == "null" }
+            if (!token.isNullOrEmpty()) {
+                callback.onTokenObtained(token)
+            }
+        }
+    }
 
-	interface Callback : BrowserCallback {
+    interface Callback : BrowserCallback {
 
-		fun onTokenObtained(token: String)
-	}
+        fun onTokenObtained(token: String)
+    }
 }

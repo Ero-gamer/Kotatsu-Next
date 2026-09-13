@@ -10,35 +10,35 @@ import org.koitharu.kotatsu.parsers.network.CloudFlareHelper
 
 class CloudFlareInterceptor : Interceptor {
 
-	override fun intercept(chain: Interceptor.Chain): Response {
-		val request = chain.request()
-		val response = chain.proceed(request)
-		return when (CloudFlareHelper.checkResponseForProtection(response)) {
-			CloudFlareHelper.PROTECTION_BLOCKED -> response.closeThrowing(
-				CloudFlareBlockedException(
-					url = request.url.toString(),
-					source = request.tag(MangaSource::class.java),
-				),
-			)
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val response = chain.proceed(request)
+        return when (CloudFlareHelper.checkResponseForProtection(response)) {
+            CloudFlareHelper.PROTECTION_BLOCKED -> response.closeThrowing(
+                CloudFlareBlockedException(
+                    url = request.url.toString(),
+                    source = request.tag(MangaSource::class.java),
+                ),
+            )
 
-			CloudFlareHelper.PROTECTION_CAPTCHA -> response.closeThrowing(
-				CloudFlareProtectedException(
-					url = request.url.toString(),
-					source = request.tag(MangaSource::class.java),
-					headers = request.headers,
-				),
-			)
+            CloudFlareHelper.PROTECTION_CAPTCHA -> response.closeThrowing(
+                CloudFlareProtectedException(
+                    url = request.url.toString(),
+                    source = request.tag(MangaSource::class.java),
+                    headers = request.headers,
+                ),
+            )
 
-			else -> response
-		}
-	}
+            else -> response
+        }
+    }
 
-	private fun Response.closeThrowing(error: IOException): Nothing {
-		try {
-			close()
-		} catch (e: Exception) {
-			error.addSuppressed(e)
-		}
-		throw error
-	}
+    private fun Response.closeThrowing(error: IOException): Nothing {
+        try {
+            close()
+        } catch (e: Exception) {
+            error.addSuppressed(e)
+        }
+        throw error
+    }
 }

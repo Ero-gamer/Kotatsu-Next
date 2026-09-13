@@ -20,54 +20,56 @@ import androidx.fragment.app.strictmode.Violation as FragmentViolation
 
 @RequiresApi(Build.VERSION_CODES.P)
 class StrictModeNotifier(
-	private val context: Context,
-) : StrictMode.OnVmViolationListener, StrictMode.OnThreadViolationListener, FragmentStrictMode.OnViolationListener {
+    private val context: Context,
+) : StrictMode.OnVmViolationListener,
+    StrictMode.OnThreadViolationListener,
+    FragmentStrictMode.OnViolationListener {
 
-	val executor = Dispatchers.Default.asExecutor()
+    val executor = Dispatchers.Default.asExecutor()
 
-	private val notificationManager by lazy {
-		val nm = checkNotNull(context.getSystemService<NotificationManager>())
-		val channel = NotificationChannel(
-			CHANNEL_ID,
-			context.getString(R.string.strict_mode),
-			NotificationManager.IMPORTANCE_LOW,
-		)
-		nm.createNotificationChannel(channel)
-		nm
-	}
+    private val notificationManager by lazy {
+        val nm = checkNotNull(context.getSystemService<NotificationManager>())
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            context.getString(R.string.strict_mode),
+            NotificationManager.IMPORTANCE_LOW,
+        )
+        nm.createNotificationChannel(channel)
+        nm
+    }
 
-	override fun onVmViolation(v: Violation) = showNotification(v)
+    override fun onVmViolation(v: Violation) = showNotification(v)
 
-	override fun onThreadViolation(v: Violation) = showNotification(v)
+    override fun onThreadViolation(v: Violation) = showNotification(v)
 
-	override fun onViolation(violation: FragmentViolation) = showNotification(violation)
+    override fun onViolation(violation: FragmentViolation) = showNotification(violation)
 
-	private fun showNotification(violation: Throwable) = Notification.Builder(context, CHANNEL_ID)
-		.setSmallIcon(R.drawable.ic_bug)
-		.setContentTitle(context.getString(R.string.strict_mode))
-		.setContentText(violation.message)
-		.setStyle(
-			BigTextStyle()
-				.setBigContentTitle(context.getString(R.string.strict_mode))
-				.setSummaryText(violation.message)
-				.bigText(violation.stackTraceToString()),
-		).setShowWhen(true)
-		.setContentIntent(
-			PendingIntentCompat.getActivity(
-				context,
-				violation.hashCode(),
-				ShareHelper(context).getShareTextIntent(violation.stackTraceToString()),
-				0,
-				false,
-			),
-		)
-		.setAutoCancel(true)
-		.setGroup(CHANNEL_ID)
-		.build()
-		.let { notificationManager.notify(CHANNEL_ID, violation.hashCode().absoluteValue, it) }
+    private fun showNotification(violation: Throwable) = Notification.Builder(context, CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_bug)
+        .setContentTitle(context.getString(R.string.strict_mode))
+        .setContentText(violation.message)
+        .setStyle(
+            BigTextStyle()
+                .setBigContentTitle(context.getString(R.string.strict_mode))
+                .setSummaryText(violation.message)
+                .bigText(violation.stackTraceToString()),
+        ).setShowWhen(true)
+        .setContentIntent(
+            PendingIntentCompat.getActivity(
+                context,
+                violation.hashCode(),
+                ShareHelper(context).getShareTextIntent(violation.stackTraceToString()),
+                0,
+                false,
+            ),
+        )
+        .setAutoCancel(true)
+        .setGroup(CHANNEL_ID)
+        .build()
+        .let { notificationManager.notify(CHANNEL_ID, violation.hashCode().absoluteValue, it) }
 
-	private companion object {
+    private companion object {
 
-		const val CHANNEL_ID = "strict_mode"
-	}
+        const val CHANNEL_ID = "strict_mode"
+    }
 }

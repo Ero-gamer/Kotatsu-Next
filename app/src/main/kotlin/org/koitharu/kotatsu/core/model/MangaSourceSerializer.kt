@@ -13,7 +13,7 @@ object MangaSourceSerializer : KSerializer<MangaSource> {
 
     override fun serialize(
         encoder: Encoder,
-        value: MangaSource
+        value: MangaSource,
     ) = encoder.encodeString(value.name)
 
     override fun deserialize(decoder: Decoder): MangaSource = MangaSource(decoder.decodeString())

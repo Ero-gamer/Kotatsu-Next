@@ -6,7 +6,7 @@ import androidx.lifecycle.LifecycleService
 
 abstract class BaseService : LifecycleService() {
 
-	override fun attachBaseContext(newBase: Context) {
-		super.attachBaseContext(ContextCompat.getContextForLanguage(newBase))
-	}
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(ContextCompat.getContextForLanguage(newBase))
+    }
 }

@@ -5,8 +5,6 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.annotation.WorkerThread
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.sync.withLock
 import org.koitharu.kotatsu.browser.BrowserCallback
 import org.koitharu.kotatsu.browser.BrowserClient
 import org.koitharu.kotatsu.core.network.webview.adblock.AdBlock
@@ -32,7 +30,7 @@ class RequestInterceptorWebViewClient(
     @WorkerThread
     override fun shouldInterceptRequest(
         view: WebView?,
-        request: WebResourceRequest?
+        request: WebResourceRequest?,
     ): WebResourceResponse? {
         // Always call parent first for ad blocking and other functionality
         val parentResponse = super.shouldInterceptRequest(view, request)
@@ -75,7 +73,7 @@ class RequestInterceptorWebViewClient(
                 url = request.url.toString(),
                 method = request.method,
                 headers = request.requestHeaders,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
             )
 
             // Check if request matches filtering criteria
@@ -105,9 +103,7 @@ class RequestInterceptorWebViewClient(
         return false
     }
 
-    private fun isTimeoutReached(): Boolean {
-        return System.currentTimeMillis() - startTime > config.timeoutMs
-    }
+    private fun isTimeoutReached(): Boolean = System.currentTimeMillis() - startTime > config.timeoutMs
 
     private fun completeInterception() {
         try {
@@ -132,9 +128,7 @@ class RequestInterceptorWebViewClient(
     /**
      * Get currently captured requests (thread-safe)
      */
-    fun getCapturedRequests(): List<InterceptedRequest> {
-        return synchronized(capturedRequests) {
-            capturedRequests.toList()
-        }
+    fun getCapturedRequests(): List<InterceptedRequest> = synchronized(capturedRequests) {
+        capturedRequests.toList()
     }
 }

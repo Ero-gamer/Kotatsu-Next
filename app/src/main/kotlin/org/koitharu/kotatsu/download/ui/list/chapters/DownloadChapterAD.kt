@@ -7,14 +7,13 @@ import org.koitharu.kotatsu.core.util.ext.drawableEnd
 import org.koitharu.kotatsu.databinding.ItemChapterDownloadBinding
 
 fun downloadChapterAD() = adapterDelegateViewBinding<DownloadChapter, DownloadChapter, ItemChapterDownloadBinding>(
-	{ layoutInflater, parent -> ItemChapterDownloadBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemChapterDownloadBinding.inflate(layoutInflater, parent, false) },
 ) {
+    val iconDone = ContextCompat.getDrawable(context, R.drawable.ic_check)
 
-	val iconDone = ContextCompat.getDrawable(context, R.drawable.ic_check)
-
-	bind {
-		binding.textViewNumber.text = item.number
-		binding.textViewTitle.text = item.name
-		binding.textViewTitle.drawableEnd = if (item.isDownloaded) iconDone else null
-	}
+    bind {
+        binding.textViewNumber.text = item.number
+        binding.textViewTitle.text = item.name
+        binding.textViewTitle.drawableEnd = if (item.isDownloaded) iconDone else null
+    }
 }

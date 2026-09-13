@@ -23,50 +23,50 @@ import org.koitharu.kotatsu.favourites.ui.categories.select.adapter.MangaCategor
 import org.koitharu.kotatsu.favourites.ui.categories.select.model.MangaCategoryItem
 
 @AndroidEntryPoint
-class FavoriteDialog : AlertDialogFragment<DialogFavoriteBinding>(),
-	OnListItemClickListener<MangaCategoryItem>, DialogInterface.OnClickListener {
+class FavoriteDialog :
+    AlertDialogFragment<DialogFavoriteBinding>(),
+    OnListItemClickListener<MangaCategoryItem>,
+    DialogInterface.OnClickListener {
 
-	private val viewModel by viewModels<FavoriteDialogViewModel>()
+    private val viewModel by viewModels<FavoriteDialogViewModel>()
 
-	override fun onCreateViewBinding(
-		inflater: LayoutInflater,
-		container: ViewGroup?,
-	) = DialogFavoriteBinding.inflate(inflater, container, false)
+    override fun onCreateViewBinding(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+    ) = DialogFavoriteBinding.inflate(inflater, container, false)
 
-	override fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder {
-		return super.onBuildDialog(builder)
-			.setPositiveButton(R.string.done, null)
-			.setNeutralButton(R.string.manage, this)
-	}
+    override fun onBuildDialog(builder: MaterialAlertDialogBuilder): MaterialAlertDialogBuilder = super.onBuildDialog(builder)
+        .setPositiveButton(R.string.done, null)
+        .setNeutralButton(R.string.manage, this)
 
-	override fun onViewBindingCreated(
-		binding: DialogFavoriteBinding,
-		savedInstanceState: Bundle?,
-	) {
-		super.onViewBindingCreated(binding, savedInstanceState)
-		val adapter = MangaCategoriesAdapter(this)
-		binding.recyclerViewCategories.adapter = adapter
-		viewModel.content.observe(viewLifecycleOwner, adapter)
-		viewModel.onError.observeEvent(viewLifecycleOwner, ::onError)
-		bindHeader()
-	}
+    override fun onViewBindingCreated(
+        binding: DialogFavoriteBinding,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewBindingCreated(binding, savedInstanceState)
+        val adapter = MangaCategoriesAdapter(this)
+        binding.recyclerViewCategories.adapter = adapter
+        viewModel.content.observe(viewLifecycleOwner, adapter)
+        viewModel.onError.observeEvent(viewLifecycleOwner, ::onError)
+        bindHeader()
+    }
 
-	override fun onItemClick(item: MangaCategoryItem, view: View) {
-		viewModel.setChecked(item.category.id, item.checkedState != MaterialCheckBox.STATE_CHECKED)
-	}
+    override fun onItemClick(item: MangaCategoryItem, view: View) {
+        viewModel.setChecked(item.category.id, item.checkedState != MaterialCheckBox.STATE_CHECKED)
+    }
 
-	override fun onClick(dialog: DialogInterface?, which: Int) {
-		router.openFavoriteCategories()
-	}
+    override fun onClick(dialog: DialogInterface?, which: Int) {
+        router.openFavoriteCategories()
+    }
 
-	private fun onError(e: Throwable) {
-		Toast.makeText(context ?: return, e.getDisplayMessage(resources), Toast.LENGTH_SHORT).show()
-	}
+    private fun onError(e: Throwable) {
+        Toast.makeText(context ?: return, e.getDisplayMessage(resources), Toast.LENGTH_SHORT).show()
+    }
 
-	private fun bindHeader() {
-		val manga = viewModel.manga
-		val binding = viewBinding ?: return
-		binding.textViewTitle.text = manga.joinToStringWithLimit(binding.root.context, 92) { it.title }
-		binding.coversStack.setCoversAsync(manga)
-	}
+    private fun bindHeader() {
+        val manga = viewModel.manga
+        val binding = viewBinding ?: return
+        binding.textViewTitle.text = manga.joinToStringWithLimit(binding.root.context, 92) { it.title }
+        binding.coversStack.setCoversAsync(manga)
+    }
 }

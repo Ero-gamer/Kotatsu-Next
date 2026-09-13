@@ -31,7 +31,10 @@ import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.search.domain.SearchKind
 
 @AndroidEntryPoint
-class RemoteListFragment : MangaListFragment(), FilterCoordinator.Owner, View.OnClickListener {
+class RemoteListFragment :
+    MangaListFragment(),
+    FilterCoordinator.Owner,
+    View.OnClickListener {
 
     override val viewModel by viewModels<RemoteListViewModel>()
 
@@ -71,7 +74,7 @@ class RemoteListFragment : MangaListFragment(), FilterCoordinator.Owner, View.On
     override fun onCreateActionMode(
         controller: ListSelectionController,
         menuInflater: MenuInflater,
-        menu: Menu
+        menu: Menu,
     ): Boolean {
         menuInflater.inflate(R.menu.mode_remote, menu)
         return super.onCreateActionMode(controller, menuInflater, menu)

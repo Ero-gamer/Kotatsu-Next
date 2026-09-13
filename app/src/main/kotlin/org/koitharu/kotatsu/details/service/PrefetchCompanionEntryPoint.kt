@@ -8,5 +8,5 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface PrefetchCompanionEntryPoint {
-	val settings: AppSettings
+    val settings: AppSettings
 }

@@ -35,264 +35,268 @@ import org.koitharu.kotatsu.reader.ui.pager.vm.PageViewModel
 import org.koitharu.kotatsu.reader.ui.pager.webtoon.WebtoonHolder
 
 abstract class BasePageHolder<B : ViewBinding>(
-	protected val binding: B,
-	loader: PageLoader,
-	readerSettingsProducer: ReaderSettings.Producer,
-	networkState: NetworkState,
-	exceptionResolver: ExceptionResolver,
-	lifecycleOwner: LifecycleOwner,
-) : LifecycleAwareViewHolder(binding.root, lifecycleOwner), DefaultOnImageEventListener, ComponentCallbacks2 {
+    protected val binding: B,
+    loader: PageLoader,
+    readerSettingsProducer: ReaderSettings.Producer,
+    networkState: NetworkState,
+    exceptionResolver: ExceptionResolver,
+    lifecycleOwner: LifecycleOwner,
+) : LifecycleAwareViewHolder(binding.root, lifecycleOwner),
+    DefaultOnImageEventListener,
+    ComponentCallbacks2 {
 
-	protected val viewModel = PageViewModel(
-		loader = loader,
-		settingsProducer = readerSettingsProducer,
-		networkState = networkState,
-		exceptionResolver = exceptionResolver,
-		isWebtoon = this is WebtoonHolder,
-	)
-	protected val bindingInfo = LayoutPageInfoBinding.bind(binding.root)
-	protected abstract val ssiv: SubsamplingScaleImageView
+    protected val viewModel = PageViewModel(
+        loader = loader,
+        settingsProducer = readerSettingsProducer,
+        networkState = networkState,
+        exceptionResolver = exceptionResolver,
+        isWebtoon = this is WebtoonHolder,
+    )
+    protected val bindingInfo = LayoutPageInfoBinding.bind(binding.root)
+    protected abstract val ssiv: SubsamplingScaleImageView
 
-	protected val animatedView: CoilImageView? by lazy {
-		itemView.findViewById(R.id.animatedView)
-	}
+    protected val animatedView: CoilImageView? by lazy {
+        itemView.findViewById(R.id.animatedView)
+    }
 
-	protected val settings: ReaderSettings
-		get() = viewModel.settingsProducer.value
+    protected val settings: ReaderSettings
+        get() = viewModel.settingsProducer.value
 
-	private var preparingStatusRunnable: Runnable? = null
-	private var lastColorFilter: Any? = UNSET_SENTINEL
-	private var tileLoadErrorCount = 0
+    private var preparingStatusRunnable: Runnable? = null
+    private var lastColorFilter: Any? = UNSET_SENTINEL
+    private var tileLoadErrorCount = 0
 
-	val context get() = itemView.context
+    val context get() = itemView.context
 
-	var boundData: ReaderPage? = null
-		private set
+    var boundData: ReaderPage? = null
+        private set
 
-	init {
-		lifecycleScope.launch(Dispatchers.Main) {
-			ssiv.bindToLifecycle(this@BasePageHolder)
-			ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
-			if (context.isLowRamDevice()) {
-				ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
-			}
-			ssiv.addOnImageEventListener(viewModel)
-			ssiv.addOnImageEventListener(this@BasePageHolder)
-		}
-		val clickListener = View.OnClickListener { v ->
-			when (v.id) {
-				R.id.button_retry -> viewModel.retry(
-					page = boundData?.toMangaPage() ?: return@OnClickListener,
-					isFromUser = true,
-				)
-				R.id.button_error_details -> viewModel.showErrorDetails(boundData?.url)
-			}
-		}
-		bindingInfo.buttonRetry.setOnClickListener(clickListener)
-		bindingInfo.buttonErrorDetails.setOnClickListener(clickListener)
-	}
+    init {
+        lifecycleScope.launch(Dispatchers.Main) {
+            ssiv.bindToLifecycle(this@BasePageHolder)
+            ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
+            if (context.isLowRamDevice()) {
+                ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
+            }
+            ssiv.addOnImageEventListener(viewModel)
+            ssiv.addOnImageEventListener(this@BasePageHolder)
+        }
+        val clickListener = View.OnClickListener { v ->
+            when (v.id) {
+                R.id.button_retry -> viewModel.retry(
+                    page = boundData?.toMangaPage() ?: return@OnClickListener,
+                    isFromUser = true,
+                )
 
-	@CallSuper
-	protected open fun onConfigChanged(settings: ReaderSettings) {
-		settings.applyBackground(itemView)
-		val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
-		lastColorFilter = settings.colorFilter
+                R.id.button_error_details -> viewModel.showErrorDetails(boundData?.url)
+            }
+        }
+        bindingInfo.buttonRetry.setOnClickListener(clickListener)
+        bindingInfo.buttonErrorDetails.setOnClickListener(clickListener)
+    }
 
-		when {
-			// BitmapConfig or GPU filter params changed: reinstall the region decoder factory
-			// (GpuFilteringDecoder when any GPU filter is active) and reload SSIV tiles so
-			// the new per-tile GPU shader pass takes effect immediately.
-			settings.applyBitmapConfig(ssiv) -> reloadImage()
+    @CallSuper
+    protected open fun onConfigChanged(settings: ReaderSettings) {
+        settings.applyBackground(itemView)
+        val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
+        lastColorFilter = settings.colorFilter
 
-			// CPU ColorMatrix (brightness/contrast/saturation/grayscale/invert) changed while
-			// the page is already displayed: re-apply paint filter to SSIV — instant, zero
-			// re-decode cost, no tile reload needed.
-			colorFilterChanged && viewModel.state.value is PageState.Shown -> onReady()
-		}
-		ssiv.applyDownSampling(isResumed())
-	}
+        when {
+            // BitmapConfig or GPU filter params changed: reinstall the region decoder factory
+            // (GpuFilteringDecoder when any GPU filter is active) and reload SSIV tiles so
+            // the new per-tile GPU shader pass takes effect immediately.
+            settings.applyBitmapConfig(ssiv) -> reloadImage()
 
-	fun reloadImage() {
-		val source = (viewModel.state.value as? PageState.Shown)?.source ?: return
-		ssiv.setImage(source)
-	}
+            // CPU ColorMatrix (brightness/contrast/saturation/grayscale/invert) changed while
+            // the page is already displayed: re-apply paint filter to SSIV — instant, zero
+            // re-decode cost, no tile reload needed.
+            colorFilterChanged && viewModel.state.value is PageState.Shown -> onReady()
+        }
+        ssiv.applyDownSampling(isResumed())
+    }
 
-	fun bind(data: ReaderPage) {
-		boundData = data
-		tileLoadErrorCount = 0
-		ssiv.isVisible = true
-		animatedView?.isVisible = false
-		animatedView?.disposeImage()
-		viewModel.onBind(data.toMangaPage())
-		onBind(data)
-	}
+    fun reloadImage() {
+        val source = (viewModel.state.value as? PageState.Shown)?.source ?: return
+        ssiv.setImage(source)
+    }
 
-	@CallSuper
-	protected open fun onBind(data: ReaderPage) = Unit
+    fun bind(data: ReaderPage) {
+        boundData = data
+        tileLoadErrorCount = 0
+        ssiv.isVisible = true
+        animatedView?.isVisible = false
+        animatedView?.disposeImage()
+        viewModel.onBind(data.toMangaPage())
+        onBind(data)
+    }
 
-	override fun onCreate() {
-		super.onCreate()
-		context.registerComponentCallbacks(this)
-		viewModel.state.observe(this, ::onStateChanged)
-		viewModel.settingsProducer.observe(this, ::onConfigChanged)
-	}
+    @CallSuper
+    protected open fun onBind(data: ReaderPage) = Unit
 
-	override fun onResume() {
-		super.onResume()
-		ssiv.applyDownSampling(isForeground = true)
-		if (viewModel.state.value is PageState.Error && !viewModel.isLoading()) {
-			boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
-		}
-	}
+    override fun onCreate() {
+        super.onCreate()
+        context.registerComponentCallbacks(this)
+        viewModel.state.observe(this, ::onStateChanged)
+        viewModel.settingsProducer.observe(this, ::onConfigChanged)
+    }
 
-	override fun onPause() {
-		super.onPause()
-		ssiv.applyDownSampling(isForeground = false)
-	}
+    override fun onResume() {
+        super.onResume()
+        ssiv.applyDownSampling(isForeground = true)
+        if (viewModel.state.value is PageState.Error && !viewModel.isLoading()) {
+            boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
+        }
+    }
 
-	override fun onDestroy() {
-		context.unregisterComponentCallbacks(this)
-		super.onDestroy()
-	}
+    override fun onPause() {
+        super.onPause()
+        ssiv.applyDownSampling(isForeground = false)
+    }
 
-	open fun onAttachedToWindow() = Unit
-	open fun onDetachedFromWindow() = Unit
+    override fun onDestroy() {
+        context.unregisterComponentCallbacks(this)
+        super.onDestroy()
+    }
 
-	@CallSuper
-	open fun onRecycled() {
-		ssiv.removeCallbacks(preparingStatusRunnable)
-		preparingStatusRunnable = null
-		viewModel.onRecycle()
-		ssiv.recycle()
-		animatedView?.disposeImage()
-		lastColorFilter = UNSET_SENTINEL
-		tileLoadErrorCount = 0
-	}
+    open fun onAttachedToWindow() = Unit
+    open fun onDetachedFromWindow() = Unit
 
-	override fun onTileLoadError(e: Throwable) {
-		tileLoadErrorCount++
-		when {
-			tileLoadErrorCount == TILE_ERROR_SOFT && viewModel.state.value is PageState.Shown ->
-				reloadImage()
-			tileLoadErrorCount >= TILE_ERROR_HARD && viewModel.state.value is PageState.Shown ->
-				boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
-		}
-	}
+    @CallSuper
+    open fun onRecycled() {
+        ssiv.removeCallbacks(preparingStatusRunnable)
+        preparingStatusRunnable = null
+        viewModel.onRecycle()
+        ssiv.recycle()
+        animatedView?.disposeImage()
+        lastColorFilter = UNSET_SENTINEL
+        tileLoadErrorCount = 0
+    }
 
-	/**
-	 * No GPU caches to trim — the EGL off-screen renderer in [GpuTileRenderer] holds no
-	 * persistent tile cache; each tile is decoded → filtered → returned as a Bitmap and the
-	 * GL texture is immediately deleted. Nothing to release here on memory pressure.
-	 * PageLoader's own LRU file cache is trimmed separately by its own ComponentCallbacks2.
-	 */
-	override fun onTrimMemory(level: Int) = Unit
+    override fun onTileLoadError(e: Throwable) {
+        tileLoadErrorCount++
+        when {
+            tileLoadErrorCount == TILE_ERROR_SOFT && viewModel.state.value is PageState.Shown ->
+                reloadImage()
 
-	override fun onConfigurationChanged(newConfig: Configuration) = Unit
+            tileLoadErrorCount >= TILE_ERROR_HARD && viewModel.state.value is PageState.Shown ->
+                boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
+        }
+    }
 
-	@Deprecated("Deprecated in Java")
-	final override fun onLowMemory() = onTrimMemory(TRIM_MEMORY_COMPLETE)
+    /**
+     * No GPU caches to trim — the EGL off-screen renderer in [GpuTileRenderer] holds no
+     * persistent tile cache; each tile is decoded → filtered → returned as a Bitmap and the
+     * GL texture is immediately deleted. Nothing to release here on memory pressure.
+     * PageLoader's own LRU file cache is trimmed separately by its own ComponentCallbacks2.
+     */
+    override fun onTrimMemory(level: Int) = Unit
 
-	protected open fun onStateChanged(state: PageState) {
-		bindingInfo.layoutError.isVisible = state is PageState.Error
-		bindingInfo.layoutProgress.isGone = state.isFinalState()
-		val progress = (state as? PageState.Loading)?.progress ?: -1
-		if (progress in 0..100) {
-			bindingInfo.progressBar.isIndeterminate = false
-			bindingInfo.progressBar.setProgressCompat(progress, true)
-			bindingInfo.textViewStatus.text =
-				context.getString(R.string.percent_string_pattern, progress.toString())
-		} else {
-			bindingInfo.progressBar.isIndeterminate = true
-			bindingInfo.textViewStatus.setText(R.string.loading_)
-		}
-		val isAnimated = boundData?.url?.isAnimatedImage() == true
-		when (state) {
-			is PageState.Converting -> bindingInfo.textViewStatus.setText(R.string.processing_)
+    override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
-			is PageState.Empty -> Unit
+    @Deprecated("Deprecated in Java")
+    final override fun onLowMemory() = onTrimMemory(TRIM_MEMORY_COMPLETE)
 
-			is PageState.Error -> {
-				val e = state.error
-				bindingInfo.textViewError.text = e.getDisplayMessage(context.resources)
-				bindingInfo.buttonRetry.setText(
-					ExceptionResolver.getResolveStringId(e).ifZero { R.string.try_again },
-				)
-				bindingInfo.buttonErrorDetails.isVisible = e.isSerializable()
-				bindingInfo.layoutError.isVisible = true
-				bindingInfo.progressBar.hide()
-			}
+    protected open fun onStateChanged(state: PageState) {
+        bindingInfo.layoutError.isVisible = state is PageState.Error
+        bindingInfo.layoutProgress.isGone = state.isFinalState()
+        val progress = (state as? PageState.Loading)?.progress ?: -1
+        if (progress in 0..100) {
+            bindingInfo.progressBar.isIndeterminate = false
+            bindingInfo.progressBar.setProgressCompat(progress, true)
+            bindingInfo.textViewStatus.text =
+                context.getString(R.string.percent_string_pattern, progress.toString())
+        } else {
+            bindingInfo.progressBar.isIndeterminate = true
+            bindingInfo.textViewStatus.setText(R.string.loading_)
+        }
+        val isAnimated = boundData?.url?.isAnimatedImage() == true
+        when (state) {
+            is PageState.Converting -> bindingInfo.textViewStatus.setText(R.string.processing_)
 
-			is PageState.Loaded -> {
-				if (isAnimated) {
-					showAnimated(boundData!!, state)
-					bindingInfo.layoutProgress.isGone = true
-				} else {
-					bindingInfo.textViewStatus.setText(R.string.loading_)
-					ssiv.setImage(state.source)
-					ssiv.removeCallbacks(preparingStatusRunnable)
-					preparingStatusRunnable = Runnable {
-						if (viewModel.state.value is PageState.Loaded) {
-							bindingInfo.textViewStatus.setText(R.string.preparing_)
-						}
-					}.also { ssiv.postDelayed(it, PREPARING_STATUS_DELAY_MS) }
-				}
-			}
+            is PageState.Empty -> Unit
 
-			is PageState.Loading -> {
-				if (state.preview != null && ssiv.getState() == null) {
-					ssiv.setImage(state.preview)
-				}
-			}
+            is PageState.Error -> {
+                val e = state.error
+                bindingInfo.textViewError.text = e.getDisplayMessage(context.resources)
+                bindingInfo.buttonRetry.setText(
+                    ExceptionResolver.getResolveStringId(e).ifZero { R.string.try_again },
+                )
+                bindingInfo.buttonErrorDetails.isVisible = e.isSerializable()
+                bindingInfo.layoutError.isVisible = true
+                bindingInfo.progressBar.hide()
+            }
 
-			is PageState.Shown -> Unit
-		}
-	}
+            is PageState.Loaded -> {
+                if (isAnimated) {
+                    showAnimated(boundData!!, state)
+                    bindingInfo.layoutProgress.isGone = true
+                } else {
+                    bindingInfo.textViewStatus.setText(R.string.loading_)
+                    ssiv.setImage(state.source)
+                    ssiv.removeCallbacks(preparingStatusRunnable)
+                    preparingStatusRunnable = Runnable {
+                        if (viewModel.state.value is PageState.Loaded) {
+                            bindingInfo.textViewStatus.setText(R.string.preparing_)
+                        }
+                    }.also { ssiv.postDelayed(it, PREPARING_STATUS_DELAY_MS) }
+                }
+            }
 
-	// ── Color filter ──────────────────────────────────────────────────────────
-	// GPU filters (denoise, vibrance, sharpening) are installed via GpuFilteringDecoder
-	// in applyBitmapConfig and take effect per-tile on decode.
-	// ssiv.colorFilter carries only the CPU/Canvas ColorMatrix:
-	//   brightness / contrast / saturation / grayscale / invert / book-tint.
+            is PageState.Loading -> {
+                if (state.preview != null && ssiv.getState() == null) {
+                    ssiv.setImage(state.preview)
+                }
+            }
 
-	protected fun applyColorFilter() {
-		if (ssiv.isReady) {
-			ssiv.colorFilter = settings.colorFilter?.toColorFilter()
-		}
-	}
+            is PageState.Shown -> Unit
+        }
+    }
 
-	private fun showAnimated(page: ReaderPage, loadedState: PageState.Loaded) {
-		ssiv.isVisible = false
-		animatedView?.let {
-			it.isVisible = true
-			it.setImageAsync(page)
-		}
-		viewModel.state.update { currentState ->
-			if (currentState is PageState.Loaded) {
-				PageState.Shown(loadedState.source, loadedState.isConverted)
-			} else {
-				currentState
-			}
-		}
-	}
+    // ── Color filter ──────────────────────────────────────────────────────────
+    // GPU filters (denoise, vibrance, sharpening) are installed via GpuFilteringDecoder
+    // in applyBitmapConfig and take effect per-tile on decode.
+    // ssiv.colorFilter carries only the CPU/Canvas ColorMatrix:
+    //   brightness / contrast / saturation / grayscale / invert / book-tint.
 
-	protected fun SubsamplingScaleImageView.applyDownSampling(isForeground: Boolean) {
-		downSampling = when {
-			isForeground || !settings.isReaderOptimizationEnabled -> 1
-			BuildConfig.DEBUG -> 32
-			context.isLowRamDevice() -> 8
-			else -> 4
-		}
-	}
+    protected fun applyColorFilter() {
+        if (ssiv.isReady) {
+            ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+        }
+    }
 
-	private companion object {
-		private const val PREPARING_STATUS_DELAY_MS = 600L
-		private const val TILE_ERROR_SOFT = 1
-		private const val TILE_ERROR_HARD = 3
+    private fun showAnimated(page: ReaderPage, loadedState: PageState.Loaded) {
+        ssiv.isVisible = false
+        animatedView?.let {
+            it.isVisible = true
+            it.setImageAsync(page)
+        }
+        viewModel.state.update { currentState ->
+            if (currentState is PageState.Loaded) {
+                PageState.Shown(loadedState.source, loadedState.isConverted)
+            } else {
+                currentState
+            }
+        }
+    }
 
-		// 4 = Cortex-A53 core count. Decode tiles in parallel for fast initial load.
-		// Memory is kept in check by RGB_565 (half per tile) + eager loading off.
-		@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-		private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(4)
-		private val UNSET_SENTINEL = Any()
-	}
+    protected fun SubsamplingScaleImageView.applyDownSampling(isForeground: Boolean) {
+        downSampling = when {
+            isForeground || !settings.isReaderOptimizationEnabled -> 1
+            BuildConfig.DEBUG -> 32
+            context.isLowRamDevice() -> 8
+            else -> 4
+        }
+    }
+
+    private companion object {
+        private const val PREPARING_STATUS_DELAY_MS = 600L
+        private const val TILE_ERROR_SOFT = 1
+        private const val TILE_ERROR_HARD = 3
+
+        // 4 = Cortex-A53 core count. Decode tiles in parallel for fast initial load.
+        // Memory is kept in check by RGB_565 (half per tile) + eager loading off.
+        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+        private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(4)
+        private val UNSET_SENTINEL = Any()
+    }
 }

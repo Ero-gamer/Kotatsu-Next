@@ -15,20 +15,19 @@ import org.koitharu.kotatsu.list.ui.adapter.loadingStateAD
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 class BookmarksAdapter(
-	clickListener: OnListItemClickListener<Bookmark>,
-	headerClickListener: ListHeaderClickListener?,
-) : BaseListAdapter<ListModel>(), FastScroller.SectionIndexer {
+    clickListener: OnListItemClickListener<Bookmark>,
+    headerClickListener: ListHeaderClickListener?,
+) : BaseListAdapter<ListModel>(),
+    FastScroller.SectionIndexer {
 
-	init {
-		addDelegate(ListItemType.PAGE_THUMB, bookmarkLargeAD(clickListener))
-		addDelegate(ListItemType.HEADER, listHeaderAD(headerClickListener))
-		addDelegate(ListItemType.STATE_ERROR, errorStateListAD(null))
-		addDelegate(ListItemType.FOOTER_LOADING, loadingFooterAD())
-		addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
-		addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
-	}
+    init {
+        addDelegate(ListItemType.PAGE_THUMB, bookmarkLargeAD(clickListener))
+        addDelegate(ListItemType.HEADER, listHeaderAD(headerClickListener))
+        addDelegate(ListItemType.STATE_ERROR, errorStateListAD(null))
+        addDelegate(ListItemType.FOOTER_LOADING, loadingFooterAD())
+        addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
+        addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
+    }
 
-	override fun getSectionText(context: Context, position: Int): CharSequence? {
-		return findHeader(position)?.getText(context)
-	}
+    override fun getSectionText(context: Context, position: Int): CharSequence? = findHeader(position)?.getText(context)
 }

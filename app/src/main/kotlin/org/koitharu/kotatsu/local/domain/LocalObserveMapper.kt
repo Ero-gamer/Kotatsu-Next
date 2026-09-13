@@ -12,31 +12,31 @@ import org.koitharu.kotatsu.local.data.index.LocalMangaIndex
 import org.koitharu.kotatsu.parsers.model.Manga
 
 abstract class LocalObserveMapper<E : Any, R : Any>(
-	private val localMangaIndex: LocalMangaIndex,
+    private val localMangaIndex: LocalMangaIndex,
 ) {
 
-	protected fun Flow<Collection<E>>.mapToLocal() = onStart {
-		localMangaIndex.updateIfRequired()
-	}.mapLatest {
-		it.mapToLocal()
-	}
+    protected fun Flow<Collection<E>>.mapToLocal() = onStart {
+        localMangaIndex.updateIfRequired()
+    }.mapLatest {
+        it.mapToLocal()
+    }
 
-	private suspend fun Collection<E>.mapToLocal(): List<R> = coroutineScope {
-		val dispatcher = Dispatchers.IO.limitedParallelism(6)
-		map { item ->
-			val m = toManga(item)
-			async(dispatcher) {
-				val mapped = if (m.isLocal) {
-					m
-				} else {
-					localMangaIndex.get(m.id, withDetails = false)?.manga
-				}
-				mapped?.let { mm -> toResult(item, mm) }
-			}
-		}.awaitAll().filterNotNull()
-	}
+    private suspend fun Collection<E>.mapToLocal(): List<R> = coroutineScope {
+        val dispatcher = Dispatchers.IO.limitedParallelism(6)
+        map { item ->
+            val m = toManga(item)
+            async(dispatcher) {
+                val mapped = if (m.isLocal) {
+                    m
+                } else {
+                    localMangaIndex.get(m.id, withDetails = false)?.manga
+                }
+                mapped?.let { mm -> toResult(item, mm) }
+            }
+        }.awaitAll().filterNotNull()
+    }
 
-	protected abstract fun toManga(e: E): Manga
+    protected abstract fun toManga(e: E): Manga
 
-	protected abstract fun toResult(e: E, manga: Manga): R
+    protected abstract fun toResult(e: E, manga: Manga): R
 }

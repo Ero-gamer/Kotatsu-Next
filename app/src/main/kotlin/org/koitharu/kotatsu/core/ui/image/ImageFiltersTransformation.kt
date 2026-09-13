@@ -26,7 +26,7 @@ class ImageFiltersTransformation(
     override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v9_gpu"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
-        val doSharpen  = sharpening > 0.01f
+        val doSharpen = sharpening > 0.01f
         val doVibrance = vibrance != 0f
         if (!doSharpen && !doVibrance) return input
         return cpuSemaphore.withPermit { process(input, doSharpen, doVibrance) }
@@ -50,40 +50,48 @@ class ImageFiltersTransformation(
         val src = IntArray(w * h)
         working.getPixels(src, 0, w, 0, 0, w, h)
 
-        val k   = if (doSharpen) kernelStrength(sharpening) else 0f
+        val k = if (doSharpen) kernelStrength(sharpening) else 0f
         // When sharpening is active, write to a separate buffer to avoid corrupt neighbours.
         val out = if (doSharpen) IntArray(w * h) else src
 
         for (y in 0 until h) {
-            val rowStart    = y * w
-            val hasAbove    = y > 0
-            val hasBelow    = y < h - 1
+            val rowStart = y * w
+            val hasAbove = y > 0
+            val hasBelow = y < h - 1
             for (x in 0 until w) {
                 val idx = rowStart + x
-                val px  = src[idx]
+                val px = src[idx]
                 var r: Int
                 var g: Int
                 var b: Int
 
                 if (doSharpen && x > 0 && x < w - 1 && hasAbove && hasBelow) {
-                    val top    = src[idx - w]
+                    val top = src[idx - w]
                     val bottom = src[idx + w]
-                    val left   = src[idx - 1]
-                    val right  = src[idx + 1]
-                    val cr = (px    shr 16) and 0xFF
-                    val cg = (px    shr  8) and 0xFF
-                    val cb =  px           and 0xFF
-                    val tr = (top   shr 16) and 0xFF; val tg = (top   shr 8) and 0xFF; val tb = top   and 0xFF
-                    val br = (bottom shr 16) and 0xFF; val bg = (bottom shr 8) and 0xFF; val bb = bottom and 0xFF
-                    val lr = (left  shr 16) and 0xFF; val lg = (left  shr 8) and 0xFF; val lb = left  and 0xFF
-                    val rr = (right shr 16) and 0xFF; val rg = (right shr 8) and 0xFF; val rb = right and 0xFF
+                    val left = src[idx - 1]
+                    val right = src[idx + 1]
+                    val cr = (px shr 16) and 0xFF
+                    val cg = (px shr 8) and 0xFF
+                    val cb = px and 0xFF
+                    val tr = (top shr 16) and 0xFF
+                    val tg = (top shr 8) and 0xFF
+                    val tb = top and 0xFF
+                    val br = (bottom shr 16) and 0xFF
+                    val bg = (bottom shr 8) and 0xFF
+                    val bb = bottom and 0xFF
+                    val lr = (left shr 16) and 0xFF
+                    val lg = (left shr 8) and 0xFF
+                    val lb = left and 0xFF
+                    val rr = (right shr 16) and 0xFF
+                    val rg = (right shr 8) and 0xFF
+                    val rb = right and 0xFF
                     r = sharpenChannel(cr, tr, br, lr, rr, k)
                     g = sharpenChannel(cg, tg, bg, lg, rg, k)
                     b = sharpenChannel(cb, tb, bb, lb, rb, k)
                 } else {
                     r = (px shr 16) and 0xFF
-                    g = (px shr  8) and 0xFF
-                    b =  px         and 0xFF
+                    g = (px shr 8) and 0xFF
+                    b = px and 0xFF
                 }
 
                 if (doVibrance) {
@@ -108,7 +116,7 @@ class ImageFiltersTransformation(
         if (this === other) return true
         return other is ImageFiltersTransformation &&
             sharpening == other.sharpening &&
-            vibrance   == other.vibrance
+            vibrance == other.vibrance
     }
 
     override fun hashCode(): Int = 31 * sharpening.hashCode() + vibrance.hashCode()
@@ -118,9 +126,9 @@ class ImageFiltersTransformation(
         private const val ALPHA_MASK = 0xFF000000.toInt()
 
         private fun clamp255(v: Float): Int = when {
-            v <= 0f   -> 0
+            v <= 0f -> 0
             v >= 255f -> 255
-            else      -> (v + 0.5f).toInt()
+            else -> (v + 0.5f).toInt()
         }
 
         /** USM-style sharpening kernel strength mapped from [0,1] to [1.5, 4.0]. */
@@ -139,7 +147,7 @@ class ImageFiltersTransformation(
         private fun vibranceFactor(r: Int, g: Int, b: Int, vibrance: Float): Float {
             val maxC = maxOf(r, g, b)
             val minC = minOf(r, g, b)
-            val sat  = if (maxC == 0) 0f else (maxC - minC).toFloat() / maxC
+            val sat = if (maxC == 0) 0f else (maxC - minC).toFloat() / maxC
             return 1f + vibrance * (1f - sat)
         }
     }

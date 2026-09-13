@@ -7,15 +7,15 @@ import org.koitharu.kotatsu.core.ui.list.OnListItemClickListener
 import org.koitharu.kotatsu.databinding.ItemCategoryCheckableMultipleBinding
 
 fun trackerCategoryAD(
-	listener: OnListItemClickListener<FavouriteCategory>,
+    listener: OnListItemClickListener<FavouriteCategory>,
 ) = adapterDelegateViewBinding<FavouriteCategory, FavouriteCategory, ItemCategoryCheckableMultipleBinding>(
-	{ layoutInflater, parent -> ItemCategoryCheckableMultipleBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemCategoryCheckableMultipleBinding.inflate(layoutInflater, parent, false) },
 ) {
-	val eventListener = AdapterDelegateClickListenerAdapter(this, listener)
-	itemView.setOnClickListener(eventListener)
+    val eventListener = AdapterDelegateClickListenerAdapter(this, listener)
+    itemView.setOnClickListener(eventListener)
 
-	bind {
-		binding.root.text = item.title
-		binding.root.isChecked = item.isTrackingEnabled
-	}
+    bind {
+        binding.root.text = item.title
+        binding.root.isChecked = item.isTrackingEnabled
+    }
 }

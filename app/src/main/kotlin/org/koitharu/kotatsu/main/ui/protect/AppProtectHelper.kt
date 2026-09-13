@@ -10,35 +10,34 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AppProtectHelper @Inject constructor(private val settings: AppSettings) :
-	DefaultActivityLifecycleCallbacks {
+class AppProtectHelper @Inject constructor(private val settings: AppSettings) : DefaultActivityLifecycleCallbacks {
 
-	private var isUnlocked = settings.appPassword.isNullOrEmpty()
+    private var isUnlocked = settings.appPassword.isNullOrEmpty()
 
-	override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-		if (!isUnlocked && activity !is ProtectActivity && activity !is CrashReportDialog) {
-			val sourceIntent = Intent(activity, activity.javaClass)
-			activity.intent?.let {
-				sourceIntent.putExtras(it)
-				sourceIntent.action = it.action
-				sourceIntent.setDataAndType(it.data, it.type)
-			}
-			activity.startActivity(ProtectActivity.newIntent(activity, sourceIntent))
-			activity.finishAfterTransition()
-		}
-	}
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+        if (!isUnlocked && activity !is ProtectActivity && activity !is CrashReportDialog) {
+            val sourceIntent = Intent(activity, activity.javaClass)
+            activity.intent?.let {
+                sourceIntent.putExtras(it)
+                sourceIntent.action = it.action
+                sourceIntent.setDataAndType(it.data, it.type)
+            }
+            activity.startActivity(ProtectActivity.newIntent(activity, sourceIntent))
+            activity.finishAfterTransition()
+        }
+    }
 
-	override fun onActivityDestroyed(activity: Activity) {
-		if (activity !is ProtectActivity && activity.isFinishing && activity.isTaskRoot) {
-			restoreLock()
-		}
-	}
+    override fun onActivityDestroyed(activity: Activity) {
+        if (activity !is ProtectActivity && activity.isFinishing && activity.isTaskRoot) {
+            restoreLock()
+        }
+    }
 
-	fun unlock() {
-		isUnlocked = true
-	}
+    fun unlock() {
+        isUnlocked = true
+    }
 
-	private fun restoreLock() {
-		isUnlocked = settings.appPassword.isNullOrEmpty()
-	}
+    private fun restoreLock() {
+        isUnlocked = settings.appPassword.isNullOrEmpty()
+    }
 }

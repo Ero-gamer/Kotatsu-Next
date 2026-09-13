@@ -9,30 +9,31 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.databinding.ViewZoomBinding
 
 class ZoomControl @JvmOverloads constructor(
-	context: Context,
-	attrs: AttributeSet? = null,
-) : MaterialButtonGroup(context, attrs), View.OnClickListener {
+    context: Context,
+    attrs: AttributeSet? = null,
+) : MaterialButtonGroup(context, attrs),
+    View.OnClickListener {
 
-	private val binding = ViewZoomBinding.inflate(LayoutInflater.from(context), this)
+    private val binding = ViewZoomBinding.inflate(LayoutInflater.from(context), this)
 
-	var listener: ZoomControlListener? = null
+    var listener: ZoomControlListener? = null
 
-	init {
-		binding.buttonZoomIn.setOnClickListener(this)
-		binding.buttonZoomOut.setOnClickListener(this)
-	}
+    init {
+        binding.buttonZoomIn.setOnClickListener(this)
+        binding.buttonZoomOut.setOnClickListener(this)
+    }
 
-	override fun onClick(v: View) {
-		when (v.id) {
-			R.id.button_zoom_in -> listener?.onZoomIn()
-			R.id.button_zoom_out -> listener?.onZoomOut()
-		}
-	}
+    override fun onClick(v: View) {
+        when (v.id) {
+            R.id.button_zoom_in -> listener?.onZoomIn()
+            R.id.button_zoom_out -> listener?.onZoomOut()
+        }
+    }
 
-	interface ZoomControlListener {
+    interface ZoomControlListener {
 
-		fun onZoomIn()
+        fun onZoomIn()
 
-		fun onZoomOut()
-	}
+        fun onZoomOut()
+    }
 }

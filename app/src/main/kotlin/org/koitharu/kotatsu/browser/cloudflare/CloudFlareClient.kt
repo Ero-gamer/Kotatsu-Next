@@ -9,45 +9,45 @@ import org.koitharu.kotatsu.parsers.network.CloudFlareHelper
 private const val LOOP_COUNTER = 3
 
 open class CloudFlareClient(
-	private val cookieJar: MutableCookieJar,
-	protected val callback: CloudFlareCallback,
-	private val targetUrl: String,
+    private val cookieJar: MutableCookieJar,
+    protected val callback: CloudFlareCallback,
+    private val targetUrl: String,
 ) : BrowserClient(callback, null) {
 
-	private val oldClearance = getClearance()
-	private var counter = 0
+    private val oldClearance = getClearance()
+    private var counter = 0
 
-	override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-		super.onPageStarted(view, url, favicon)
-		checkClearance()
-	}
+    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+        super.onPageStarted(view, url, favicon)
+        checkClearance()
+    }
 
-	override fun onPageCommitVisible(view: WebView, url: String) {
-		super.onPageCommitVisible(view, url)
-		callback.onPageLoaded()
-	}
+    override fun onPageCommitVisible(view: WebView, url: String) {
+        super.onPageCommitVisible(view, url)
+        callback.onPageLoaded()
+    }
 
-	override fun onPageFinished(webView: WebView, url: String) {
-		super.onPageFinished(webView, url)
-		callback.onPageLoaded()
-	}
+    override fun onPageFinished(webView: WebView, url: String) {
+        super.onPageFinished(webView, url)
+        callback.onPageLoaded()
+    }
 
-	fun reset() {
-		counter = 0
-	}
+    fun reset() {
+        counter = 0
+    }
 
-	private fun checkClearance() {
-		val clearance = getClearance()
-		if (clearance != null && clearance != oldClearance) {
-			callback.onCheckPassed()
-		} else {
-			counter++
-			if (counter >= LOOP_COUNTER) {
-				reset()
-				callback.onLoopDetected()
-			}
-		}
-	}
+    private fun checkClearance() {
+        val clearance = getClearance()
+        if (clearance != null && clearance != oldClearance) {
+            callback.onCheckPassed()
+        } else {
+            counter++
+            if (counter >= LOOP_COUNTER) {
+                reset()
+                callback.onLoopDetected()
+            }
+        }
+    }
 
-	private fun getClearance() = CloudFlareHelper.getClearanceCookie(cookieJar, targetUrl)
+    private fun getClearance() = CloudFlareHelper.getClearanceCookie(cookieJar, targetUrl)
 }

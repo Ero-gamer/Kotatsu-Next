@@ -8,16 +8,15 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingInfo
 
 fun scrobblingMangaAD(
-	clickListener: OnListItemClickListener<ScrobblingInfo>,
+    clickListener: OnListItemClickListener<ScrobblingInfo>,
 ) = adapterDelegateViewBinding<ScrobblingInfo, ListModel, ItemScrobblingMangaBinding>(
-	{ layoutInflater, parent -> ItemScrobblingMangaBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemScrobblingMangaBinding.inflate(layoutInflater, parent, false) },
 ) {
+    AdapterDelegateClickListenerAdapter(this, clickListener).attach(itemView)
 
-	AdapterDelegateClickListenerAdapter(this, clickListener).attach(itemView)
-
-	bind {
-		binding.imageViewCover.setImageAsync(item.coverUrl, null)
-		binding.textViewTitle.text = item.title
-		binding.ratingBar.rating = item.rating * binding.ratingBar.numStars
-	}
+    bind {
+        binding.imageViewCover.setImageAsync(item.coverUrl, null)
+        binding.textViewTitle.text = item.title
+        binding.ratingBar.rating = item.rating * binding.ratingBar.numStars
+    }
 }

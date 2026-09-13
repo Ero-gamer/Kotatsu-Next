@@ -20,6 +20,7 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.BadBackupFormatException
 import org.koitharu.kotatsu.core.exceptions.CaughtException
 import org.koitharu.kotatsu.core.exceptions.CloudFlareBlockedException
+import org.koitharu.kotatsu.core.exceptions.CloudFlareException
 import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.exceptions.EmptyHistoryException
 import org.koitharu.kotatsu.core.exceptions.EmptyMangaException
@@ -52,7 +53,6 @@ import java.net.HttpURLConnection
 import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import org.koitharu.kotatsu.core.exceptions.CloudFlareException
 import java.net.UnknownHostException
 import java.util.Locale
 import java.util.zip.ZipException
@@ -68,20 +68,27 @@ fun Throwable.getDisplayMessage(resources: Resources): String = getDisplayMessag
 
 private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = when (this) {
     is CancellationException -> cause?.getDisplayMessageOrNull(resources) ?: message
+
     is CaughtException -> cause.getDisplayMessageOrNull(resources)
+
     is WrapperIOException -> cause.getDisplayMessageOrNull(resources)
+
     is ScrobblerAuthRequiredException -> resources.getString(
         R.string.scrobbler_auth_required,
         resources.getString(scrobbler.titleResId),
     )
 
     is AuthRequiredException -> resources.getString(R.string.auth_required)
+
     is InteractiveActionRequiredException -> resources.getString(R.string.additional_action_required)
+
     is CloudFlareProtectedException -> resources.getString(R.string.captcha_required_message)
+
     is CloudFlareBlockedException -> resources.getString(R.string.blocked_by_server_message)
+
     is ActivityNotFoundException,
     is UnsupportedOperationException,
-        -> resources.getString(R.string.operation_not_supported)
+    -> resources.getString(R.string.operation_not_supported)
 
     is TooManyRequestExceptions -> {
         val delay = getRetryDelay()
@@ -98,23 +105,36 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
     }
 
     is ZipException -> resources.getString(R.string.error_corrupted_zip, this.message.orEmpty())
+
     is SQLiteFullException -> resources.getString(R.string.error_no_space_left)
+
     is UnsupportedFileException -> resources.getString(R.string.text_file_not_supported)
+
     is BadBackupFormatException -> resources.getString(R.string.unsupported_backup_message)
+
     is FileNotFoundException -> parseMessage(resources) ?: message
+
     is AccessDeniedException -> resources.getString(R.string.no_access_to_file)
+
     is NonFileUriException -> resources.getString(R.string.error_non_file_uri)
+
     is EmptyHistoryException -> resources.getString(R.string.history_is_empty)
+
     is EmptyMangaException -> reason?.let { resources.getString(it.msgResId) } ?: cause?.getDisplayMessage(resources)
+
     is ProxyConfigException -> resources.getString(R.string.invalid_proxy_configuration)
+
     is SyncApiException,
-    is ContentUnavailableException -> message
+    is ContentUnavailableException,
+    -> message
 
     is ParseException -> shortMessage
+
     is ConnectException,
     is UnknownHostException,
     is NoRouteToHostException,
-    is SocketTimeoutException -> resources.getString(R.string.network_error)
+    is SocketTimeoutException,
+    -> resources.getString(R.string.network_error)
 
     is ImageDecodeException -> {
         val type = format?.substringBefore('/')
@@ -127,6 +147,7 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
     }
 
     is NoDataReceivedException -> resources.getString(R.string.error_no_data_received)
+
     is IncompatiblePluginException -> {
         cause?.getDisplayMessageOrNull(resources)?.let {
             resources.getString(R.string.plugin_incompatible_with_cause, it)
@@ -134,10 +155,13 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
     }
 
     is WrongPasswordException -> resources.getString(R.string.wrong_password)
+
     is NotFoundException -> resources.getString(R.string.not_found_404)
+
     is UnsupportedSourceException -> resources.getString(R.string.unsupported_source)
 
     is HttpException -> getHttpDisplayMessage(response.code, resources)
+
     is HttpStatusException -> getHttpDisplayMessage(statusCode, resources)
 
     else -> mapDisplayMessage(message, resources) ?: message
@@ -146,16 +170,20 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
 @DrawableRes
 fun Throwable.getDisplayIcon(): Int = when (this) {
     is AuthRequiredException -> R.drawable.ic_auth_key_large
+
     is CloudFlareProtectedException -> R.drawable.ic_bot_large
+
     is UnknownHostException,
     is SocketTimeoutException,
     is ConnectException,
     is NoRouteToHostException,
-    is ProtocolException -> R.drawable.ic_plug_large
+    is ProtocolException,
+    -> R.drawable.ic_plug_large
 
     is CloudFlareBlockedException -> R.drawable.ic_denied_large
 
     is InteractiveActionRequiredException -> R.drawable.ic_interaction_large
+
     else -> R.drawable.ic_error_large
 }
 
@@ -210,27 +238,25 @@ fun Throwable.isReportable(): Boolean {
     if (ExceptionResolver.canResolve(this)) {
         return false
     }
-    if (this is ParseException
-        || this.isNetworkError()
-        || this is CloudFlareBlockedException
-        || this is CloudFlareProtectedException
-        || this is BadBackupFormatException
-        || this is WrongPasswordException
-        || this is TooManyRequestExceptions
-        || this is HttpStatusException
+    if (this is ParseException ||
+        this.isNetworkError() ||
+        this is CloudFlareBlockedException ||
+        this is CloudFlareProtectedException ||
+        this is BadBackupFormatException ||
+        this is WrongPasswordException ||
+        this is TooManyRequestExceptions ||
+        this is HttpStatusException
     ) {
         return false
     }
     return true
 }
 
-fun Throwable.isNetworkError(): Boolean {
-    return this is UnknownHostException
-        || this is SocketTimeoutException
-        || this is StreamResetException
-        || this is SocketException
-        || (this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT)
-}
+fun Throwable.isNetworkError(): Boolean = this is UnknownHostException ||
+    this is SocketTimeoutException ||
+    this is StreamResetException ||
+    this is SocketException ||
+    (this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT)
 
 fun Throwable.report(silent: Boolean = false) {
     val exception = CaughtException(this)
@@ -281,7 +307,6 @@ fun FileNotFoundException.parseMessage(resources: Resources): String? {
 }
 
 /** Walks the exception cause chain and returns the first [CloudFlareException] found, or `null`. */
-fun Throwable.findCloudFlareException(): CloudFlareException? =
-    generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
-        .filterIsInstance<CloudFlareException>()
-        .firstOrNull()
+fun Throwable.findCloudFlareException(): CloudFlareException? = generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
+    .filterIsInstance<CloudFlareException>()
+    .firstOrNull()

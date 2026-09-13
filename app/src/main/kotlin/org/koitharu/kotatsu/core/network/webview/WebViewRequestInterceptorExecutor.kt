@@ -37,7 +37,7 @@ class WebViewRequestInterceptorExecutor @Inject constructor(
 
     suspend fun interceptRequests(
         url: String,
-        config: InterceptionConfig
+        config: InterceptionConfig,
     ): List<InterceptedRequest> = withTimeout(config.timeoutMs + 5000) {
         Log.d(TAG_VRF, "interceptRequests start url=$url injectPageScript=${!config.pageScript.isNullOrBlank()} hasFilterScript=${!config.filterScript.isNullOrBlank()}")
         withContext(Dispatchers.Main) {
@@ -48,8 +48,11 @@ class WebViewRequestInterceptorExecutor @Inject constructor(
                     override fun shouldCaptureRequest(request: InterceptedRequest): Boolean {
                         val urlOk = config.urlPattern?.containsMatchIn(request.url) ?: true
                         val scriptOk = try {
-                            if (config.filterScript.isNullOrBlank()) true
-                            else evaluateFilterPredicate(config.filterScript, request.url)
+                            if (config.filterScript.isNullOrBlank()) {
+                                true
+                            } else {
+                                evaluateFilterPredicate(config.filterScript, request.url)
+                            }
                         } catch (e: Throwable) {
                             Log.w(TAG_VRF, "Filter error ${e.message}")
                             false
@@ -120,22 +123,31 @@ class WebViewRequestInterceptorExecutor @Inject constructor(
                                 wv.stopLoading()
                                 wv.destroy()
                                 removeWebViewFromTracking(wv)
-                                if (ex != null) continuation.resumeWithException(ex)
-                                else continuation.resume(resultDeferred.getCompleted())
+                                if (ex != null) {
+                                    continuation.resumeWithException(ex)
+                                } else {
+                                    continuation.resume(resultDeferred.getCompleted())
+                                }
                             } else {
                                 // Must post to main thread, but wait for completion
                                 mainHandler.post {
                                     wv.stopLoading()
                                     wv.destroy()
                                     removeWebViewFromTracking(wv)
-                                    if (ex != null) continuation.resumeWithException(ex)
-                                    else continuation.resume(resultDeferred.getCompleted())
+                                    if (ex != null) {
+                                        continuation.resumeWithException(ex)
+                                    } else {
+                                        continuation.resume(resultDeferred.getCompleted())
+                                    }
                                 }
                             }
                         } ?: run {
                             // No WebView to clean up, resume immediately
-                            if (ex != null) continuation.resumeWithException(ex)
-                            else continuation.resume(resultDeferred.getCompleted())
+                            if (ex != null) {
+                                continuation.resumeWithException(ex)
+                            } else {
+                                continuation.resume(resultDeferred.getCompleted())
+                            }
                         }
                     }
                     continuation.invokeOnCancellation {
@@ -186,12 +198,12 @@ class WebViewRequestInterceptorExecutor @Inject constructor(
     suspend fun captureWebViewUrls(
         pageUrl: String,
         urlPattern: Regex,
-        timeout: Long = 30000L
+        timeout: Long = 30000L,
     ): List<String> {
         val config = InterceptionConfig(
             timeoutMs = timeout,
             urlPattern = urlPattern,
-            maxRequests = 1
+            maxRequests = 1,
         )
         return interceptRequests(pageUrl, config)
             .also { Log.d(TAG_VRF, "captureWebViewUrls matched=${it.size}") }

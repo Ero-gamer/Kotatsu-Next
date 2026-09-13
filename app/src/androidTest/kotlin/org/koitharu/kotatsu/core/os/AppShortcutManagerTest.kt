@@ -25,55 +25,55 @@ import javax.inject.Inject
 @RunWith(AndroidJUnit4::class)
 class AppShortcutManagerTest {
 
-	@get:Rule
-	var hiltRule = HiltAndroidRule(this)
+    @get:Rule
+    var hiltRule = HiltAndroidRule(this)
 
-	@Inject
-	lateinit var historyRepository: HistoryRepository
+    @Inject
+    lateinit var historyRepository: HistoryRepository
 
-	@Inject
-	lateinit var appShortcutManager: AppShortcutManager
+    @Inject
+    lateinit var appShortcutManager: AppShortcutManager
 
-	@Inject
-	lateinit var database: MangaDatabase
+    @Inject
+    lateinit var database: MangaDatabase
 
-	@Before
-	fun setUp() {
-		hiltRule.inject()
-		database.clearAllTables()
-	}
+    @Before
+    fun setUp() {
+        hiltRule.inject()
+        database.clearAllTables()
+    }
 
-	@Test
-	fun testUpdateShortcuts() = runTest {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
-			return@runTest
-		}
-		database.invalidationTracker.addObserver(appShortcutManager)
-		awaitUpdate()
-		assertTrue(getShortcuts().isEmpty())
-		historyRepository.addOrUpdate(
-			manga = SampleData.manga,
-			chapterId = SampleData.chapter.id,
-			page = 4,
-			scroll = 2,
-			percent = 0.3f,
-			force = false,
-		)
-		awaitUpdate()
+    @Test
+    fun testUpdateShortcuts() = runTest {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) {
+            return@runTest
+        }
+        database.invalidationTracker.addObserver(appShortcutManager)
+        awaitUpdate()
+        assertTrue(getShortcuts().isEmpty())
+        historyRepository.addOrUpdate(
+            manga = SampleData.manga,
+            chapterId = SampleData.chapter.id,
+            page = 4,
+            scroll = 2,
+            percent = 0.3f,
+            force = false,
+        )
+        awaitUpdate()
 
-		val shortcuts = getShortcuts()
-		assertEquals(1, shortcuts.size)
-	}
+        val shortcuts = getShortcuts()
+        assertEquals(1, shortcuts.size)
+    }
 
-	private fun getShortcuts(): List<ShortcutInfo> {
-		val context = InstrumentationRegistry.getInstrumentation().targetContext
-		val manager = checkNotNull(context.getSystemService<ShortcutManager>())
-		return manager.dynamicShortcuts.filterNot { it.id == "com.squareup.leakcanary.dynamic_shortcut" }
-	}
+    private fun getShortcuts(): List<ShortcutInfo> {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val manager = checkNotNull(context.getSystemService<ShortcutManager>())
+        return manager.dynamicShortcuts.filterNot { it.id == "com.squareup.leakcanary.dynamic_shortcut" }
+    }
 
-	private suspend fun awaitUpdate() {
-		val instrumentation = InstrumentationRegistry.getInstrumentation()
-		instrumentation.awaitForIdle()
-		appShortcutManager.await()
-	}
+    private suspend fun awaitUpdate() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.awaitForIdle()
+        appShortcutManager.await()
+    }
 }

@@ -31,100 +31,103 @@ import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class WelcomeSheet : BaseAdaptiveSheet<SheetWelcomeBinding>(), ChipsView.OnChipClickListener, View.OnClickListener,
-	ActivityResultCallback<Uri?> {
+class WelcomeSheet :
+    BaseAdaptiveSheet<SheetWelcomeBinding>(),
+    ChipsView.OnChipClickListener,
+    View.OnClickListener,
+    ActivityResultCallback<Uri?> {
 
-	private val viewModel by viewModels<WelcomeViewModel>()
+    private val viewModel by viewModels<WelcomeViewModel>()
 
-	@Inject
-	lateinit var syncController: SyncController
+    @Inject
+    lateinit var syncController: SyncController
 
-	private val backupSelectCall = registerForActivityResult(
-		ActivityResultContracts.OpenDocument(),
-		this,
-	)
+    private val backupSelectCall = registerForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+        this,
+    )
 
-	override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): SheetWelcomeBinding {
-		return SheetWelcomeBinding.inflate(inflater, container, false)
-	}
+    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): SheetWelcomeBinding = SheetWelcomeBinding.inflate(inflater, container, false)
 
-	override fun onViewBindingCreated(binding: SheetWelcomeBinding, savedInstanceState: Bundle?) {
-		super.onViewBindingCreated(binding, savedInstanceState)
-		binding.textViewWelcomeTitle.isGone = resources.getBoolean(R.bool.is_tablet)
-		binding.chipsLocales.onChipClickListener = this
-		binding.chipsType.onChipClickListener = this
-		binding.chipBackup.setOnClickListener(this)
-		binding.chipSync.setOnClickListener(this)
-		binding.chipDirectories.setOnClickListener(this)
+    override fun onViewBindingCreated(binding: SheetWelcomeBinding, savedInstanceState: Bundle?) {
+        super.onViewBindingCreated(binding, savedInstanceState)
+        binding.textViewWelcomeTitle.isGone = resources.getBoolean(R.bool.is_tablet)
+        binding.chipsLocales.onChipClickListener = this
+        binding.chipsType.onChipClickListener = this
+        binding.chipBackup.setOnClickListener(this)
+        binding.chipSync.setOnClickListener(this)
+        binding.chipDirectories.setOnClickListener(this)
 
-		viewModel.locales.observe(viewLifecycleOwner, ::onLocalesChanged)
-		viewModel.types.observe(viewLifecycleOwner, ::onTypesChanged)
-	}
+        viewModel.locales.observe(viewLifecycleOwner, ::onLocalesChanged)
+        viewModel.types.observe(viewLifecycleOwner, ::onTypesChanged)
+    }
 
-	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
-		val typeMask = WindowInsetsCompat.Type.systemBars()
-		viewBinding?.scrollView?.updatePadding(
-			bottom = insets.getInsets(typeMask).bottom,
-		)
-		return insets.consume(v, typeMask, bottom = true)
-	}
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val typeMask = WindowInsetsCompat.Type.systemBars()
+        viewBinding?.scrollView?.updatePadding(
+            bottom = insets.getInsets(typeMask).bottom,
+        )
+        return insets.consume(v, typeMask, bottom = true)
+    }
 
-	override fun onChipClick(chip: Chip, data: Any?) {
-		when (data) {
-			is ContentType -> viewModel.setTypeChecked(data, !chip.isChecked)
-			is Locale -> viewModel.setLocaleChecked(data, !chip.isChecked)
-		}
-	}
+    override fun onChipClick(chip: Chip, data: Any?) {
+        when (data) {
+            is ContentType -> viewModel.setTypeChecked(data, !chip.isChecked)
+            is Locale -> viewModel.setLocaleChecked(data, !chip.isChecked)
+        }
+    }
 
-	override fun onClick(v: View) {
-		when (v.id) {
-			R.id.chip_backup -> {
-				if (!backupSelectCall.tryLaunch(arrayOf("*/*"))) {
-					Snackbar.make(
-						v, R.string.operation_not_supported, Snackbar.LENGTH_SHORT,
-					).show()
-				}
-			}
+    override fun onClick(v: View) {
+        when (v.id) {
+            R.id.chip_backup -> {
+                if (!backupSelectCall.tryLaunch(arrayOf("*/*"))) {
+                    Snackbar.make(
+                        v,
+                        R.string.operation_not_supported,
+                        Snackbar.LENGTH_SHORT,
+                    ).show()
+                }
+            }
 
-			R.id.chip_sync -> {
-				syncController.addAccount(requireActivity()) {}
-			}
+            R.id.chip_sync -> {
+                syncController.addAccount(requireActivity()) {}
+            }
 
             R.id.chip_directories -> {
                 router.openDirectoriesSettings()
             }
-		}
-	}
+        }
+    }
 
-	override fun onActivityResult(result: Uri?) {
-		if (result != null) {
-			router.showBackupRestoreDialog(result)
-		}
-	}
+    override fun onActivityResult(result: Uri?) {
+        if (result != null) {
+            router.showBackupRestoreDialog(result)
+        }
+    }
 
-	private fun onLocalesChanged(value: FilterProperty<Locale>) {
-		val chips = viewBinding?.chipsLocales ?: return
-		chips.setChips(
-			value.availableItems.map {
-				ChipsView.ChipModel(
-					title = it.getDisplayName(chips.context),
-					isChecked = it in value.selectedItems,
-					data = it,
-				)
-			},
-		)
-	}
+    private fun onLocalesChanged(value: FilterProperty<Locale>) {
+        val chips = viewBinding?.chipsLocales ?: return
+        chips.setChips(
+            value.availableItems.map {
+                ChipsView.ChipModel(
+                    title = it.getDisplayName(chips.context),
+                    isChecked = it in value.selectedItems,
+                    data = it,
+                )
+            },
+        )
+    }
 
-	private fun onTypesChanged(value: FilterProperty<ContentType>) {
-		val chips = viewBinding?.chipsType ?: return
-		chips.setChips(
-			value.availableItems.map {
-				ChipsView.ChipModel(
-					title = getString(it.titleResId),
-					isChecked = it in value.selectedItems,
-					data = it,
-				)
-			},
-		)
-	}
+    private fun onTypesChanged(value: FilterProperty<ContentType>) {
+        val chips = viewBinding?.chipsType ?: return
+        chips.setChips(
+            value.availableItems.map {
+                ChipsView.ChipModel(
+                    title = getString(it.titleResId),
+                    isChecked = it in value.selectedItems,
+                    data = it,
+                )
+            },
+        )
+    }
 }

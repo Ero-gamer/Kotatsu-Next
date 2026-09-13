@@ -16,34 +16,34 @@ import org.koitharu.kotatsu.core.util.ext.isZipUri
 import coil3.Uri as CoilUri
 
 class CbzFetcher(
-	private val uri: Uri,
-	private val options: Options,
+    private val uri: Uri,
+    private val options: Options,
 ) : Fetcher {
 
-	override suspend fun fetch() = runInterruptible {
-		val filePath = uri.schemeSpecificPart.toPath()
-		val entryName = requireNotNull(uri.fragment)
-		val fs = options.fileSystem.openZip(filePath)
-		SourceFetchResult(
-			source = ImageSource(entryName.toPath(), fs),
-			mimeType = MimeTypes.getMimeTypeFromExtension(entryName)?.toString(),
-			dataSource = DataSource.DISK,
-		)
-	}
+    override suspend fun fetch() = runInterruptible {
+        val filePath = uri.schemeSpecificPart.toPath()
+        val entryName = requireNotNull(uri.fragment)
+        val fs = options.fileSystem.openZip(filePath)
+        SourceFetchResult(
+            source = ImageSource(entryName.toPath(), fs),
+            mimeType = MimeTypes.getMimeTypeFromExtension(entryName)?.toString(),
+            dataSource = DataSource.DISK,
+        )
+    }
 
-	class Factory : Fetcher.Factory<CoilUri> {
+    class Factory : Fetcher.Factory<CoilUri> {
 
-		override fun create(
-			data: CoilUri,
-			options: Options,
-			imageLoader: ImageLoader
-		): Fetcher? {
-			val androidUri = data.toAndroidUri()
-			return if (androidUri.isZipUri()) {
-				CbzFetcher(androidUri, options)
-			} else {
-				null
-			}
-		}
-	}
+        override fun create(
+            data: CoilUri,
+            options: Options,
+            imageLoader: ImageLoader,
+        ): Fetcher? {
+            val androidUri = data.toAndroidUri()
+            return if (androidUri.isZipUri()) {
+                CbzFetcher(androidUri, options)
+            } else {
+                null
+            }
+        }
+    }
 }

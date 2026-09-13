@@ -9,11 +9,11 @@ import androidx.lifecycle.viewmodel.CreationExtras
 
 @MainThread
 inline fun <reified VM : ViewModel> Fragment.parentFragmentViewModels(
-	noinline extrasProducer: (() -> CreationExtras)? = null,
-	noinline factoryProducer: (() -> ViewModelProvider.Factory)? = null,
+    noinline extrasProducer: (() -> CreationExtras)? = null,
+    noinline factoryProducer: (() -> ViewModelProvider.Factory)? = null,
 ): Lazy<VM> = createViewModelLazy(
-	viewModelClass = VM::class,
-	storeProducer = { requireParentFragment().viewModelStore },
-	extrasProducer = { extrasProducer?.invoke() ?: requireParentFragment().defaultViewModelCreationExtras },
-	factoryProducer = factoryProducer ?: { requireParentFragment().defaultViewModelProviderFactory },
+    viewModelClass = VM::class,
+    storeProducer = { requireParentFragment().viewModelStore },
+    extrasProducer = { extrasProducer?.invoke() ?: requireParentFragment().defaultViewModelCreationExtras },
+    factoryProducer = factoryProducer ?: { requireParentFragment().defaultViewModelProviderFactory },
 )

@@ -7,24 +7,20 @@ import org.koitharu.kotatsu.parsers.model.MangaParserSource
 
 sealed interface SourceCatalogItem : ListModel {
 
-	data class Source(
-		val source: MangaParserSource,
-		val isInPreset: Boolean = false,
-	) : SourceCatalogItem {
+    data class Source(
+        val source: MangaParserSource,
+        val isInPreset: Boolean = false,
+    ) : SourceCatalogItem {
 
-		override fun areItemsTheSame(other: ListModel): Boolean {
-			return other is Source && other.source == source
-		}
-	}
+        override fun areItemsTheSame(other: ListModel): Boolean = other is Source && other.source == source
+    }
 
-	data class Hint(
-		@DrawableRes val icon: Int,
-		@StringRes val title: Int,
-		@StringRes val text: Int,
-	) : SourceCatalogItem {
+    data class Hint(
+        @DrawableRes val icon: Int,
+        @StringRes val title: Int,
+        @StringRes val text: Int,
+    ) : SourceCatalogItem {
 
-		override fun areItemsTheSame(other: ListModel): Boolean {
-			return other is Hint && other.title == title
-		}
-	}
+        override fun areItemsTheSame(other: ListModel): Boolean = other is Hint && other.title == title
+    }
 }

@@ -17,38 +17,38 @@ import org.koitharu.kotatsu.main.ui.owners.SnackbarOwner
 
 @AndroidEntryPoint
 abstract class FragmentContainerActivity(private val fragmentClass: Class<out Fragment>) :
-	BaseActivity<ActivityContainerBinding>(),
-	AppBarOwner,
-	SnackbarOwner {
+    BaseActivity<ActivityContainerBinding>(),
+    AppBarOwner,
+    SnackbarOwner {
 
-	override val appBar: AppBarLayout
-		get() = viewBinding.appbar
+    override val appBar: AppBarLayout
+        get() = viewBinding.appbar
 
-	override val snackbarHost: CoordinatorLayout
-		get() = viewBinding.root
+    override val snackbarHost: CoordinatorLayout
+        get() = viewBinding.root
 
-	override fun onCreate(savedInstanceState: Bundle?) {
-		super.onCreate(savedInstanceState)
-		setContentView(ActivityContainerBinding.inflate(layoutInflater))
-		setDisplayHomeAsUp(isEnabled = true, showUpAsClose = false)
-		val fm = supportFragmentManager
-		if (fm.findFragmentById(R.id.container) == null) {
-			fm.commit {
-				setReorderingAllowed(true)
-				replace(R.id.container, fragmentClass, getFragmentExtras())
-			}
-		}
-	}
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(ActivityContainerBinding.inflate(layoutInflater))
+        setDisplayHomeAsUp(isEnabled = true, showUpAsClose = false)
+        val fm = supportFragmentManager
+        if (fm.findFragmentById(R.id.container) == null) {
+            fm.commit {
+                setReorderingAllowed(true)
+                replace(R.id.container, fragmentClass, getFragmentExtras())
+            }
+        }
+    }
 
-	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
-		val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-		viewBinding.appbar.updatePadding(
-			left = bars.left,
-			right = bars.right,
-			top = bars.top,
-		)
-		return insets.consumeSystemBarsInsets(top = true)
-	}
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+        viewBinding.appbar.updatePadding(
+            left = bars.left,
+            right = bars.right,
+            top = bars.top,
+        )
+        return insets.consumeSystemBarsInsets(top = true)
+    }
 
-	protected open fun getFragmentExtras(): Bundle? = intent.extras
+    protected open fun getFragmentExtras(): Bundle? = intent.extras
 }

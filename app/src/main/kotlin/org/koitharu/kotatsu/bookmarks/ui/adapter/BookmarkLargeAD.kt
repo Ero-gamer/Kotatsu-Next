@@ -8,14 +8,14 @@ import org.koitharu.kotatsu.databinding.ItemBookmarkLargeBinding
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 fun bookmarkLargeAD(
-	clickListener: OnListItemClickListener<Bookmark>,
+    clickListener: OnListItemClickListener<Bookmark>,
 ) = adapterDelegateViewBinding<Bookmark, ListModel, ItemBookmarkLargeBinding>(
-	{ inflater, parent -> ItemBookmarkLargeBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemBookmarkLargeBinding.inflate(inflater, parent, false) },
 ) {
-	AdapterDelegateClickListenerAdapter(this, clickListener).attach(itemView)
+    AdapterDelegateClickListenerAdapter(this, clickListener).attach(itemView)
 
-	bind {
-		binding.imageViewThumb.setImageAsync(item)
-		binding.progressView.setProgress(item.percent, false)
-	}
+    bind {
+        binding.imageViewThumb.setImageAsync(item)
+        binding.progressView.setProgress(item.percent, false)
+    }
 }

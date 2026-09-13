@@ -9,7 +9,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
@@ -24,15 +23,15 @@ import org.koitharu.kotatsu.R
  */
 @OptIn(ExperimentalTextApi::class)
 private val GoogleSans: FontFamily
-	@Composable
-	get() = remember {
-		FontFamily(
-			Font(R.font.google_sans, weight = FontWeight.Normal, variationSettings = weightOf(400)),
-			Font(R.font.google_sans, weight = FontWeight.Medium, variationSettings = weightOf(500)),
-			Font(R.font.google_sans, weight = FontWeight.SemiBold, variationSettings = weightOf(600)),
-			Font(R.font.google_sans, weight = FontWeight.Bold, variationSettings = weightOf(700)),
-		)
-	}
+    @Composable
+    get() = remember {
+        FontFamily(
+            Font(R.font.google_sans, weight = FontWeight.Normal, variationSettings = weightOf(400)),
+            Font(R.font.google_sans, weight = FontWeight.Medium, variationSettings = weightOf(500)),
+            Font(R.font.google_sans, weight = FontWeight.SemiBold, variationSettings = weightOf(600)),
+            Font(R.font.google_sans, weight = FontWeight.Bold, variationSettings = weightOf(700)),
+        )
+    }
 
 private fun weightOf(weight: Int) = FontVariation.Settings(FontVariation.weight(weight))
 
@@ -42,27 +41,27 @@ private fun weightOf(weight: Int) = FontVariation.Settings(FontVariation.weight(
  */
 @Composable
 private fun navTypography(family: FontFamily): Typography {
-	val noPadding = PlatformTextStyle(includeFontPadding = false)
-	val base = Typography()
-	return base.copy(
-		labelLarge = base.labelLarge.copy(
-			fontFamily = family,
-			fontWeight = FontWeight.Bold,
-			platformStyle = noPadding,
-		),
-		labelMedium = base.labelMedium.copy(
-			fontFamily = family,
-			fontWeight = FontWeight.Bold,
-			fontSize = 14.sp,
-			lineHeight = 20.sp,
-			platformStyle = noPadding,
-		),
-		labelSmall = base.labelSmall.copy(
-			fontFamily = family,
-			fontWeight = FontWeight.Medium,
-			platformStyle = noPadding,
-		),
-	)
+    val noPadding = PlatformTextStyle(includeFontPadding = false)
+    val base = Typography()
+    return base.copy(
+        labelLarge = base.labelLarge.copy(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            platformStyle = noPadding,
+        ),
+        labelMedium = base.labelMedium.copy(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+            platformStyle = noPadding,
+        ),
+        labelSmall = base.labelSmall.copy(
+            fontFamily = family,
+            fontWeight = FontWeight.Medium,
+            platformStyle = noPadding,
+        ),
+    )
 }
 
 /**
@@ -72,13 +71,13 @@ private fun navTypography(family: FontFamily): Typography {
 @Suppress("ktlint:standard:function-naming")
 @Composable
 fun FloatingNavTheme(content: @Composable () -> Unit) {
-	val context = LocalContext.current
-	val isDark = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-		Configuration.UI_MODE_NIGHT_YES
-	val scheme = remember(context, isDark) { composeColorSchemeFromTheme(context, isDark) }
-	MaterialTheme(
-		colorScheme = scheme,
-		typography = navTypography(GoogleSans),
-		content = content,
-	)
+    val context = LocalContext.current
+    val isDark = (LocalConfiguration.current.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES
+    val scheme = remember(context, isDark) { composeColorSchemeFromTheme(context, isDark) }
+    MaterialTheme(
+        colorScheme = scheme,
+        typography = navTypography(GoogleSans),
+        content = content,
+    )
 }

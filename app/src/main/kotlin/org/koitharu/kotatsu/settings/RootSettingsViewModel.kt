@@ -12,12 +12,12 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RootSettingsViewModel @Inject constructor(
-	sourcesRepository: MangaSourcesRepository,
+    sourcesRepository: MangaSourcesRepository,
 ) : BaseViewModel() {
 
-	val totalSourcesCount = sourcesRepository.allMangaSources.size
+    val totalSourcesCount = sourcesRepository.allMangaSources.size
 
-	val enabledSourcesCount = sourcesRepository.observeEnabledSourcesCount()
-		.withErrorHandling()
-		.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, -1)
+    val enabledSourcesCount = sourcesRepository.observeEnabledSourcesCount()
+        .withErrorHandling()
+        .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, -1)
 }

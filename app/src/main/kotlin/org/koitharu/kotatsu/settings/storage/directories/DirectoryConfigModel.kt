@@ -13,7 +13,5 @@ data class DirectoryConfigModel(
     val available: Long,
 ) : ListModel {
 
-    override fun areItemsTheSame(other: ListModel): Boolean {
-        return other is DirectoryConfigModel && path == other.path
-    }
+    override fun areItemsTheSame(other: ListModel): Boolean = other is DirectoryConfigModel && path == other.path
 }

@@ -103,26 +103,32 @@ data class ReaderSettings(
         } else {
             bitmapConfig
         }
-        val quality = if (config == Bitmap.Config.RGB_565) BitmapQuality.MEMORY_SAVING
-                      else BitmapQuality.STANDARD
+        val quality = if (config == Bitmap.Config.RGB_565) {
+            BitmapQuality.MEMORY_SAVING
+        } else {
+            BitmapQuality.STANDARD
+        }
 
         // ── GPU filter params ──────────────────────────────────────────────
-        val cf          = colorFilter
-        val gpuDenoise  = (cf?.denoise  ?: 0f) > 0.01f
+        val cf = colorFilter
+        val gpuDenoise = (cf?.denoise ?: 0f) > 0.01f
         val gpuVibrance = (cf?.vibrance ?: 0f) != 0f
-        val gpuSharpen  = cf?.sharpening ?: 0f
-        val gpuMode     = when {
+        val gpuSharpen = cf?.sharpening ?: 0f
+        val gpuMode = when {
             gpuSharpen <= 0.01f -> 0
-            gpuSharpen <= 0.5f  -> 1   // RCAS+USM
-            else                -> 2   // Adaptive
+
+            gpuSharpen <= 0.5f -> 1
+
+            // RCAS+USM
+            else -> 2 // Adaptive
         }
         val gpuAnyActive = gpuDenoise || gpuVibrance || gpuMode != 0
 
         // ── Factory change detection ───────────────────────────────────────
-        val current       = ssiv.regionDecoderFactory
+        val current = ssiv.regionDecoderFactory
         val configChanged = current.bitmapConfig != config
-        val gpuWasActive  = current is GpuFilteringDecoder.Factory
-        val gpuToggled    = gpuWasActive != gpuAnyActive
+        val gpuWasActive = current is GpuFilteringDecoder.Factory
+        val gpuToggled = gpuWasActive != gpuAnyActive
         val factoryChanged = configChanged || gpuToggled
 
         if (factoryChanged) {
@@ -132,13 +138,13 @@ data class ReaderSettings(
                 val renderer = (current as? GpuFilteringDecoder.Factory)?.renderer
                     ?: GpuTileRenderer(ssiv.context)
                 GpuFilteringDecoder.Factory(
-                    innerFactory   = baseFactory,
-                    enableDenoise  = gpuDenoise,
-                    enableDarken   = false,
+                    innerFactory = baseFactory,
+                    enableDenoise = gpuDenoise,
+                    enableDarken = false,
                     enableVibrance = gpuVibrance,
-                    sharpenMode    = gpuMode,
-                    sharpness      = gpuSharpen.coerceIn(0f, 1f),
-                    renderer       = renderer,
+                    sharpenMode = gpuMode,
+                    sharpness = gpuSharpen.coerceIn(0f, 1f),
+                    renderer = renderer,
                 )
             } else {
                 // Release old renderer if switching GPU → base.
@@ -154,10 +160,10 @@ data class ReaderSettings(
         // Factory unchanged — update GPU uniform values live (no tile reload needed).
         if (gpuAnyActive && current is GpuFilteringDecoder.Factory) {
             current.renderer.apply {
-                enableDenoise  = gpuDenoise
+                enableDenoise = gpuDenoise
                 enableVibrance = gpuVibrance
-                sharpenMode    = gpuMode
-                sharpness      = gpuSharpen.coerceIn(0f, 1f)
+                sharpenMode = gpuMode
+                sharpness = gpuSharpen.coerceIn(0f, 1f)
             }
         }
         return false

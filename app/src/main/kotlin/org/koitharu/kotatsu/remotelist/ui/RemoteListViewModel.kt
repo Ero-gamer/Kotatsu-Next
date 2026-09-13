@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.plus
 import org.koitharu.kotatsu.R
-import org.koitharu.kotatsu.core.exceptions.CloudFlareException
 import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.model.MangaSource
 import org.koitharu.kotatsu.core.model.distinctById
@@ -58,211 +57,213 @@ private const val FILTER_MIN_INTERVAL = 250L
 
 @HiltViewModel
 open class RemoteListViewModel @Inject constructor(
-	savedStateHandle: SavedStateHandle,
-	mangaRepositoryFactory: MangaRepository.Factory,
-	final override val filterCoordinator: FilterCoordinator,
-	settings: AppSettings,
-	protected val mangaListMapper: MangaListMapper,
-	private val exploreRepository: ExploreRepository,
-	sourcesRepository: MangaSourcesRepository,
-	mangaDataRepository: MangaDataRepository,
-	@ApplicationContext private val appContext: Context,
-	@LocalStorageChanges localStorageChanges: SharedFlow<LocalManga?>
-) : MangaListViewModel(settings, mangaDataRepository, localStorageChanges), FilterCoordinator.Owner {
+    savedStateHandle: SavedStateHandle,
+    mangaRepositoryFactory: MangaRepository.Factory,
+    final override val filterCoordinator: FilterCoordinator,
+    settings: AppSettings,
+    protected val mangaListMapper: MangaListMapper,
+    private val exploreRepository: ExploreRepository,
+    sourcesRepository: MangaSourcesRepository,
+    mangaDataRepository: MangaDataRepository,
+    @ApplicationContext private val appContext: Context,
+    @LocalStorageChanges localStorageChanges: SharedFlow<LocalManga?>,
+) : MangaListViewModel(settings, mangaDataRepository, localStorageChanges),
+    FilterCoordinator.Owner {
 
-	val source = MangaSource(savedStateHandle[RemoteListFragment.ARG_SOURCE])
-	val isRandomLoading = MutableStateFlow(false)
-	val onOpenManga = MutableEventFlow<Manga>()
+    val source = MangaSource(savedStateHandle[RemoteListFragment.ARG_SOURCE])
+    val isRandomLoading = MutableStateFlow(false)
+    val onOpenManga = MutableEventFlow<Manga>()
     val onSourceBroken = MutableEventFlow<Unit>()
-	val onCaptchaRequired = MutableEventFlow<CloudFlareProtectedException>()
+    val onCaptchaRequired = MutableEventFlow<CloudFlareProtectedException>()
 
-	protected val repository = mangaRepositoryFactory.create(source)
-	private val mangaList = MutableStateFlow<List<Manga>?>(null)
-	private val hasNextPage = MutableStateFlow(false)
-	private val listError = MutableStateFlow<Throwable?>(null)
-	private val isResolvingCaptcha = MutableStateFlow(false)
-	private var loadingJob: Job? = null
-	private var randomJob: Job? = null
+    protected val repository = mangaRepositoryFactory.create(source)
+    private val mangaList = MutableStateFlow<List<Manga>?>(null)
+    private val hasNextPage = MutableStateFlow(false)
+    private val listError = MutableStateFlow<Throwable?>(null)
+    private val isResolvingCaptcha = MutableStateFlow(false)
+    private var loadingJob: Job? = null
+    private var randomJob: Job? = null
 
-	override val content = combine(
-		mangaList.map { it?.skipNsfwIfNeeded() },
-		observeListModeWithTriggers(),
-		listError,
-		hasNextPage,
-		isResolvingCaptcha,
-	) { list, mode, error, hasNext, resolvingCaptcha ->
-		buildList(list?.size?.plus(2) ?: 2) {
-			when {
-				// While the silent CAPTCHA solve is in progress, suppress the error state and keep showing
-				// the loading spinner with the "Solving captcha automatically…" text instead.
-				resolvingCaptcha && list.isNullOrEmpty() ->
-					add(LoadingState(R.string.captcha_solving))
+    override val content = combine(
+        mangaList.map { it?.skipNsfwIfNeeded() },
+        observeListModeWithTriggers(),
+        listError,
+        hasNextPage,
+        isResolvingCaptcha,
+    ) { list, mode, error, hasNext, resolvingCaptcha ->
+        buildList(list?.size?.plus(2) ?: 2) {
+            when {
+                // While the silent CAPTCHA solve is in progress, suppress the error state and keep showing
+                // the loading spinner with the "Solving captcha automatically…" text instead.
+                resolvingCaptcha && list.isNullOrEmpty() ->
+                    add(LoadingState(R.string.captcha_solving))
 
-				list.isNullOrEmpty() && error != null -> add(
-					error.toErrorState(
-						canRetry = true,
-						secondaryAction = if (error.getCauseUrl().isNullOrEmpty()) 0 else R.string.open_in_browser,
-					),
-				)
+                list.isNullOrEmpty() && error != null -> add(
+                    error.toErrorState(
+                        canRetry = true,
+                        secondaryAction = if (error.getCauseUrl().isNullOrEmpty()) 0 else R.string.open_in_browser,
+                    ),
+                )
 
-				list == null -> add(LoadingState())
-				list.isEmpty() -> add(createEmptyState(canResetFilter = filterCoordinator.isFilterApplied))
-				else -> {
-					mapMangaList(this, list, mode)
-					when {
-						error != null -> add(error.toErrorFooter())
-						hasNext -> add(LoadingFooter())
-						else -> getFooter()?.let(::add)
-					}
-				}
-			}
-			onBuildList(this)
-		}
-	}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, listOf(LoadingState()))
+                list == null -> add(LoadingState())
 
-	init {
-		filterCoordinator.observe()
-			.debounce(FILTER_MIN_INTERVAL)
-			.onEach { filterState ->
-				loadingJob?.cancelAndJoin()
-				mangaList.value = null
-				loadList(filterState, false)
-			}.catch { error ->
-				listError.value = error
-			}.launchIn(viewModelScope)
+                list.isEmpty() -> add(createEmptyState(canResetFilter = filterCoordinator.isFilterApplied))
 
-		launchJob(Dispatchers.Default) {
-			sourcesRepository.trackUsage(source)
-		}
+                else -> {
+                    mapMangaList(this, list, mode)
+                    when {
+                        error != null -> add(error.toErrorFooter())
+                        hasNext -> add(LoadingFooter())
+                        else -> getFooter()?.let(::add)
+                    }
+                }
+            }
+            onBuildList(this)
+        }
+    }.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, listOf(LoadingState()))
+
+    init {
+        filterCoordinator.observe()
+            .debounce(FILTER_MIN_INTERVAL)
+            .onEach { filterState ->
+                loadingJob?.cancelAndJoin()
+                mangaList.value = null
+                loadList(filterState, false)
+            }.catch { error ->
+                listError.value = error
+            }.launchIn(viewModelScope)
+
+        launchJob(Dispatchers.Default) {
+            sourcesRepository.trackUsage(source)
+        }
 
         if (source is MangaParserSource && source.isBroken) {
             // Just notify one. Will show reason in future
             onSourceBroken.call(Unit)
         }
-	}
+    }
 
-	override fun onRefresh() {
-		loadList(filterCoordinator.snapshot(), append = false)
-	}
+    override fun onRefresh() {
+        loadList(filterCoordinator.snapshot(), append = false)
+    }
 
-	override fun onRetry() {
-		loadList(filterCoordinator.snapshot(), append = !mangaList.value.isNullOrEmpty())
-	}
+    override fun onRetry() {
+        loadList(filterCoordinator.snapshot(), append = !mangaList.value.isNullOrEmpty())
+    }
 
-	fun loadNextPage() {
-		if (hasNextPage.value && listError.value == null) {
-			loadList(filterCoordinator.snapshot(), append = true)
-		}
-	}
+    fun loadNextPage() {
+        if (hasNextPage.value && listError.value == null) {
+            loadList(filterCoordinator.snapshot(), append = true)
+        }
+    }
 
-	/** Flipped by the Fragment around an `exceptionResolver.resolve(...)` call so the list can show
-	 *  the "Solving captcha automatically…" text instead of the error state while it runs. */
-	fun setCaptchaResolving(resolving: Boolean) {
-		isResolvingCaptcha.value = resolving
-	}
+    /** Flipped by the Fragment around an `exceptionResolver.resolve(...)` call so the list can show
+     *  the "Solving captcha automatically…" text instead of the error state while it runs. */
+    fun setCaptchaResolving(resolving: Boolean) {
+        isResolvingCaptcha.value = resolving
+    }
 
-	protected fun loadList(filterState: FilterCoordinator.Snapshot, append: Boolean): Job {
-		loadingJob?.let {
-			if (it.isActive) return it
-		}
-		return launchLoadingJob(Dispatchers.Default) {
-			try {
-				listError.value = null
-				val list = getListResolvingCaptcha(filterState, append)
-				val prevList = mangaList.value.orEmpty()
-				if (!append) {
-					mangaList.value = list.distinctById()
-				} else if (list.isNotEmpty()) {
-					mangaList.value = (prevList + list).distinctById()
-				}
-				hasNextPage.value = if (append) {
-					prevList != mangaList.value
-				} else {
-					list.size > prevList.size || hasNextPage.value
-				}
-			} catch (e: CancellationException) {
-				throw e
-			} catch (e: Throwable) {
-				e.printStackTraceDebug()
-				listError.value = e
-				if (!mangaList.value.isNullOrEmpty()) {
-					errorEvent.call(e)
-				}
-				hasNextPage.value = false
-			}
-		}.also { loadingJob = it }
-	}
+    protected fun loadList(filterState: FilterCoordinator.Snapshot, append: Boolean): Job {
+        loadingJob?.let {
+            if (it.isActive) return it
+        }
+        return launchLoadingJob(Dispatchers.Default) {
+            try {
+                listError.value = null
+                val list = getListResolvingCaptcha(filterState, append)
+                val prevList = mangaList.value.orEmpty()
+                if (!append) {
+                    mangaList.value = list.distinctById()
+                } else if (list.isNotEmpty()) {
+                    mangaList.value = (prevList + list).distinctById()
+                }
+                hasNextPage.value = if (append) {
+                    prevList != mangaList.value
+                } else {
+                    list.size > prevList.size || hasNextPage.value
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                e.printStackTraceDebug()
+                listError.value = e
+                if (!mangaList.value.isNullOrEmpty()) {
+                    errorEvent.call(e)
+                }
+                hasNextPage.value = false
+            }
+        }.also { loadingJob = it }
+    }
 
-	/**
-	 * Loads a page and, on a CloudFlare captcha, hands off the resolve to the Fragment which launches
-	 * `CloudFlareActivity` (hidden first, falling back to visible). The exception is rethrown so the
-	 * standard error state is shown while the resolve runs; a successful resolve triggers `onRetry`.
-	 */
-	private suspend fun getListResolvingCaptcha(
-		filterState: FilterCoordinator.Snapshot,
-		append: Boolean,
-	): List<Manga> {
-		val offset = if (append) mangaList.value.sizeOrZero() else 0
-		return try {
-			repository.getList(offset = offset, order = filterState.sortOrder, filter = filterState.listFilter)
-		} catch (e: Exception) {
-			val cfException = e.findCloudFlareException() ?: throw e
-			// Only fire the auto-resolve handoff if the per-source "Disable automatic CAPTCHA solving"
-			// setting is OFF. When it's on we just throw, the standard error state shows, and the user
-			// goes through the normal "Solve" → visible CloudFlareActivity flow.
-			//
-			// Also skip the event if a resolve is already in progress for this source — otherwise rapid
-			// successive loadList calls (filter coordinator emissions, retries, …) would each spawn
-			// their own Fragment-observer coroutine, all of which would award the same in-flight resolve
-			// but pile up toasts/UI churn on the way there.
-			if (
-				cfException is CloudFlareProtectedException &&
-				!isResolvingCaptcha.value &&
-				!SourceSettings(appContext, source).isCaptchaAutoResolveDisabled
-			) {
-				onCaptchaRequired.call(cfException)
-			}
-			throw cfException
-		}
-	}
+    /**
+     * Loads a page and, on a CloudFlare captcha, hands off the resolve to the Fragment which launches
+     * `CloudFlareActivity` (hidden first, falling back to visible). The exception is rethrown so the
+     * standard error state is shown while the resolve runs; a successful resolve triggers `onRetry`.
+     */
+    private suspend fun getListResolvingCaptcha(
+        filterState: FilterCoordinator.Snapshot,
+        append: Boolean,
+    ): List<Manga> {
+        val offset = if (append) mangaList.value.sizeOrZero() else 0
+        return try {
+            repository.getList(offset = offset, order = filterState.sortOrder, filter = filterState.listFilter)
+        } catch (e: Exception) {
+            val cfException = e.findCloudFlareException() ?: throw e
+            // Only fire the auto-resolve handoff if the per-source "Disable automatic CAPTCHA solving"
+            // setting is OFF. When it's on we just throw, the standard error state shows, and the user
+            // goes through the normal "Solve" → visible CloudFlareActivity flow.
+            //
+            // Also skip the event if a resolve is already in progress for this source — otherwise rapid
+            // successive loadList calls (filter coordinator emissions, retries, …) would each spawn
+            // their own Fragment-observer coroutine, all of which would award the same in-flight resolve
+            // but pile up toasts/UI churn on the way there.
+            if (
+                cfException is CloudFlareProtectedException &&
+                !isResolvingCaptcha.value &&
+                !SourceSettings(appContext, source).isCaptchaAutoResolveDisabled
+            ) {
+                onCaptchaRequired.call(cfException)
+            }
+            throw cfException
+        }
+    }
 
+    protected open fun createEmptyState(canResetFilter: Boolean) = EmptyState(
+        icon = R.drawable.ic_empty_common,
+        textPrimary = R.string.nothing_found,
+        textSecondary = 0,
+        actionStringRes = if (canResetFilter) R.string.reset_filter else 0,
+    )
 
-	protected open fun createEmptyState(canResetFilter: Boolean) = EmptyState(
-		icon = R.drawable.ic_empty_common,
-		textPrimary = R.string.nothing_found,
-		textSecondary = 0,
-		actionStringRes = if (canResetFilter) R.string.reset_filter else 0,
-	)
+    protected open suspend fun onBuildList(list: MutableList<ListModel>) = Unit
 
-	protected open suspend fun onBuildList(list: MutableList<ListModel>) = Unit
+    protected open suspend fun mapMangaList(
+        destination: MutableCollection<in ListModel>,
+        manga: Collection<Manga>,
+        mode: ListMode,
+    ) = mangaListMapper.toListModelList(destination, manga, mode)
 
-	protected open suspend fun mapMangaList(
-		destination: MutableCollection<in ListModel>,
-		manga: Collection<Manga>,
-		mode: ListMode
-	) = mangaListMapper.toListModelList(destination, manga, mode)
+    protected open fun getFooter(): ButtonFooter? {
+        val filter = filterCoordinator.snapshot().listFilter
+        val hasQuery = !filter.query.isNullOrEmpty()
+        val hasAuthor = !filter.author.isNullOrEmpty()
+        val isOneTag = filter.tags.size == 1
+        return if ((hasQuery xor isOneTag xor hasAuthor) && !(hasQuery && isOneTag && hasAuthor)) {
+            ButtonFooter(R.string.global_search)
+        } else {
+            null
+        }
+    }
 
-	protected open fun getFooter(): ButtonFooter? {
-		val filter = filterCoordinator.snapshot().listFilter
-		val hasQuery = !filter.query.isNullOrEmpty()
-		val hasAuthor = !filter.author.isNullOrEmpty()
-		val isOneTag = filter.tags.size == 1
-		return if ((hasQuery xor isOneTag xor hasAuthor) && !(hasQuery && isOneTag && hasAuthor)) {
-			ButtonFooter(R.string.global_search)
-		} else {
-			null
-		}
-	}
-
-	fun openRandom() {
-		if (randomJob?.isActive == true) {
-			return
-		}
-		randomJob = launchLoadingJob(Dispatchers.Default) {
-			isRandomLoading.value = true
-			val manga = exploreRepository.findRandomManga(source, 16)
-			onOpenManga.call(manga)
-			isRandomLoading.value = false
-		}
-	}
+    fun openRandom() {
+        if (randomJob?.isActive == true) {
+            return
+        }
+        randomJob = launchLoadingJob(Dispatchers.Default) {
+            isRandomLoading.value = true
+            val manga = exploreRepository.findRandomManga(source, 16)
+            onOpenManga.call(manga)
+            isRandomLoading.value = false
+        }
+    }
 }

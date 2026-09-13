@@ -14,33 +14,31 @@ import coil3.util.MimeTypeMap as CoilMimeTypeMap
 
 object MimeTypes {
 
-	fun getMimeTypeFromExtension(fileName: String): MimeType? {
-		return CoilMimeTypeMap.getMimeTypeFromExtension(getNormalizedExtension(fileName) ?: return null)
-			?.toMimeTypeOrNull()
-	}
+    fun getMimeTypeFromExtension(fileName: String): MimeType? {
+        return CoilMimeTypeMap.getMimeTypeFromExtension(getNormalizedExtension(fileName) ?: return null)
+            ?.toMimeTypeOrNull()
+    }
 
-	fun getMimeTypeFromUrl(url: String): MimeType? {
-		return CoilMimeTypeMap.getMimeTypeFromUrl(url)?.toMimeTypeOrNull()
-	}
+    fun getMimeTypeFromUrl(url: String): MimeType? = CoilMimeTypeMap.getMimeTypeFromUrl(url)?.toMimeTypeOrNull()
 
-	fun getExtension(mimeType: MimeType?): String? {
-		return MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType?.toString() ?: return null)?.nullIfEmpty()
-	}
+    fun getExtension(mimeType: MimeType?): String? {
+        return MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType?.toString() ?: return null)?.nullIfEmpty()
+    }
 
-	@Blocking
-	fun probeMimeType(file: File): MimeType? {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			runCatchingCancellable {
-				Files.probeContentType(file.toPath())?.toMimeTypeOrNull()
-			}.getOrNull()?.let { return it }
-		}
-		return getMimeTypeFromExtension(file.name)
-	}
+    @Blocking
+    fun probeMimeType(file: File): MimeType? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatchingCancellable {
+                Files.probeContentType(file.toPath())?.toMimeTypeOrNull()
+            }.getOrNull()?.let { return it }
+        }
+        return getMimeTypeFromExtension(file.name)
+    }
 
-	fun getNormalizedExtension(name: String): String? = name
-		.lowercase()
-		.removeSuffix('~')
-		.removeSuffix(".tmp")
-		.substringAfterLast('.', "")
-		.takeIf { it.length in 2..5 }
+    fun getNormalizedExtension(name: String): String? = name
+        .lowercase()
+        .removeSuffix('~')
+        .removeSuffix(".tmp")
+        .substringAfterLast('.', "")
+        .takeIf { it.length in 2..5 }
 }

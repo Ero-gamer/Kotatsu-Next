@@ -119,7 +119,7 @@ class DetailsLoadUseCase @Inject constructor(
     private suspend fun FlowCollector<MangaDetails>.loadRemote(
         manga: Manga,
         override: MangaOverride?,
-        force: Boolean
+        force: Boolean,
     ) = coroutineScope {
         val remoteDeferred = async {
             getDetails(manga, force)
@@ -141,8 +141,10 @@ class DetailsLoadUseCase @Inject constructor(
             manga = remoteDetails,
             localManga = localManga,
             override = override,
-            description = (remoteDetails.description
-                ?: localManga?.manga?.description)?.parseAsHtml(withImages = true),
+            description = (
+                remoteDetails.description
+                    ?: localManga?.manga?.description
+                )?.parseAsHtml(withImages = true),
             isLoaded = true,
         )
         emit(mangaDetails)

@@ -8,7 +8,7 @@ import org.koitharu.kotatsu.parsers.model.MangaTag
 
 interface MangaDetailsClickListener : OnListItemClickListener<MangaListModel> {
 
-	fun onReadClick(manga: Manga, view: View)
+    fun onReadClick(manga: Manga, view: View)
 
-	fun onTagClick(manga: Manga, tag: MangaTag, view: View)
+    fun onTagClick(manga: Manga, tag: MangaTag, view: View)
 }

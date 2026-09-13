@@ -75,9 +75,7 @@ class ReaderConfigSheet :
     override fun onCreateViewBinding(
         inflater: LayoutInflater,
         container: ViewGroup?,
-    ): SheetReaderConfigBinding {
-        return SheetReaderConfigBinding.inflate(inflater, container, false)
-    }
+    ): SheetReaderConfigBinding = SheetReaderConfigBinding.inflate(inflater, container, false)
 
     override fun onViewBindingCreated(
         binding: SheetReaderConfigBinding,
@@ -117,7 +115,10 @@ class ReaderConfigSheet :
         viewModel.isBookmarkAdded.observe(viewLifecycleOwner) {
             binding.buttonBookmark.setText(if (it) R.string.bookmark_remove else R.string.bookmark_add)
             binding.buttonBookmark.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                if (it) R.drawable.ic_bookmark_checked else R.drawable.ic_bookmark, 0, 0, 0,
+                if (it) R.drawable.ic_bookmark_checked else R.drawable.ic_bookmark,
+                0,
+                0,
+                0,
             )
         }
 

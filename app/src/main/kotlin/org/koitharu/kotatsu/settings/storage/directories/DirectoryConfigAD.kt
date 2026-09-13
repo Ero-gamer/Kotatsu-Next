@@ -20,7 +20,6 @@ fun directoryConfigAD(
 ) = adapterDelegateViewBinding<DirectoryConfigModel, DirectoryConfigModel, ItemStorageConfig2Binding>(
     { layoutInflater, parent -> ItemStorageConfig2Binding.inflate(layoutInflater, parent, false) },
 ) {
-
     binding.buttonRemove.setOnClickListener { v -> clickListener.onItemClick(item, v) }
     binding.buttonRemove.setTooltipCompat(binding.buttonRemove.contentDescription)
 

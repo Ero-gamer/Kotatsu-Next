@@ -177,22 +177,22 @@ class AppRouter private constructor(
     }
 
     fun openAlternatives(manga: Manga) {
-		startActivity(
-			Intent(contextOrNull() ?: return, AlternativesActivity::class.java)
-				.putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false)),
-		)
-	}
-
-	fun openSourceReplacement(manga: Collection<Manga>) {
-		if (manga.isEmpty()) {
-			return
-		}
         startActivity(
-			Intent(contextOrNull() ?: return, SourceReplacementActivity::class.java)
-				.putParcelableArrayListExtra(
-					KEY_MANGA_LIST,
-					manga.mapTo(ArrayList(manga.size)) { ParcelableManga(it, withDescription = false) },
-				),
+            Intent(contextOrNull() ?: return, AlternativesActivity::class.java)
+                .putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false)),
+        )
+    }
+
+    fun openSourceReplacement(manga: Collection<Manga>) {
+        if (manga.isEmpty()) {
+            return
+        }
+        startActivity(
+            Intent(contextOrNull() ?: return, SourceReplacementActivity::class.java)
+                .putParcelableArrayListExtra(
+                    KEY_MANGA_LIST,
+                    manga.mapTo(ArrayList(manga.size)) { ParcelableManga(it, withDescription = false) },
+                ),
         )
     }
 
@@ -559,7 +559,9 @@ class AppRouter private constructor(
         val context = contextOrNull() ?: return
         when (settings.allowDownloadOnMeteredNetwork) {
             TriStateOption.ENABLED -> onConfirmed(true)
+
             TriStateOption.DISABLED -> onConfirmed(false)
+
             TriStateOption.ASK -> {
                 if (!context.connectivityManager.isActiveNetworkMetered) {
                     onConfirmed(true)
@@ -717,18 +719,17 @@ class AppRouter private constructor(
             .putExtra(KEY_ID, mangaId)
             .setData(shortMangaUrl(mangaId))
 
-        fun listIntent(context: Context, source: MangaSource, filter: MangaListFilter?, sortOrder: SortOrder?): Intent =
-            Intent(context, MangaListActivity::class.java)
-                .setAction(ACTION_MANGA_EXPLORE)
-                .putExtra(KEY_SOURCE, source.name)
-                .apply {
-                    if (!filter.isNullOrEmpty()) {
-                        putExtra(KEY_FILTER, ParcelableMangaListFilter(filter))
-                    }
-                    if (sortOrder != null) {
-                        putExtra(KEY_SORT_ORDER, sortOrder)
-                    }
+        fun listIntent(context: Context, source: MangaSource, filter: MangaListFilter?, sortOrder: SortOrder?): Intent = Intent(context, MangaListActivity::class.java)
+            .setAction(ACTION_MANGA_EXPLORE)
+            .putExtra(KEY_SOURCE, source.name)
+            .apply {
+                if (!filter.isNullOrEmpty()) {
+                    putExtra(KEY_FILTER, ParcelableMangaListFilter(filter))
                 }
+                if (sortOrder != null) {
+                    putExtra(KEY_SORT_ORDER, sortOrder)
+                }
+            }
 
         fun cloudFlareResolveIntent(
             context: Context,
@@ -749,7 +750,7 @@ class AppRouter private constructor(
             context: Context,
             url: String,
             source: MangaSource?,
-            title: String?
+            title: String?,
         ): Intent = Intent(context, BrowserActivity::class.java)
             .setData(url.toUri())
             .putExtra(KEY_TITLE, title)
@@ -761,48 +762,39 @@ class AppRouter private constructor(
 
         fun mangaUpdatesIntent(context: Context) = Intent(context, UpdatesActivity::class.java)
 
-        fun readerSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_READER)
+        fun readerSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_READER)
 
-        fun suggestionsSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_SUGGESTIONS)
+        fun suggestionsSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_SUGGESTIONS)
 
-        fun trackerSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_TRACKER)
+        fun trackerSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_TRACKER)
 
-        fun periodicBackupSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_PERIODIC_BACKUP)
+        fun periodicBackupSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_PERIODIC_BACKUP)
 
-        fun discordSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_MANAGE_DISCORD)
+        fun discordSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_MANAGE_DISCORD)
 
-        fun proxySettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_PROXY)
+        fun proxySettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_PROXY)
 
-        fun historySettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_HISTORY)
+        fun historySettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_HISTORY)
 
-        fun sourcesSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_SOURCES)
+        fun sourcesSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_SOURCES)
 
-        fun manageSourcesIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_MANAGE_SOURCES)
+        fun manageSourcesIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_MANAGE_SOURCES)
 
-        fun downloadsSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_MANAGE_DOWNLOADS)
+        fun downloadsSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_MANAGE_DOWNLOADS)
 
         fun sourceSettingsIntent(context: Context, source: MangaSource): Intent = when (source) {
             is MangaSourceInfo -> sourceSettingsIntent(context, source.mangaSource)
+
             is ExternalMangaSource -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                 .setData(Uri.fromParts("package", source.packageName, null))
 
@@ -811,14 +803,11 @@ class AppRouter private constructor(
                 .putExtra(KEY_SOURCE, source.name)
         }
 
-        fun sourceAuthIntent(context: Context, source: MangaSource): Intent {
-            return Intent(context, SourceAuthActivity::class.java)
-                .putExtra(KEY_SOURCE, source.name)
-        }
+        fun sourceAuthIntent(context: Context, source: MangaSource): Intent = Intent(context, SourceAuthActivity::class.java)
+            .putExtra(KEY_SOURCE, source.name)
 
-        fun overrideEditIntent(context: Context, manga: Manga): Intent =
-            Intent(context, OverrideConfigActivity::class.java)
-                .putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false))
+        fun overrideEditIntent(context: Context, manga: Manga): Intent = Intent(context, OverrideConfigActivity::class.java)
+            .putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false))
 
         fun isShareSupported(manga: Manga): Boolean = when {
             manga.isBroken -> false

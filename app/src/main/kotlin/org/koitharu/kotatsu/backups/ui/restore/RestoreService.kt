@@ -35,85 +35,83 @@ import androidx.appcompat.R as appcompatR
 @SuppressLint("InlinedApi")
 class RestoreService : BaseBackupRestoreService() {
 
-	override val notificationTag = TAG
-	override val isRestoreService = true
+    override val notificationTag = TAG
+    override val isRestoreService = true
 
-	@Inject
-	lateinit var repository: BackupRepository
+    @Inject
+    lateinit var repository: BackupRepository
 
-	override suspend fun IntentJobContext.processIntent(intent: Intent) {
-		val notification = buildNotification(Progress.INDETERMINATE)
-		setForeground(
-			FOREGROUND_NOTIFICATION_ID,
-			notification,
-			ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-		)
-		val source = intent.getStringExtra(AppRouter.KEY_DATA)?.toUriOrNull() ?: throw FileNotFoundException()
-		val sections =
-			requireNotNull(intent.getSerializableExtraCompat<Array<BackupSection>>(AppRouter.KEY_ENTRIES)?.toSet())
-		powerManager.withPartialWakeLock(TAG) {
-			val progress = MutableStateFlow(Progress.INDETERMINATE)
-			val progressUpdateJob = if (checkNotificationPermission(CHANNEL_ID)) {
-				launch {
-					progress.collect {
-						notificationManager.notify(FOREGROUND_NOTIFICATION_ID, buildNotification(it))
-					}
-				}
-			} else {
-				null
-			}
-			val result = ZipInputStream(BufferedInputStream(contentResolver.openInputStream(source))).use { input ->
-				repository.restoreBackup(input, sections, progress)
-			}
-			progressUpdateJob?.cancelAndJoin()
-			showResultNotification(source, result)
-		}
-	}
+    override suspend fun IntentJobContext.processIntent(intent: Intent) {
+        val notification = buildNotification(Progress.INDETERMINATE)
+        setForeground(
+            FOREGROUND_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+        val source = intent.getStringExtra(AppRouter.KEY_DATA)?.toUriOrNull() ?: throw FileNotFoundException()
+        val sections =
+            requireNotNull(intent.getSerializableExtraCompat<Array<BackupSection>>(AppRouter.KEY_ENTRIES)?.toSet())
+        powerManager.withPartialWakeLock(TAG) {
+            val progress = MutableStateFlow(Progress.INDETERMINATE)
+            val progressUpdateJob = if (checkNotificationPermission(CHANNEL_ID)) {
+                launch {
+                    progress.collect {
+                        notificationManager.notify(FOREGROUND_NOTIFICATION_ID, buildNotification(it))
+                    }
+                }
+            } else {
+                null
+            }
+            val result = ZipInputStream(BufferedInputStream(contentResolver.openInputStream(source))).use { input ->
+                repository.restoreBackup(input, sections, progress)
+            }
+            progressUpdateJob?.cancelAndJoin()
+            showResultNotification(source, result)
+        }
+    }
 
-	private fun IntentJobContext.buildNotification(progress: Progress): Notification {
-		return NotificationCompat.Builder(applicationContext, CHANNEL_ID)
-			.setContentTitle(getString(R.string.restoring_backup))
-			.setPriority(NotificationCompat.PRIORITY_HIGH)
-			.setDefaults(0)
-			.setSilent(true)
-			.setOngoing(true)
-			.setProgress(
-				progress.total.coerceAtLeast(0),
-				progress.progress.coerceAtLeast(0),
-				progress.isIndeterminate,
-			)
-			.setContentText(
-				if (progress.isIndeterminate) {
-					getString(R.string.processing_)
-				} else {
-					getString(R.string.fraction_pattern, progress.progress, progress.total)
-				},
-			)
-			.setSmallIcon(android.R.drawable.stat_sys_upload)
-			.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-			.setCategory(NotificationCompat.CATEGORY_PROGRESS)
-			.addAction(
-				appcompatR.drawable.abc_ic_clear_material,
-				applicationContext.getString(android.R.string.cancel),
-				getCancelIntent(),
-			).build()
-	}
+    private fun IntentJobContext.buildNotification(progress: Progress): Notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+        .setContentTitle(getString(R.string.restoring_backup))
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setDefaults(0)
+        .setSilent(true)
+        .setOngoing(true)
+        .setProgress(
+            progress.total.coerceAtLeast(0),
+            progress.progress.coerceAtLeast(0),
+            progress.isIndeterminate,
+        )
+        .setContentText(
+            if (progress.isIndeterminate) {
+                getString(R.string.processing_)
+            } else {
+                getString(R.string.fraction_pattern, progress.progress, progress.total)
+            },
+        )
+        .setSmallIcon(android.R.drawable.stat_sys_upload)
+        .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+        .addAction(
+            appcompatR.drawable.abc_ic_clear_material,
+            applicationContext.getString(android.R.string.cancel),
+            getCancelIntent(),
+        ).build()
 
-	companion object {
+    companion object {
 
-		private const val TAG = "RESTORE"
-		private const val FOREGROUND_NOTIFICATION_ID = 39
+        private const val TAG = "RESTORE"
+        private const val FOREGROUND_NOTIFICATION_ID = 39
 
-		@CheckResult
-		fun start(context: Context, uri: Uri, sections: Set<BackupSection>): Boolean = try {
-			val intent = Intent(context, RestoreService::class.java)
-			intent.putExtra(AppRouter.KEY_DATA, uri.toString())
-			intent.putExtra(AppRouter.KEY_ENTRIES, sections.toTypedArray())
-			ContextCompat.startForegroundService(context, intent)
-			true
-		} catch (e: Exception) {
-			e.printStackTraceDebug()
-			false
-		}
-	}
+        @CheckResult
+        fun start(context: Context, uri: Uri, sections: Set<BackupSection>): Boolean = try {
+            val intent = Intent(context, RestoreService::class.java)
+            intent.putExtra(AppRouter.KEY_DATA, uri.toString())
+            intent.putExtra(AppRouter.KEY_ENTRIES, sections.toTypedArray())
+            ContextCompat.startForegroundService(context, intent)
+            true
+        } catch (e: Exception) {
+            e.printStackTraceDebug()
+            false
+        }
+    }
 }

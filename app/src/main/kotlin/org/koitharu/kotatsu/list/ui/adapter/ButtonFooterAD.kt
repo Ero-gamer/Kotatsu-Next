@@ -6,16 +6,15 @@ import org.koitharu.kotatsu.list.ui.model.ButtonFooter
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 fun buttonFooterAD(
-	listener: ListStateHolderListener,
+    listener: ListStateHolderListener,
 ) = adapterDelegateViewBinding<ButtonFooter, ListModel, ItemButtonFooterBinding>(
-	{ inflater, parent -> ItemButtonFooterBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemButtonFooterBinding.inflate(inflater, parent, false) },
 ) {
+    binding.button.setOnClickListener {
+        listener.onFooterButtonClick()
+    }
 
-	binding.button.setOnClickListener {
-		listener.onFooterButtonClick()
-	}
-
-	bind {
-		binding.button.setText(item.textResId)
-	}
+    bind {
+        binding.button.setText(item.textResId)
+    }
 }

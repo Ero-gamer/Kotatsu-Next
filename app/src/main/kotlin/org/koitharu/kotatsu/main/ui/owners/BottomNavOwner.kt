@@ -4,5 +4,5 @@ import org.koitharu.kotatsu.core.ui.widgets.SlidingBottomNavigationView
 
 interface BottomNavOwner {
 
-	val bottomNav: SlidingBottomNavigationView?
+    val bottomNav: SlidingBottomNavigationView?
 }

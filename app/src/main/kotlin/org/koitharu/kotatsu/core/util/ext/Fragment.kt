@@ -9,30 +9,30 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.coroutineScope
 
 inline fun <T : Fragment> T.withArgs(size: Int, block: Bundle.() -> Unit): T {
-	val b = Bundle(size)
-	b.block()
-	this.arguments = b
-	return this
+    val b = Bundle(size)
+    b.block()
+    this.arguments = b
+    return this
 }
 
 val Fragment.viewLifecycleScope
-	inline get() = viewLifecycleOwner.lifecycle.coroutineScope
+    inline get() = viewLifecycleOwner.lifecycle.coroutineScope
 
 fun Fragment.addMenuProvider(provider: MenuProvider) {
-	requireActivity().addMenuProvider(provider, viewLifecycleOwner, Lifecycle.State.RESUMED)
+    requireActivity().addMenuProvider(provider, viewLifecycleOwner, Lifecycle.State.RESUMED)
 }
 
 @Suppress("UNCHECKED_CAST")
 tailrec fun <T> Fragment.findParentCallback(cls: Class<T>): T? {
-	val parent = parentFragment
-	return when {
-		parent == null -> cls.castOrNull(activity)
-		cls.isInstance(parent) -> parent as T
-		else -> parent.findParentCallback(cls)
-	}
+    val parent = parentFragment
+    return when {
+        parent == null -> cls.castOrNull(activity)
+        cls.isInstance(parent) -> parent as T
+        else -> parent.findParentCallback(cls)
+    }
 }
 
 val Fragment.container: FragmentContainerView?
-	get() = view?.ancestors?.firstNotNullOfOrNull {
-		it as? FragmentContainerView // TODO check if direct parent
-	}
+    get() = view?.ancestors?.firstNotNullOfOrNull {
+        it as? FragmentContainerView // TODO check if direct parent
+    }

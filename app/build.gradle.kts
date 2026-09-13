@@ -21,8 +21,9 @@ configurations.all {
         force("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.3.20")
 
         eachDependency {
-            if (requested.group == "org.jetbrains.kotlin" && 
-               (requested.name == "kotlin-stdlib-jdk7" || requested.name == "kotlin-stdlib-jdk8")) {
+            if (requested.group == "org.jetbrains.kotlin" &&
+                (requested.name == "kotlin-stdlib-jdk7" || requested.name == "kotlin-stdlib-jdk8")
+            ) {
                 useTarget("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
             }
         }
@@ -45,17 +46,17 @@ android {
         targetSdk = 37
         versionCode = 2041
         versionName = "9.9.0"
-        
+
         testInstrumentationRunner = "org.koitharu.kotatsu.HiltTestRunner"
-        
+
         ksp {
             arg("room.generateKotlin", "true")
         }
-        
+
         androidResources {
             generateLocaleConfig = false
         }
-        
+
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
@@ -90,10 +91,11 @@ android {
             useLegacyPackaging = true
         }
         resources {
-            excludes += listOf(
-                "META-INF/README.md",
-                "META-INF/NOTICE.md",
-            )
+            excludes +=
+                listOf(
+                    "META-INF/README.md",
+                    "META-INF/NOTICE.md",
+                )
         }
     }
 
@@ -159,7 +161,7 @@ dependencies {
     if (System.getProperties().containsKey("parsersVersionOverride")) {
         parsersVersion = System.getProperty("parsersVersionOverride")
     }
-    
+
     implementation("com.github.Ero-gamer:kotatsu-next-parsers:$parsersVersion") {
         exclude(group = "org.json", module = "json")
         exclude(group = "org.jetbrains.kotlin", module = "kotlin-android-extensions-runtime")

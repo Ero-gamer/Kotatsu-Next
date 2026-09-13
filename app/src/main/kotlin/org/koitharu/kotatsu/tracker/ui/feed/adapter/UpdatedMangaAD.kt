@@ -15,23 +15,22 @@ import org.koitharu.kotatsu.list.ui.size.ItemSizeResolver
 import org.koitharu.kotatsu.tracker.ui.feed.model.UpdatedMangaHeader
 
 fun updatedMangaAD(
-	sizeResolver: ItemSizeResolver,
-	listener: OnListItemClickListener<MangaListModel>,
-	headerClickListener: ListHeaderClickListener,
+    sizeResolver: ItemSizeResolver,
+    listener: OnListItemClickListener<MangaListModel>,
+    headerClickListener: ListHeaderClickListener,
 ) = adapterDelegateViewBinding<UpdatedMangaHeader, ListModel, ItemListGroupBinding>(
-	{ layoutInflater, parent -> ItemListGroupBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemListGroupBinding.inflate(layoutInflater, parent, false) },
 ) {
+    val adapter = BaseListAdapter<ListModel>()
+        .addDelegate(ListItemType.MANGA_GRID, mangaGridItemAD(sizeResolver, listener))
+    binding.recyclerView.adapter = adapter
+    binding.buttonMore.setOnClickListener { v ->
+        headerClickListener.onListHeaderClick(ListHeader(0, payload = item), v)
+    }
+    binding.textViewTitle.setText(R.string.updates)
+    binding.buttonMore.setText(R.string.more)
 
-	val adapter = BaseListAdapter<ListModel>()
-		.addDelegate(ListItemType.MANGA_GRID, mangaGridItemAD(sizeResolver, listener))
-	binding.recyclerView.adapter = adapter
-	binding.buttonMore.setOnClickListener { v ->
-		headerClickListener.onListHeaderClick(ListHeader(0, payload = item), v)
-	}
-	binding.textViewTitle.setText(R.string.updates)
-	binding.buttonMore.setText(R.string.more)
-
-	bind {
-		adapter.items = item.list
-	}
+    bind {
+        adapter.items = item.list
+    }
 }

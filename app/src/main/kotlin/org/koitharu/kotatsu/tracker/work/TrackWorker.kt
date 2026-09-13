@@ -4,8 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
-import android.util.Log
 import android.provider.Settings
+import android.util.Log
 import androidx.annotation.CheckResult
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -75,296 +75,298 @@ import androidx.appcompat.R as appcompatR
 
 @HiltWorker
 class TrackWorker @AssistedInject constructor(
-	@Assisted context: Context,
-	@Assisted workerParams: WorkerParameters,
-	private val captchaHandler: CaptchaHandler,
-	private val notificationHelper: TrackerNotificationHelper,
-	private val settings: AppSettings,
-	private val getTracksUseCase: GetTracksUseCase,
-	private val checkNewChaptersUseCase: CheckNewChaptersUseCase,
-	private val workManager: WorkManager,
-	private val localRepositoryLazy: Lazy<LocalMangaRepository>,
-	private val downloadSchedulerLazy: Lazy<DownloadWorker.Scheduler>,
+    @Assisted context: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val captchaHandler: CaptchaHandler,
+    private val notificationHelper: TrackerNotificationHelper,
+    private val settings: AppSettings,
+    private val getTracksUseCase: GetTracksUseCase,
+    private val checkNewChaptersUseCase: CheckNewChaptersUseCase,
+    private val workManager: WorkManager,
+    private val localRepositoryLazy: Lazy<LocalMangaRepository>,
+    private val downloadSchedulerLazy: Lazy<DownloadWorker.Scheduler>,
 ) : CoroutineWorker(context, workerParams) {
 
-	private val notificationManager by lazy { NotificationManagerCompat.from(applicationContext) }
+    private val notificationManager by lazy { NotificationManagerCompat.from(applicationContext) }
 
-	override suspend fun doWork(): Result {
-		notificationHelper.updateChannels()
-		val isForeground = trySetForeground()
-		// Full run when manually triggered (TAG_ONESHOT), regardless of whether the
-		// foreground service promotion succeeded — Android may refuse the promotion
-		// on certain OEMs, but the user explicitly asked for an immediate full check.
-		val isFullRun = TAG_ONESHOT in tags
-		Log.i(LOG_TAG, "doWork: tags=$tags isForeground=$isForeground isFullRun=$isFullRun")
-		return try {
-			doWorkImpl(isFullRun = isFullRun)
-		} catch (e: CancellationException) {
-			throw e
-		} catch (e: Throwable) {
-			Log.w(LOG_TAG, "doWork failed", e)
-			e.printStackTraceDebug()
-			Result.failure()
-		} finally {
-			withContext(NonCancellable) {
-				notificationManager.cancel(WORKER_NOTIFICATION_ID)
-			}
-		}
-	}
+    override suspend fun doWork(): Result {
+        notificationHelper.updateChannels()
+        val isForeground = trySetForeground()
+        // Full run when manually triggered (TAG_ONESHOT), regardless of whether the
+        // foreground service promotion succeeded — Android may refuse the promotion
+        // on certain OEMs, but the user explicitly asked for an immediate full check.
+        val isFullRun = TAG_ONESHOT in tags
+        Log.i(LOG_TAG, "doWork: tags=$tags isForeground=$isForeground isFullRun=$isFullRun")
+        return try {
+            doWorkImpl(isFullRun = isFullRun)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Log.w(LOG_TAG, "doWork failed", e)
+            e.printStackTraceDebug()
+            Result.failure()
+        } finally {
+            withContext(NonCancellable) {
+                notificationManager.cancel(WORKER_NOTIFICATION_ID)
+            }
+        }
+    }
 
-	private suspend fun doWorkImpl(isFullRun: Boolean): Result {
-		if (!settings.isTrackerEnabled) {
-			Log.i(LOG_TAG, "doWorkImpl: tracker disabled, skipping")
-			return Result.success()
-		}
-		val limit = if (isFullRun) Int.MAX_VALUE else BATCH_SIZE
-		val tracks = getTracksUseCase(limit)
-		Log.i(LOG_TAG, "doWorkImpl: isFullRun=$isFullRun limit=$limit -> fetched ${tracks.size} track(s) to check")
-		if (tracks.isEmpty()) {
-			return Result.success()
-		}
+    private suspend fun doWorkImpl(isFullRun: Boolean): Result {
+        if (!settings.isTrackerEnabled) {
+            Log.i(LOG_TAG, "doWorkImpl: tracker disabled, skipping")
+            return Result.success()
+        }
+        val limit = if (isFullRun) Int.MAX_VALUE else BATCH_SIZE
+        val tracks = getTracksUseCase(limit)
+        Log.i(LOG_TAG, "doWorkImpl: isFullRun=$isFullRun limit=$limit -> fetched ${tracks.size} track(s) to check")
+        if (tracks.isEmpty()) {
+            return Result.success()
+        }
 
-		val notifications = checkUpdatesAsync(tracks)
-		Log.i(LOG_TAG, "doWorkImpl: checked ${tracks.size} track(s), ${notifications.size} produced notifications")
-		if (notifications.isNotEmpty() && applicationContext.checkNotificationPermission(null)) {
-			val groupNotification = notificationHelper.createGroupNotification(notifications)
-			notifications.forEach { notificationManager.notify(it.tag, it.id, it.notification) }
-			if (groupNotification != null) {
-				notificationManager.notify(TAG, TrackerNotificationHelper.GROUP_NOTIFICATION_ID, groupNotification)
-			}
-		}
-		return Result.success()
-	}
+        val notifications = checkUpdatesAsync(tracks)
+        Log.i(LOG_TAG, "doWorkImpl: checked ${tracks.size} track(s), ${notifications.size} produced notifications")
+        if (notifications.isNotEmpty() && applicationContext.checkNotificationPermission(null)) {
+            val groupNotification = notificationHelper.createGroupNotification(notifications)
+            notifications.forEach { notificationManager.notify(it.tag, it.id, it.notification) }
+            if (groupNotification != null) {
+                notificationManager.notify(TAG, TrackerNotificationHelper.GROUP_NOTIFICATION_ID, groupNotification)
+            }
+        }
+        return Result.success()
+    }
 
-	@CheckResult
-	private suspend fun checkUpdatesAsync(tracks: List<MangaTracking>): List<NotificationInfo> {
-		val semaphore = Semaphore(MAX_PARALLELISM)
-		return channelFlow {
-			for (track in tracks) {
-				launch {
-					semaphore.withPermit {
-						send(
-							runCatchingCancellable {
-								checkNewChaptersUseCase.invoke(track)
-							}.getOrElse { error ->
-								MangaUpdates.Failure(
-									manga = track.manga,
-									error = error,
-								)
-							},
-						)
-					}
-				}
-			}
-		}.onEachIndexed { index, update ->
-			if (applicationContext.checkNotificationPermission(WORKER_CHANNEL_ID)) {
-				notificationManager.notify(WORKER_NOTIFICATION_ID, createWorkerNotification(tracks.size, index + 1))
-			}
-			when (update) {
-				is MangaUpdates.Failure -> {
-					Log.w(
-						LOG_TAG,
-						"[${update.manga.id}] \"${update.manga.title}\" check failed: " +
-							"${update.error?.javaClass?.simpleName} ${update.error?.message}",
-					)
-					val e = update.error
-					if (e is CloudFlareException) {
-						// Don't block the update check on solving captchas; just notify the user
-						captchaHandler.handle(e, tryAutoResolve = false)
-					}
-				}
+    @CheckResult
+    private suspend fun checkUpdatesAsync(tracks: List<MangaTracking>): List<NotificationInfo> {
+        val semaphore = Semaphore(MAX_PARALLELISM)
+        return channelFlow {
+            for (track in tracks) {
+                launch {
+                    semaphore.withPermit {
+                        send(
+                            runCatchingCancellable {
+                                checkNewChaptersUseCase.invoke(track)
+                            }.getOrElse { error ->
+                                MangaUpdates.Failure(
+                                    manga = track.manga,
+                                    error = error,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }.onEachIndexed { index, update ->
+            if (applicationContext.checkNotificationPermission(WORKER_CHANNEL_ID)) {
+                notificationManager.notify(WORKER_NOTIFICATION_ID, createWorkerNotification(tracks.size, index + 1))
+            }
+            when (update) {
+                is MangaUpdates.Failure -> {
+                    Log.w(
+                        LOG_TAG,
+                        "[${update.manga.id}] \"${update.manga.title}\" check failed: " +
+                            "${update.error?.javaClass?.simpleName} ${update.error?.message}",
+                    )
+                    val e = update.error
+                    if (e is CloudFlareException) {
+                        // Don't block the update check on solving captchas; just notify the user
+                        captchaHandler.handle(e, tryAutoResolve = false)
+                    }
+                }
 
-				is MangaUpdates.Success -> {
-					Log.i(
-						LOG_TAG,
-						"[${update.manga.id}] \"${update.manga.title}\" checked: isValid=${update.isValid} " +
-							"newChapters=${update.newChapters.size}",
-					)
-					processDownload(update)
-				}
-			}
-		}.mapNotNull {
-			when (it) {
-				is MangaUpdates.Failure -> null
-				is MangaUpdates.Success -> if (it.isValid && it.isNotEmpty()) {
-					notificationHelper.createNotification(
-						manga = it.manga,
-						newChapters = it.newChapters,
-					)
-				} else {
-					null
-				}
-			}
-		}.toList()
-	}
+                is MangaUpdates.Success -> {
+                    Log.i(
+                        LOG_TAG,
+                        "[${update.manga.id}] \"${update.manga.title}\" checked: isValid=${update.isValid} " +
+                            "newChapters=${update.newChapters.size}",
+                    )
+                    processDownload(update)
+                }
+            }
+        }.mapNotNull {
+            when (it) {
+                is MangaUpdates.Failure -> null
 
-	override suspend fun getForegroundInfo(): ForegroundInfo {
-		val channel = NotificationChannelCompat.Builder(
-			WORKER_CHANNEL_ID,
-			NotificationManagerCompat.IMPORTANCE_LOW,
-		)
-			.setName(applicationContext.getString(R.string.check_for_new_chapters))
-			.setShowBadge(false)
-			.setVibrationEnabled(false)
-			.setSound(null, null)
-			.setLightsEnabled(false)
-			.build()
-		notificationManager.createNotificationChannel(channel)
+                is MangaUpdates.Success -> if (it.isValid && it.isNotEmpty()) {
+                    notificationHelper.createNotification(
+                        manga = it.manga,
+                        newChapters = it.newChapters,
+                    )
+                } else {
+                    null
+                }
+            }
+        }.toList()
+    }
 
-		val notification = createWorkerNotification(0, 0)
-		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-			ForegroundInfo(WORKER_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-		} else {
-			ForegroundInfo(WORKER_NOTIFICATION_ID, notification)
-		}
-	}
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        val channel = NotificationChannelCompat.Builder(
+            WORKER_CHANNEL_ID,
+            NotificationManagerCompat.IMPORTANCE_LOW,
+        )
+            .setName(applicationContext.getString(R.string.check_for_new_chapters))
+            .setShowBadge(false)
+            .setVibrationEnabled(false)
+            .setSound(null, null)
+            .setLightsEnabled(false)
+            .build()
+        notificationManager.createNotificationChannel(channel)
 
-	private fun createWorkerNotification(max: Int, progress: Int) = NotificationCompat.Builder(
-		applicationContext,
-		WORKER_CHANNEL_ID,
-	).apply {
-		setContentTitle(applicationContext.getString(R.string.check_for_new_chapters))
-		setPriority(NotificationCompat.PRIORITY_MIN)
-		setCategory(NotificationCompat.CATEGORY_SERVICE)
-		setDefaults(0)
-		setOngoing(false)
-		setOnlyAlertOnce(true)
-		setSilent(true)
-		setContentIntent(
-			PendingIntentCompat.getActivity(
-				applicationContext,
-				0,
-				AppRouter.trackerSettingsIntent(applicationContext),
-				0,
-				false,
-			),
-		)
-		addAction(
-			appcompatR.drawable.abc_ic_clear_material,
-			applicationContext.getString(android.R.string.cancel),
-			workManager.createCancelPendingIntent(id),
-		)
-		setProgress(max, progress, max == 0)
-		setSmallIcon(android.R.drawable.stat_notify_sync)
-		setForegroundServiceBehavior(
-			if (TAG_ONESHOT in tags) {
-				NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE
-			} else {
-				NotificationCompat.FOREGROUND_SERVICE_DEFERRED
-			},
-		)
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			val actionIntent = PendingIntentCompat.getActivity(
-				applicationContext, SETTINGS_ACTION_CODE,
-				Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
-					.putExtra(Settings.EXTRA_APP_PACKAGE, applicationContext.packageName)
-					.putExtra(Settings.EXTRA_CHANNEL_ID, WORKER_CHANNEL_ID),
-				0, false,
-			)
-			addAction(
-				R.drawable.ic_settings,
-				applicationContext.getString(R.string.notifications_settings),
-				actionIntent,
-			)
-		}
-	}.build()
+        val notification = createWorkerNotification(0, 0)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(WORKER_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(WORKER_NOTIFICATION_ID, notification)
+        }
+    }
 
-	private suspend fun processDownload(mangaUpdates: MangaUpdates.Success) {
-		if (!mangaUpdates.isValid || mangaUpdates.newChapters.isEmpty()) {
-			return
-		}
-		when (settings.trackerDownloadStrategy) {
-			TrackerDownloadStrategy.DISABLED -> Unit
-			TrackerDownloadStrategy.DOWNLOADED -> {
-				val localManga = localRepositoryLazy.get().findSavedManga(mangaUpdates.manga)
-				if (localManga != null) {
-					val task = DownloadTask(
-						mangaId = mangaUpdates.manga.id,
-						isPaused = false,
-						isSilent = false,
-						chaptersIds = mangaUpdates.newChapters.ids().toLongArray(),
-						destination = null,
-						format = null,
-						allowMeteredNetwork = settings.allowDownloadOnMeteredNetwork != TriStateOption.DISABLED,
-					)
-					downloadSchedulerLazy.get().schedule(setOf(mangaUpdates.manga to task))
-				}
-			}
-		}
-	}
+    private fun createWorkerNotification(max: Int, progress: Int) = NotificationCompat.Builder(
+        applicationContext,
+        WORKER_CHANNEL_ID,
+    ).apply {
+        setContentTitle(applicationContext.getString(R.string.check_for_new_chapters))
+        setPriority(NotificationCompat.PRIORITY_MIN)
+        setCategory(NotificationCompat.CATEGORY_SERVICE)
+        setDefaults(0)
+        setOngoing(false)
+        setOnlyAlertOnce(true)
+        setSilent(true)
+        setContentIntent(
+            PendingIntentCompat.getActivity(
+                applicationContext,
+                0,
+                AppRouter.trackerSettingsIntent(applicationContext),
+                0,
+                false,
+            ),
+        )
+        addAction(
+            appcompatR.drawable.abc_ic_clear_material,
+            applicationContext.getString(android.R.string.cancel),
+            workManager.createCancelPendingIntent(id),
+        )
+        setProgress(max, progress, max == 0)
+        setSmallIcon(android.R.drawable.stat_notify_sync)
+        setForegroundServiceBehavior(
+            if (TAG_ONESHOT in tags) {
+                NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE
+            } else {
+                NotificationCompat.FOREGROUND_SERVICE_DEFERRED
+            },
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val actionIntent = PendingIntentCompat.getActivity(
+                applicationContext,
+                SETTINGS_ACTION_CODE,
+                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, applicationContext.packageName)
+                    .putExtra(Settings.EXTRA_CHANNEL_ID, WORKER_CHANNEL_ID),
+                0,
+                false,
+            )
+            addAction(
+                R.drawable.ic_settings,
+                applicationContext.getString(R.string.notifications_settings),
+                actionIntent,
+            )
+        }
+    }.build()
 
-	@Reusable
-	class Scheduler @Inject constructor(
-		private val workManager: WorkManager,
-		private val settings: AppSettings,
-		private val dbProvider: Provider<MangaDatabase>,
-	) : PeriodicWorkScheduler {
+    private suspend fun processDownload(mangaUpdates: MangaUpdates.Success) {
+        if (!mangaUpdates.isValid || mangaUpdates.newChapters.isEmpty()) {
+            return
+        }
+        when (settings.trackerDownloadStrategy) {
+            TrackerDownloadStrategy.DISABLED -> Unit
 
-		override suspend fun schedule() {
-			val frequency = settings.trackerFrequencyFactor
-			if (frequency <= 0f) {
-				return unschedule()
-			}
-			val constraints = createConstraints()
-			val runCount = dbProvider.get().getTracksDao().getTracksCount()
-			val runsPerFullCheck = (runCount / BATCH_SIZE.toFloat()).toIntUp().coerceAtLeast(1)
-			val interval = (18 / runsPerFullCheck / frequency).roundToInt().coerceAtLeast(2)
-			val request = PeriodicWorkRequestBuilder<TrackWorker>(interval.toLong(), TimeUnit.HOURS)
-				.setConstraints(constraints)
-				.addTag(TAG)
-				.setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.MINUTES)
-				.build()
-			workManager
-				.enqueueUniquePeriodicWork(TAG, ExistingPeriodicWorkPolicy.UPDATE, request)
-				.await()
-		}
+            TrackerDownloadStrategy.DOWNLOADED -> {
+                val localManga = localRepositoryLazy.get().findSavedManga(mangaUpdates.manga)
+                if (localManga != null) {
+                    val task = DownloadTask(
+                        mangaId = mangaUpdates.manga.id,
+                        isPaused = false,
+                        isSilent = false,
+                        chaptersIds = mangaUpdates.newChapters.ids().toLongArray(),
+                        destination = null,
+                        format = null,
+                        allowMeteredNetwork = settings.allowDownloadOnMeteredNetwork != TriStateOption.DISABLED,
+                    )
+                    downloadSchedulerLazy.get().schedule(setOf(mangaUpdates.manga to task))
+                }
+            }
+        }
+    }
 
-		override suspend fun unschedule() {
-			workManager
-				.cancelUniqueWork(TAG)
-				.await()
-		}
+    @Reusable
+    class Scheduler @Inject constructor(
+        private val workManager: WorkManager,
+        private val settings: AppSettings,
+        private val dbProvider: Provider<MangaDatabase>,
+    ) : PeriodicWorkScheduler {
 
-		override suspend fun isScheduled(): Boolean {
-			return workManager
-				.awaitUniqueWorkInfoByName(TAG)
-				.any { !it.state.isFinished }
-		}
+        override suspend fun schedule() {
+            val frequency = settings.trackerFrequencyFactor
+            if (frequency <= 0f) {
+                return unschedule()
+            }
+            val constraints = createConstraints()
+            val runCount = dbProvider.get().getTracksDao().getTracksCount()
+            val runsPerFullCheck = (runCount / BATCH_SIZE.toFloat()).toIntUp().coerceAtLeast(1)
+            val interval = (18 / runsPerFullCheck / frequency).roundToInt().coerceAtLeast(2)
+            val request = PeriodicWorkRequestBuilder<TrackWorker>(interval.toLong(), TimeUnit.HOURS)
+                .setConstraints(constraints)
+                .addTag(TAG)
+                .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.MINUTES)
+                .build()
+            workManager
+                .enqueueUniquePeriodicWork(TAG, ExistingPeriodicWorkPolicy.UPDATE, request)
+                .await()
+        }
 
-		fun startNow() {
-			val constraints = Constraints.Builder()
-				.setRequiredNetworkType(NetworkType.CONNECTED)
-				.build()
-			val request = OneTimeWorkRequestBuilder<TrackWorker>()
-				.setConstraints(constraints)
-				.addTag(TAG_ONESHOT)
-				.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-				.build()
-			workManager.enqueue(request)
-		}
+        override suspend fun unschedule() {
+            workManager
+                .cancelUniqueWork(TAG)
+                .await()
+        }
 
-		fun observeIsRunning(): Flow<Boolean> {
-			val query = WorkQuery.Builder.fromTags(listOf(TAG, TAG_ONESHOT)).build()
-			return workManager.getWorkInfosFlow(query)
-				.map { works ->
-					works.any { x -> x.state == WorkInfo.State.RUNNING }
-				}
-		}
+        override suspend fun isScheduled(): Boolean = workManager
+            .awaitUniqueWorkInfoByName(TAG)
+            .any { !it.state.isFinished }
 
-		private fun createConstraints() = Constraints.Builder()
-			.setRequiredNetworkType(if (settings.isTrackerWifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
-			.build()
-	}
+        fun startNow() {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            val request = OneTimeWorkRequestBuilder<TrackWorker>()
+                .setConstraints(constraints)
+                .addTag(TAG_ONESHOT)
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+            workManager.enqueue(request)
+        }
 
-	private companion object {
+        fun observeIsRunning(): Flow<Boolean> {
+            val query = WorkQuery.Builder.fromTags(listOf(TAG, TAG_ONESHOT)).build()
+            return workManager.getWorkInfosFlow(query)
+                .map { works ->
+                    works.any { x -> x.state == WorkInfo.State.RUNNING }
+                }
+        }
 
-		const val LOG_TAG = "TrackWorker"
-		const val WORKER_CHANNEL_ID = "track_worker"
-		const val WORKER_NOTIFICATION_ID = 35
-		const val TAG = "tracking"
-		const val TAG_ONESHOT = "tracking_oneshot"
-		const val MAX_PARALLELISM = 6
-		val BATCH_SIZE = if (BuildConfig.DEBUG) 20 else 46
-		const val SETTINGS_ACTION_CODE = 5
-	}
+        private fun createConstraints() = Constraints.Builder()
+            .setRequiredNetworkType(if (settings.isTrackerWifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+            .build()
+    }
+
+    private companion object {
+
+        const val LOG_TAG = "TrackWorker"
+        const val WORKER_CHANNEL_ID = "track_worker"
+        const val WORKER_NOTIFICATION_ID = 35
+        const val TAG = "tracking"
+        const val TAG_ONESHOT = "tracking_oneshot"
+        const val MAX_PARALLELISM = 6
+        val BATCH_SIZE = if (BuildConfig.DEBUG) 20 else 46
+        const val SETTINGS_ACTION_CODE = 5
+    }
 }

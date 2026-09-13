@@ -5,10 +5,10 @@ import org.koitharu.kotatsu.core.ui.list.OnListItemClickListener
 import org.koitharu.kotatsu.widget.shelf.model.CategoryItem
 
 class CategorySelectAdapter(
-	clickListener: OnListItemClickListener<CategoryItem>
+    clickListener: OnListItemClickListener<CategoryItem>,
 ) : BaseListAdapter<CategoryItem>() {
 
-	init {
-		delegatesManager.addDelegate(categorySelectItemAD(clickListener))
-	}
+    init {
+        delegatesManager.addDelegate(categorySelectItemAD(clickListener))
+    }
 }

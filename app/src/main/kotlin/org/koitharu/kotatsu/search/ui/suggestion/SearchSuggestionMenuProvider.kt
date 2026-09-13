@@ -12,43 +12,41 @@ import org.koitharu.kotatsu.core.util.ext.resolve
 import org.koitharu.kotatsu.core.util.ext.tryLaunch
 
 class SearchSuggestionMenuProvider(
-	private val context: Context,
-	private val voiceInputLauncher: ActivityResultLauncher<String?>,
-	private val viewModel: SearchSuggestionViewModel,
+    private val context: Context,
+    private val voiceInputLauncher: ActivityResultLauncher<String?>,
+    private val viewModel: SearchSuggestionViewModel,
 ) : MenuProvider {
 
-	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-		menuInflater.inflate(R.menu.opt_search_suggestion, menu)
-	}
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.opt_search_suggestion, menu)
+    }
 
-	override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-		return when (menuItem.itemId) {
-			R.id.action_clear -> {
-				clearSearchHistory()
-				true
-			}
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
+        R.id.action_clear -> {
+            clearSearchHistory()
+            true
+        }
 
-			R.id.action_voice_search -> {
-				voiceInputLauncher.tryLaunch(context.getString(R.string.search_manga), null)
-			}
+        R.id.action_voice_search -> {
+            voiceInputLauncher.tryLaunch(context.getString(R.string.search_manga), null)
+        }
 
-			else -> false
-		}
-	}
+        else -> false
+    }
 
-	override fun onPrepareMenu(menu: Menu) {
-		super.onPrepareMenu(menu)
-		menu.findItem(R.id.action_voice_search)?.isVisible = voiceInputLauncher.resolve(context, null) != null
-	}
+    override fun onPrepareMenu(menu: Menu) {
+        super.onPrepareMenu(menu)
+        menu.findItem(R.id.action_voice_search)?.isVisible = voiceInputLauncher.resolve(context, null) != null
+    }
 
-	private fun clearSearchHistory() {
-		buildAlertDialog(context, isCentered = true) {
-			setTitle(R.string.clear_search_history)
-			setIcon(R.drawable.ic_clear_all)
-			setCancelable(true)
-			setMessage(R.string.text_clear_search_history_prompt)
-			setNegativeButton(android.R.string.cancel, null)
-			setPositiveButton(R.string.clear) { _, _ -> viewModel.clearSearchHistory() }
-		}.show()
-	}
+    private fun clearSearchHistory() {
+        buildAlertDialog(context, isCentered = true) {
+            setTitle(R.string.clear_search_history)
+            setIcon(R.drawable.ic_clear_all)
+            setCancelable(true)
+            setMessage(R.string.text_clear_search_history_prompt)
+            setNegativeButton(android.R.string.cancel, null)
+            setPositiveButton(R.string.clear) { _, _ -> viewModel.clearSearchHistory() }
+        }.show()
+    }
 }

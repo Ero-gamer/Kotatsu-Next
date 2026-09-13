@@ -7,13 +7,13 @@ import android.widget.FrameLayout
 
 class TouchBlockLayout @JvmOverloads constructor(
     context: Context,
-    attrs: AttributeSet? = null
+    attrs: AttributeSet? = null,
 ) : FrameLayout(context, attrs) {
 
     var isTouchEventsAllowed = true
 
     override fun onInterceptTouchEvent(
-        ev: MotionEvent?
+        ev: MotionEvent?,
     ): Boolean = if (isTouchEventsAllowed) {
         super.onInterceptTouchEvent(ev)
     } else {

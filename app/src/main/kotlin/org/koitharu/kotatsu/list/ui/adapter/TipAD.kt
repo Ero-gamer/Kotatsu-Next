@@ -7,21 +7,20 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.list.ui.model.TipModel
 
 fun tipAD(
-	listener: TipView.OnButtonClickListener,
+    listener: TipView.OnButtonClickListener,
 ) = adapterDelegateViewBinding<TipModel, ListModel, ItemTip2Binding>(
-	{ layoutInflater, parent -> ItemTip2Binding.inflate(layoutInflater, parent, false) }
+    { layoutInflater, parent -> ItemTip2Binding.inflate(layoutInflater, parent, false) },
 ) {
+    binding.root.onButtonClickListener = listener
 
-	binding.root.onButtonClickListener = listener
-
-	bind {
-		with(binding.root) {
-			tag = item
-			setTitle(item.title)
-			setText(item.text)
-			setIcon(item.icon)
-			setPrimaryButtonText(item.primaryButtonText)
-			setSecondaryButtonText(item.secondaryButtonText)
-		}
-	}
+    bind {
+        with(binding.root) {
+            tag = item
+            setTitle(item.title)
+            setText(item.text)
+            setIcon(item.icon)
+            setPrimaryButtonText(item.primaryButtonText)
+            setSecondaryButtonText(item.secondaryButtonText)
+        }
+    }
 }

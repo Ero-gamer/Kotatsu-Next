@@ -11,29 +11,27 @@ import org.koitharu.kotatsu.core.ui.widgets.SlidingBottomNavigationView
 
 class MainActionButtonBehavior : ShrinkOnScrollBehavior {
 
-	constructor() : super()
-	constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs)
+    constructor() : super()
+    constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs)
 
-	override fun layoutDependsOn(
-		parent: CoordinatorLayout,
-		child: ExtendedFloatingActionButton,
-		dependency: View
-	): Boolean {
-		return dependency is SlidingBottomNavigationView || super.layoutDependsOn(parent, child, dependency)
-	}
+    override fun layoutDependsOn(
+        parent: CoordinatorLayout,
+        child: ExtendedFloatingActionButton,
+        dependency: View,
+    ): Boolean = dependency is SlidingBottomNavigationView || super.layoutDependsOn(parent, child, dependency)
 
-	override fun onDependentViewChanged(
-		parent: CoordinatorLayout,
-		child: ExtendedFloatingActionButton,
-		dependency: View
-	): Boolean {
-		val bottom = child.bottom
-		val bottomLine = parent.height
-		return if (bottom > bottomLine) {
-			ViewCompat.offsetTopAndBottom(child, bottomLine - bottom)
-			true
-		} else {
-			false
-		}
-	}
+    override fun onDependentViewChanged(
+        parent: CoordinatorLayout,
+        child: ExtendedFloatingActionButton,
+        dependency: View,
+    ): Boolean {
+        val bottom = child.bottom
+        val bottomLine = parent.height
+        return if (bottom > bottomLine) {
+            ViewCompat.offsetTopAndBottom(child, bottomLine - bottom)
+            true
+        } else {
+            false
+        }
+    }
 }

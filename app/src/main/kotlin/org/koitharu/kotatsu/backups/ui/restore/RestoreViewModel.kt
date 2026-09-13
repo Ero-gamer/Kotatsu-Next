@@ -25,88 +25,88 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RestoreViewModel @Inject constructor(
-	savedStateHandle: SavedStateHandle,
-	@ApplicationContext context: Context,
+    savedStateHandle: SavedStateHandle,
+    @ApplicationContext context: Context,
 ) : BaseViewModel() {
 
-	val uri = savedStateHandle.get<String>(AppRouter.KEY_FILE)?.toUriOrNull()
-	private val contentResolver = context.contentResolver
+    val uri = savedStateHandle.get<String>(AppRouter.KEY_FILE)?.toUriOrNull()
+    private val contentResolver = context.contentResolver
 
-	val availableEntries = MutableStateFlow<List<BackupSectionModel>>(emptyList())
-	val backupDate = MutableStateFlow<Date?>(null)
+    val availableEntries = MutableStateFlow<List<BackupSectionModel>>(emptyList())
+    val backupDate = MutableStateFlow<Date?>(null)
 
-	init {
-		launchLoadingJob(Dispatchers.Default) {
-			loadBackupInfo()
-		}
-	}
+    init {
+        launchLoadingJob(Dispatchers.Default) {
+            loadBackupInfo()
+        }
+    }
 
-	private suspend fun loadBackupInfo() {
-		val sections = runInterruptible(Dispatchers.IO) {
-			if (uri == null) throw FileNotFoundException()
-			ZipInputStream(contentResolver.openInputStream(uri)).use { stream ->
-				val result = EnumSet.noneOf(BackupSection::class.java)
-				var entry = stream.nextEntry
-				while (entry != null) {
-					val s = BackupSection.of(entry)
-					if (s != null) {
-						result.add(s)
-						if (s == BackupSection.INDEX) {
-							backupDate.value = stream.readDate()
-						}
-					}
-					stream.closeEntry()
-					entry = stream.nextEntry
-				}
-				result
-			}
-		}
-		availableEntries.value = BackupSection.entries.mapNotNull { entry ->
-			if (entry == BackupSection.INDEX || entry !in sections) {
-				return@mapNotNull null
-			}
-			BackupSectionModel(
-				section = entry,
-				isChecked = true,
-				isEnabled = true,
-			)
-		}
-	}
+    private suspend fun loadBackupInfo() {
+        val sections = runInterruptible(Dispatchers.IO) {
+            if (uri == null) throw FileNotFoundException()
+            ZipInputStream(contentResolver.openInputStream(uri)).use { stream ->
+                val result = EnumSet.noneOf(BackupSection::class.java)
+                var entry = stream.nextEntry
+                while (entry != null) {
+                    val s = BackupSection.of(entry)
+                    if (s != null) {
+                        result.add(s)
+                        if (s == BackupSection.INDEX) {
+                            backupDate.value = stream.readDate()
+                        }
+                    }
+                    stream.closeEntry()
+                    entry = stream.nextEntry
+                }
+                result
+            }
+        }
+        availableEntries.value = BackupSection.entries.mapNotNull { entry ->
+            if (entry == BackupSection.INDEX || entry !in sections) {
+                return@mapNotNull null
+            }
+            BackupSectionModel(
+                section = entry,
+                isChecked = true,
+                isEnabled = true,
+            )
+        }
+    }
 
-	fun onItemClick(item: BackupSectionModel) {
-		val map = availableEntries.value.associateByTo(EnumMap(BackupSection::class.java)) { it.section }
-		map[item.section] = item.copy(isChecked = !item.isChecked)
-		map.validate()
-		availableEntries.value = map.values.sortedBy { it.section.ordinal }
-	}
+    fun onItemClick(item: BackupSectionModel) {
+        val map = availableEntries.value.associateByTo(EnumMap(BackupSection::class.java)) { it.section }
+        map[item.section] = item.copy(isChecked = !item.isChecked)
+        map.validate()
+        availableEntries.value = map.values.sortedBy { it.section.ordinal }
+    }
 
-	fun getCheckedSections(): Set<BackupSection> = availableEntries.value
-		.mapNotNullTo(EnumSet.noneOf(BackupSection::class.java)) {
-			if (it.isChecked) it.section else null
-		}
+    fun getCheckedSections(): Set<BackupSection> = availableEntries.value
+        .mapNotNullTo(EnumSet.noneOf(BackupSection::class.java)) {
+            if (it.isChecked) it.section else null
+        }
 
-	/**
-	 * Check for inconsistent user selection
-	 * Favorites cannot be restored without categories
-	 */
-	private fun MutableMap<BackupSection, BackupSectionModel>.validate() {
-		val favorites = this[BackupSection.FAVOURITES] ?: return
-		val categories = this[BackupSection.CATEGORIES]
-		if (categories?.isChecked == true) {
-			if (!favorites.isEnabled) {
-				this[BackupSection.FAVOURITES] = favorites.copy(isEnabled = true)
-			}
-		} else {
-			if (favorites.isEnabled) {
-				this[BackupSection.FAVOURITES] = favorites.copy(isEnabled = false, isChecked = false)
-			}
-		}
-	}
+    /**
+     * Check for inconsistent user selection
+     * Favorites cannot be restored without categories
+     */
+    private fun MutableMap<BackupSection, BackupSectionModel>.validate() {
+        val favorites = this[BackupSection.FAVOURITES] ?: return
+        val categories = this[BackupSection.CATEGORIES]
+        if (categories?.isChecked == true) {
+            if (!favorites.isEnabled) {
+                this[BackupSection.FAVOURITES] = favorites.copy(isEnabled = true)
+            }
+        } else {
+            if (favorites.isEnabled) {
+                this[BackupSection.FAVOURITES] = favorites.copy(isEnabled = false, isChecked = false)
+            }
+        }
+    }
 
-	private fun InputStream.readDate(): Date? = runCatching {
-		val index = Json.decodeFromStream<List<BackupIndex>>(this)
-		Date(index.single().createdAt)
-	}.onFailure { e ->
-		e.printStackTraceDebug()
-	}.getOrNull()
+    private fun InputStream.readDate(): Date? = runCatching {
+        val index = Json.decodeFromStream<List<BackupIndex>>(this)
+        Date(index.single().createdAt)
+    }.onFailure { e ->
+        e.printStackTraceDebug()
+    }.getOrNull()
 }

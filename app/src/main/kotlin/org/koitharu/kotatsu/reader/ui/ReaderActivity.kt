@@ -303,9 +303,7 @@ class ReaderActivity :
         invalidateOptionsMenu()
     }
 
-    override fun onGridTouch(area: TapGridArea): Boolean {
-        return isReaderResumed() && controlDelegate.onGridTouch(area)
-    }
+    override fun onGridTouch(area: TapGridArea): Boolean = isReaderResumed() && controlDelegate.onGridTouch(area)
 
     override fun onGridLongTouch(area: TapGridArea) {
         if (isReaderResumed()) {
@@ -313,20 +311,18 @@ class ReaderActivity :
         }
     }
 
-    override fun onProcessTouch(rawX: Int, rawY: Int): Boolean {
-        return if (
-            rawX <= gestureInsets.left ||
-            rawY <= gestureInsets.top ||
-            rawX >= viewBinding.root.width - gestureInsets.right ||
-            rawY >= viewBinding.root.height - gestureInsets.bottom ||
-            viewBinding.appbarTop.hasGlobalPoint(rawX, rawY) ||
-            viewBinding.toolbarDocked?.hasGlobalPoint(rawX, rawY) == true
-        ) {
-            false
-        } else {
-            val touchables = window.peekDecorView()?.touchables
-            touchables?.none { it.hasGlobalPoint(rawX, rawY) } != false
-        }
+    override fun onProcessTouch(rawX: Int, rawY: Int): Boolean = if (
+        rawX <= gestureInsets.left ||
+        rawY <= gestureInsets.top ||
+        rawX >= viewBinding.root.width - gestureInsets.right ||
+        rawY >= viewBinding.root.height - gestureInsets.bottom ||
+        viewBinding.appbarTop.hasGlobalPoint(rawX, rawY) ||
+        viewBinding.toolbarDocked?.hasGlobalPoint(rawX, rawY) == true
+    ) {
+        false
+    } else {
+        val touchables = window.peekDecorView()?.touchables
+        touchables?.none { it.hasGlobalPoint(rawX, rawY) } != false
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -337,13 +333,9 @@ class ReaderActivity :
         return super.dispatchTouchEvent(ev)
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return controlDelegate.onKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
-    }
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean = controlDelegate.onKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
 
-    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
-        return controlDelegate.onKeyUp(keyCode, event) || super.onKeyUp(keyCode, event)
-    }
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean = controlDelegate.onKeyUp(keyCode, event) || super.onKeyUp(keyCode, event)
 
     override fun onChapterSelected(chapter: MangaChapter): Boolean {
         viewModel.switchChapter(chapter.id, 0)
@@ -476,9 +468,7 @@ class ReaderActivity :
         router.showReaderConfigSheet(currentMode)
     }
 
-    override fun scrollBy(delta: Int, smooth: Boolean): Boolean {
-        return readerManager.currentReader?.scrollBy(delta, smooth) == true
-    }
+    override fun scrollBy(delta: Int, smooth: Boolean): Boolean = readerManager.currentReader?.scrollBy(delta, smooth) == true
 
     override fun toggleUiVisibility() {
         setUiIsVisible(!viewBinding.appbarTop.isVisible)
@@ -587,20 +577,18 @@ class ReaderActivity :
             viewBinding.appbarTop.isVisible && settings.isVerticalSliderEnabled && uiState.isSliderAvailable()
     }
 
-    private fun createEInkFlashView(): View {
-        return View(this).apply {
-            isVisible = false
-            isClickable = false
-            isFocusable = false
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            viewBinding.root.addView(
-                this,
-                CoordinatorLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                ),
-            )
-        }
+    private fun createEInkFlashView(): View = View(this).apply {
+        isVisible = false
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        viewBinding.root.addView(
+            this,
+            CoordinatorLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
     }
 
     @androidx.annotation.MainThread
@@ -632,10 +620,10 @@ class ReaderActivity :
 
     private fun updateScrollTimerButton() {
         val button = viewBinding.buttonTimer ?: return
-        val isButtonVisible = scrollTimer.isActive.value
-            && settings.isReaderAutoscrollFabVisible
-            && !viewBinding.appbarTop.isVisible
-            && !viewBinding.timerControl.isVisible
+        val isButtonVisible = scrollTimer.isActive.value &&
+            settings.isReaderAutoscrollFabVisible &&
+            !viewBinding.appbarTop.isVisible &&
+            !viewBinding.timerControl.isVisible
         if (button.isVisible != isButtonVisible) {
             val transition = Fade().addTarget(button)
             TransitionManager.beginDelayedTransition(viewBinding.root, transition)

@@ -4,5 +4,5 @@ import org.koitharu.kotatsu.list.domain.ListFilterOption
 
 interface QuickFilterClickListener {
 
-	fun onFilterOptionClick(option: ListFilterOption)
+    fun onFilterOptionClick(option: ListFilterOption)
 }

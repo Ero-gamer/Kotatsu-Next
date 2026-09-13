@@ -12,38 +12,40 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HALF_EX
 import com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HIDDEN
 
 class BottomSheetCollapseCallback(
-	private val sheet: ViewGroup,
-	private val behavior: BottomSheetBehavior<*> = BottomSheetBehavior.from(sheet),
+    private val sheet: ViewGroup,
+    private val behavior: BottomSheetBehavior<*> = BottomSheetBehavior.from(sheet),
 ) : OnBackPressedCallback(behavior.state == STATE_EXPANDED || behavior.state == STATE_HALF_EXPANDED) {
 
-	init {
-		behavior.addBottomSheetCallback(
-			object : BottomSheetBehavior.BottomSheetCallback() {
+    init {
+        behavior.addBottomSheetCallback(
+            object : BottomSheetBehavior.BottomSheetCallback() {
 
-				@SuppressLint("SwitchIntDef")
-				override fun onStateChanged(view: View, state: Int) = onStateChanged(state)
+                @SuppressLint("SwitchIntDef")
+                override fun onStateChanged(view: View, state: Int) = onStateChanged(state)
 
-				override fun onSlide(p0: View, p1: Float) = Unit
-			},
-		)
-		onStateChanged(behavior.state)
-	}
+                override fun onSlide(p0: View, p1: Float) = Unit
+            },
+        )
+        onStateChanged(behavior.state)
+    }
 
-	override fun handleOnBackPressed() = behavior.handleBackInvoked()
+    override fun handleOnBackPressed() = behavior.handleBackInvoked()
 
-	override fun handleOnBackCancelled() = behavior.cancelBackProgress()
+    override fun handleOnBackCancelled() = behavior.cancelBackProgress()
 
-	override fun handleOnBackProgressed(backEvent: BackEventCompat) = behavior.updateBackProgress(backEvent)
+    override fun handleOnBackProgressed(backEvent: BackEventCompat) = behavior.updateBackProgress(backEvent)
 
-	override fun handleOnBackStarted(backEvent: BackEventCompat) = behavior.startBackProgress(backEvent)
+    override fun handleOnBackStarted(backEvent: BackEventCompat) = behavior.startBackProgress(backEvent)
 
-	private fun onStateChanged(state: Int) {
-		when (state) {
-			STATE_EXPANDED,
-			STATE_HALF_EXPANDED -> isEnabled = true
+    private fun onStateChanged(state: Int) {
+        when (state) {
+            STATE_EXPANDED,
+            STATE_HALF_EXPANDED,
+            -> isEnabled = true
 
-			STATE_COLLAPSED,
-			STATE_HIDDEN -> isEnabled = false
-		}
-	}
+            STATE_COLLAPSED,
+            STATE_HIDDEN,
+            -> isEnabled = false
+        }
+    }
 }

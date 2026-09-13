@@ -9,5 +9,5 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 @InstallIn(SingletonComponent::class)
 interface AppRouterEntryPoint {
 
-	val settings: AppSettings
+    val settings: AppSettings
 }

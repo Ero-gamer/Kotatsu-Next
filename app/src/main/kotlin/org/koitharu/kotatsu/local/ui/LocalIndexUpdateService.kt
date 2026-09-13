@@ -9,12 +9,12 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LocalIndexUpdateService : CoroutineIntentService() {
 
-	@Inject
-	lateinit var localMangaIndex: LocalMangaIndex
+    @Inject
+    lateinit var localMangaIndex: LocalMangaIndex
 
-	override suspend fun IntentJobContext.processIntent(intent: Intent) {
-		localMangaIndex.update()
-	}
+    override suspend fun IntentJobContext.processIntent(intent: Intent) {
+        localMangaIndex.update()
+    }
 
-	override fun IntentJobContext.onError(error: Throwable) = Unit
+    override fun IntentJobContext.onError(error: Throwable) = Unit
 }

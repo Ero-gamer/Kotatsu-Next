@@ -24,12 +24,12 @@ import org.koitharu.kotatsu.core.model.LocalMangaSource
 import org.koitharu.kotatsu.core.model.UnknownMangaSource
 import org.koitharu.kotatsu.core.model.isNsfw
 import org.koitharu.kotatsu.core.nav.AppRouter
+import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ListMode
 import org.koitharu.kotatsu.core.ui.BaseViewModel
 import org.koitharu.kotatsu.core.util.ext.append
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.toLocale
-import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
 import org.koitharu.kotatsu.explore.data.SourcePresetsRepository
 import org.koitharu.kotatsu.favourites.domain.FavouritesRepository
@@ -53,294 +53,297 @@ private const val MAX_PARALLELISM = 4
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-	savedStateHandle: SavedStateHandle,
-	private val mangaListMapper: MangaListMapper,
-	private val searchHelperFactory: SearchV2Helper.Factory,
-	private val sourcesRepository: MangaSourcesRepository,
-	private val historyRepository: HistoryRepository,
-	private val favouritesRepository: FavouritesRepository,
-	private val settings: AppSettings,
-	private val presetsRepository: SourcePresetsRepository,
+    savedStateHandle: SavedStateHandle,
+    private val mangaListMapper: MangaListMapper,
+    private val searchHelperFactory: SearchV2Helper.Factory,
+    private val sourcesRepository: MangaSourcesRepository,
+    private val historyRepository: HistoryRepository,
+    private val favouritesRepository: FavouritesRepository,
+    private val settings: AppSettings,
+    private val presetsRepository: SourcePresetsRepository,
 ) : BaseViewModel() {
 
-	val query = savedStateHandle.get<String>(AppRouter.KEY_QUERY).orEmpty()
-	val kind = savedStateHandle.get<SearchKind>(AppRouter.KEY_KIND) ?: SearchKind.SIMPLE
+    val query = savedStateHandle.get<String>(AppRouter.KEY_QUERY).orEmpty()
+    val kind = savedStateHandle.get<SearchKind>(AppRouter.KEY_KIND) ?: SearchKind.SIMPLE
 
-	private var includeDisabledSources = MutableStateFlow(false)
-	private var pinnedOnly = MutableStateFlow(false)
-	private var hideEmpty = MutableStateFlow(false)
-	private val results = MutableStateFlow<List<SearchResultsListModel>>(emptyList())
+    private var includeDisabledSources = MutableStateFlow(false)
+    private var pinnedOnly = MutableStateFlow(false)
+    private var hideEmpty = MutableStateFlow(false)
+    private val results = MutableStateFlow<List<SearchResultsListModel>>(emptyList())
 
-	private var searchJob: Job? = null
+    private var searchJob: Job? = null
 
-	val list: StateFlow<List<ListModel>> = combine(
-		results,
-		isLoading.dropWhile { !it },
-		includeDisabledSources,
-		hideEmpty,
-	) { list, loading, includeDisabled, hideEmptyVal ->
-		val filteredList = if (hideEmptyVal) {
-			list.filter { it.list.isNotEmpty() }
-		} else {
-			list
-		}
-		when {
-			filteredList.isEmpty() -> listOf(
-				when {
-					loading -> LoadingState()
-					else -> EmptyState(
-						icon = R.drawable.ic_empty_common,
-						textPrimary = R.string.nothing_found,
-						textSecondary = R.string.text_search_holder_secondary,
-						actionStringRes = 0,
-					)
-				},
-			)
+    val list: StateFlow<List<ListModel>> = combine(
+        results,
+        isLoading.dropWhile { !it },
+        includeDisabledSources,
+        hideEmpty,
+    ) { list, loading, includeDisabled, hideEmptyVal ->
+        val filteredList = if (hideEmptyVal) {
+            list.filter { it.list.isNotEmpty() }
+        } else {
+            list
+        }
+        when {
+            filteredList.isEmpty() -> listOf(
+                when {
+                    loading -> LoadingState()
 
-			loading -> filteredList + LoadingFooter()
-			includeDisabled -> filteredList
-			else -> filteredList + ButtonFooter(R.string.search_disabled_sources)
-		}
-	}.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState()))
+                    else -> EmptyState(
+                        icon = R.drawable.ic_empty_common,
+                        textPrimary = R.string.nothing_found,
+                        textSecondary = R.string.text_search_holder_secondary,
+                        actionStringRes = 0,
+                    )
+                },
+            )
 
-	init {
-		doSearch()
-	}
+            loading -> filteredList + LoadingFooter()
 
-	fun getItems(ids: LongSet): Set<Manga> {
-		val snapshot = results.value
-		val result = ArraySet<Manga>(ids.size)
-		snapshot.forEach { x ->
-			for (item in x.list) {
-				if (item.id in ids) {
-					result.add(item.manga)
-				}
-			}
-		}
-		return result
-	}
+            includeDisabled -> filteredList
 
-	fun retry() {
-		searchJob?.cancel()
-		results.value = emptyList()
-		includeDisabledSources.value = false
-		doSearch()
-	}
+            else -> filteredList + ButtonFooter(R.string.search_disabled_sources)
+        }
+    }.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, listOf(LoadingState()))
 
-	fun setPinnedOnly(value: Boolean) {
-		if (pinnedOnly.value != value) {
-			pinnedOnly.value = value
-			retry()
-		}
-	}
+    init {
+        doSearch()
+    }
 
-	fun setHideEmpty(value: Boolean) {
-		hideEmpty.value = value
-	}
+    fun getItems(ids: LongSet): Set<Manga> {
+        val snapshot = results.value
+        val result = ArraySet<Manga>(ids.size)
+        snapshot.forEach { x ->
+            for (item in x.list) {
+                if (item.id in ids) {
+                    result.add(item.manga)
+                }
+            }
+        }
+        return result
+    }
 
-	fun continueSearch() {
-		if (includeDisabledSources.value) {
-			return
-		}
-		val prevJob = searchJob
-		searchJob = launchLoadingJob(Dispatchers.Default) {
-			includeDisabledSources.value = true
-			prevJob?.join()
-			val sources = if (pinnedOnly.value) {
-				emptyList()
-			} else {
-				sourcesRepository.getDisabledSources()
-					.sortedByDescending { it.priority() }
-			}
-			val semaphore = Semaphore(MAX_PARALLELISM)
-			sources.map { source ->
-				launch {
-					semaphore.withPermit {
-						appendResult(searchSource(source))
-					}
-				}
-			}.joinAll()
-		}
-	}
+    fun retry() {
+        searchJob?.cancel()
+        results.value = emptyList()
+        includeDisabledSources.value = false
+        doSearch()
+    }
 
-	private fun doSearch() {
-		val prevJob = searchJob
-		searchJob = launchLoadingJob(Dispatchers.Default) {
-			prevJob?.cancelAndJoin()
-			appendResult(searchHistory())
-			appendResult(searchFavorites())
-			appendResult(searchLocal())
-			val sources = getPresetSourcesOrDefault()
-			val semaphore = Semaphore(MAX_PARALLELISM)
-			sources.map { source ->
-				launch {
-					semaphore.withPermit {
-						appendResult(searchSource(source))
-					}
-				}
-			}.joinAll()
-		}
-	}
+    fun setPinnedOnly(value: Boolean) {
+        if (pinnedOnly.value != value) {
+            pinnedOnly.value = value
+            retry()
+        }
+    }
 
-	// impl
+    fun setHideEmpty(value: Boolean) {
+        hideEmpty.value = value
+    }
 
-	private suspend fun searchSource(source: MangaSource): SearchResultsListModel? = runCatchingCancellable {
-		val searchHelper = searchHelperFactory.create(source)
-		searchHelper(query, kind)
-	}.fold(
-		onSuccess = { result ->
-			if (result == null || result.manga.isEmpty()) {
-				null
-			} else {
-				val list = mangaListMapper.toListModelList(
-					manga = result.manga,
-					mode = ListMode.GRID,
-				)
-				SearchResultsListModel(
-					titleResId = 0,
-					source = source,
-					list = list,
-					error = null,
-					listFilter = result.listFilter,
-					sortOrder = result.sortOrder,
-				)
-			}
-		},
-		onFailure = { error ->
-			error.printStackTraceDebug()
-			if (source is MangaParserSource && source.isBroken) {
-				null
-			} else {
-				SearchResultsListModel(0, source, null, null, emptyList(), error)
-			}
-		},
-	)
+    fun continueSearch() {
+        if (includeDisabledSources.value) {
+            return
+        }
+        val prevJob = searchJob
+        searchJob = launchLoadingJob(Dispatchers.Default) {
+            includeDisabledSources.value = true
+            prevJob?.join()
+            val sources = if (pinnedOnly.value) {
+                emptyList()
+            } else {
+                sourcesRepository.getDisabledSources()
+                    .sortedByDescending { it.priority() }
+            }
+            val semaphore = Semaphore(MAX_PARALLELISM)
+            sources.map { source ->
+                launch {
+                    semaphore.withPermit {
+                        appendResult(searchSource(source))
+                    }
+                }
+            }.joinAll()
+        }
+    }
 
-	private suspend fun searchHistory(): SearchResultsListModel? = runCatchingCancellable {
-		historyRepository.search(query, kind, Int.MAX_VALUE)
-	}.fold(
-		onSuccess = { result ->
-			if (result.isNotEmpty()) {
-				SearchResultsListModel(
-					titleResId = R.string.history,
-					source = UnknownMangaSource,
-					list = mangaListMapper.toListModelList(manga = result, mode = ListMode.GRID),
-					error = null,
-					listFilter = null,
-					sortOrder = null,
-				)
-			} else {
-				null
-			}
-		},
-		onFailure = { error ->
-			SearchResultsListModel(
-				titleResId = R.string.history,
-				source = UnknownMangaSource,
-				list = emptyList(),
-				error = error,
-				listFilter = null,
-				sortOrder = null,
-			)
-		},
-	)
+    private fun doSearch() {
+        val prevJob = searchJob
+        searchJob = launchLoadingJob(Dispatchers.Default) {
+            prevJob?.cancelAndJoin()
+            appendResult(searchHistory())
+            appendResult(searchFavorites())
+            appendResult(searchLocal())
+            val sources = getPresetSourcesOrDefault()
+            val semaphore = Semaphore(MAX_PARALLELISM)
+            sources.map { source ->
+                launch {
+                    semaphore.withPermit {
+                        appendResult(searchSource(source))
+                    }
+                }
+            }.joinAll()
+        }
+    }
 
-	private suspend fun searchFavorites(): SearchResultsListModel? = runCatchingCancellable {
-		favouritesRepository.search(query, kind, Int.MAX_VALUE)
-	}.fold(
-		onSuccess = { result ->
-			if (result.isNotEmpty()) {
-				SearchResultsListModel(
-					titleResId = R.string.favourites,
-					source = UnknownMangaSource,
-					list = mangaListMapper.toListModelList(
-						manga = result,
-						mode = ListMode.GRID,
-						flags = MangaListMapper.NO_FAVORITE,
-					),
-					error = null,
-					listFilter = null,
-					sortOrder = null,
-				)
-			} else {
-				null
-			}
-		},
-		onFailure = { error ->
-			SearchResultsListModel(
-				titleResId = R.string.favourites,
-				source = UnknownMangaSource,
-				list = emptyList(),
-				error = error,
-				listFilter = null,
-				sortOrder = null,
-			)
-		},
-	)
+    // impl
 
-	private suspend fun searchLocal(): SearchResultsListModel? = runCatchingCancellable {
-		searchHelperFactory.create(LocalMangaSource).invoke(query, kind)
-	}.fold(
-		onSuccess = { result ->
-			if (!result?.manga.isNullOrEmpty()) {
-				SearchResultsListModel(
-					titleResId = 0,
-					source = LocalMangaSource,
-					list = mangaListMapper.toListModelList(
-						manga = result.manga,
-						mode = ListMode.GRID,
-						flags = MangaListMapper.NO_SAVED,
-					),
-					error = null,
-					listFilter = result.listFilter,
-					sortOrder = result.sortOrder,
-				)
-			} else {
-				null
-			}
-		},
-		onFailure = { error ->
-			SearchResultsListModel(
-				titleResId = 0,
-				source = LocalMangaSource,
-				list = emptyList(),
-				error = error,
-				listFilter = null,
-				sortOrder = null,
-			)
-		},
-	)
+    private suspend fun searchSource(source: MangaSource): SearchResultsListModel? = runCatchingCancellable {
+        val searchHelper = searchHelperFactory.create(source)
+        searchHelper(query, kind)
+    }.fold(
+        onSuccess = { result ->
+            if (result == null || result.manga.isEmpty()) {
+                null
+            } else {
+                val list = mangaListMapper.toListModelList(
+                    manga = result.manga,
+                    mode = ListMode.GRID,
+                )
+                SearchResultsListModel(
+                    titleResId = 0,
+                    source = source,
+                    list = list,
+                    error = null,
+                    listFilter = result.listFilter,
+                    sortOrder = result.sortOrder,
+                )
+            }
+        },
+        onFailure = { error ->
+            error.printStackTraceDebug()
+            if (source is MangaParserSource && source.isBroken) {
+                null
+            } else {
+                SearchResultsListModel(0, source, null, null, emptyList(), error)
+            }
+        },
+    )
 
-	private fun appendResult(item: SearchResultsListModel?) {
-		if (item != null) {
-			results.append(item)
-		}
-	}
+    private suspend fun searchHistory(): SearchResultsListModel? = runCatchingCancellable {
+        historyRepository.search(query, kind, Int.MAX_VALUE)
+    }.fold(
+        onSuccess = { result ->
+            if (result.isNotEmpty()) {
+                SearchResultsListModel(
+                    titleResId = R.string.history,
+                    source = UnknownMangaSource,
+                    list = mangaListMapper.toListModelList(manga = result, mode = ListMode.GRID),
+                    error = null,
+                    listFilter = null,
+                    sortOrder = null,
+                )
+            } else {
+                null
+            }
+        },
+        onFailure = { error ->
+            SearchResultsListModel(
+                titleResId = R.string.history,
+                source = UnknownMangaSource,
+                list = emptyList(),
+                error = error,
+                listFilter = null,
+                sortOrder = null,
+            )
+        },
+    )
 
-	private fun MangaSource.priority(): Int {
-		var res = 0
-		if (this is MangaParserSource) {
-			if (locale.toLocale() == Locale.getDefault()) res += 2
-		}
-		return res
-	}
+    private suspend fun searchFavorites(): SearchResultsListModel? = runCatchingCancellable {
+        favouritesRepository.search(query, kind, Int.MAX_VALUE)
+    }.fold(
+        onSuccess = { result ->
+            if (result.isNotEmpty()) {
+                SearchResultsListModel(
+                    titleResId = R.string.favourites,
+                    source = UnknownMangaSource,
+                    list = mangaListMapper.toListModelList(
+                        manga = result,
+                        mode = ListMode.GRID,
+                        flags = MangaListMapper.NO_FAVORITE,
+                    ),
+                    error = null,
+                    listFilter = null,
+                    sortOrder = null,
+                )
+            } else {
+                null
+            }
+        },
+        onFailure = { error ->
+            SearchResultsListModel(
+                titleResId = R.string.favourites,
+                source = UnknownMangaSource,
+                list = emptyList(),
+                error = error,
+                listFilter = null,
+                sortOrder = null,
+            )
+        },
+    )
 
-	private suspend fun getPresetSourcesOrDefault(): List<MangaSource> {
-		val presetId = settings.activeSourcePresetId
-		if (presetId != 0L) {
-			val preset = presetsRepository.getById(presetId)
-			if (preset != null) {
-				if (preset.sources.isEmpty()) return emptyList()
-				val skipNsfw = settings.isNsfwContentDisabled
-				return sourcesRepository.allMangaSources.filter { source ->
-					source.name in preset.sources && (!skipNsfw || !source.isNsfw())
-				}
-			}
-		}
-		return if (pinnedOnly.value) {
-			sourcesRepository.getPinnedSources().toList()
-		} else {
-			sourcesRepository.getEnabledSources()
-		}
-	}
+    private suspend fun searchLocal(): SearchResultsListModel? = runCatchingCancellable {
+        searchHelperFactory.create(LocalMangaSource).invoke(query, kind)
+    }.fold(
+        onSuccess = { result ->
+            if (!result?.manga.isNullOrEmpty()) {
+                SearchResultsListModel(
+                    titleResId = 0,
+                    source = LocalMangaSource,
+                    list = mangaListMapper.toListModelList(
+                        manga = result.manga,
+                        mode = ListMode.GRID,
+                        flags = MangaListMapper.NO_SAVED,
+                    ),
+                    error = null,
+                    listFilter = result.listFilter,
+                    sortOrder = result.sortOrder,
+                )
+            } else {
+                null
+            }
+        },
+        onFailure = { error ->
+            SearchResultsListModel(
+                titleResId = 0,
+                source = LocalMangaSource,
+                list = emptyList(),
+                error = error,
+                listFilter = null,
+                sortOrder = null,
+            )
+        },
+    )
+
+    private fun appendResult(item: SearchResultsListModel?) {
+        if (item != null) {
+            results.append(item)
+        }
+    }
+
+    private fun MangaSource.priority(): Int {
+        var res = 0
+        if (this is MangaParserSource) {
+            if (locale.toLocale() == Locale.getDefault()) res += 2
+        }
+        return res
+    }
+
+    private suspend fun getPresetSourcesOrDefault(): List<MangaSource> {
+        val presetId = settings.activeSourcePresetId
+        if (presetId != 0L) {
+            val preset = presetsRepository.getById(presetId)
+            if (preset != null) {
+                if (preset.sources.isEmpty()) return emptyList()
+                val skipNsfw = settings.isNsfwContentDisabled
+                return sourcesRepository.allMangaSources.filter { source ->
+                    source.name in preset.sources && (!skipNsfw || !source.isNsfw())
+                }
+            }
+        }
+        return if (pinnedOnly.value) {
+            sourcesRepository.getPinnedSources().toList()
+        } else {
+            sourcesRepository.getEnabledSources()
+        }
+    }
 }

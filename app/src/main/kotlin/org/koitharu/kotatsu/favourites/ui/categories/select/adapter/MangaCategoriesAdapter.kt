@@ -9,12 +9,12 @@ import org.koitharu.kotatsu.list.ui.adapter.loadingStateAD
 import org.koitharu.kotatsu.list.ui.model.ListModel
 
 class MangaCategoriesAdapter(
-	clickListener: OnListItemClickListener<MangaCategoryItem>,
+    clickListener: OnListItemClickListener<MangaCategoryItem>,
 ) : BaseListAdapter<ListModel>() {
 
-	init {
-		addDelegate(ListItemType.NAV_ITEM, mangaCategoryAD(clickListener))
-		addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
-		addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
-	}
+    init {
+        addDelegate(ListItemType.NAV_ITEM, mangaCategoryAD(clickListener))
+        addDelegate(ListItemType.STATE_LOADING, loadingStateAD())
+        addDelegate(ListItemType.STATE_EMPTY, emptyStateListAD(null))
+    }
 }

@@ -5,14 +5,14 @@ import java.io.ObjectOutputStream
 
 @Suppress("UNCHECKED_CAST")
 fun <T> Class<T>.castOrNull(obj: Any?): T? {
-	if (obj == null || !isInstance(obj)) {
-		return null
-	}
-	return obj as T
+    if (obj == null || !isInstance(obj)) {
+        return null
+    }
+    return obj as T
 }
 
 fun Any.isSerializable() = runCatching {
-	val oos = ObjectOutputStream(NullOutputStream())
-	oos.writeObject(this)
-	oos.flush()
+    val oos = ObjectOutputStream(NullOutputStream())
+    oos.writeObject(this)
+    oos.flush()
 }.isSuccess

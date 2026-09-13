@@ -14,19 +14,19 @@ import javax.inject.Singleton
 @Singleton
 class ForegroundActivityHolder @Inject constructor() : DefaultActivityLifecycleCallbacks {
 
-	@Volatile
-	private var activityRef: WeakReference<Activity>? = null
+    @Volatile
+    private var activityRef: WeakReference<Activity>? = null
 
-	val current: Activity?
-		get() = activityRef?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
+    val current: Activity?
+        get() = activityRef?.get()?.takeUnless { it.isFinishing || it.isDestroyed }
 
-	override fun onActivityResumed(activity: Activity) {
-		activityRef = WeakReference(activity)
-	}
+    override fun onActivityResumed(activity: Activity) {
+        activityRef = WeakReference(activity)
+    }
 
-	override fun onActivityPaused(activity: Activity) {
-		if (activityRef?.get() === activity) {
-			activityRef = null
-		}
-	}
+    override fun onActivityPaused(activity: Activity) {
+        if (activityRef?.get() === activity) {
+            activityRef = null
+        }
+    }
 }

@@ -6,5 +6,5 @@ import org.koitharu.kotatsu.parsers.model.Manga
 class EmptyMangaException(
     val reason: EmptyMangaReason?,
     val manga: Manga,
-    cause: Throwable?
+    cause: Throwable?,
 ) : IllegalStateException(cause)

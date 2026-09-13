@@ -37,7 +37,7 @@ inline fun buildAlertDialog(
 fun <B : AlertDialog.Builder> B.setCheckbox(
     @StringRes textResId: Int,
     isChecked: Boolean,
-    onCheckedChangeListener: OnCheckedChangeListener
+    onCheckedChangeListener: OnCheckedChangeListener,
 ) = apply {
     val binding = DialogCheckboxBinding.inflate(LayoutInflater.from(context))
     binding.checkbox.setText(textResId)

@@ -7,19 +7,18 @@ import org.koitharu.kotatsu.databinding.ItemCategoryCheckableSingleBinding
 import org.koitharu.kotatsu.widget.shelf.model.CategoryItem
 
 fun categorySelectItemAD(
-	clickListener: OnListItemClickListener<CategoryItem>
+    clickListener: OnListItemClickListener<CategoryItem>,
 ) = adapterDelegateViewBinding<CategoryItem, CategoryItem, ItemCategoryCheckableSingleBinding>(
-	{ inflater, parent -> ItemCategoryCheckableSingleBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemCategoryCheckableSingleBinding.inflate(inflater, parent, false) },
 ) {
+    itemView.setOnClickListener {
+        clickListener.onItemClick(item, it)
+    }
 
-	itemView.setOnClickListener {
-		clickListener.onItemClick(item, it)
-	}
-
-	bind {
-		with(binding.checkedTextView) {
-			text = item.name ?: getString(R.string.all_favourites)
-			isChecked = item.isSelected
-		}
-	}
+    bind {
+        with(binding.checkedTextView) {
+            text = item.name ?: getString(R.string.all_favourites)
+            isChecked = item.isSelected
+        }
+    }
 }

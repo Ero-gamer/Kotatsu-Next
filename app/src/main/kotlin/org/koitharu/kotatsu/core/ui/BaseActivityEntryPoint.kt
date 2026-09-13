@@ -10,7 +10,7 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 @InstallIn(SingletonComponent::class)
 interface BaseActivityEntryPoint {
 
-	val settings: AppSettings
+    val settings: AppSettings
 
-	val exceptionResolverFactory: ExceptionResolver.Factory
+    val exceptionResolverFactory: ExceptionResolver.Factory
 }

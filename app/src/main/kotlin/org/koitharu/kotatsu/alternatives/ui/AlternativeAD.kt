@@ -34,80 +34,79 @@ import kotlin.math.sign
 import com.google.android.material.R as materialR
 
 fun alternativeAD(
-	coil: ImageLoader,
-	lifecycleOwner: LifecycleOwner,
-	listener: OnListItemClickListener<MangaAlternativeModel>,
+    coil: ImageLoader,
+    lifecycleOwner: LifecycleOwner,
+    listener: OnListItemClickListener<MangaAlternativeModel>,
 ) = adapterDelegateViewBinding<MangaAlternativeModel, ListModel, ItemMangaAlternativeBinding>(
-	{ inflater, parent -> ItemMangaAlternativeBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemMangaAlternativeBinding.inflate(inflater, parent, false) },
 ) {
+    val colorGreen = ContextCompat.getColor(context, R.color.common_green)
+    val colorRed = ContextCompat.getColor(context, R.color.common_red)
+    val clickListener = AdapterDelegateClickListenerAdapter(this, listener)
+    itemView.setOnClickListener(clickListener)
+    binding.buttonMigrate.setOnClickListener(clickListener)
+    binding.chipSource.setOnClickListener(clickListener)
 
-	val colorGreen = ContextCompat.getColor(context, R.color.common_green)
-	val colorRed = ContextCompat.getColor(context, R.color.common_red)
-	val clickListener = AdapterDelegateClickListenerAdapter(this, listener)
-	itemView.setOnClickListener(clickListener)
-	binding.buttonMigrate.setOnClickListener(clickListener)
-	binding.chipSource.setOnClickListener(clickListener)
+    bind { payloads ->
+        binding.textViewTitle.text = item.mangaModel.title
+        val migrationTooltip = when {
+            !item.isMigrationEnabled -> context.getString(R.string.migration_unavailable_search_in_progress)
+            item.chaptersCount == 0 -> context.getString(R.string.migration_unavailable_no_chapters)
+            else -> null
+        }
+        binding.buttonMigrate.isEnabled = migrationTooltip == null
+        TooltipCompat.setTooltipText(binding.buttonMigrate, migrationTooltip)
+        binding.buttonMigrate.contentDescription = migrationTooltip ?: context.getString(R.string.migrate)
+        with(binding.iconsView) {
+            clearIcons()
+            if (item.mangaModel.isSaved) addIcon(R.drawable.ic_storage)
+            if (item.mangaModel.isFavorite) addIcon(R.drawable.ic_heart_outline)
+            isVisible = iconsCount > 0
+        }
+        binding.textViewSubtitle.text = buildSpannedString {
+            if (item.chaptersCount > 0) {
+                append(
+                    context.resources.getQuantityStringSafe(
+                        R.plurals.chapters,
+                        item.chaptersCount,
+                        item.chaptersCount,
+                    ),
+                )
+            } else {
+                append(context.getString(R.string.no_chapters))
+            }
+            when (item.chaptersDiff.sign) {
+                -1 -> inSpans(ForegroundColorSpan(colorRed)) {
+                    append("  ▼ ")
+                    append(item.chaptersDiff.toString())
+                }
 
-	bind { payloads ->
-		binding.textViewTitle.text = item.mangaModel.title
-		val migrationTooltip = when {
-			!item.isMigrationEnabled -> context.getString(R.string.migration_unavailable_search_in_progress)
-			item.chaptersCount == 0 -> context.getString(R.string.migration_unavailable_no_chapters)
-			else -> null
-		}
-		binding.buttonMigrate.isEnabled = migrationTooltip == null
-		TooltipCompat.setTooltipText(binding.buttonMigrate, migrationTooltip)
-		binding.buttonMigrate.contentDescription = migrationTooltip ?: context.getString(R.string.migrate)
-		with(binding.iconsView) {
-			clearIcons()
-			if (item.mangaModel.isSaved) addIcon(R.drawable.ic_storage)
-			if (item.mangaModel.isFavorite) addIcon(R.drawable.ic_heart_outline)
-			isVisible = iconsCount > 0
-		}
-		binding.textViewSubtitle.text = buildSpannedString {
-			if (item.chaptersCount > 0) {
-				append(
-					context.resources.getQuantityStringSafe(
-						R.plurals.chapters,
-						item.chaptersCount,
-						item.chaptersCount,
-					),
-				)
-			} else {
-				append(context.getString(R.string.no_chapters))
-			}
-			when (item.chaptersDiff.sign) {
-				-1 -> inSpans(ForegroundColorSpan(colorRed)) {
-					append("  ▼ ")
-					append(item.chaptersDiff.toString())
-				}
-
-				1 -> inSpans(ForegroundColorSpan(colorGreen)) {
-					append("  ▲ +")
-					append(item.chaptersDiff.toString())
-				}
-			}
-		}
-		binding.progressView.setProgress(
-			item.mangaModel.progress,
-			ListModelDiffCallback.PAYLOAD_PROGRESS_CHANGED in payloads,
-		)
-		binding.chipSource.also { chip ->
-			chip.text = item.manga.source.getTitle(chip.context)
-			ImageRequest.Builder(context)
-				.data(item.manga.source.faviconUri())
-				.lifecycle(lifecycleOwner)
-				.crossfade(false)
-				.size(context.resources.getDimensionPixelSize(materialR.dimen.m3_chip_icon_size))
-				.target(ChipIconTarget(chip))
-				.placeholder(R.drawable.ic_web)
-				.fallback(R.drawable.ic_web)
-				.error(R.drawable.ic_web)
-				.mangaSourceExtra(item.manga.source)
-				.transformations(RoundedCornersTransformation(context.resources.getDimension(R.dimen.chip_icon_corner)))
-				.allowRgb565(true)
-				.enqueueWith(coil)
-		}
-		binding.imageViewCover.setImageAsync(item.manga.coverUrl, item.manga)
-	}
+                1 -> inSpans(ForegroundColorSpan(colorGreen)) {
+                    append("  ▲ +")
+                    append(item.chaptersDiff.toString())
+                }
+            }
+        }
+        binding.progressView.setProgress(
+            item.mangaModel.progress,
+            ListModelDiffCallback.PAYLOAD_PROGRESS_CHANGED in payloads,
+        )
+        binding.chipSource.also { chip ->
+            chip.text = item.manga.source.getTitle(chip.context)
+            ImageRequest.Builder(context)
+                .data(item.manga.source.faviconUri())
+                .lifecycle(lifecycleOwner)
+                .crossfade(false)
+                .size(context.resources.getDimensionPixelSize(materialR.dimen.m3_chip_icon_size))
+                .target(ChipIconTarget(chip))
+                .placeholder(R.drawable.ic_web)
+                .fallback(R.drawable.ic_web)
+                .error(R.drawable.ic_web)
+                .mangaSourceExtra(item.manga.source)
+                .transformations(RoundedCornersTransformation(context.resources.getDimension(R.dimen.chip_icon_corner)))
+                .allowRgb565(true)
+                .enqueueWith(coil)
+        }
+        binding.imageViewCover.setImageAsync(item.manga.coverUrl, item.manga)
+    }
 }

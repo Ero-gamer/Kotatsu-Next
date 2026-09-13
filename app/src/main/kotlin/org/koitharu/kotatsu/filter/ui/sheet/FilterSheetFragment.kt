@@ -58,16 +58,15 @@ import org.koitharu.kotatsu.parsers.util.toIntUp
 import java.util.Locale
 import java.util.TreeSet
 
-class FilterSheetFragment : BaseAdaptiveSheet<SheetFilterBinding>(),
+class FilterSheetFragment :
+    BaseAdaptiveSheet<SheetFilterBinding>(),
     AdapterView.OnItemSelectedListener,
     View.OnClickListener,
     ChipsView.OnChipClickListener,
     ChipsView.OnChipLongClickListener,
     ChipsView.OnChipCloseClickListener {
 
-    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): SheetFilterBinding {
-        return SheetFilterBinding.inflate(inflater, container, false)
-    }
+    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?): SheetFilterBinding = SheetFilterBinding.inflate(inflater, container, false)
 
     override fun onViewBindingCreated(binding: SheetFilterBinding, savedInstanceState: Bundle?) {
         super.onViewBindingCreated(binding, savedInstanceState)
@@ -206,6 +205,7 @@ class FilterSheetFragment : BaseAdaptiveSheet<SheetFilterBinding>(),
         val filter = FilterCoordinator.require(this)
         when (data) {
             is MangaState -> filter.toggleState(data, !chip.isChecked)
+
             is MangaTag -> if (chip.parentView?.id == R.id.chips_genresExclude) {
                 filter.toggleTagExclude(data, !chip.isChecked)
             } else {
@@ -213,27 +213,30 @@ class FilterSheetFragment : BaseAdaptiveSheet<SheetFilterBinding>(),
             }
 
             is ContentType -> filter.toggleContentType(data, !chip.isChecked)
+
             is ContentRating -> filter.toggleContentRating(data, !chip.isChecked)
+
             is Demographic -> filter.toggleDemographic(data, !chip.isChecked)
+
             is PersistableFilter -> filter.setAdjusted(data.filter)
+
             is String -> if (chip.isChecked) {
                 filter.setAuthor(null)
             } else {
                 filter.setAuthor(data)
             }
+
             null -> router.showTagsCatalogSheet(excludeMode = chip.parentView?.id == R.id.chips_genresExclude)
         }
     }
 
-    override fun onChipLongClick(chip: Chip, data: Any?): Boolean {
-        return when (data) {
-            is PersistableFilter -> {
-                showSavedFilterMenu(chip, data)
-                true
-            }
-
-            else -> false
+    override fun onChipLongClick(chip: Chip, data: Any?): Boolean = when (data) {
+        is PersistableFilter -> {
+            showSavedFilterMenu(chip, data)
+            true
         }
+
+        else -> false
     }
 
     override fun onChipCloseClick(chip: Chip, data: Any?) {
