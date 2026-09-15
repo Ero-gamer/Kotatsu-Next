@@ -11,7 +11,7 @@ collections = "1.6.0"
 # https://github.com/google/conscrypt/issues/1268
 conscrypt = "2.5.3"
 constraintlayout = "2.2.2"
-coreKtx = "1.19.0"
+coreKtx = "1.18.0"
 coroutines = "1.11.0"
 # NOT bumped past 2.58: Dagger/Hilt 2.59+ made AGP 9 a hard requirement for the Hilt Gradle
 # plugin ("This release adds support for AGP 9, which means AGP 9 is now a requirement").
@@ -41,7 +41,7 @@ kotlin = "2.2.21"
 kizzyRpc = "ad8f2e32eb"
 ksp = "2.2.21-2.0.5"
 leakcanary = "3.0-alpha-8"
-lifecycle = "2.11.0"
+lifecycle = "2.10.0"
 markwon = "4.6.2"
 material = "1.14.0"
 moshi = "1.15.2"
