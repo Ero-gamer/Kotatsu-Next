@@ -33,6 +33,8 @@ data class MangaPrefsEntity(
     @ColumnInfo(name = "cf_denoise", defaultValue = "0") val cfDenoise: Float,
     @ColumnInfo(name = "cf_dither", defaultValue = "0") val cfDither: Float,
     @ColumnInfo(name = "cf_grain", defaultValue = "0") val cfGrain: Float,
+    @ColumnInfo(name = "cf_sharpen_mode", defaultValue = "0") val cfSharpenMode: Int,
+    @ColumnInfo(name = "cf_line_darken", defaultValue = "0") val cfLineDarken: Boolean,
     @ColumnInfo(name = "title_override") val titleOverride: String?,
     @ColumnInfo(name = "cover_override") val coverUrlOverride: String?,
     @ColumnInfo(name = "content_rating_override") val contentRatingOverride: String?,

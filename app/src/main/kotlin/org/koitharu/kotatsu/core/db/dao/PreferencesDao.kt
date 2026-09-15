@@ -18,7 +18,11 @@ abstract class PreferencesDao {
     @Query("SELECT * FROM preferences WHERE title_override IS NOT NULL OR cover_override IS NOT NULL OR content_rating_override IS NOT NULL")
     abstract suspend fun getOverrides(): List<MangaPrefsEntity>
 
-    @Query("UPDATE preferences SET cf_brightness=0, cf_contrast=0, cf_invert=0, cf_grayscale=0, cf_sharpening=0, cf_vibrance=0, cf_vibrance2=0, cf_denoise=0, cf_dither=0, cf_grain=0, cf_book=0")
+    @Query(
+        "UPDATE preferences SET cf_brightness=0, cf_contrast=0, cf_invert=0, cf_grayscale=0, " +
+            "cf_sharpening=0, cf_vibrance=0, cf_vibrance2=0, cf_denoise=0, cf_dither=0, cf_grain=0, " +
+            "cf_sharpen_mode=0, cf_line_darken=0, cf_book=0",
+    )
     abstract suspend fun resetColorFilters()
 
     @Upsert

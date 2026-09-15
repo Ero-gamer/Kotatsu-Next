@@ -14,6 +14,7 @@ import androidx.core.content.edit
 import androidx.core.os.LocaleListCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.preference.PreferenceManager
+import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -484,9 +485,13 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
                 saturation = getFloatCompat(KEY_CF_SATURATION, ReaderColorFilter.EMPTY.saturation),
                 vibrance = getFloatCompat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance),
                 denoise = getFloatCompat(KEY_CF_DENOISE, ReaderColorFilter.EMPTY.denoise),
+                sharpenMode = SharpenMode.fromGlslId(
+                    prefs.getInt(KEY_CF_SHARPEN_MODE, ReaderColorFilter.EMPTY.sharpenMode.glslId),
+                ),
                 isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
                 isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
                 isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
+                isLineDarkenEnabled = prefs.getBoolean(KEY_CF_LINE_DARKEN, ReaderColorFilter.EMPTY.isLineDarkenEnabled),
             ).takeUnless { it.isEmpty }
         }.getOrNull()
         set(value) {
@@ -498,9 +503,11 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
                     putFloat(KEY_CF_SATURATION, value.saturation)
                     putFloat(KEY_CF_VIBRANCE, value.vibrance)
                     putFloat(KEY_CF_DENOISE, value.denoise)
+                    putInt(KEY_CF_SHARPEN_MODE, value.sharpenMode.glslId)
                     putBoolean(KEY_CF_INVERTED, value.isInverted)
                     putBoolean(KEY_CF_GRAYSCALE, value.isGrayscale)
                     putBoolean(KEY_CF_BOOK, value.isBookBackground)
+                    putBoolean(KEY_CF_LINE_DARKEN, value.isLineDarkenEnabled)
                 } else {
                     remove(KEY_CF_BRIGHTNESS)
                     remove(KEY_CF_CONTRAST)
@@ -508,9 +515,11 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
                     remove(KEY_CF_SATURATION)
                     remove(KEY_CF_VIBRANCE)
                     remove(KEY_CF_DENOISE)
+                    remove(KEY_CF_SHARPEN_MODE)
                     remove(KEY_CF_INVERTED)
                     remove(KEY_CF_GRAYSCALE)
                     remove(KEY_CF_BOOK)
+                    remove(KEY_CF_LINE_DARKEN)
                 }
             }
         }
@@ -956,6 +965,8 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
         const val KEY_CF_GRAYSCALE = "cf_grayscale"
         const val KEY_CF_BOOK = "cf_book"
         const val KEY_CF_DENOISE = "cf_denoise"
+        const val KEY_CF_SHARPEN_MODE = "cf_sharpen_mode"
+        const val KEY_CF_LINE_DARKEN = "cf_line_darken"
         const val KEY_PAGES_TAB = "pages_tab"
         const val KEY_DETAILS_TAB = "details_tab"
         const val KEY_DETAILS_LAST_TAB = "details_last_tab"

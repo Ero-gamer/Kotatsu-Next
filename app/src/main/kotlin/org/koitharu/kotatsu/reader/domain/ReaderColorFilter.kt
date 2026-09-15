@@ -4,6 +4,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
 
 /**
  * Immutable snapshot of all reader colour-correction parameters.
@@ -12,9 +13,10 @@ import android.graphics.ColorMatrixColorFilter
  * - [brightness], [contrast], [saturation] — applied as a `ColorMatrix` paint filter on SSIV.
  *
  * ### GPU (GLSL shader via [GpuFilteringDecoder]) — single-pass on tile decode:
- * - [sharpening] → `u_sharpenMode` / `u_sharpness`  (RCAS+USM at ≤0.5, Adaptive above)
- * - [vibrance]   → `u_enableVibrance`
- * - [denoise]    → `u_enableDenoise`
+ * - [sharpenMode] / [sharpening] → `u_sharpenMode` (explicit choice) / `u_sharpness` (intensity)
+ * - [vibrance]              → `u_enableVibrance` (on/off) + `u_vibranceIntensity` (magnitude)
+ * - [denoise]               → `u_enableDenoise` (on/off) + `u_denoiseStrength` (magnitude)
+ * - [isLineDarkenEnabled]   → `u_enableDarken`
  *
  * ### Deprecated / no-op:
  * - [dither] — CPU Bayer-dither loop removed; field kept for DB/serialisation compat only.
@@ -28,6 +30,8 @@ data class ReaderColorFilter(
     val saturation: Float,
     val vibrance: Float,
     val denoise: Float = 0f,
+    /** Explicit, user-chosen GPU sharpen algorithm. Never inferred from [sharpening]'s magnitude. */
+    val sharpenMode: SharpenMode = SharpenMode.OFF,
     @Deprecated("CPU grain filter removed. Field retained for DB compatibility only.")
     val dither: Float = 0f,
     @Deprecated("CPU grain filter removed. Field retained for DB compatibility only.")
@@ -35,11 +39,13 @@ data class ReaderColorFilter(
     val isInverted: Boolean,
     val isGrayscale: Boolean,
     val isBookBackground: Boolean,
+    /** Anime4K-style GPU line darkening (`u_enableDarken`). */
+    val isLineDarkenEnabled: Boolean = false,
 ) {
 
     val isEmpty: Boolean
-        get() = !isGrayscale && !isInverted && !isBookBackground &&
-            brightness == 0f && contrast == 0f && sharpening == 0f &&
+        get() = !isGrayscale && !isInverted && !isBookBackground && !isLineDarkenEnabled &&
+            brightness == 0f && contrast == 0f && sharpening == 0f && sharpenMode == SharpenMode.OFF &&
             saturation == 0f && vibrance == 0f && denoise == 0f
     // dither and grain intentionally excluded — they're always ignored.
 
@@ -71,10 +77,11 @@ data class ReaderColorFilter(
 
         @Suppress("DEPRECATION")
         val EMPTY = ReaderColorFilter(
-            brightness = 0f, contrast = 0f, sharpening = 0f,
+            brightness = 0f, contrast = 0f, sharpening = 0f, sharpenMode = SharpenMode.OFF,
             saturation = 0f, vibrance = 0f, denoise = 0f,
             dither = 0f, grain = 0f,
             isInverted = false, isGrayscale = false, isBookBackground = false,
+            isLineDarkenEnabled = false,
         )
 
         private val INVERT_MATRIX = ColorMatrix(

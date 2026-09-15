@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.reader.ui.colorfilter
 
 import androidx.lifecycle.SavedStateHandle
+import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,9 +45,11 @@ class ColorFilterConfigViewModel @Inject constructor(
     fun setBrightness(brightness: Float) = updateColorFilter { it.copy(brightness = brightness) }
     fun setContrast(contrast: Float) = updateColorFilter { it.copy(contrast = contrast) }
     fun setSharpening(sharpening: Float) = updateColorFilter { it.copy(sharpening = sharpening) }
+    fun setSharpenMode(mode: SharpenMode) = updateColorFilter { it.copy(sharpenMode = mode) }
     fun setSaturation(saturation: Float) = updateColorFilter { it.copy(saturation = saturation) }
     fun setVibrance(vibrance: Float) = updateColorFilter { it.copy(vibrance = vibrance) }
     fun setDenoise(denoise: Float) = updateColorFilter { it.copy(denoise = denoise) }
+    fun setLineDarkenEnabled(enabled: Boolean) = updateColorFilter { it.copy(isLineDarkenEnabled = enabled) }
 
     // setDither / setGrain removed — filters eliminated from GPU pipeline
     fun setInversion(invert: Boolean) = updateColorFilter { it.copy(isInverted = invert) }

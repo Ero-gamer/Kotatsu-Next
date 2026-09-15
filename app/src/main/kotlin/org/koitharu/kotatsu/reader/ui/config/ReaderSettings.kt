@@ -11,6 +11,7 @@ import com.davemorrissey.labs.subscaleview.decoder.GpuFilteringDecoder
 import com.davemorrissey.labs.subscaleview.decoder.GpuTileRenderer
 import com.davemorrissey.labs.subscaleview.decoder.ImageRegionDecoder
 import com.davemorrissey.labs.subscaleview.decoder.LiJpegTurboRegionDecoder
+import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
 import com.davemorrissey.labs.subscaleview.decoder.SkiaImageDecoder
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -87,10 +88,13 @@ data class ReaderSettings(
      * `false` when only GPU uniform values changed (takes effect on next natural tile load
      * without an explicit reload, which avoids a jarring full-image flash).
      *
-     * **GPU filter mapping:**
-     * - [ReaderColorFilter.sharpening] → RCAS+USM at ≤0.5, Adaptive at >0.5
-     * - [ReaderColorFilter.vibrance]   → `u_enableVibrance`
-     * - [ReaderColorFilter.denoise]    → `u_enableDenoise`
+     * **GPU filter mapping** — every value is taken directly from an explicit [ReaderColorFilter]
+     * field, never inferred from another field's magnitude:
+     * - [ReaderColorFilter.sharpenMode]           → `u_sharpenMode` (explicit user choice)
+     * - [ReaderColorFilter.sharpening]             → `u_sharpness` (applies under any mode)
+     * - [ReaderColorFilter.vibrance]                → `u_enableVibrance` + `u_vibranceIntensity`
+     * - [ReaderColorFilter.denoise]                 → `u_enableDenoise` + `u_denoiseStrength`
+     * - [ReaderColorFilter.isLineDarkenEnabled]     → `u_enableDarken`
      * - Brightness / Contrast / Saturation → CPU ColorMatrix (no tile reload needed)
      *
      * No CPU pixel-loop filters are installed. [FilteringRegionDecoder] is deprecated.
@@ -109,20 +113,16 @@ data class ReaderSettings(
             BitmapQuality.STANDARD
         }
 
-        // ── GPU filter params ──────────────────────────────────────────────
+        // ── GPU filter params — read directly, no cross-field inference ─────
         val cf = colorFilter
-        val gpuDenoise = (cf?.denoise ?: 0f) > 0.01f
-        val gpuVibrance = (cf?.vibrance ?: 0f) != 0f
-        val gpuSharpen = cf?.sharpening ?: 0f
-        val gpuMode = when {
-            gpuSharpen <= 0.01f -> 0
-
-            gpuSharpen <= 0.5f -> 1
-
-            // RCAS+USM
-            else -> 2 // Adaptive
-        }
-        val gpuAnyActive = gpuDenoise || gpuVibrance || gpuMode != 0
+        val gpuDenoiseEnabled = (cf?.denoise ?: 0f) > 0.01f
+        val gpuDenoiseStrength = (cf?.denoise ?: 0f).coerceIn(0f, 1f)
+        val gpuVibranceEnabled = (cf?.vibrance ?: 0f) > 0.01f
+        val gpuVibranceIntensity = (cf?.vibrance ?: 0f).coerceIn(0f, 1f)
+        val gpuSharpenMode = cf?.sharpenMode ?: SharpenMode.OFF
+        val gpuSharpness = (cf?.sharpening ?: 0f).coerceIn(0f, 1f)
+        val gpuLineDarken = cf?.isLineDarkenEnabled == true
+        val gpuAnyActive = gpuDenoiseEnabled || gpuVibranceEnabled || gpuSharpenMode != SharpenMode.OFF || gpuLineDarken
 
         // ── Factory change detection ───────────────────────────────────────
         val current = ssiv.regionDecoderFactory
@@ -139,11 +139,13 @@ data class ReaderSettings(
                     ?: GpuTileRenderer(ssiv.context)
                 GpuFilteringDecoder.Factory(
                     innerFactory = baseFactory,
-                    enableDenoise = gpuDenoise,
-                    enableDarken = false,
-                    enableVibrance = gpuVibrance,
-                    sharpenMode = gpuMode,
-                    sharpness = gpuSharpen.coerceIn(0f, 1f),
+                    enableDenoise = gpuDenoiseEnabled,
+                    enableDarken = gpuLineDarken,
+                    enableVibrance = gpuVibranceEnabled,
+                    sharpenMode = gpuSharpenMode.glslId,
+                    sharpness = gpuSharpness,
+                    denoiseStrength = gpuDenoiseStrength,
+                    vibranceIntensity = gpuVibranceIntensity,
                     renderer = renderer,
                 )
             } else {
@@ -160,10 +162,13 @@ data class ReaderSettings(
         // Factory unchanged — update GPU uniform values live (no tile reload needed).
         if (gpuAnyActive && current is GpuFilteringDecoder.Factory) {
             current.renderer.apply {
-                enableDenoise = gpuDenoise
-                enableVibrance = gpuVibrance
-                sharpenMode = gpuMode
-                sharpness = gpuSharpen.coerceIn(0f, 1f)
+                enableDenoise = gpuDenoiseEnabled
+                enableDarken = gpuLineDarken
+                enableVibrance = gpuVibranceEnabled
+                sharpenMode = gpuSharpenMode.glslId
+                sharpness = gpuSharpness
+                denoiseStrength = gpuDenoiseStrength
+                vibranceIntensity = gpuVibranceIntensity
             }
         }
         return false
@@ -190,6 +195,8 @@ data class ReaderSettings(
             AppSettings.KEY_CF_VIBRANCE,
             AppSettings.KEY_CF_BOOK,
             AppSettings.KEY_CF_DENOISE,
+            AppSettings.KEY_CF_SHARPEN_MODE,
+            AppSettings.KEY_CF_LINE_DARKEN,
             AppSettings.KEY_READER_CROP,
         )
         private var job: Job? = null

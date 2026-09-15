@@ -14,6 +14,8 @@ import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.size.Size
+import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.LabelFormatter
 import com.google.android.material.slider.Slider
@@ -42,7 +44,8 @@ class ColorFilterConfigActivity :
     BaseActivity<ActivityColorFilterBinding>(),
     Slider.OnChangeListener,
     View.OnClickListener,
-    CompoundButton.OnCheckedChangeListener {
+    CompoundButton.OnCheckedChangeListener,
+    MaterialButtonToggleGroup.OnButtonCheckedListener {
 
     private val viewModel: ColorFilterConfigViewModel by viewModels()
 
@@ -71,11 +74,16 @@ class ColorFilterConfigActivity :
         viewBinding.sliderContrast.setLabelFormatter(percentFormatter)
         viewBinding.sliderSharpening.setLabelFormatter(unsignedFormatter)
         viewBinding.sliderSaturation.setLabelFormatter(signedFormatter)
-        viewBinding.sliderVibrance.setLabelFormatter(signedFormatter)
+        // Vibrance is a pure boost magnitude (0..1), not a signed adjustment — unsigned
+        // formatter matches Sharpen intensity / Denoise.
+        viewBinding.sliderVibrance.setLabelFormatter(unsignedFormatter)
         viewBinding.sliderDenoise.setLabelFormatter(unsignedFormatter)
+
+        viewBinding.groupSharpenMode.addOnButtonCheckedListener(this)
 
         viewBinding.switchInvert.setOnCheckedChangeListener(this)
         viewBinding.switchGrayscale.setOnCheckedChangeListener(this)
+        viewBinding.switchLineDarken.setOnCheckedChangeListener(this)
         viewBinding.switchBook.setOnCheckedChangeListener(this)
         viewBinding.buttonDone.setOnClickListener(this)
         viewBinding.buttonReset.setOnClickListener(this)
@@ -111,8 +119,20 @@ class ColorFilterConfigActivity :
         when (buttonView.id) {
             R.id.switch_invert -> viewModel.setInversion(isChecked)
             R.id.switch_grayscale -> viewModel.setGrayscale(isChecked)
+            R.id.switch_line_darken -> viewModel.setLineDarkenEnabled(isChecked)
             R.id.switch_book -> viewModel.setBookEffect(isChecked)
         }
+    }
+
+    override fun onButtonChecked(group: MaterialButtonToggleGroup, checkedId: Int, isChecked: Boolean) {
+        if (!isChecked) return
+        val mode = when (checkedId) {
+            R.id.button_sharpen_off -> SharpenMode.OFF
+            R.id.button_sharpen_rcas -> SharpenMode.RCAS_USM
+            R.id.button_sharpen_adaptive -> SharpenMode.ADAPTIVE_SHARPEN
+            else -> return
+        }
+        viewModel.setSharpenMode(mode)
     }
 
     override fun onClick(v: View) {
@@ -133,22 +153,30 @@ class ColorFilterConfigActivity :
     }
 
     private fun onColorFilterChanged(cf: ReaderColorFilter?) {
+        val sharpenMode = cf?.sharpenMode ?: SharpenMode.OFF
+
         viewBinding.sliderBrightness.setValueRounded(cf?.brightness ?: 0f)
         viewBinding.sliderContrast.setValueRounded(cf?.contrast ?: 0f)
         viewBinding.sliderSharpening.setValueRounded(cf?.sharpening ?: 0f)
         viewBinding.sliderSaturation.setValueRounded(cf?.saturation ?: 0f)
         viewBinding.sliderVibrance.setValueRounded(cf?.vibrance ?: 0f)
         viewBinding.sliderDenoise.setValueRounded(cf?.denoise ?: 0f)
+        viewBinding.buttonSharpenOff.isChecked = sharpenMode == SharpenMode.OFF
+        viewBinding.buttonSharpenRcas.isChecked = sharpenMode == SharpenMode.RCAS_USM
+        viewBinding.buttonSharpenAdaptive.isChecked = sharpenMode == SharpenMode.ADAPTIVE_SHARPEN
         viewBinding.switchInvert.setChecked(cf?.isInverted == true, false)
         viewBinding.switchGrayscale.setChecked(cf?.isGrayscale == true, false)
+        viewBinding.switchLineDarken.setChecked(cf?.isLineDarkenEnabled == true, false)
         viewBinding.switchBook.setChecked(cf?.isBookBackground == true, false)
 
         if (!beforeImageReady) return
 
-        val sharpening = cf?.sharpening ?: 0f
+        // Effective sharpening for the preview: the intensity slider value is meaningless
+        // while the mode is Off, matching how ReaderSettings derives the real GPU uniforms.
+        val sharpening = if (sharpenMode != SharpenMode.OFF) cf?.sharpening ?: 0f else 0f
         val vibrance = cf?.vibrance ?: 0f
-        if (sharpening > 0.01f || vibrance != 0f) {
-            applyAfterFilter(cf)
+        if (sharpening > 0.01f || vibrance > 0.01f) {
+            applyAfterFilter(cf, sharpening)
         } else {
             previewJob?.cancel()
             showSourceWithColorMatrix(cf)
@@ -168,8 +196,7 @@ class ColorFilterConfigActivity :
      * Uses [ImageFiltersTransformation] (CPU, allocation-light) for the preview bitmap only —
      * actual reader tiles go through the GPU shader.
      */
-    private fun applyAfterFilter(cf: ReaderColorFilter?) {
-        val sharpening = cf?.sharpening ?: 0f
+    private fun applyAfterFilter(cf: ReaderColorFilter?, sharpening: Float) {
         val vibrance = cf?.vibrance ?: 0f
         val source = sourceBitmap ?: return
 
@@ -216,8 +243,13 @@ class ColorFilterConfigActivity :
         viewBinding.sliderSaturation.isEnabled = !isLoading
         viewBinding.sliderVibrance.isEnabled = !isLoading
         viewBinding.sliderDenoise.isEnabled = !isLoading
+        viewBinding.groupSharpenMode.isEnabled = !isLoading
+        viewBinding.buttonSharpenOff.isEnabled = !isLoading
+        viewBinding.buttonSharpenRcas.isEnabled = !isLoading
+        viewBinding.buttonSharpenAdaptive.isEnabled = !isLoading
         viewBinding.switchInvert.isEnabled = !isLoading
         viewBinding.switchGrayscale.isEnabled = !isLoading
+        viewBinding.switchLineDarken.isEnabled = !isLoading
         viewBinding.buttonDone.isEnabled = !isLoading
     }
 

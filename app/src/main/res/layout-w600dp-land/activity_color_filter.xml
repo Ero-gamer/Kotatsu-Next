@@ -239,11 +239,70 @@
 				android:layout_marginStart="@dimen/margin_normal"
 				android:layout_marginTop="@dimen/margin_small"
 				android:value="0.0"
-				android:valueFrom="-1.0"
+				android:valueFrom="0.0"
 				android:valueTo="1.0"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
 				app:layout_constraintTop_toBottomOf="@id/textView_vibrance" />
+
+			<!-- ── Sharpen mode (GPU shader — u_sharpenMode, explicit user choice) ── -->
+
+			<TextView
+				android:id="@+id/textView_sharpen_mode"
+				android:layout_width="0dp"
+				android:layout_height="match_parent"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/sharpen_mode"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/slider_vibrance" />
+
+			<com.google.android.material.button.MaterialButtonToggleGroup
+				android:id="@+id/group_sharpen_mode"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_small"
+				android:baselineAligned="false"
+				android:orientation="horizontal"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_sharpen_mode"
+				app:selectionRequired="true"
+				app:singleSelection="true">
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/button_sharpen_off"
+					style="@style/Widget.Kotatsu.ToggleButton"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:textAlignment="center"
+					android:text="@string/sharpen_off" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/button_sharpen_rcas"
+					style="@style/Widget.Kotatsu.ToggleButton"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:textAlignment="center"
+					android:text="@string/sharpen_rcas_usm" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/button_sharpen_adaptive"
+					style="@style/Widget.Kotatsu.ToggleButton"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:textAlignment="center"
+					android:text="@string/sharpen_adaptive" />
+
+			</com.google.android.material.button.MaterialButtonToggleGroup>
+
+			<!-- ── Sharpen intensity (GPU shader — u_sharpness, applies regardless of mode) ── -->
 
 			<TextView
 				android:id="@+id/textView_sharpening"
@@ -255,7 +314,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_vibrance" />
+				app:layout_constraintTop_toBottomOf="@id/group_sharpen_mode" />
 
 			<com.google.android.material.slider.Slider
 				android:id="@+id/slider_sharpening"
@@ -298,6 +357,20 @@
 			<!-- Dither and Grain (textView_dither/slider_dither/textView_grain/slider_grain)
 			     REMOVED — CPU loops eliminated. Matches the base layout/ folder variant. -->
 
+			<!-- ── Line Darkening (GPU shader — u_enableDarken) ── -->
+
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_line_darken"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="@dimen/margin_normal"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/line_darkening"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/slider_denoise" />
+
 			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switch_book"
 				android:layout_width="0dp"
@@ -308,7 +381,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_denoise" />
+				app:layout_constraintTop_toBottomOf="@id/switch_line_darken" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

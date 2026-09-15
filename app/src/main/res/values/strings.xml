@@ -542,9 +542,14 @@
     <string name="downloads_settings_info">You can enable download slowdown for each manga source individually in the source settings if you are having problems with server-side blocking</string>
     <string name="skip">Skip</string>
     <string name="grayscale">Grayscale</string>
-    <string name="sharpening">Sharpness</string>
+    <string name="sharpening">Sharpen intensity</string>
+    <string name="sharpen_mode">Sharpen mode</string>
+    <string name="sharpen_off">Off</string>
+    <string name="sharpen_rcas_usm">RCAS + USM</string>
+    <string name="sharpen_adaptive">Adaptive</string>
+    <string name="line_darkening">Line darkening</string>
     <string name="saturation">Saturation</string>
-    <string name="vibrance">Vibrance (HSL)</string>
+    <string name="vibrance">Vibrance</string>
     <string name="vertical_page_slider">Vertical page slider</string>
     <string name="e_ink">E-Ink</string>
     <string name="flash_on_page_change">Flash on page change</string>
@@ -891,8 +896,6 @@
     <string name="theme_name_totoro">Totoro</string>
     <string name="book_effect">Yellowish background (blue filter)</string>
     <string name="denoise">Denoise</string>
-    <string name="dither">Dither</string>
-    <string name="grain">Grain</string>
     <string name="set_value">Set value</string>
     <string name="local_storage_cleanup">Local storage cleanup</string>
     <string name="packup_creation_failed">Failed to create backup</string>

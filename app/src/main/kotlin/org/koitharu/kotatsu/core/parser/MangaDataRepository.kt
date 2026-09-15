@@ -4,6 +4,7 @@ import androidx.collection.LongObjectMap
 import androidx.collection.MutableLongObjectMap
 import androidx.core.net.toUri
 import androidx.room.withTransaction
+import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
 import dagger.Reusable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -63,6 +64,8 @@ class MangaDataRepository @Inject constructor(
                     cfDenoise = colorFilter?.denoise ?: 0f,
                     cfDither = colorFilter?.dither ?: 0f,
                     cfGrain = colorFilter?.grain ?: 0f,
+                    cfSharpenMode = (colorFilter?.sharpenMode ?: SharpenMode.OFF).glslId,
+                    cfLineDarken = colorFilter?.isLineDarkenEnabled == true,
                     cfInvert = colorFilter?.isInverted == true,
                     cfGrayscale = colorFilter?.isGrayscale == true,
                     cfBookEffect = colorFilter?.isBookBackground == true,
@@ -207,7 +210,8 @@ class MangaDataRepository @Inject constructor(
     }
 
     private fun MangaPrefsEntity.getColorFilterOrNull(): ReaderColorFilter? = if (cfBrightness != 0f || cfContrast != 0f || cfSharpening != 0f ||
-        cfSaturation != 0f || cfVibrance != 0f || cfDenoise != 0f || cfDither != 0f || cfGrain != 0f || cfInvert || cfGrayscale || cfBookEffect
+        cfSaturation != 0f || cfVibrance != 0f || cfDenoise != 0f || cfDither != 0f || cfGrain != 0f ||
+        cfSharpenMode != 0 || cfLineDarken || cfInvert || cfGrayscale || cfBookEffect
     ) {
         ReaderColorFilter(
             brightness = cfBrightness,
@@ -218,9 +222,11 @@ class MangaDataRepository @Inject constructor(
             denoise = cfDenoise,
             dither = cfDither,
             grain = cfGrain,
+            sharpenMode = SharpenMode.fromGlslId(cfSharpenMode),
             isInverted = cfInvert,
             isGrayscale = cfGrayscale,
             isBookBackground = cfBookEffect,
+            isLineDarkenEnabled = cfLineDarken,
         )
     } else {
         null
@@ -247,6 +253,8 @@ class MangaDataRepository @Inject constructor(
         cfDenoise = ReaderColorFilter.EMPTY.denoise,
         cfDither = ReaderColorFilter.EMPTY.dither,
         cfGrain = ReaderColorFilter.EMPTY.grain,
+        cfSharpenMode = ReaderColorFilter.EMPTY.sharpenMode.glslId,
+        cfLineDarken = ReaderColorFilter.EMPTY.isLineDarkenEnabled,
         cfInvert = ReaderColorFilter.EMPTY.isInverted,
         cfGrayscale = ReaderColorFilter.EMPTY.isGrayscale,
         cfBookEffect = ReaderColorFilter.EMPTY.isBookBackground,
