@@ -1,3 +1,5 @@
+@file:OptIn(org.koitharu.kotatsu.parsers.InternalParsersApi::class)
+
 package org.koitharu.kotatsu.local.data
 
 import androidx.core.net.toFile

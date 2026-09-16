@@ -1,3 +1,5 @@
+@file:OptIn(org.koitharu.kotatsu.parsers.InternalParsersApi::class)
+
 package org.koitharu.kotatsu.core.parser
 
 import org.koitharu.kotatsu.core.exceptions.UnsupportedSourceException

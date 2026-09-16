@@ -1,3 +1,5 @@
+@file:OptIn(org.koitharu.kotatsu.parsers.InternalParsersApi::class)
+
 package org.koitharu.kotatsu.scrobbling.anilist.data
 
 import android.content.Context

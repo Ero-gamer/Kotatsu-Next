@@ -14,6 +14,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.koitharu.kotatsu.core.db.MangaDatabase
+import org.koitharu.kotatsu.core.db.TABLE_FAVOURITES
+import org.koitharu.kotatsu.core.db.TABLE_FAVOURITE_CATEGORIES
+import org.koitharu.kotatsu.core.db.TABLE_HISTORY
+import org.koitharu.kotatsu.core.db.TABLE_MANGA
+import org.koitharu.kotatsu.core.db.TABLE_MANGA_TAGS
+import org.koitharu.kotatsu.core.db.TABLE_TAGS
 import java.util.concurrent.Callable
 
 abstract class SyncProvider : ContentProvider() {
