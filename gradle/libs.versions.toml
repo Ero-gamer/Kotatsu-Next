@@ -5,7 +5,7 @@ adapterdelegates = "4.3.2"
 appcompat = "1.8.0"
 avifDecoder = "1.3.0.841110fd"
 biometric = "1.4.0-alpha05"
-composeBom = "2026.06.01"
+composeBom = "2026.05.01"
 coil = "3.6.2"
 collections = "1.6.0"
 # https://github.com/google/conscrypt/issues/1268
@@ -13,32 +13,44 @@ conscrypt = "2.5.3"
 constraintlayout = "2.2.2"
 coreKtx = "1.18.0"
 coroutines = "1.11.0"
-dagger = "2.57.2"
+# NOT bumped past 2.58: Dagger/Hilt 2.59+ made AGP 9 a hard requirement for the Hilt Gradle
+# plugin ("This release adds support for AGP 9, which means AGP 9 is now a requirement").
+# 2.58 is the last release built specifically to avoid forcing that (its own release notes:
+# "AGP 9 support was held back from this release because it forces users onto AGP 9"), so it's
+# the safe ceiling while `gradle` above stays on 8.13.2. See also the `hilt` key's note.
+dagger = "2.58"
 decoroutinator = "2.6.4"
 desugar = "2.1.5"
 diskLruCache = "1.5"
 documentfile = "1.1.0"
 fragment = "1.8.9"
-gradle = "8.13.0"
+# AGP 9.x is the current latest major, but requires migrating deprecated DSL (kotlinOptions,
+# defaultConfig.targetSdk) that this build still uses, and androidx.hilt 1.4.0 requires
+# AGP >= 9.2.0 for Compose — so bumping hilt would force an AGP 9 bump too. Staying on the
+# latest stable 8.x patch until that migration is done. See :library's build.gradle.kts for
+# the same reasoning applied to the SSIV module.
+gradle = "8.13.2"
 guava = "33.6.0-jre"
+# NOT bumped to 1.4.0: that release requires AGP >= 9.2.0 when using Compose (which this app
+# does). Bumping AGP that far is a separate, larger migration — see the `gradle` key above.
 hilt = "1.3.0"
 json = "20260522"
 junit = "6.1.2"
 junitKtx = "1.3.0"
-kotlin = "2.2.10"
+kotlin = "2.2.21"
 kizzyRpc = "ad8f2e32eb"
-ksp = "2.2.10-2.0.2"
+ksp = "2.2.21-2.0.5"
 leakcanary = "3.0-alpha-8"
 lifecycle = "2.10.0"
 markwon = "4.6.2"
 material = "1.14.0"
 moshi = "1.15.2"
 okhttp = "5.4.0"
-okio = "3.18.1"
+okio = "3.18.2"
 parsers = "1.9.4"
 preference = "1.2.1"
 recyclerview = "1.4.0"
-room = "2.8.4"
+room = "2.8.5"
 serialization = "1.9.0"
 ssiv = "6.97"
 swiperefreshlayout = "1.2.0"

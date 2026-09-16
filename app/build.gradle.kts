@@ -179,6 +179,25 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.activity)
 
+    // The Compose BOM transitively pulls in androidx.lifecycle:lifecycle-runtime-compose(-android),
+    // an artifact this app never calls directly (no collectAsStateWithLifecycle usage etc).
+    // Versions >= 2.11.0 declare an AAR-metadata requirement of AGP >= 9.1.0, which fails the
+    // build outright, and no BOM version was found that avoids pulling >= 2.11.0 in (stepping
+    // the BOM back to 2026.05.01 was tried and still resolved 2.11.0). Capping the transitive
+    // version directly via a constraint is deterministic regardless of what any BOM requests -
+    // "strictly" is required here because a plain version request would lose to the BOM's
+    // preferred version under Gradle's default highest-wins conflict resolution.
+    constraints {
+        implementation("androidx.lifecycle:lifecycle-runtime-compose-android") {
+            version { strictly("2.10.0") }
+            because("2.11.0+ requires AGP >= 9.1.0; this build is pinned to AGP 8.13.0")
+        }
+        implementation("androidx.lifecycle:lifecycle-runtime-compose") {
+            version { strictly("2.10.0") }
+            because("2.11.0+ requires AGP >= 9.1.0; this build is pinned to AGP 8.13.0")
+        }
+    }
+
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core)
     implementation(libs.androidx.activity)
