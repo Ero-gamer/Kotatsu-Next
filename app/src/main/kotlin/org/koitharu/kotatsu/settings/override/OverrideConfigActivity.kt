@@ -13,6 +13,7 @@ import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.filterNotNull
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.alternatives.ui.covers.AlternativeCoversActivity
 import org.koitharu.kotatsu.core.ui.BaseActivity
 import org.koitharu.kotatsu.core.ui.model.MangaOverride
 import org.koitharu.kotatsu.core.util.ext.consumeAll
@@ -36,6 +37,11 @@ class OverrideConfigActivity :
 
     private val pickCoverFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument(), this)
     private val pickPageLauncher = registerForActivityResult(PageImagePickContract(), this)
+    private val pickAlternativeCoverLauncher = registerForActivityResult(AlternativeCoversActivity.Contract()) { url ->
+        if (url != null) {
+            viewModel.updateCover(url)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +50,7 @@ class OverrideConfigActivity :
         viewBinding.buttonDone.setOnClickListener(this)
         viewBinding.buttonPickFile.setOnClickListener(this)
         viewBinding.buttonPickPage.setOnClickListener(this)
+        viewBinding.buttonPickAlternative.setOnClickListener(this)
         viewBinding.buttonResetCover.setOnClickListener(this)
         viewBinding.layoutName.setEndIconOnClickListener(this)
         viewModel.data.filterNotNull().observe(this, ::onDataChanged)
@@ -96,6 +103,10 @@ class OverrideConfigActivity :
             R.id.button_pick_page -> {
                 val manga = viewModel.data.value?.first
                 pickPageLauncher.launch(manga)
+            }
+
+            R.id.button_pick_alternative -> {
+                viewModel.data.value?.first?.let(pickAlternativeCoverLauncher::launch)
             }
         }
     }

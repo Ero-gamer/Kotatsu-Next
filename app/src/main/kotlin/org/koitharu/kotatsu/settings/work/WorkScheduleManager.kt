@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import org.koitharu.kotatsu.suggestions.ui.SuggestionsWorker
+import org.koitharu.kotatsu.sync.domain.SyncController
 import org.koitharu.kotatsu.tracker.domain.TrackerUnstuckMigrationUseCase
 import org.koitharu.kotatsu.tracker.work.TrackWorker
 import javax.inject.Inject
@@ -18,6 +19,7 @@ class WorkScheduleManager @Inject constructor(
     private val suggestionScheduler: SuggestionsWorker.Scheduler,
     private val trackerScheduler: TrackWorker.Scheduler,
     private val trackerUnstuckMigrationProvider: Provider<TrackerUnstuckMigrationUseCase>,
+    private val syncController: SyncController,
 ) : SharedPreferences.OnSharedPreferenceChangeListener {
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
@@ -38,6 +40,8 @@ class WorkScheduleManager @Inject constructor(
                 isEnabled = settings.isSuggestionsEnabled,
                 force = key != AppSettings.KEY_SUGGESTIONS,
             )
+
+            AppSettings.KEY_SYNC_PERIOD -> syncController.updateSyncSchedule()
         }
     }
 
@@ -51,6 +55,11 @@ class WorkScheduleManager @Inject constructor(
             // Recovery for tracks bugged by the previous reader-side use case.
             // Runs at most once per install (gated by a settings flag).
             trackerUnstuckMigrationProvider.get().runIfNeeded()
+        }
+        processLifecycleScope.launch(Dispatchers.Default) {
+            // Periodic syncs are registered with the system rather than WorkManager, so they have to be
+            // re-asserted here for accounts added before this setting existed.
+            syncController.updateSyncSchedule()
         }
     }
 

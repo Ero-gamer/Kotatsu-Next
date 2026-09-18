@@ -122,6 +122,7 @@
     <string name="size_s">Size: %s</string>
     <string name="clear_updates_feed">Clear updates feed</string>
     <string name="updates_feed_cleared">Cleared</string>
+    <string name="update_removed">Update removed</string>
     <string name="rotate_screen">Rotate screen</string>
     <string name="update">Update</string>
     <string name="feed_will_update_soon">Feed update will start soon</string>

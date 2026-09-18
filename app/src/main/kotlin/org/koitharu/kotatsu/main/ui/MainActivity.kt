@@ -70,11 +70,14 @@ import org.koitharu.kotatsu.local.ui.LocalIndexUpdateService
 import org.koitharu.kotatsu.local.ui.LocalStorageCleanupWorker
 import org.koitharu.kotatsu.main.ui.owners.AppBarOwner
 import org.koitharu.kotatsu.main.ui.owners.BottomNavOwner
+import org.koitharu.kotatsu.main.ui.ScreenFilterMenuProvider
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.remotelist.ui.MangaSearchMenuProvider
+import org.koitharu.kotatsu.search.domain.ScreenSearchQuery
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionItemCallback
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionListenerImpl
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionMenuProvider
+import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionScope
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionViewModel
 import org.koitharu.kotatsu.search.ui.suggestion.adapter.SearchSuggestionAdapter
 import javax.inject.Inject
@@ -93,6 +96,12 @@ class MainActivity :
 
     @Inject
     lateinit var settings: AppSettings
+
+    @Inject
+    lateinit var screenSearchQuery: ScreenSearchQuery
+
+    /** Mirrors the filter of the screen currently shown, so the menu can be prepared synchronously. */
+    private var activeScreenFilter: String = ""
 
     private val viewModel by viewModels<MainViewModel>()
     private val searchSuggestionViewModel by viewModels<SearchSuggestionViewModel>()
@@ -178,6 +187,15 @@ class MainActivity :
     override fun onFragmentChanged(fragment: Fragment, fromUser: Boolean) {
         adjustFabVisibility(topFragment = fragment)
         adjustAppbar(topFragment = fragment)
+        // The search bar is shared by every section, so tell it which one it now belongs to: on History
+        // and Favourites it narrows to that screen instead of suggesting across the whole library.
+        searchSuggestionViewModel.setScope(
+            when (fragment) {
+                is HistoryListFragment -> SearchSuggestionScope.HISTORY
+                is FavouritesContainerFragment -> SearchSuggestionScope.FAVOURITES
+                else -> SearchSuggestionScope.ALL
+            },
+        )
         if (fromUser) {
             actionModeDelegate.finishActionMode()
             viewBinding.appbar.setExpanded(true)
@@ -408,6 +426,23 @@ class MainActivity :
 
     private fun initSearch() {
         val listener = SearchSuggestionListenerImpl(router, viewBinding.searchView, searchSuggestionViewModel)
+        // Keep the collapsed bar showing the active filter, and offer a way out of it. The SearchView and
+        // SearchBar hold their own text, so hiding the overlay does not carry the query across by itself.
+        addMenuProvider(
+            ScreenFilterMenuProvider(
+                isFilterActive = { activeScreenFilter.isNotEmpty() },
+                onClear = {
+                    viewBinding.searchView.setText("")
+                    // Dropping the mode clears that screen's filter, so this is the only call needed.
+                    searchSuggestionViewModel.setScoped(false)
+                },
+            ),
+        )
+        screenSearchQuery.activeQuery.observe(this) { query ->
+            activeScreenFilter = query
+            viewBinding.searchBar.setText(query)
+            invalidateOptionsMenu()
+        }
         val adapter = SearchSuggestionAdapter(listener)
         viewBinding.searchView.toolbar.addMenuProvider(
             SearchSuggestionMenuProvider(this, voiceInputLauncher, searchSuggestionViewModel),

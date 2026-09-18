@@ -58,7 +58,10 @@ import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.trySetForeground
 import org.koitharu.kotatsu.download.ui.worker.DownloadTask
 import org.koitharu.kotatsu.download.ui.worker.DownloadWorker
+import org.koitharu.kotatsu.history.data.HistoryRepository
 import org.koitharu.kotatsu.local.data.LocalMangaRepository
+import org.koitharu.kotatsu.local.data.LocalStorageManager
+import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.parsers.util.toIntUp
 import org.koitharu.kotatsu.settings.work.PeriodicWorkScheduler
@@ -71,6 +74,8 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.math.roundToInt
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import androidx.appcompat.R as appcompatR
 
 @HiltWorker
@@ -85,6 +90,8 @@ class TrackWorker @AssistedInject constructor(
     private val workManager: WorkManager,
     private val localRepositoryLazy: Lazy<LocalMangaRepository>,
     private val downloadSchedulerLazy: Lazy<DownloadWorker.Scheduler>,
+    private val historyRepositoryLazy: Lazy<HistoryRepository>,
+    private val storageManagerLazy: Lazy<LocalStorageManager>,
 ) : CoroutineWorker(context, workerParams) {
 
     private val notificationManager by lazy { NotificationManagerCompat.from(applicationContext) }
@@ -276,26 +283,44 @@ class TrackWorker @AssistedInject constructor(
         if (!mangaUpdates.isValid || mangaUpdates.newChapters.isEmpty()) {
             return
         }
-        when (settings.trackerDownloadStrategy) {
-            TrackerDownloadStrategy.DISABLED -> Unit
+        val shouldDownload = when (settings.trackerDownloadStrategy) {
+            TrackerDownloadStrategy.DISABLED -> false
+            TrackerDownloadStrategy.DOWNLOADED -> localRepositoryLazy.get()
+                .findSavedManga(mangaUpdates.manga) != null
 
-            TrackerDownloadStrategy.DOWNLOADED -> {
-                val localManga = localRepositoryLazy.get().findSavedManga(mangaUpdates.manga)
-                if (localManga != null) {
-                    val task = DownloadTask(
-                        mangaId = mangaUpdates.manga.id,
-                        isPaused = false,
-                        isSilent = false,
-                        chaptersIds = mangaUpdates.newChapters.ids().toLongArray(),
-                        destination = null,
-                        format = null,
-                        allowMeteredNetwork = settings.allowDownloadOnMeteredNetwork != TriStateOption.DISABLED,
-                    )
-                    downloadSchedulerLazy.get().schedule(setOf(mangaUpdates.manga to task))
-                }
-            }
+            TrackerDownloadStrategy.RECENTLY_READ -> isReadRecently(mangaUpdates.manga)
         }
+        if (!shouldDownload || !hasFreeSpaceForDownload()) {
+            return
+        }
+        // Only the newest few: a dormant series that backfills its archive would otherwise queue
+        // hundreds of chapters at once.
+        val chapters = mangaUpdates.newChapters
+            .takeLast(TrackerDownloadStrategy.MAX_CHAPTERS_PER_RUN)
+        val task = DownloadTask(
+            mangaId = mangaUpdates.manga.id,
+            isPaused = false,
+            isSilent = false,
+            chaptersIds = chapters.ids().toLongArray(),
+            destination = null,
+            format = null,
+            allowMeteredNetwork = settings.allowDownloadOnMeteredNetwork != TriStateOption.DISABLED,
+        )
+        downloadSchedulerLazy.get().schedule(setOf(mangaUpdates.manga to task))
     }
+
+    private suspend fun isReadRecently(manga: Manga): Boolean {
+        val lastRead = historyRepositoryLazy.get().getOne(manga)?.updatedAt ?: return false
+        val threshold = Instant.now().minus(TrackerDownloadStrategy.RECENT_READ_WINDOW_DAYS, ChronoUnit.DAYS)
+        return lastRead.isAfter(threshold)
+    }
+
+    /**
+     * Auto-download is unattended, so it must not be the thing that fills the device.
+     */
+    private suspend fun hasFreeSpaceForDownload(): Boolean = runCatchingCancellable {
+        storageManagerLazy.get().computeAvailableSize() >= TrackerDownloadStrategy.MIN_FREE_SPACE_BYTES
+    }.getOrDefault(true)
 
     @Reusable
     class Scheduler @Inject constructor(

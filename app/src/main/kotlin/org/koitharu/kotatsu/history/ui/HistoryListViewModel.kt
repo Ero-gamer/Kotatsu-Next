@@ -43,6 +43,9 @@ import org.koitharu.kotatsu.list.ui.model.toErrorState
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.model.Manga
+import org.koitharu.kotatsu.search.domain.ScreenFilterLog
+import org.koitharu.kotatsu.search.domain.ScreenSearchQuery
+import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionScope
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -58,6 +61,7 @@ class HistoryListViewModel @Inject constructor(
     private val quickFilter: HistoryListQuickFilter,
     mangaDataRepository: MangaDataRepository,
     @LocalStorageChanges localStorageChanges: SharedFlow<LocalManga?>,
+    private val screenSearchQuery: ScreenSearchQuery,
 ) : MangaListViewModel(settings, mangaDataRepository, localStorageChanges),
     QuickFilterListener by quickFilter {
 
@@ -153,10 +157,17 @@ class HistoryListViewModel @Inject constructor(
         sortOrder,
         quickFilter.appliedOptions.combineWithSettings(),
         limit,
-    ) { order, filters, limit ->
+        screenSearchQuery.query(SearchSuggestionScope.HISTORY),
+    ) { order, filters, limit, searchQuery ->
         isPaginationReady.set(false)
-        repository.observeAllWithHistory(order, filters, limit)
+        repository.observeAllWithHistory(order, filters, limit, searchQuery)
+            .onEach { ScreenFilterLog.result(SearchSuggestionScope.HISTORY, searchQuery, it.size) }
     }.flattenLatest()
+
+    override fun clearFilter() {
+        screenSearchQuery.clear(SearchSuggestionScope.HISTORY)
+        quickFilter.clearFilter()
+    }
 
     private suspend fun mapList(
         list: List<MangaWithHistory>,
@@ -166,7 +177,10 @@ class HistoryListViewModel @Inject constructor(
         isIncognito: Boolean,
     ): List<ListModel> {
         if (list.isEmpty()) {
-            return if (filters.isEmpty()) {
+            // A text filter counts as a filter: showing "what you read will appear here" to someone who
+            // just searched reads as if their history was wiped.
+            val hasFilters = filters.isNotEmpty() || screenSearchQuery.query(SearchSuggestionScope.HISTORY).value.isNotEmpty()
+            return if (!hasFilters) {
                 listOf(getEmptyState(hasFilters = false))
             } else {
                 listOfNotNull(quickFilter.filterItem(filters), getEmptyState(hasFilters = true))

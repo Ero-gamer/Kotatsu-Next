@@ -18,11 +18,13 @@ import org.intellij.lang.annotations.Language
 import org.koitharu.kotatsu.core.db.MangaQueryBuilder
 import org.koitharu.kotatsu.core.db.TABLE_FAVOURITES
 import org.koitharu.kotatsu.core.db.entity.MangaWithTags
+import org.koitharu.kotatsu.core.db.sourceCondition
 import org.koitharu.kotatsu.favourites.domain.model.Cover
 import org.koitharu.kotatsu.list.domain.ListFilterOption
 import org.koitharu.kotatsu.list.domain.ListSortOrder
 import org.koitharu.kotatsu.list.domain.ReadingProgress.Companion.PROGRESS_COMPLETED
 import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.search.domain.ScreenFilterLog
 
 @Dao
 abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
@@ -49,11 +51,27 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
     @Query("SELECT manga.* FROM favourites LEFT JOIN manga ON manga.manga_id = favourites.manga_id WHERE favourites.deleted_at = 0 AND EXISTS(SELECT 1 FROM tags LEFT JOIN manga_tags ON manga_tags.tag_id = tags.tag_id WHERE manga_tags.manga_id = manga.manga_id AND tags.title LIKE :query) LIMIT :limit")
     abstract suspend fun searchByTag(query: String, limit: Int): List<MangaWithTags>
 
+    /**
+     * Free-text match over everything that identifies an entry on the Favourites screen: its title, the
+     * source it came from, and the category (list) it is filed under.
+     */
+    @Transaction
+    @Query(
+        "SELECT manga.* FROM favourites LEFT JOIN manga ON manga.manga_id = favourites.manga_id " +
+            "WHERE favourites.deleted_at = 0 AND (" +
+            "manga.title LIKE :query OR manga.alt_title LIKE :query OR manga.source LIKE :query " +
+            "OR EXISTS(SELECT 1 FROM favourite_categories c WHERE c.category_id = favourites.category_id " +
+            "AND c.deleted_at = 0 AND c.title LIKE :query)" +
+            ") GROUP BY favourites.manga_id ORDER BY favourites.created_at DESC LIMIT :limit",
+    )
+    abstract suspend fun filter(query: String, limit: Int): List<MangaWithTags>
+
     fun observeAll(
         order: ListSortOrder,
         filterOptions: Set<ListFilterOption>,
         limit: Int,
-    ): Flow<List<FavouriteManga>> = observeAll(0L, order, filterOptions, limit)
+        searchQuery: String = "",
+    ): Flow<List<FavouriteManga>> = observeAll(0L, order, filterOptions, limit, searchQuery)
 
     @Transaction
     @Query("SELECT * FROM favourites WHERE deleted_at = 0 ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
@@ -61,6 +79,12 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
 
     @Query("SELECT DISTINCT manga_id FROM favourites WHERE deleted_at = 0 AND category_id IN (SELECT category_id FROM favourite_categories WHERE track = 1 AND deleted_at = 0)")
     abstract suspend fun findIdsWithTrack(): LongArray
+
+    @Query("SELECT manga.source AS count FROM favourites LEFT JOIN manga ON manga.manga_id = favourites.manga_id GROUP BY manga.source ORDER BY COUNT(manga.source) DESC LIMIT :limit")
+    abstract suspend fun findPopularSources(limit: Int): List<String>
+
+    @Query("SELECT manga.source AS count FROM favourites LEFT JOIN manga ON manga.manga_id = favourites.manga_id WHERE favourites.category_id = :categoryId GROUP BY manga.source ORDER BY COUNT(manga.source) DESC LIMIT :limit")
+    abstract suspend fun findPopularSources(categoryId: Long, limit: Int): List<String>
 
     @Transaction
     @Query(
@@ -74,6 +98,7 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
         order: ListSortOrder,
         filterOptions: Set<ListFilterOption>,
         limit: Int,
+        searchQuery: String = "",
     ): Flow<List<FavouriteManga>> = observeAllImpl(
         MangaQueryBuilder(TABLE_FAVOURITES, this)
             .join("LEFT JOIN manga ON favourites.manga_id = manga.manga_id")
@@ -85,6 +110,7 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
                     "(SELECT show_in_lib FROM favourite_categories WHERE favourite_categories.category_id = favourites.category_id) = 1"
                 },
             )
+            .let { if (searchQuery.isEmpty()) it else it.where(searchCondition(searchQuery)) }
             .filters(filterOptions)
             .groupBy("favourites.manga_id")
             .orderBy(getOrderBy(order))
@@ -286,5 +312,21 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
                 transform = { sqlEscapeString(it.name) },
             )
         return sources.takeUnless { it == "manga.source IN ()" } ?: "0"
+    }
+
+    /**
+     * Matches anything that identifies an entry on this screen: title, source, or the category it is
+     * filed under.
+     *
+     * The source part is resolved by [sourceCondition] rather than matched as text: `manga.source`
+     * stores enum names, which display titles cannot be reshaped into.
+     */
+    private fun searchCondition(query: String): String {
+        val pattern = sqlEscapeString("%$query%")
+        val sourceClause = sourceCondition(query)
+        ScreenFilterLog.condition("favourites", "LIKE $pattern $sourceClause")
+        return "(manga.title LIKE $pattern OR manga.alt_title LIKE $pattern $sourceClause" +
+            "OR EXISTS(SELECT 1 FROM favourite_categories c WHERE c.category_id = favourites.category_id " +
+            "AND c.deleted_at = 0 AND c.title LIKE $pattern))"
     }
 }

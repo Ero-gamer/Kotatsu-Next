@@ -21,6 +21,7 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ProgressIndicatorMode
 import org.koitharu.kotatsu.core.ui.util.ReversibleHandle
 import org.koitharu.kotatsu.core.util.ext.mapItems
+import org.koitharu.kotatsu.history.domain.HistoryWriteLog
 import org.koitharu.kotatsu.history.domain.model.MangaWithHistory
 import org.koitharu.kotatsu.list.domain.ListFilterOption
 import org.koitharu.kotatsu.list.domain.ListSortOrder
@@ -93,11 +94,17 @@ class HistoryRepository @Inject constructor(
         order: ListSortOrder,
         filterOptions: Set<ListFilterOption>,
         limit: Int,
+        searchQuery: String = "",
     ): Flow<List<MangaWithHistory>> {
         if (ListFilterOption.Downloaded in filterOptions) {
-            return localObserver.observeAll(order, filterOptions, limit)
+            // The on-device observer reads the filesystem index rather than the history table, so it
+            // cannot apply a SQL predicate; narrow its results in memory instead.
+            val downloaded = localObserver.observeAll(order, filterOptions, limit)
+            return if (searchQuery.isEmpty()) downloaded else downloaded.map { list ->
+                list.filter { it.manga.title.contains(searchQuery, ignoreCase = true) }
+            }
         }
-        return db.getHistoryDao().observeAll(order, filterOptions, limit).mapItems {
+        return db.getHistoryDao().observeAll(order, filterOptions, limit, searchQuery).mapItems {
             MangaWithHistory(
                 it.toManga(),
                 it.history.toMangaHistory(),
@@ -111,8 +118,10 @@ class HistoryRepository @Inject constructor(
 
     suspend fun addOrUpdate(manga: Manga, chapterId: Long, page: Int, scroll: Int, percent: Float, force: Boolean) {
         if (!force && shouldSkip(manga)) {
+            HistoryWriteLog.skipped(manga)
             return
         }
+        HistoryWriteLog.write(manga, chapterId, page, percent, force, db.getHistoryDao().find(manga.id) == null)
         assert(manga.chapters != null)
         db.withTransaction {
             mangaRepository.storeManga(manga, replaceExisting = true)
@@ -167,6 +176,7 @@ class HistoryRepository @Inject constructor(
     }
 
     suspend fun delete(manga: Manga) = db.withTransaction {
+        HistoryWriteLog.deleted(manga.title, manga.id, "delete(manga)")
         db.getHistoryDao().delete(manga.id)
         mangaRepository.gcChaptersCache()
     }
@@ -184,6 +194,7 @@ class HistoryRepository @Inject constructor(
     suspend fun delete(ids: Collection<Long>): ReversibleHandle {
         db.withTransaction {
             for (id in ids) {
+                HistoryWriteLog.deleted(null, id, "delete(ids), ${ids.size} total")
                 db.getHistoryDao().delete(id)
             }
             mangaRepository.gcChaptersCache()

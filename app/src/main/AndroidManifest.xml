@@ -89,6 +89,16 @@
 				<category android:name="android.intent.category.DEFAULT" />
 				<category android:name="android.intent.category.BROWSABLE" />
 
+				<data android:scheme="https" />
+				<data android:host="kotatsu.app" />
+				<data android:path="/manga" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW" />
+
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+
 				<data android:scheme="http" />
 				<data android:scheme="https" />
 				<data android:host="kotatsu.app" />
@@ -291,6 +301,9 @@
 		<activity
 			android:name="org.koitharu.kotatsu.alternatives.ui.AlternativesActivity"
 			android:label="@string/alternatives" />
+		<activity
+			android:name="org.koitharu.kotatsu.alternatives.ui.covers.AlternativeCoversActivity"
+			android:label="@string/alternative_covers" />
 		<activity
 			android:name="org.koitharu.kotatsu.alternatives.ui.SourceReplacementActivity"
 			android:label="@string/replace_source" />

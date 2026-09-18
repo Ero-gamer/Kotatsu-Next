@@ -60,6 +60,9 @@
 		<item name="sideSheetDialogTheme">@style/ThemeOverlay.Kotatsu.SideSheetDialog</item>
 		<item name="recyclerViewStyle">@style/Widget.Kotatsu.RecyclerView</item>
 		<item name="android:dropDownSpinnerStyle">@style/Widget.Kotatsu.Spinner.DropDown</item>
+		<!-- Centres the query text inside inline SearchViews; see the style for why it goes through
+		     autoCompleteTextViewStyle. -->
+		<item name="autoCompleteTextViewStyle">@style/Widget.Kotatsu.AutoCompleteTextView</item>
 		<item name="switchPreferenceCompatStyle">@style/Preference.SwitchPreferenceCompat.M3</item>
 		<item name="circularProgressIndicatorStyle">@style/Widget.Kotatsu.CircularProgressIndicator</item>
 		<item name="linearProgressIndicatorStyle">@style/Widget.Kotatsu.LinearProgressIndicator</item>

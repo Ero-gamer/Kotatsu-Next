@@ -342,8 +342,24 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
     val isExitConfirmationEnabled: Boolean
         get() = prefs.getBoolean(KEY_EXIT_CONFIRM, false)
 
+    /**
+     * How often to run a background sync, in hours, or `0` to only sync when local data changes.
+     * Applied by SyncController.updateSyncSchedule.
+     */
+    val syncPeriodHours: Int
+        get() = prefs.getString(KEY_SYNC_PERIOD, null)?.toIntOrNull() ?: SYNC_PERIOD_DEFAULT
+
     val isDynamicShortcutsEnabled: Boolean
         get() = prefs.getBoolean(KEY_SHORTCUTS, true)
+
+    /**
+     * Keep adult manga out of the launcher's long-press shortcuts.
+     *
+     * Defaults to `true`, unlike the other per-surface NSFW switches: the home screen is visible to
+     * anyone holding the phone, not just to whoever opened the app.
+     */
+    val isShortcutsNsfwDisabled: Boolean
+        get() = prefs.getBoolean(KEY_SHORTCUTS_NO_NSFW, true)
 
     val isUnstableUpdatesAllowed: Boolean
         get() = prefs.getBoolean(KEY_UPDATES_UNSTABLE, false)
@@ -913,6 +929,8 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
         const val KEY_READER_BACKGROUND = "reader_background"
         const val KEY_READER_SCREEN_ON = "reader_screen_on"
         const val KEY_SHORTCUTS = "dynamic_shortcuts"
+        const val KEY_SHORTCUTS_NO_NSFW = "shortcuts_no_nsfw"
+        const val KEY_SYNC_PERIOD = "sync_period"
         const val KEY_READER_TAP_ACTIONS = "reader_tap_actions"
         const val KEY_READER_OPTIMIZE = "reader_optimize"
         const val KEY_EINK_FLASH = "eink_flash"
@@ -1019,5 +1037,10 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
         // values
         private const val READER_CROP_PAGED = 1
         private const val READER_CROP_WEBTOON = 2
+
+        /** Sync period options offered in settings, in hours. `0` means "only when local data changes". */
+        @JvmField
+        val SYNC_PERIODS = intArrayOf(0, 1, 6, 12, 24)
+        const val SYNC_PERIOD_DEFAULT = 6
     }
 }

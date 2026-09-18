@@ -19,6 +19,9 @@ class SearchSuggestionAdapter(
             .addDelegate(searchSuggestionMangaListAD(listener))
             .addDelegate(searchSuggestionQueryHintAD(listener))
             .addDelegate(searchSuggestionAuthorAD(listener))
+            .addDelegate(searchSuggestionFavouriteTipAD(listener))
+            .addDelegate(searchSuggestionFavouritesGroupAD(listener))
+            .addDelegate(searchSuggestionScopeAD(listener))
             .addDelegate(searchSuggestionTextAD())
     }
 }

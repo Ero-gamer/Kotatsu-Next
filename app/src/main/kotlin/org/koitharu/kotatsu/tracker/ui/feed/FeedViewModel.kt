@@ -112,6 +112,17 @@ class FeedViewModel @Inject constructor(
         }
     }
 
+    fun removeItem(item: FeedItem) {
+        launchJob(Dispatchers.Default) {
+            val removed = repository.removeLog(item.id) ?: return@launchJob
+            onActionDone.call(
+                ReversibleAction(R.string.update_removed) {
+                    repository.restoreLog(removed)
+                },
+            )
+        }
+    }
+
     fun requestMoreItems() {
         if (isReady.compareAndSet(true, false)) {
             limit.value += PAGE_SIZE

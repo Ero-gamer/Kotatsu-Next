@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.search.ui.suggestion.model
 
 import androidx.annotation.StringRes
+import org.koitharu.kotatsu.core.model.FavouriteCategory
 import org.koitharu.kotatsu.core.model.isNsfw
 import org.koitharu.kotatsu.core.ui.widgets.ChipsView
 import org.koitharu.kotatsu.list.ui.ListModelDiffCallback
@@ -68,6 +69,41 @@ sealed interface SearchSuggestionItem : ListModel {
             get() = source.isNsfw()
 
         override fun areItemsTheSame(other: ListModel): Boolean = other is SourceTip && other.source.name == source.name
+    }
+
+    /**
+     * Stands for "favourites" as a whole rather than one list: typing the word offers this single entry,
+     * and tapping it opens up every list instead of making the user guess their names.
+     */
+    data class FavouritesGroup(
+        val preview: String,
+    ) : SearchSuggestionItem {
+
+        override fun areItemsTheSame(other: ListModel): Boolean = other is FavouritesGroup
+    }
+
+    /**
+     * A favourites list offered as something to filter by, shown alongside sources so both read as the
+     * same kind of choice.
+     */
+    data class FavouriteTip(
+        val category: FavouriteCategory,
+    ) : SearchSuggestionItem {
+
+        override fun areItemsTheSame(other: ListModel): Boolean = other is FavouriteTip && other.category.id == category.id
+    }
+
+    /**
+     * Chips that choose what the shared search bar looks through. Only emitted on screens where
+     * narrowing is meaningful, and "everywhere" is always the selected default.
+     */
+    data class Scope(
+        val chips: List<ChipsView.ChipModel>,
+    ) : SearchSuggestionItem {
+
+        override fun areItemsTheSame(other: ListModel): Boolean = other is Scope
+
+        override fun getChangePayload(previousState: ListModel): Any = ListModelDiffCallback.PAYLOAD_NESTED_LIST_CHANGED
     }
 
     data class Tags(

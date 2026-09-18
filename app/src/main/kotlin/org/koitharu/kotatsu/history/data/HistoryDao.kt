@@ -16,9 +16,11 @@ import org.koitharu.kotatsu.core.db.MangaQueryBuilder
 import org.koitharu.kotatsu.core.db.TABLE_HISTORY
 import org.koitharu.kotatsu.core.db.entity.MangaWithTags
 import org.koitharu.kotatsu.core.db.entity.TagEntity
+import org.koitharu.kotatsu.core.db.sourceCondition
 import org.koitharu.kotatsu.list.domain.ListFilterOption
 import org.koitharu.kotatsu.list.domain.ListSortOrder
 import org.koitharu.kotatsu.list.domain.ReadingProgress.Companion.PROGRESS_COMPLETED
+import org.koitharu.kotatsu.search.domain.ScreenFilterLog
 
 @Dao
 abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
@@ -26,6 +28,22 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
     @Transaction
     @Query("SELECT * FROM history WHERE deleted_at = 0 ORDER BY updated_at DESC LIMIT :limit OFFSET :offset")
     abstract suspend fun findAll(offset: Int, limit: Int): List<HistoryWithManga>
+
+    /**
+     * Free-text match over everything that identifies an entry on the History screen: its title, the
+     * source it came from, and the favourites list it belongs to. Lets one search box narrow the screen
+     * whether the user types a title, a source or a list name.
+     */
+    @Transaction
+    @Query(
+        "SELECT manga.* FROM history LEFT JOIN manga ON manga.manga_id = history.manga_id " +
+            "WHERE history.deleted_at = 0 AND (" +
+            "manga.title LIKE :query OR manga.alt_title LIKE :query OR manga.source LIKE :query " +
+            "OR EXISTS(SELECT 1 FROM favourites f LEFT JOIN favourite_categories c ON c.category_id = f.category_id " +
+            "WHERE f.manga_id = history.manga_id AND f.deleted_at = 0 AND c.title LIKE :query)" +
+            ") GROUP BY history.manga_id ORDER BY history.updated_at DESC LIMIT :limit",
+    )
+    abstract suspend fun filter(query: String, limit: Int): List<MangaWithTags>
 
     @Transaction
     @Query("SELECT manga.* FROM history LEFT JOIN manga ON manga.manga_id = history.manga_id WHERE history.deleted_at = 0 AND (manga.title LIKE :query OR manga.alt_title LIKE :query) LIMIT :limit")
@@ -51,10 +69,12 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
         order: ListSortOrder,
         filterOptions: Set<ListFilterOption>,
         limit: Int,
+        searchQuery: String = "",
     ): Flow<List<HistoryWithManga>> = observeAllImpl(
         MangaQueryBuilder(TABLE_HISTORY, this)
             .join("LEFT JOIN manga ON history.manga_id = manga.manga_id")
             .where("history.deleted_at = 0")
+            .let { if (searchQuery.isEmpty()) it else it.where(searchCondition(searchQuery)) }
             .filters(filterOptions)
             .orderBy(
                 orderBy = when (order) {
@@ -78,6 +98,9 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
 
     @Query("SELECT manga_id FROM history WHERE deleted_at = 0")
     abstract suspend fun findAllIds(): LongArray
+
+    @Query("SELECT manga.source AS count FROM history LEFT JOIN manga ON manga.manga_id = history.manga_id GROUP BY manga.source ORDER BY COUNT(manga.source) DESC LIMIT :limit")
+    abstract suspend fun findPopularSources(limit: Int): List<String>
 
     @Query(
         """SELECT tags.* FROM tags
@@ -200,5 +223,21 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
         ListFilterOption.Downloaded -> "EXISTS(SELECT * FROM local_index WHERE local_index.manga_id = history.manga_id)"
         is ListFilterOption.Source -> "manga.source = ${sqlEscapeString(option.mangaSource.name)}"
         else -> null
+    }
+
+    /**
+     * Matches anything that identifies an entry on this screen - title, source, or the favourites list
+     * it is in - so one box narrows the list however the user thinks of it.
+     *
+     * The source part is resolved by [sourceCondition] rather than matched as text: `manga.source`
+     * stores enum names, which display titles cannot be reshaped into.
+     */
+    private fun searchCondition(query: String): String {
+        val pattern = sqlEscapeString("%$query%")
+        val sourceClause = sourceCondition(query)
+        ScreenFilterLog.condition("history", "LIKE $pattern $sourceClause")
+        return "(manga.title LIKE $pattern OR manga.alt_title LIKE $pattern $sourceClause" +
+            "OR EXISTS(SELECT 1 FROM favourites f LEFT JOIN favourite_categories c ON c.category_id = f.category_id " +
+            "WHERE f.manga_id = history.manga_id AND f.deleted_at = 0 AND c.title LIKE $pattern))"
     }
 }
