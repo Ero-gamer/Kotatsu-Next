@@ -10,6 +10,7 @@ import org.koitharu.kotatsu.core.exceptions.UnsupportedSourceException
 import org.koitharu.kotatsu.core.exceptions.resolve.ErrorObserver
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.model.isLocal
+import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.util.ext.findCloudFlareException
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage

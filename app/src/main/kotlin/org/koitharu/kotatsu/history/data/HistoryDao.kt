@@ -113,9 +113,6 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
     )
     abstract suspend fun findPopularTags(limit: Int): List<TagEntity>
 
-    @Query("SELECT manga.source AS count FROM history LEFT JOIN manga ON manga.manga_id = history.manga_id GROUP BY manga.source ORDER BY COUNT(manga.source) DESC LIMIT :limit")
-    abstract suspend fun findPopularSources(limit: Int): List<String>
-
     @Query("SELECT * FROM history WHERE manga_id = :id AND deleted_at = 0")
     abstract suspend fun find(id: Long): HistoryEntity?
 
