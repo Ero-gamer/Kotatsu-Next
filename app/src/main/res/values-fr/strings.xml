@@ -900,29 +900,13 @@
 	<string name="default_sources">Par défaut</string>
 
     <!-- Added from Redo commits -->
-    <string name="best_match">Meilleure correspondance</string>
     <string name="choose_source">Choisir une source</string>
-    <string name="closest_chapter_count">Nombre de chapitres le plus proche</string>
     <string name="compare_source_matches">Comparer les correspondances par source</string>
-    <string name="enabled_sources">Sources activées</string>
-    <string name="filter_active">Filtre, filtres actifs</string>
     <string name="handle_remaining_manually">Gérer manuellement les titres restants</string>
     <string name="handle_remaining_manually_summary">Choisissez une source séparément pour chaque titre restant</string>
-    <string name="has_chapters">Avec chapitres</string>
-    <string name="hide_results_without_chapters">Masquer les résultats sans chapitres</string>
-    <string name="migration_unavailable_no_chapters">Migration indisponible car ce résultat ne contient aucun chapitre</string>
-    <string name="migration_unavailable_search_in_progress">Migration indisponible pendant la mise à jour des résultats</string>
-    <string name="most_chapters">Plus de chapitres</string>
-    <string name="preparing_search">Préparation de la recherche…</string>
     <string name="replace">Remplacer</string>
     <string name="replace_source">Remplacer la source</string>
-    <string name="same_content_type">Même type de contenu</string>
-    <string name="same_content_type_as_current">Même type de contenu que la source actuelle</string>
-    <string name="same_language">Même langue</string>
-    <string name="same_language_as_current">Même langue que la source actuelle</string>
-    <string name="searching_sources_progress">%1$d/%2$d sources</string>
     <string name="source_match_rate_summary">%1$d titres correspondants sur %2$d</string>
-    <string name="source_priority">Priorité de la source</string>
     <string name="source_replacement_all_completed">%d titres remplacés</string>
     <string name="source_replacement_batch_completed">%1$d titres remplacés ; %2$d nécessitent encore une source</string>
     <string name="source_replacement_empty_summary">Modifiez le titre recherché ou choisissez une source pour effectuer une recherche manuelle</string>
