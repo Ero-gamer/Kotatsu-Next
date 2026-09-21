@@ -1,0 +1,47 @@
+name: Export Commits to Markdown
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2026-09-01'
+      until:
+        description: 'End date (YYYY-MM-DD)'
+        required: true
+        default: '2026-09-21'
+
+jobs:
+  export-log:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Fetch all history so git log can access older commits
+
+      - name: Generate Markdown Commit Log
+        run: |
+          SINCE_DATE="${{ github.event.inputs.since }}"
+          UNTIL_DATE="${{ github.event.inputs.until }}"
+          OUTPUT_FILE="commits_${SINCE_DATE}_to_${UNTIL_DATE}.md"
+
+          # Write Markdown Header
+          echo "# Commit Log (${SINCE_DATE} to ${UNTIL_DATE})" > "$OUTPUT_FILE"
+          echo "" >> "$OUTPUT_FILE"
+
+          # Format git log into structured Markdown sections
+          # %h = short hash, %an = author, %ad = author date, %s = title, %b = description
+          git log --since="${SINCE_DATE}T00:00:00" --until="${UNTIL_DATE}T23:59:59" \
+            --date=short \
+            --pretty=format:"### %s%n- **Commit:** \`%h\`%n- **Author:** %an%n- **Date:** %ad%n%n%b%n---%n" \
+            >> "$OUTPUT_FILE"
+
+          echo "FILE_NAME=$OUTPUT_FILE" >> $GITHUB_ENV
+
+      - name: Upload Markdown Log as Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: commit-log
+          path: ${{ env.FILE_NAME }}
