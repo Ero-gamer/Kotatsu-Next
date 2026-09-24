@@ -137,6 +137,10 @@ class ReaderControlDelegate(
 
         fun onBookmarkClick()
 
+        fun onColorFilterToggle(isEnabled: Boolean)
+
+        fun openColorFilterConfig()
+
         fun openMenu()
 
         fun onSavePageClick()

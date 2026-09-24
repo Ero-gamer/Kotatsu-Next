@@ -50,6 +50,8 @@ import org.koitharu.kotatsu.core.db.migrations.Migration2To3
 import org.koitharu.kotatsu.core.db.migrations.Migration30To31
 import org.koitharu.kotatsu.core.db.migrations.Migration31To32
 import org.koitharu.kotatsu.core.db.migrations.Migration32To33
+import org.koitharu.kotatsu.core.db.migrations.Migration33To34
+import org.koitharu.kotatsu.core.db.migrations.Migration34To35
 import org.koitharu.kotatsu.core.db.migrations.Migration3To4
 import org.koitharu.kotatsu.core.db.migrations.Migration4To5
 import org.koitharu.kotatsu.core.db.migrations.Migration5To6
@@ -78,7 +80,7 @@ import org.koitharu.kotatsu.tracker.data.TrackEntity
 import org.koitharu.kotatsu.tracker.data.TrackLogEntity
 import org.koitharu.kotatsu.tracker.data.TracksDao
 
-const val DATABASE_VERSION = 33
+const val DATABASE_VERSION = 35
 
 @Database(
     entities = [
@@ -159,6 +161,8 @@ fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
     Migration30To31(),
     Migration31To32(),
     Migration32To33(),
+    Migration33To34(),
+    Migration34To35(),
 )
 
 @Suppress("SpreadOperator") // Room's addMigrations is vararg; an array is unavoidable here

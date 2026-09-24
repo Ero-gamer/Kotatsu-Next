@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
@@ -184,6 +185,17 @@ class ReaderViewModel @Inject constructor(
     val readerSettingsProducer = readerSettingsProducerFactory.create(
         manga.mapNotNull { it?.id },
     )
+
+    /** `true` while all image filters are switched off for the current manga (values stay saved). */
+    val isColorFilterDisabled = readerSettingsProducer.map { it.isColorFilterDisabled }
+        .distinctUntilChanged()
+
+    fun setColorFilterEnabled(isEnabled: Boolean) {
+        val manga = getMangaOrNull() ?: return
+        launchJob(Dispatchers.Default) {
+            dataRepository.setColorFilterDisabled(manga, !isEnabled)
+        }
+    }
 
     val isMangaNsfw = manga.map { it?.contentRating == ContentRating.ADULT }
 

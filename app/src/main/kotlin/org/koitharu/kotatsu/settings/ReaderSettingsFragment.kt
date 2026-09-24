@@ -7,6 +7,7 @@ import android.view.View
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
+import com.davemorrissey.labs.subscaleview.ImageScaler
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.model.ZoomMode
@@ -58,6 +59,10 @@ class ReaderSettingsFragment :
         findPreference<ListPreference>(AppSettings.KEY_READER_ANIMATION)?.run {
             entryValues = ReaderAnimation.entries.names()
             setDefaultValueCompat(ReaderAnimation.DEFAULT.name)
+        }
+        findPreference<ListPreference>(AppSettings.KEY_READER_SCALER)?.run {
+            entryValues = ImageScaler.entries.names()
+            setDefaultValueCompat(ImageScaler.DEFAULT.name)
         }
         findPreference<ListPreference>(AppSettings.KEY_ZOOM_MODE)?.run {
             entryValues = ZoomMode.entries.names()

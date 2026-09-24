@@ -21,7 +21,8 @@ abstract class PreferencesDao {
     @Query(
         "UPDATE preferences SET cf_brightness=0, cf_contrast=0, cf_invert=0, cf_grayscale=0, " +
             "cf_sharpening=0, cf_vibrance=0, cf_vibrance2=0, cf_denoise=0, cf_dither=0, cf_grain=0, " +
-            "cf_sharpen_mode=0, cf_line_darken=0, cf_book=0",
+            "cf_sharpen_mode=0, cf_line_darken=0, cf_book=0, cf_disabled=0, cf_rcas_usm=0, " +
+            "cf_adaptive_smoothstep=0, cf_adaptive_sigmoid=0, cf_catmull_rom=0, cf_bspline=0",
     )
     abstract suspend fun resetColorFilters()
 

@@ -12,6 +12,7 @@ enum class ReaderControl {
     SAVE_PAGE,
     TIMER,
     BOOKMARK,
+    COLOR_FILTER,
     ;
 
     companion object {
@@ -21,6 +22,7 @@ enum class ReaderControl {
             NEXT_CHAPTER,
             SLIDER,
             PAGES_SHEET,
+            COLOR_FILTER,
         )
     }
 }

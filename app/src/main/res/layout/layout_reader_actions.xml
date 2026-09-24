@@ -109,6 +109,32 @@
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content">
 
+		<com.google.android.material.materialswitch.MaterialSwitch
+			android:id="@+id/switch_filters"
+			android:layout_width="wrap_content"
+			android:layout_height="48dp"
+			android:layout_gravity="center"
+			android:contentDescription="@string/image_filters_on_off" />
+	</FrameLayout>
+
+	<FrameLayout
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content">
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/button_filters"
+			style="?materialIconButtonStyle"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:layout_gravity="center"
+			android:contentDescription="@string/image_filters_settings"
+			app:icon="@drawable/ic_appearance" />
+	</FrameLayout>
+
+	<FrameLayout
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content">
+
 		<com.google.android.material.button.MaterialButton
 			android:id="@+id/button_pages_thumbs"
 			style="?materialIconButtonStyle"

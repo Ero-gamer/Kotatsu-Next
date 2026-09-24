@@ -105,6 +105,11 @@ class ReaderConfigSheet :
         binding.buttonSettings.setOnClickListener(this)
         binding.buttonImageServer.setOnClickListener(this)
         binding.buttonColorFilter.setOnClickListener(this)
+        viewModel.isColorFilterDisabled.observe(viewLifecycleOwner) { isDisabled ->
+            binding.switchColorFilterEnabled.setOnCheckedChangeListener(null)
+            binding.switchColorFilterEnabled.isChecked = !isDisabled
+            binding.switchColorFilterEnabled.setOnCheckedChangeListener(this)
+        }
         binding.buttonScrollTimer.setOnClickListener(this)
         binding.buttonBookmark.setOnClickListener(this)
         binding.switchDoubleReader.setOnCheckedChangeListener(this)
@@ -202,6 +207,8 @@ class ReaderConfigSheet :
                 settings.isReaderDoubleCoverPage = isChecked
                 findParentCallback(Callback::class.java)?.onDoubleModeChanged(settings.isReaderDoubleOnLandscape)
             }
+
+            R.id.switch_color_filter_enabled -> viewModel.setColorFilterEnabled(isChecked)
 
             R.id.switch_vertical_slider -> {
                 settings.isVerticalSliderEnabled = isChecked

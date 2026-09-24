@@ -4,7 +4,6 @@ import androidx.collection.LongObjectMap
 import androidx.collection.MutableLongObjectMap
 import androidx.core.net.toUri
 import androidx.room.withTransaction
-import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
 import dagger.Reusable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -58,13 +57,18 @@ class MangaDataRepository @Inject constructor(
                 entity.copy(
                     cfBrightness = colorFilter?.brightness ?: 0f,
                     cfContrast = colorFilter?.contrast ?: 0f,
-                    cfSharpening = colorFilter?.sharpening ?: 0f,
+                    cfSharpening = 0f, // legacy column, superseded by the per-filter columns
                     cfSaturation = colorFilter?.saturation ?: 0f,
                     cfVibrance = colorFilter?.vibrance ?: 0f,
                     cfDenoise = colorFilter?.denoise ?: 0f,
                     cfDither = colorFilter?.dither ?: 0f,
                     cfGrain = colorFilter?.grain ?: 0f,
-                    cfSharpenMode = (colorFilter?.sharpenMode ?: SharpenMode.OFF).glslId,
+                    cfSharpenMode = 0, // legacy column, superseded by the per-filter columns
+                    cfRcasUsm = colorFilter?.rcasUsm ?: 0f,
+                    cfAdaptiveSmoothstep = colorFilter?.adaptiveSmoothstep ?: 0f,
+                    cfAdaptiveSigmoid = colorFilter?.adaptiveSigmoid ?: 0f,
+                    cfCatmullRom = 0f, // legacy column (early resampler filters), never read
+                    cfBSpline = 0f, // legacy column (early resampler filters), never read
                     cfLineDarken = colorFilter?.isLineDarkenEnabled == true,
                     cfInvert = colorFilter?.isInverted == true,
                     cfGrayscale = colorFilter?.isGrayscale == true,
@@ -111,6 +115,20 @@ class MangaDataRepository @Inject constructor(
     fun observeColorFilter(mangaId: Long): Flow<ReaderColorFilter?> = db.getPreferencesDao().observe(mangaId)
         .map { it?.getColorFilterOrNull() }
         .distinctUntilChanged()
+
+    /** Whether all image filters are switched off for [mangaId]. Saved filter values are untouched. */
+    fun observeColorFilterDisabled(mangaId: Long): Flow<Boolean> = db.getPreferencesDao().observe(mangaId)
+        .map { it?.cfDisabled == true }
+        .distinctUntilChanged()
+
+    suspend fun setColorFilterDisabled(manga: Manga, isDisabled: Boolean) {
+        db.withTransaction {
+            storeManga(manga, replaceExisting = false)
+            val dao = db.getPreferencesDao()
+            val entity = dao.find(manga.id) ?: newEntity(manga.id)
+            dao.upsert(entity.copy(cfDisabled = isDisabled))
+        }
+    }
 
     suspend fun findMangaById(mangaId: Long, withChapters: Boolean): Manga? {
         val chapters = if (withChapters) {
@@ -209,20 +227,22 @@ class MangaDataRepository @Inject constructor(
         this
     }
 
-    private fun MangaPrefsEntity.getColorFilterOrNull(): ReaderColorFilter? = if (cfBrightness != 0f || cfContrast != 0f || cfSharpening != 0f ||
+    private fun MangaPrefsEntity.getColorFilterOrNull(): ReaderColorFilter? = if (cfBrightness != 0f || cfContrast != 0f ||
         cfSaturation != 0f || cfVibrance != 0f || cfDenoise != 0f || cfDither != 0f || cfGrain != 0f ||
-        cfSharpenMode != 0 || cfLineDarken || cfInvert || cfGrayscale || cfBookEffect
+        cfRcasUsm != 0f || cfAdaptiveSmoothstep != 0f || cfAdaptiveSigmoid != 0f ||
+        cfLineDarken || cfInvert || cfGrayscale || cfBookEffect
     ) {
         ReaderColorFilter(
             brightness = cfBrightness,
             contrast = cfContrast,
-            sharpening = cfSharpening,
             saturation = cfSaturation,
             vibrance = cfVibrance,
             denoise = cfDenoise,
             dither = cfDither,
             grain = cfGrain,
-            sharpenMode = SharpenMode.fromGlslId(cfSharpenMode),
+            rcasUsm = cfRcasUsm,
+            adaptiveSmoothstep = cfAdaptiveSmoothstep,
+            adaptiveSigmoid = cfAdaptiveSigmoid,
             isInverted = cfInvert,
             isGrayscale = cfGrayscale,
             isBookBackground = cfBookEffect,
@@ -247,14 +267,20 @@ class MangaDataRepository @Inject constructor(
         mode = -1,
         cfBrightness = ReaderColorFilter.EMPTY.brightness,
         cfContrast = ReaderColorFilter.EMPTY.contrast,
-        cfSharpening = ReaderColorFilter.EMPTY.sharpening,
+        cfSharpening = 0f,
         cfSaturation = ReaderColorFilter.EMPTY.saturation,
         cfVibrance = ReaderColorFilter.EMPTY.vibrance,
         cfDenoise = ReaderColorFilter.EMPTY.denoise,
         cfDither = ReaderColorFilter.EMPTY.dither,
         cfGrain = ReaderColorFilter.EMPTY.grain,
-        cfSharpenMode = ReaderColorFilter.EMPTY.sharpenMode.glslId,
+        cfSharpenMode = 0,
+        cfRcasUsm = ReaderColorFilter.EMPTY.rcasUsm,
+        cfAdaptiveSmoothstep = ReaderColorFilter.EMPTY.adaptiveSmoothstep,
+        cfAdaptiveSigmoid = ReaderColorFilter.EMPTY.adaptiveSigmoid,
+        cfCatmullRom = 0f,
+        cfBSpline = 0f,
         cfLineDarken = ReaderColorFilter.EMPTY.isLineDarkenEnabled,
+        cfDisabled = false,
         cfInvert = ReaderColorFilter.EMPTY.isInverted,
         cfGrayscale = ReaderColorFilter.EMPTY.isGrayscale,
         cfBookEffect = ReaderColorFilter.EMPTY.isBookBackground,

@@ -98,8 +98,8 @@ abstract class BasePageHolder<B : ViewBinding>(
     @CallSuper
     protected open fun onConfigChanged(settings: ReaderSettings) {
         settings.applyBackground(itemView)
-        val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.colorFilter
-        lastColorFilter = settings.colorFilter
+        val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.effectiveColorFilter
+        lastColorFilter = settings.effectiveColorFilter
 
         when {
             // BitmapConfig or GPU filter params changed: reinstall the region decoder factory
@@ -260,7 +260,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
     protected fun applyColorFilter() {
         if (ssiv.isReady) {
-            ssiv.colorFilter = settings.colorFilter?.toColorFilter()
+            ssiv.colorFilter = settings.effectiveColorFilter?.toColorFilter()
         }
     }
 

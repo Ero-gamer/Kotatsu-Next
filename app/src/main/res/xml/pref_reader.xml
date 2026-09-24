@@ -107,6 +107,13 @@
         android:summary="@string/enable_pull_gesture_summary"
         android:title="@string/enable_pull_gesture_title" />
 
+	<ListPreference
+		android:entries="@array/reader_scaler"
+		android:icon="@drawable/ic_auto_fix"
+		android:key="reader_scaler"
+		android:title="@string/reader_scaler"
+		app:useSimpleSummaryProvider="true" />
+
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
 		android:icon="@drawable/ic_appearance"

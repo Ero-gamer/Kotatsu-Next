@@ -14,7 +14,7 @@ import androidx.core.content.edit
 import androidx.core.os.LocaleListCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.preference.PreferenceManager
-import com.davemorrissey.labs.subscaleview.decoder.SharpenMode
+import com.davemorrissey.labs.subscaleview.ImageScaler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -269,6 +269,10 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
     val readerBackground: ReaderBackground
         get() = prefs.getEnumValue(KEY_READER_BACKGROUND, ReaderBackground.DEFAULT)
 
+    /** Resampling used while zoomed in (draw time). Non-default values need Android 13+. */
+    val readerScaler: ImageScaler
+        get() = prefs.getEnumValue(KEY_READER_SCALER, ImageScaler.DEFAULT)
+
     val defaultReaderMode: ReaderMode
         get() = prefs.getEnumValue(KEY_READER_MODE, ReaderMode.STANDARD)
 
@@ -494,16 +498,24 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
 
     var readerColorFilter: ReaderColorFilter?
         get() = runCatching {
+            // Pre-split preferences stored one shared intensity (KEY_CF_SHARPENING) plus a mode
+            // selector (KEY_CF_SHARPEN_MODE: 1 = RCAS + USM, 2 = Adaptive/smoothstep). Until the
+            // user saves again, map those onto the per-filter keys so nothing is lost.
+            val legacyMode = prefs.getInt(KEY_CF_SHARPEN_MODE, 0)
+            val legacySharpening = getFloatCompat(KEY_CF_SHARPENING, 0f)
             ReaderColorFilter(
                 brightness = getFloatCompat(KEY_CF_BRIGHTNESS, ReaderColorFilter.EMPTY.brightness),
                 contrast = getFloatCompat(KEY_CF_CONTRAST, ReaderColorFilter.EMPTY.contrast),
-                sharpening = getFloatCompat(KEY_CF_SHARPENING, ReaderColorFilter.EMPTY.sharpening),
                 saturation = getFloatCompat(KEY_CF_SATURATION, ReaderColorFilter.EMPTY.saturation),
                 vibrance = getFloatCompat(KEY_CF_VIBRANCE, ReaderColorFilter.EMPTY.vibrance),
                 denoise = getFloatCompat(KEY_CF_DENOISE, ReaderColorFilter.EMPTY.denoise),
-                sharpenMode = SharpenMode.fromGlslId(
-                    prefs.getInt(KEY_CF_SHARPEN_MODE, ReaderColorFilter.EMPTY.sharpenMode.glslId),
-                ),
+                rcasUsm = if (prefs.contains(KEY_CF_RCAS_USM)) {
+                    getFloatCompat(KEY_CF_RCAS_USM, 0f)
+                } else if (legacyMode == 1) legacySharpening else 0f,
+                adaptiveSmoothstep = if (prefs.contains(KEY_CF_ADAPTIVE_SMOOTHSTEP)) {
+                    getFloatCompat(KEY_CF_ADAPTIVE_SMOOTHSTEP, 0f)
+                } else if (legacyMode == 2) legacySharpening else 0f,
+                adaptiveSigmoid = getFloatCompat(KEY_CF_ADAPTIVE_SIGMOID, ReaderColorFilter.EMPTY.adaptiveSigmoid),
                 isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
                 isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
                 isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
@@ -515,11 +527,15 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
                 if (value != null) {
                     putFloat(KEY_CF_BRIGHTNESS, value.brightness)
                     putFloat(KEY_CF_CONTRAST, value.contrast)
-                    putFloat(KEY_CF_SHARPENING, value.sharpening)
                     putFloat(KEY_CF_SATURATION, value.saturation)
                     putFloat(KEY_CF_VIBRANCE, value.vibrance)
                     putFloat(KEY_CF_DENOISE, value.denoise)
-                    putInt(KEY_CF_SHARPEN_MODE, value.sharpenMode.glslId)
+                    putFloat(KEY_CF_RCAS_USM, value.rcasUsm)
+                    putFloat(KEY_CF_ADAPTIVE_SMOOTHSTEP, value.adaptiveSmoothstep)
+                    putFloat(KEY_CF_ADAPTIVE_SIGMOID, value.adaptiveSigmoid)
+                    // Legacy keys are superseded; drop them so the read-side fallback ends.
+                    remove(KEY_CF_SHARPENING)
+                    remove(KEY_CF_SHARPEN_MODE)
                     putBoolean(KEY_CF_INVERTED, value.isInverted)
                     putBoolean(KEY_CF_GRAYSCALE, value.isGrayscale)
                     putBoolean(KEY_CF_BOOK, value.isBookBackground)
@@ -532,6 +548,12 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
                     remove(KEY_CF_VIBRANCE)
                     remove(KEY_CF_DENOISE)
                     remove(KEY_CF_SHARPEN_MODE)
+                    remove(KEY_CF_RCAS_USM)
+                    remove(KEY_CF_ADAPTIVE_SMOOTHSTEP)
+                    remove(KEY_CF_ADAPTIVE_SIGMOID)
+                    // Keys of the removed decode-time resamplers (early builds only): clean up.
+                    remove("cf_catmull_rom")
+                    remove("cf_bspline")
                     remove(KEY_CF_INVERTED)
                     remove(KEY_CF_GRAYSCALE)
                     remove(KEY_CF_BOOK)
@@ -880,6 +902,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
         const val KEY_NOTIFICATIONS_LIGHT = "notifications_light"
         const val KEY_NOTIFICATIONS_INFO = "tracker_notifications_info"
         const val KEY_READER_ANIMATION = "reader_animation2"
+        const val KEY_READER_SCALER = "reader_scaler"
         const val KEY_READER_CONTROLS = "reader_controls"
         const val KEY_READER_MODE = "reader_mode"
         const val KEY_READER_MODE_DETECT = "reader_mode_detect"
@@ -976,6 +999,7 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
         const val KEY_SOURCES_CATALOG = "sources_catalog"
         const val KEY_CF_BRIGHTNESS = "cf_brightness"
         const val KEY_CF_CONTRAST = "cf_contrast"
+        // Legacy (pre-split) keys: read once as a fallback in [readerColorFilter], then removed on save.
         const val KEY_CF_SHARPENING = "cf_sharpening"
         const val KEY_CF_SATURATION = "cf_vibrance"
         const val KEY_CF_VIBRANCE = "cf_vibrance2"
@@ -984,6 +1008,9 @@ class AppSettings @Inject constructor(@ApplicationContext context: Context) {
         const val KEY_CF_BOOK = "cf_book"
         const val KEY_CF_DENOISE = "cf_denoise"
         const val KEY_CF_SHARPEN_MODE = "cf_sharpen_mode"
+        const val KEY_CF_RCAS_USM = "cf_rcas_usm"
+        const val KEY_CF_ADAPTIVE_SMOOTHSTEP = "cf_adaptive_smoothstep"
+        const val KEY_CF_ADAPTIVE_SIGMOID = "cf_adaptive_sigmoid"
         const val KEY_CF_LINE_DARKEN = "cf_line_darken"
         const val KEY_PAGES_TAB = "pages_tab"
         const val KEY_DETAILS_TAB = "details_tab"

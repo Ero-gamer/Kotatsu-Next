@@ -151,6 +151,7 @@ class ReaderActivity :
         viewBinding.buttonPrevVertical?.setOnClickListener { switchChapterBy(-1) }
         viewBinding.buttonNextVertical?.setOnClickListener { switchChapterBy(1) }
         viewModel.isBookmarkAdded.observe(this) { viewBinding.actionsView.isBookmarkAdded = it }
+        viewModel.isColorFilterDisabled.observe(this) { viewBinding.actionsView.isColorFilterEnabled = !it }
         scrollTimer.isActive.observe(this) {
             updateScrollTimerButton()
             viewBinding.actionsView.setTimerActive(it)
@@ -481,6 +482,16 @@ class ReaderActivity :
 
     override fun onBookmarkClick() {
         viewModel.toggleBookmark()
+    }
+
+    override fun onColorFilterToggle(isEnabled: Boolean) {
+        viewModel.setColorFilterEnabled(isEnabled)
+    }
+
+    override fun openColorFilterConfig() {
+        val manga = viewModel.getMangaOrNull() ?: return
+        val page = viewModel.getCurrentPage() ?: return
+        router.openColorFilterConfig(manga, page)
     }
 
     override fun onSavePageClick() {
