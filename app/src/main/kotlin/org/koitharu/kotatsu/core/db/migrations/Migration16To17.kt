@@ -1,17 +1,21 @@
 package org.koitharu.kotatsu.core.db.migrations
 
 import android.content.Context
-import androidx.preference.PreferenceManager
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import org.koitharu.kotatsu.core.prefs.mmkv.MmkvPreferences
 import org.koitharu.kotatsu.parsers.model.MangaParserSource
 
-class Migration16To17(context: Context) : Migration(16, 17) {
-
-    private val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+class Migration16To17(
+    context: Context,
+) : Migration(16, 17) {
+    // App settings now live in MMKV; this also performs the one-time import if it has not happened yet.
+    private val prefs = MmkvPreferences.openAppSettings(context)
 
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("CREATE TABLE `sources` (`source` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `sort_key` INTEGER NOT NULL, PRIMARY KEY(`source`))")
+        db.execSQL(
+            "CREATE TABLE `sources` (`source` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `sort_key` INTEGER NOT NULL, PRIMARY KEY(`source`))",
+        )
         db.execSQL("CREATE INDEX `index_sources_sort_key` ON `sources` (`sort_key`)")
         val hiddenSources = prefs.getStringSet("sources_hidden", null).orEmpty()
         val order = prefs.getString("sources_order_2", null)?.split('|').orEmpty()

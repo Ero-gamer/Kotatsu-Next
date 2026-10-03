@@ -12,7 +12,6 @@ import org.koitharu.kotatsu.list.domain.ListFilterOption
 
 @Dao
 abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
-
     @Transaction
     @Query(
         """
@@ -37,7 +36,12 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
 		LIMIT :limit OFFSET :offset
 		""",
     )
-    abstract suspend fun findAll(offset: Int, limit: Int, minActivityTime: Long, staleCheckTime: Long): List<TrackWithManga>
+    abstract suspend fun findAll(
+        offset: Int,
+        limit: Int,
+        minActivityTime: Long,
+        staleCheckTime: Long,
+    ): List<TrackWithManga>
 
     @Transaction
     @Query("SELECT * FROM tracks ORDER BY last_check_time DESC")
@@ -55,9 +59,6 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
     @Query("SELECT COUNT(*) FROM tracks")
     abstract suspend fun getTracksCount(): Int
 
-    @Query("SELECT COUNT(*) FROM tracks WHERE chapters_new > 0")
-    abstract fun observeUpdateMangaCount(): Flow<Int>
-
     @Query("SELECT IFNULL(chapters_new, 0) FROM tracks WHERE manga_id = :mangaId")
     abstract fun observeNewChapters(mangaId: Long): Flow<Int>
 
@@ -68,14 +69,15 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
     fun observeUpdatedManga(
         limit: Int,
         filterOptions: Set<ListFilterOption>,
-    ): Flow<List<MangaWithTrack>> = observeMangaImpl(
-        MangaQueryBuilder("tracks", this)
-            .where("chapters_new > 0")
-            .filters(filterOptions)
-            .limit(limit)
-            .orderBy("last_chapter_date DESC")
-            .build(),
-    )
+    ): Flow<List<MangaWithTrack>> =
+        observeMangaImpl(
+            MangaQueryBuilder("tracks", this)
+                .where("chapters_new > 0")
+                .filters(filterOptions)
+                .limit(limit)
+                .orderBy("last_chapter_date DESC")
+                .build(),
+        )
 
     @Query("DELETE FROM tracks")
     abstract suspend fun clear()
@@ -89,13 +91,17 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
     @Query("UPDATE tracks SET chapters_new = 0 WHERE manga_id = :mangaId")
     abstract suspend fun clearCounter(mangaId: Long)
 
-    @Query("UPDATE tracks SET chapters_new = 0 WHERE chapters_new > 0 AND last_chapter_date > 0 AND last_chapter_date < :minChapterDate")
+    @Query(
+        "UPDATE tracks SET chapters_new = 0 WHERE chapters_new > 0 AND last_chapter_date > 0 AND last_chapter_date < :minChapterDate",
+    )
     abstract suspend fun clearStaleCounters(minChapterDate: Long)
 
     @Query("DELETE FROM tracks WHERE manga_id = :mangaId")
     abstract suspend fun delete(mangaId: Long)
 
-    @Query("DELETE FROM tracks WHERE manga_id NOT IN (SELECT manga_id FROM history WHERE history.deleted_at = 0 UNION SELECT manga_id FROM favourites WHERE favourites.deleted_at = 0 AND category_id IN (SELECT category_id FROM favourite_categories WHERE favourite_categories.deleted_at = 0 AND track = 1))")
+    @Query(
+        "DELETE FROM tracks WHERE manga_id NOT IN (SELECT manga_id FROM history WHERE history.deleted_at = 0 UNION SELECT manga_id FROM favourites WHERE favourites.deleted_at = 0 AND category_id IN (SELECT category_id FROM favourite_categories WHERE favourite_categories.deleted_at = 0 AND track = 1))",
+    )
     abstract suspend fun gc()
 
     @Upsert
@@ -105,11 +111,12 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
     @RawQuery(observedEntities = [TrackEntity::class])
     protected abstract fun observeMangaImpl(query: SupportSQLiteQuery): Flow<List<MangaWithTrack>>
 
-    override fun getCondition(option: ListFilterOption): String? = when (option) {
-        ListFilterOption.Macro.FAVORITE -> "EXISTS(SELECT * FROM favourites WHERE favourites.manga_id = tracks.manga_id)"
-        is ListFilterOption.Favorite -> "EXISTS(SELECT * FROM favourites WHERE favourites.manga_id = tracks.manga_id AND favourites.category_id = ${option.category.id})"
-        is ListFilterOption.Tag -> "EXISTS(SELECT * FROM manga_tags WHERE manga_tags.manga_id = tracks.manga_id AND tag_id = ${option.tagId})"
-        ListFilterOption.Macro.NSFW -> "(SELECT nsfw FROM manga WHERE manga.manga_id = tracks.manga_id) = 1"
-        else -> null
-    }
+    override fun getCondition(option: ListFilterOption): String? =
+        when (option) {
+            ListFilterOption.Macro.FAVORITE -> "EXISTS(SELECT * FROM favourites WHERE favourites.manga_id = tracks.manga_id)"
+            is ListFilterOption.Favorite -> "EXISTS(SELECT * FROM favourites WHERE favourites.manga_id = tracks.manga_id AND favourites.category_id = ${option.category.id})"
+            is ListFilterOption.Tag -> "EXISTS(SELECT * FROM manga_tags WHERE manga_tags.manga_id = tracks.manga_id AND tag_id = ${option.tagId})"
+            ListFilterOption.Macro.NSFW -> "(SELECT nsfw FROM manga WHERE manga.manga_id = tracks.manga_id) = 1"
+            else -> null
+        }
 }

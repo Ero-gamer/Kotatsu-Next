@@ -9,22 +9,18 @@ data class InterceptedRequest(
      * The full URL of the intercepted request
      */
     val url: String,
-
     /**
      * HTTP method (GET, POST, etc.)
      */
     val method: String,
-
     /**
      * Request headers as key-value pairs
      */
     val headers: Map<String, String>,
-
     /**
      * Timestamp when the request was intercepted (System.currentTimeMillis())
      */
     val timestamp: Long,
-
     /**
      * Optional request body for POST requests
      */
@@ -37,7 +33,8 @@ data class InterceptedRequest(
         val query = url.substringAfter('?', "")
         if (query.isEmpty()) return null
 
-        return query.split('&')
+        return query
+            .split('&')
             .map { it.split('=', limit = 2) }
             .find { it.size == 2 && it[0] == name }
             ?.get(1)
@@ -47,11 +44,6 @@ data class InterceptedRequest(
      * Check if URL matches a pattern
      */
     fun urlMatches(pattern: Regex): Boolean = pattern.containsMatchIn(url)
-
-    /**
-     * Check if URL contains a specific substring
-     */
-    fun urlContains(substring: String): Boolean = url.contains(substring, ignoreCase = true)
 }
 
 /**
@@ -78,7 +70,6 @@ interface WebViewRequestInterceptor {
 /**
  * Configuration for WebView request interception
  */
-// kotlin
 data class InterceptionConfig(
     val timeoutMs: Long,
     val maxRequests: Int = 100,

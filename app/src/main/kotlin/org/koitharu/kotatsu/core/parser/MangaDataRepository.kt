@@ -64,9 +64,12 @@ class MangaDataRepository @Inject constructor(
                     cfDither = colorFilter?.dither ?: 0f,
                     cfGrain = colorFilter?.grain ?: 0f,
                     cfSharpenMode = 0, // legacy column, superseded by the per-filter columns
-                    cfRcasUsm = colorFilter?.rcasUsm ?: 0f,
-                    cfAdaptiveSmoothstep = colorFilter?.adaptiveSmoothstep ?: 0f,
-                    cfAdaptiveSigmoid = colorFilter?.adaptiveSigmoid ?: 0f,
+                    cfRcasUsm = 0f, // legacy column, superseded by cfRcas
+                    cfAdaptiveSmoothstep = 0f, // legacy column, superseded by cfAdaptiveSharpen
+                    cfAdaptiveSigmoid = 0f, // legacy column, superseded by cfAdaptiveSharpen
+                    cfRcas = colorFilter?.rcas ?: 0f,
+                    cfAdaptiveSharpen = colorFilter?.adaptiveSharpen ?: 0f,
+                    cfDeband = colorFilter?.deband ?: 0f,
                     cfCatmullRom = 0f, // legacy column (early resampler filters), never read
                     cfBSpline = 0f, // legacy column (early resampler filters), never read
                     cfLineDarken = colorFilter?.isLineDarkenEnabled == true,
@@ -229,7 +232,7 @@ class MangaDataRepository @Inject constructor(
 
     private fun MangaPrefsEntity.getColorFilterOrNull(): ReaderColorFilter? = if (cfBrightness != 0f || cfContrast != 0f ||
         cfSaturation != 0f || cfVibrance != 0f || cfDenoise != 0f || cfDither != 0f || cfGrain != 0f ||
-        cfRcasUsm != 0f || cfAdaptiveSmoothstep != 0f || cfAdaptiveSigmoid != 0f ||
+        cfRcas != 0f || cfAdaptiveSharpen != 0f || cfDeband != 0f ||
         cfLineDarken || cfInvert || cfGrayscale || cfBookEffect
     ) {
         ReaderColorFilter(
@@ -240,9 +243,9 @@ class MangaDataRepository @Inject constructor(
             denoise = cfDenoise,
             dither = cfDither,
             grain = cfGrain,
-            rcasUsm = cfRcasUsm,
-            adaptiveSmoothstep = cfAdaptiveSmoothstep,
-            adaptiveSigmoid = cfAdaptiveSigmoid,
+            rcas = cfRcas,
+            adaptiveSharpen = cfAdaptiveSharpen,
+            deband = cfDeband,
             isInverted = cfInvert,
             isGrayscale = cfGrayscale,
             isBookBackground = cfBookEffect,
@@ -274,9 +277,12 @@ class MangaDataRepository @Inject constructor(
         cfDither = ReaderColorFilter.EMPTY.dither,
         cfGrain = ReaderColorFilter.EMPTY.grain,
         cfSharpenMode = 0,
-        cfRcasUsm = ReaderColorFilter.EMPTY.rcasUsm,
-        cfAdaptiveSmoothstep = ReaderColorFilter.EMPTY.adaptiveSmoothstep,
-        cfAdaptiveSigmoid = ReaderColorFilter.EMPTY.adaptiveSigmoid,
+        cfRcasUsm = 0f,
+        cfAdaptiveSmoothstep = 0f,
+        cfAdaptiveSigmoid = 0f,
+        cfRcas = ReaderColorFilter.EMPTY.rcas,
+        cfAdaptiveSharpen = ReaderColorFilter.EMPTY.adaptiveSharpen,
+        cfDeband = ReaderColorFilter.EMPTY.deband,
         cfCatmullRom = 0f,
         cfBSpline = 0f,
         cfLineDarken = ReaderColorFilter.EMPTY.isLineDarkenEnabled,

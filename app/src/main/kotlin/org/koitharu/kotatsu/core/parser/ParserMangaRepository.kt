@@ -30,12 +30,12 @@ class ParserMangaRepository(
     cache: MemoryContentCache,
 ) : CachingMangaRepository(cache),
     Interceptor {
-
-    private val filterOptionsLazy = suspendLazy(Dispatchers.Default) {
-        withMirrors {
-            parser.getFilterOptions()
+    private val filterOptionsLazy =
+        suspendLazy(Dispatchers.Default) {
+            withMirrors {
+                parser.getFilterOptions()
+            }
         }
-    }
 
     override val source: MangaParserSource
         get() = parser.source
@@ -63,43 +63,49 @@ class ParserMangaRepository(
 
     override fun intercept(chain: Interceptor.Chain): Response = parser.intercept(chain)
 
-    override suspend fun getList(offset: Int, order: SortOrder?, filter: MangaListFilter?): List<Manga> = withMirrors {
-        parser.getList(offset, order ?: defaultSortOrder, filter ?: MangaListFilter.EMPTY)
-    }
-
-    override suspend fun getPagesImpl(
-        chapter: MangaChapter,
-    ): List<MangaPage> = withMirrors {
-        parser.getPages(chapter)
-    }
-
-    override suspend fun getPageUrl(page: MangaPage): String = withMirrors {
-        parser.getPageUrl(page).also { result ->
-            check(result.isNotEmpty()) { "Page url is empty" }
+    override suspend fun getList(
+        offset: Int,
+        order: SortOrder?,
+        filter: MangaListFilter?,
+    ): List<Manga> =
+        withMirrors {
+            parser.getList(offset, order ?: defaultSortOrder, filter ?: MangaListFilter.EMPTY)
         }
-    }
+
+    override suspend fun getPagesImpl(chapter: MangaChapter): List<MangaPage> =
+        withMirrors {
+            parser.getPages(chapter)
+        }
+
+    override suspend fun getPageUrl(page: MangaPage): String =
+        withMirrors {
+            parser.getPageUrl(page).also { result ->
+                check(result.isNotEmpty()) { "Page url is empty" }
+            }
+        }
 
     override suspend fun getFilterOptions(): MangaListFilterOptions = filterOptionsLazy.get()
 
-    suspend fun getFavicons(): Favicons = withMirrors {
-        parser.getFavicons()
-    }
+    suspend fun getFavicons(): Favicons =
+        withMirrors {
+            parser.getFavicons()
+        }
 
     override suspend fun getRelatedMangaImpl(seed: Manga): List<Manga> = parser.getRelatedManga(seed)
 
-    override suspend fun getDetailsImpl(manga: Manga): Manga = withMirrors {
-        parser.getDetails(manga)
-    }
+    override suspend fun getDetailsImpl(manga: Manga): Manga =
+        withMirrors {
+            parser.getDetails(manga)
+        }
 
     fun getAuthProvider(): MangaParserAuthProvider? = parser.authorizationProvider
 
     fun getRequestHeaders() = parser.getRequestHeaders()
 
-    fun getConfigKeys(): List<ConfigKey<*>> = ArrayList<ConfigKey<*>>().also {
-        parser.onCreateConfig(it)
-    }
-
-    fun getAvailableMirrors(): List<String> = parser.configKeyDomain.presetValues.toList()
+    fun getConfigKeys(): List<ConfigKey<*>> =
+        ArrayList<ConfigKey<*>>().also {
+            parser.onCreateConfig(it)
+        }
 
     fun isSlowdownEnabled(): Boolean = getConfig().isSlowdownEnabled
 
@@ -117,23 +123,24 @@ class ParserMangaRepository(
         return newResult ?: initialResult.getOrThrow()
     }
 
-    private fun Result<Any>.isValidResult() = fold(
-        onSuccess = {
-            when (it) {
-                is Collection<*> -> it.isNotEmpty()
-                else -> true
-            }
-        },
-        onFailure = {
-            when (it.cause) {
-                is CloudFlareProtectedException,
-                is AuthRequiredException,
-                is InteractiveActionRequiredException,
-                is ProxyConfigException,
-                -> true
+    private fun Result<Any>.isValidResult() =
+        fold(
+            onSuccess = {
+                when (it) {
+                    is Collection<*> -> it.isNotEmpty()
+                    else -> true
+                }
+            },
+            onFailure = {
+                when (it.cause) {
+                    is CloudFlareProtectedException,
+                    is AuthRequiredException,
+                    is InteractiveActionRequiredException,
+                    is ProxyConfigException,
+                    -> true
 
-                else -> false
-            }
-        },
-    )
+                    else -> false
+                }
+            },
+        )
 }

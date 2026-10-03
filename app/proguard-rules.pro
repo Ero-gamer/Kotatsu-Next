@@ -23,6 +23,8 @@
 -keep class org.koitharu.kotatsu.core.prefs.ScreenshotsPolicy { *; }
 -keep class org.koitharu.kotatsu.backups.ui.periodical.PeriodicalBackupSettingsFragment { *; }
 -keep class org.jsoup.parser.Tag
+# MMKV: native code registers/calls these by name (precaution; the AAR may also ship rules)
+-keep class com.tencent.mmkv.** { *; }
 -keep class org.jsoup.internal.StringUtil
 
 -keep class org.acra.security.NoKeyStoreFactory { *; }

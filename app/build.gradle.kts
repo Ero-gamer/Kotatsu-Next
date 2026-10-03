@@ -215,6 +215,7 @@ dependencies {
     implementation(libs.androidx.preference)
     implementation(libs.androidx.biometric)
     implementation(libs.material)
+    implementation(libs.mmkv)
     implementation(libs.androidx.lifecycle.common.java8)
     implementation(libs.androidx.webkit)
 

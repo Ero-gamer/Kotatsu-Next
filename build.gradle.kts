@@ -32,7 +32,7 @@ subprojects {
                     // readable unwrapped; enforcing 120 cols here would require breaking SQL
                     // literals across dozens of pre-existing files for no functional benefit.
                     "ktlint_standard_max-line-length" to "disabled",
-                )
+                ),
             )
             trimTrailingWhitespace()
             endWithNewline()

@@ -77,7 +77,12 @@
 	<string-array name="reader_scaler" translatable="false">
 		<item>@string/reader_scaler_default</item>
 		<item>@string/reader_scaler_catmull_rom</item>
-		<item>@string/reader_scaler_bspline</item>
+		<item>@string/reader_scaler_robidoux</item>
+		<item>@string/reader_scaler_robidoux_sharp</item>
+	</string-array>
+	<string-array name="reader_downscaler" translatable="false">
+		<item>@string/reader_scaler_default</item>
+		<item>@string/reader_downscaler_dpid</item>
 	</string-array>
 	<string-array name="backup_frequency" translatable="false">
 		<item>@string/frequency_every_6_hours</item>

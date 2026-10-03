@@ -9,8 +9,5 @@ data class EmptyHint(
     @StringRes val textSecondary: Int,
     @StringRes val actionStringRes: Int,
 ) : ListModel {
-
-    fun toState() = EmptyState(icon, textPrimary, textSecondary, actionStringRes)
-
     override fun areItemsTheSame(other: ListModel): Boolean = other is EmptyHint && textPrimary == other.textPrimary
 }

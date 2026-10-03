@@ -121,264 +121,607 @@
 
 			<!-- ── Right column: controls ── -->
 
+			<TextView
+				android:id="@+id/header_color_tone"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="@string/filter_category_color_tone"
+				android:textAppearance="?textAppearanceTitleMedium"
+				android:textColor="?colorPrimary"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toTopOf="parent"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/subtitle_color_tone"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="@string/filter_category_color_tone_subtitle"
+				android:textAppearance="?textAppearanceBodySmall"
+				android:textColor="?colorOnSurfaceVariant"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/header_color_tone"
+				android:layout_marginStart="@dimen/margin_normal" />
+
 			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switch_invert"
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
+				android:minHeight="48dp"
+				android:layout_marginTop="4dp"
 				android:text="@string/invert_colors"
 				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintEnd_toStartOf="@id/info_invert"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toTopOf="parent" />
+				app:layout_constraintTop_toBottomOf="@id/subtitle_color_tone"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_invert"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/switch_invert" />
 
 			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switch_grayscale"
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
+				android:minHeight="48dp"
 				android:layout_marginTop="4dp"
 				android:text="@string/grayscale"
 				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintEnd_toStartOf="@id/info_grayscale"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/switch_invert" />
+				app:layout_constraintTop_toBottomOf="@id/switch_invert"
+				android:layout_marginStart="@dimen/margin_normal" />
 
-			<TextView
-				android:id="@+id/textView_brightness"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
-				android:text="@string/brightness"
-				android:textAppearance="?textAppearanceTitleMedium"
+			<ImageButton
+				android:id="@+id/info_grayscale"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
 				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/switch_grayscale" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_brightness"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:labelFor="@id/textView_brightness"
-				android:value="0.0"
-				android:valueFrom="-1.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_brightness" />
-
-			<TextView
-				android:id="@+id/textView_contrast"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:text="@string/contrast"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_brightness" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_contrast"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="-1.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_contrast" />
-
-			<TextView
-				android:id="@+id/textView_saturation"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:text="@string/saturation"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_contrast" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_saturation"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="-1.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_saturation" />
-
-			<TextView
-				android:id="@+id/textView_vibrance"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:text="@string/vibrance"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_saturation" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_vibrance"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="0.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_vibrance" />
-
-			<!-- ── RCAS + USM sharpen — u_enableRcasUsm / u_rcasUsmIntensity (GPU shader) ── -->
-
-			<TextView
-				android:id="@+id/textView_rcas_usm"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
-				android:text="@string/sharpen_rcas_usm"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_vibrance" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_rcas_usm"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="0.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_rcas_usm" />
-
-			<!-- ── Adaptive-Sharpen, smoothstep edge — u_enableAdaptiveSmoothstep / u_adaptiveSmoothstepIntensity (GPU shader) ── -->
-
-			<TextView
-				android:id="@+id/textView_adaptive_smoothstep"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
-				android:text="@string/sharpen_adaptive_smoothstep"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_rcas_usm" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_adaptive_smoothstep"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="0.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_adaptive_smoothstep" />
-
-			<!-- ── Adaptive-Sharpen, true sigmoid edge — u_enableAdaptiveSigmoid / u_adaptiveSigmoidIntensity (GPU shader) ── -->
-
-			<TextView
-				android:id="@+id/textView_adaptive_sigmoid"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
-				android:text="@string/sharpen_adaptive_sigmoid"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_adaptive_smoothstep" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_adaptive_sigmoid"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="0.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_adaptive_sigmoid" />
-
-			<TextView
-				android:id="@+id/textView_denoise"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
-				android:text="@string/denoise"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_adaptive_sigmoid" />
-
-			<com.google.android.material.slider.Slider
-				android:id="@+id/slider_denoise"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_small"
-				android:value="0.0"
-				android:valueFrom="0.0"
-				android:valueTo="1.0"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/textView_denoise" />
-
-			<!-- Dither and Grain (textView_dither/slider_dither/textView_grain/slider_grain)
-			     REMOVED — CPU loops eliminated. Matches the base layout/ folder variant. -->
-
-			<!-- ── Line Darkening (GPU shader — u_enableDarken) ── -->
-
-			<com.google.android.material.materialswitch.MaterialSwitch
-				android:id="@+id/switch_line_darken"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
-				android:text="@string/line_darkening"
-				android:textAppearance="?textAppearanceTitleMedium"
-				app:layout_constraintEnd_toEndOf="parent"
-				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/slider_denoise" />
+				app:layout_constraintTop_toTopOf="@id/switch_grayscale" />
 
 			<com.google.android.material.materialswitch.MaterialSwitch
 				android:id="@+id/switch_book"
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
-				android:layout_marginStart="@dimen/margin_normal"
-				android:layout_marginTop="@dimen/margin_normal"
+				android:minHeight="48dp"
+				android:layout_marginTop="4dp"
 				android:text="@string/book_effect"
 				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_book"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/switch_grayscale"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_book"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/switch_book" />
+
+			<TextView
+				android:id="@+id/textView_brightness"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_brightness"
+				android:text="@string/brightness"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_brightness"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/switch_book"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_brightness"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_brightness" />
+
+			<ImageButton
+				android:id="@+id/button_brightness_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_brightness"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_brightness"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="-1.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_brightness_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_brightness_plus"
+				app:layout_constraintStart_toEndOf="@id/button_brightness_minus"
+				app:layout_constraintTop_toTopOf="@id/button_brightness_minus" />
+
+			<ImageButton
+				android:id="@+id/button_brightness_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_brightness_minus" />
+
+			<TextView
+				android:id="@+id/textView_contrast"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_contrast"
+				android:text="@string/contrast"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_contrast"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_brightness_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_contrast"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_contrast" />
+
+			<ImageButton
+				android:id="@+id/button_contrast_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_contrast"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_contrast"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="-1.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_contrast_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_contrast_plus"
+				app:layout_constraintStart_toEndOf="@id/button_contrast_minus"
+				app:layout_constraintTop_toTopOf="@id/button_contrast_minus" />
+
+			<ImageButton
+				android:id="@+id/button_contrast_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_contrast_minus" />
+
+			<TextView
+				android:id="@+id/textView_saturation"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_saturation"
+				android:text="@string/saturation"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_saturation"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_contrast_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_saturation"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_saturation" />
+
+			<ImageButton
+				android:id="@+id/button_saturation_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_saturation"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_saturation"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="-1.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_saturation_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_saturation_plus"
+				app:layout_constraintStart_toEndOf="@id/button_saturation_minus"
+				app:layout_constraintTop_toTopOf="@id/button_saturation_minus" />
+
+			<ImageButton
+				android:id="@+id/button_saturation_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_saturation_minus" />
+
+			<TextView
+				android:id="@+id/textView_vibrance"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_vibrance"
+				android:text="@string/vibrance"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_vibrance"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_saturation_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_vibrance"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_vibrance" />
+
+			<ImageButton
+				android:id="@+id/button_vibrance_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_vibrance"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_vibrance"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_vibrance_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_vibrance_plus"
+				app:layout_constraintStart_toEndOf="@id/button_vibrance_minus"
+				app:layout_constraintTop_toTopOf="@id/button_vibrance_minus" />
+
+			<ImageButton
+				android:id="@+id/button_vibrance_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_vibrance_minus" />
+
+			<TextView
+				android:id="@+id/header_clarity"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/filter_category_clarity"
+				android:textAppearance="?textAppearanceTitleMedium"
+				android:textColor="?colorPrimary"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/switch_line_darken" />
+				app:layout_constraintTop_toBottomOf="@id/button_vibrance_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/subtitle_clarity"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="@string/filter_category_clarity_subtitle"
+				android:textAppearance="?textAppearanceBodySmall"
+				android:textColor="?colorOnSurfaceVariant"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/header_clarity"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/textView_rcas"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_rcas"
+				android:text="@string/sharpen_rcas"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_rcas"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/subtitle_clarity"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_rcas"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_rcas" />
+
+			<ImageButton
+				android:id="@+id/button_rcas_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_rcas"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_rcas"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_rcas_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_rcas_plus"
+				app:layout_constraintStart_toEndOf="@id/button_rcas_minus"
+				app:layout_constraintTop_toTopOf="@id/button_rcas_minus" />
+
+			<ImageButton
+				android:id="@+id/button_rcas_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_rcas_minus" />
+
+			<TextView
+				android:id="@+id/textView_adaptive_sharpen"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_adaptive_sharpen"
+				android:text="@string/sharpen_adaptive_sharpen"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_adaptive_sharpen"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_rcas_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_adaptive_sharpen"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_adaptive_sharpen" />
+
+			<ImageButton
+				android:id="@+id/button_adaptive_sharpen_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_adaptive_sharpen"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_adaptive_sharpen"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_adaptive_sharpen_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_adaptive_sharpen_plus"
+				app:layout_constraintStart_toEndOf="@id/button_adaptive_sharpen_minus"
+				app:layout_constraintTop_toTopOf="@id/button_adaptive_sharpen_minus" />
+
+			<ImageButton
+				android:id="@+id/button_adaptive_sharpen_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_adaptive_sharpen_minus" />
+
+			<TextView
+				android:id="@+id/header_cleanup"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/filter_category_cleanup"
+				android:textAppearance="?textAppearanceTitleMedium"
+				android:textColor="?colorPrimary"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_adaptive_sharpen_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/subtitle_cleanup"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="@string/filter_category_cleanup_subtitle"
+				android:textAppearance="?textAppearanceBodySmall"
+				android:textColor="?colorOnSurfaceVariant"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/header_cleanup"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/textView_deband"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_deband"
+				android:text="@string/deband"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_deband"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/subtitle_cleanup"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_deband"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_deband" />
+
+			<ImageButton
+				android:id="@+id/button_deband_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_deband"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_deband"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_deband_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_deband_plus"
+				app:layout_constraintStart_toEndOf="@id/button_deband_minus"
+				app:layout_constraintTop_toTopOf="@id/button_deband_minus" />
+
+			<ImageButton
+				android:id="@+id/button_deband_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_deband_minus" />
+
+			<TextView
+				android:id="@+id/textView_denoise"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_denoise"
+				android:text="@string/denoise"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_denoise"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_deband_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_denoise"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_denoise" />
+
+			<ImageButton
+				android:id="@+id/button_denoise_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_denoise"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_denoise"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_denoise_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_denoise_plus"
+				app:layout_constraintStart_toEndOf="@id/button_denoise_minus"
+				app:layout_constraintTop_toTopOf="@id/button_denoise_minus" />
+
+			<ImageButton
+				android:id="@+id/button_denoise_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_denoise_minus" />
+
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_line_darken"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:layout_marginTop="4dp"
+				android:text="@string/line_darkening"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_line_darken"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_denoise_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_line_darken"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/switch_line_darken" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

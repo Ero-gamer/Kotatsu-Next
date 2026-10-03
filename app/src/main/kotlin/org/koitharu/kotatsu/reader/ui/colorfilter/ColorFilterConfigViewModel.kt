@@ -43,9 +43,9 @@ class ColorFilterConfigViewModel @Inject constructor(
 
     fun setBrightness(brightness: Float) = updateColorFilter { it.copy(brightness = brightness) }
     fun setContrast(contrast: Float) = updateColorFilter { it.copy(contrast = contrast) }
-    fun setRcasUsm(intensity: Float) = updateColorFilter { it.copy(rcasUsm = intensity) }
-    fun setAdaptiveSmoothstep(intensity: Float) = updateColorFilter { it.copy(adaptiveSmoothstep = intensity) }
-    fun setAdaptiveSigmoid(intensity: Float) = updateColorFilter { it.copy(adaptiveSigmoid = intensity) }
+    fun setRcas(intensity: Float) = updateColorFilter { it.copy(rcas = intensity) }
+    fun setAdaptiveSharpen(intensity: Float) = updateColorFilter { it.copy(adaptiveSharpen = intensity) }
+    fun setDeband(intensity: Float) = updateColorFilter { it.copy(deband = intensity) }
     fun setSaturation(saturation: Float) = updateColorFilter { it.copy(saturation = saturation) }
     fun setVibrance(vibrance: Float) = updateColorFilter { it.copy(vibrance = vibrance) }
     fun setDenoise(denoise: Float) = updateColorFilter { it.copy(denoise = denoise) }

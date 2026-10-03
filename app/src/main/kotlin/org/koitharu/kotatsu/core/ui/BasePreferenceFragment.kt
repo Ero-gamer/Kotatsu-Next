@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.View
 import androidx.annotation.StringRes
+import androidx.annotation.XmlRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.OnApplyWindowInsetsListener
 import androidx.core.view.ViewCompat
@@ -33,11 +34,11 @@ import javax.inject.Inject
 import com.google.android.material.R as materialR
 
 @AndroidEntryPoint
-abstract class BasePreferenceFragment(@StringRes private val titleId: Int) :
-    PreferenceFragmentCompat(),
+abstract class BasePreferenceFragment(
+    @StringRes private val titleId: Int,
+) : PreferenceFragmentCompat(),
     OnApplyWindowInsetsListener,
     RecyclerViewOwner {
-
     protected lateinit var exceptionResolver: ExceptionResolver
         private set
 
@@ -47,13 +48,33 @@ abstract class BasePreferenceFragment(@StringRes private val titleId: Int) :
     override val recyclerView: RecyclerView?
         get() = listView
 
+    /**
+     * Whether this screen's preferences live in the app-wide settings (MMKV-backed). Screens with a
+     * store of their own (per-source settings) return `false` and keep the manager's file.
+     */
+    protected open val usesAppSettingsStore: Boolean
+        get() = true
+
+    override fun addPreferencesFromResource(
+        @XmlRes preferencesResId: Int,
+    ) {
+        // Must happen before inflation: Preferences bind to the data store when they are attached.
+        if (usesAppSettingsStore && preferenceManager.preferenceDataStore == null) {
+            preferenceManager.preferenceDataStore = settings.preferenceDataStore
+        }
+        super.addPreferencesFromResource(preferencesResId)
+    }
+
     override fun onAttach(context: Context) {
         super.onAttach(context)
         val entryPoint = EntryPointAccessors.fromApplication<BaseActivityEntryPoint>(context)
         exceptionResolver = entryPoint.exceptionResolverFactory.create(this)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         ViewCompat.setOnApplyWindowInsetsListener(view, this)
         val themedContext = (view.parentView ?: view).context
@@ -61,7 +82,10 @@ abstract class BasePreferenceFragment(@StringRes private val titleId: Int) :
         listView.clipToPadding = false
     }
 
-    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+    override fun onApplyWindowInsets(
+        v: View,
+        insets: WindowInsetsCompat,
+    ): WindowInsetsCompat {
         val barsInsets = insets.systemBarsInsets
         val isTablet = !resources.getBoolean(R.bool.is_tablet)
         val isMaster = container?.id == R.id.container_master
@@ -87,11 +111,12 @@ abstract class BasePreferenceFragment(@StringRes private val titleId: Int) :
         (activity as? SettingsActivity)?.setSectionTitle(title)
     }
 
-    protected fun getWarningIcon(): Drawable? = context?.let { ctx ->
-        ContextCompat.getDrawable(ctx, R.drawable.ic_alert_outline)?.also {
-            it.setTint(ContextCompat.getColor(ctx, R.color.warning))
+    protected fun getWarningIcon(): Drawable? =
+        context?.let { ctx ->
+            ContextCompat.getDrawable(ctx, R.drawable.ic_alert_outline)?.also {
+                it.setTint(ContextCompat.getColor(ctx, R.color.warning))
+            }
         }
-    }
 
     private fun focusPreference(key: String) {
         val pref = findPreference<Preference>(key)
@@ -101,11 +126,12 @@ abstract class BasePreferenceFragment(@StringRes private val titleId: Int) :
         }
         scrollToPreference(pref)
         val prefIndex = preferenceScreen.indexOf(key)
-        val view = if (prefIndex >= 0) {
-            listView.findViewHolderForAdapterPosition(prefIndex)?.itemView ?: return
-        } else {
-            return
-        }
+        val view =
+            if (prefIndex >= 0) {
+                listView.findViewHolderForAdapterPosition(prefIndex)?.itemView ?: return
+            } else {
+                return
+            }
         view.context.getThemeDrawable(materialR.attr.colorTertiaryContainer)?.let {
             view.background = it
         }

@@ -115,6 +115,20 @@
 		app:useSimpleSummaryProvider="true" />
 
 	<SwitchPreferenceCompat
+		android:defaultValue="true"
+		android:icon="@drawable/ic_auto_fix"
+		android:key="reader_smart_sharpen"
+		android:summary="@string/reader_smart_sharpen_summary"
+		android:title="@string/reader_smart_sharpen" />
+
+	<ListPreference
+		android:entries="@array/reader_downscaler"
+		android:icon="@drawable/ic_auto_fix"
+		android:key="reader_downscaler"
+		android:title="@string/reader_downscaler"
+		app:useSimpleSummaryProvider="true" />
+
+	<SwitchPreferenceCompat
 		android:defaultValue="false"
 		android:icon="@drawable/ic_appearance"
 		android:key="enhanced_colors"

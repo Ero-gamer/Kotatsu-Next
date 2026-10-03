@@ -21,7 +21,6 @@ class RequestInterceptorWebViewClient(
     private val config: InterceptionConfig,
     private val interceptor: WebViewRequestInterceptor,
 ) : BrowserClient(callback, adBlock) {
-
     private val capturedRequests = Collections.synchronizedList(mutableListOf<InterceptedRequest>())
     private val isCapturing = AtomicBoolean(true)
     private val startTime = System.currentTimeMillis()
@@ -43,7 +42,10 @@ class RequestInterceptorWebViewClient(
         return parentResponse
     }
 
-    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+    override fun shouldOverrideUrlLoading(
+        view: WebView?,
+        request: WebResourceRequest?,
+    ): Boolean {
         // Capture navigation events (like window.location.href = "...")
         if (isCapturing.get() && request != null && !isTimeoutReached()) {
             if (captureRequestIfMatches(request)) {
@@ -53,7 +55,10 @@ class RequestInterceptorWebViewClient(
         return super.shouldOverrideUrlLoading(view, request)
     }
 
-    override fun onPageFinished(view: WebView, url: String) {
+    override fun onPageFinished(
+        view: WebView,
+        url: String,
+    ) {
         super.onPageFinished(view, url)
         val script = config.pageScript
         if (!script.isNullOrBlank() && scriptInjected.compareAndSet(false, true)) {
@@ -69,25 +74,28 @@ class RequestInterceptorWebViewClient(
      */
     private fun captureRequestIfMatches(request: WebResourceRequest): Boolean {
         try {
-            val interceptedRequest = InterceptedRequest(
-                url = request.url.toString(),
-                method = request.method,
-                headers = request.requestHeaders,
-                timestamp = System.currentTimeMillis(),
-            )
+            val interceptedRequest =
+                InterceptedRequest(
+                    url = request.url.toString(),
+                    method = request.method,
+                    headers = request.requestHeaders,
+                    timestamp = System.currentTimeMillis(),
+                )
 
             // Check if request matches filtering criteria
-            val shouldCapture = when {
-                capturedRequests.size >= config.maxRequests -> false
-                config.urlPattern != null && !interceptedRequest.urlMatches(config.urlPattern) -> false
-                else -> interceptor.shouldCaptureRequest(interceptedRequest)
-            }
+            val shouldCapture =
+                when {
+                    capturedRequests.size >= config.maxRequests -> false
+                    config.urlPattern != null && !interceptedRequest.urlMatches(config.urlPattern) -> false
+                    else -> interceptor.shouldCaptureRequest(interceptedRequest)
+                }
 
             if (shouldCapture) {
-                val shouldComplete = synchronized(capturedRequests) {
-                    capturedRequests.add(interceptedRequest)
-                    capturedRequests.size >= config.maxRequests
-                }
+                val shouldComplete =
+                    synchronized(capturedRequests) {
+                        capturedRequests.add(interceptedRequest)
+                        capturedRequests.size >= config.maxRequests
+                    }
 
                 // If we've reached maxRequests, stop capturing immediately
                 if (shouldComplete) {
@@ -107,9 +115,10 @@ class RequestInterceptorWebViewClient(
 
     private fun completeInterception() {
         try {
-            val finalRequests = synchronized(capturedRequests) {
-                capturedRequests.toList()
-            }
+            val finalRequests =
+                synchronized(capturedRequests) {
+                    capturedRequests.toList()
+                }
             interceptor.onInterceptionComplete(finalRequests)
         } catch (e: Exception) {
             interceptor.onInterceptionError(e)
@@ -123,12 +132,5 @@ class RequestInterceptorWebViewClient(
         if (isCapturing.compareAndSet(true, false)) {
             completeInterception()
         }
-    }
-
-    /**
-     * Get currently captured requests (thread-safe)
-     */
-    fun getCapturedRequests(): List<InterceptedRequest> = synchronized(capturedRequests) {
-        capturedRequests.toList()
     }
 }

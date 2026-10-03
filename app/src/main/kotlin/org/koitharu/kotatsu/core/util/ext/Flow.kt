@@ -1,7 +1,6 @@
 package org.koitharu.kotatsu.core.util.ext
 
 import android.os.SystemClock
-import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,7 +10,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -76,35 +74,45 @@ fun <T> Flow<T>.throttle(timeoutMillis: (T) -> Long): Flow<T> {
     }
 }
 
-fun <T> StateFlow<T?>.requireValue(): T = checkNotNull(value) {
-    "StateFlow value is null"
-}
+fun <T> StateFlow<T?>.requireValue(): T =
+    checkNotNull(value) {
+        "StateFlow value is null"
+    }
 
-fun <T> Flow<Collection<T>>.flatten(): Flow<T> = flow {
-    collect { value ->
-        for (item in value) {
-            emit(item)
+fun <T> Flow<Collection<T>>.flatten(): Flow<T> =
+    flow {
+        collect { value ->
+            for (item in value) {
+                emit(item)
+            }
         }
     }
-}
 
-fun <T> Flow<T>.zipWithPrevious(): Flow<Pair<T?, T>> = flow {
-    var previous: T? = null
-    collect { value ->
-        val result = previous to value
-        previous = value
-        emit(result)
+fun <T> Flow<T>.zipWithPrevious(): Flow<Pair<T?, T>> =
+    flow {
+        var previous: T? = null
+        collect { value ->
+            val result = previous to value
+            previous = value
+            emit(result)
+        }
     }
-}
 
-fun tickerFlow(interval: Long, timeUnit: TimeUnit): Flow<Long> = flow {
-    while (true) {
-        emit(SystemClock.elapsedRealtime())
-        delay(timeUnit.toMillis(interval))
+fun tickerFlow(
+    interval: Long,
+    timeUnit: TimeUnit,
+): Flow<Long> =
+    flow {
+        while (true) {
+            emit(SystemClock.elapsedRealtime())
+            delay(timeUnit.toMillis(interval))
+        }
     }
-}
 
-fun <T> Flow<T>.withTicker(interval: Long, timeUnit: TimeUnit) = channelFlow<T> {
+fun <T> Flow<T>.withTicker(
+    interval: Long,
+    timeUnit: TimeUnit,
+) = channelFlow<T> {
     onCompletion { cause ->
         close(cause)
     }.combine(tickerFlow(interval, timeUnit)) { x, _ -> x }
@@ -121,16 +129,17 @@ fun <T1, T2, T3, T4, T5, T6, R> combine(
     flow5: Flow<T5>,
     flow6: Flow<T6>,
     transform: suspend (T1, T2, T3, T4, T5, T6) -> R,
-): Flow<R> = combine(flow, flow2, flow3, flow4, flow5, flow6) { args: Array<*> ->
-    transform(
-        args[0] as T1,
-        args[1] as T2,
-        args[2] as T3,
-        args[3] as T4,
-        args[4] as T5,
-        args[5] as T6,
-    )
-}
+): Flow<R> =
+    combine(flow, flow2, flow3, flow4, flow5, flow6) { args: Array<*> ->
+        transform(
+            args[0] as T1,
+            args[1] as T2,
+            args[2] as T3,
+            args[3] as T4,
+            args[4] as T5,
+            args[5] as T6,
+        )
+    }
 
 @Suppress("UNCHECKED_CAST")
 fun <T1, T2, T3, T4, T5, T6, T7, R> combine(
@@ -142,37 +151,31 @@ fun <T1, T2, T3, T4, T5, T6, T7, R> combine(
     flow6: Flow<T6>,
     flow7: Flow<T7>,
     transform: suspend (T1, T2, T3, T4, T5, T6, T7) -> R,
-): Flow<R> = combine(flow, flow2, flow3, flow4, flow5, flow6, flow7) { args: Array<*> ->
-    transform(
-        args[0] as T1,
-        args[1] as T2,
-        args[2] as T3,
-        args[3] as T4,
-        args[4] as T5,
-        args[5] as T6,
-        args[6] as T7,
-    )
-}
+): Flow<R> =
+    combine(flow, flow2, flow3, flow4, flow5, flow6, flow7) { args: Array<*> ->
+        transform(
+            args[0] as T1,
+            args[1] as T2,
+            args[2] as T3,
+            args[3] as T4,
+            args[4] as T5,
+            args[5] as T6,
+            args[6] as T7,
+        )
+    }
 
 suspend fun <T : Any> Flow<T?>.firstNotNull(): T = checkNotNull(first { x -> x != null })
-
-suspend fun <T : Any> Flow<T?>.firstNotNullOrNull(): T? = firstOrNull { x -> x != null }
 
 fun <T> Flow<Flow<T>>.flattenLatest() = flatMapLatest { it }
 
 fun <T> SuspendLazy<T>.asFlow() = flow { emit(runCatchingCancellable { get() }) }
 
-suspend fun <T> SendChannel<T>.sendNotNull(item: T?) {
-    if (item != null) {
-        send(item)
-    }
-}
-
 fun <T> MutableStateFlow<List<T>>.append(item: T) {
     update { list -> list + item }
 }
 
-fun <T> Flow<T>.concat(other: Flow<T>) = flow {
-    emitAll(this@concat)
-    emitAll(other)
-}
+fun <T> Flow<T>.concat(other: Flow<T>) =
+    flow {
+        emitAll(this@concat)
+        emitAll(other)
+    }

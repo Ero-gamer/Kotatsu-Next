@@ -32,14 +32,6 @@ fun Context.getThemeColor(
 }
 
 @Px
-fun Context.getThemeDimensionPixelSize(
-    @AttrRes resId: Int,
-    @Px fallback: Int = 0,
-) = obtainStyledAttributes(intArrayOf(resId)).use {
-    it.getDimensionPixelSize(0, fallback)
-}
-
-@Px
 fun Context.getThemeDimensionPixelOffset(
     @AttrRes resId: Int,
     @Px fallback: Int = 0,
@@ -72,12 +64,16 @@ fun Context.getThemeColorStateList(
 fun Context.getThemeResId(
     @AttrRes resId: Int,
     fallback: Int,
-): Int = obtainStyledAttributes(intArrayOf(resId)).use {
-    it.getResourceId(0, fallback)
-}
+): Int =
+    obtainStyledAttributes(intArrayOf(resId)).use {
+        it.getResourceId(0, fallback)
+    }
 
 @Deprecated("")
-fun TypedArray.getDrawableCompat(context: Context, index: Int): Drawable? {
+fun TypedArray.getDrawableCompat(
+    context: Context,
+    index: Int,
+): Drawable? {
     val resId = getResourceId(index, 0)
     return if (resId != 0) ContextCompat.getDrawable(context, resId) else null
 }

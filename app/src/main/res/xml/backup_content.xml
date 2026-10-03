@@ -3,6 +3,9 @@
 	<include
 		domain="sharedpref"
 		path="." />
+	<include
+		domain="file"
+		path="mmkv" />
 	<exclude
 		domain="sharedpref"
 		path="_local_index.xml" />

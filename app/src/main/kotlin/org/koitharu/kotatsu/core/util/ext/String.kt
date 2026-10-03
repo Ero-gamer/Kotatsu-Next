@@ -4,25 +4,91 @@ import android.content.Context
 import androidx.collection.arraySetOf
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.parsers.util.ellipsize
-import org.koitharu.kotatsu.parsers.util.nullIfEmpty
 import java.util.UUID
 
-fun String.toUUIDOrNull(): UUID? = try {
-    UUID.fromString(this)
-} catch (e: IllegalArgumentException) {
-    e.printStackTraceDebug()
-    null
-}
+fun String.toUUIDOrNull(): UUID? =
+    try {
+        UUID.fromString(this)
+    } catch (e: IllegalArgumentException) {
+        e.printStackTraceDebug()
+        null
+    }
 
 fun String.transliterate(skipMissing: Boolean): String {
-    val cyr = charArrayOf(
-        'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п',
-        'р', 'с', 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я', 'ё', 'ў',
-    )
-    val lat = arrayOf(
-        "a", "b", "v", "g", "d", "e", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p",
-        "r", "s", "t", "u", "f", "h", "ts", "ch", "sh", "sch", "", "i", "", "e", "ju", "ja", "jo", "w",
-    )
+    val cyr =
+        charArrayOf(
+            'а',
+            'б',
+            'в',
+            'г',
+            'д',
+            'е',
+            'ж',
+            'з',
+            'и',
+            'й',
+            'к',
+            'л',
+            'м',
+            'н',
+            'о',
+            'п',
+            'р',
+            'с',
+            'т',
+            'у',
+            'ф',
+            'х',
+            'ц',
+            'ч',
+            'ш',
+            'щ',
+            'ъ',
+            'ы',
+            'ь',
+            'э',
+            'ю',
+            'я',
+            'ё',
+            'ў',
+        )
+    val lat =
+        arrayOf(
+            "a",
+            "b",
+            "v",
+            "g",
+            "d",
+            "e",
+            "zh",
+            "z",
+            "i",
+            "y",
+            "k",
+            "l",
+            "m",
+            "n",
+            "o",
+            "p",
+            "r",
+            "s",
+            "t",
+            "u",
+            "f",
+            "h",
+            "ts",
+            "ch",
+            "sh",
+            "sch",
+            "",
+            "i",
+            "",
+            "e",
+            "ju",
+            "ja",
+            "jo",
+            "w",
+        )
     return buildString(length + 5) {
         for (c in this@transliterate) {
             val p = cyr.binarySearch(c.lowercaseChar())
@@ -39,15 +105,21 @@ fun String.transliterate(skipMissing: Boolean): String {
     }
 }
 
-fun String.toFileNameSafe(): String = this.transliterate(false)
-    .replace(Regex("[^a-z0-9_\\-]", arraySetOf(RegexOption.IGNORE_CASE)), " ")
-    .replace(Regex("\\s+"), "_")
+fun String.toFileNameSafe(): String =
+    this
+        .transliterate(false)
+        .replace(Regex("[^a-z0-9_\\-]", arraySetOf(RegexOption.IGNORE_CASE)), " ")
+        .replace(Regex("\\s+"), "_")
 
 fun CharSequence.sanitize(): CharSequence = filterNot { c -> c.isReplacement() }
 
 fun Char.isReplacement() = this in '\uFFF0'..'\uFFFF'
 
-fun <T> Collection<T>.joinToStringWithLimit(context: Context, limit: Int, transform: ((T) -> String)): String {
+fun <T> Collection<T>.joinToStringWithLimit(
+    context: Context,
+    limit: Int,
+    transform: ((T) -> String),
+): String {
     if (size == 1) {
         return transform(first()).ellipsize(limit)
     }
@@ -55,7 +127,9 @@ fun <T> Collection<T>.joinToStringWithLimit(context: Context, limit: Int, transf
         for ((i, item) in this@joinToStringWithLimit.withIndex()) {
             val str = transform(item)
             when {
-                i == 0 -> append(str.ellipsize(limit - 4))
+                i == 0 -> {
+                    append(str.ellipsize(limit - 4))
+                }
 
                 length + str.length > limit -> {
                     append(", ")
@@ -63,7 +137,9 @@ fun <T> Collection<T>.joinToStringWithLimit(context: Context, limit: Int, transf
                     break
                 }
 
-                else -> append(", ").append(str)
+                else -> {
+                    append(", ").append(str)
+                }
             }
         }
     }
@@ -74,10 +150,3 @@ fun String.isHttpUrl() = startsWith("https://", ignoreCase = true) || startsWith
 // Animated-image detection isn't implemented yet; always reports false for now.
 @Suppress("FunctionOnlyReturningConstant")
 fun String.isAnimatedImage() = false
-
-fun concatStrings(context: Context, a: String?, b: String?): String? = when {
-    a.isNullOrEmpty() && b.isNullOrEmpty() -> null
-    a.isNullOrEmpty() -> b?.nullIfEmpty()
-    b.isNullOrEmpty() -> a.nullIfEmpty()
-    else -> context.getString(R.string.download_summary_pattern, a, b)
-}

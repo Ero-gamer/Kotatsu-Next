@@ -2,7 +2,6 @@ package org.koitharu.kotatsu.core.ui
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -34,7 +33,6 @@ abstract class BaseActivity<B : ViewBinding> :
     AppCompatActivity(),
     OnApplyWindowInsetsListener,
     ScreenshotPolicyHelper.ContentContainer {
-
     private var isAmoledTheme = false
 
     lateinit var viewBinding: B
@@ -114,7 +112,10 @@ abstract class BaseActivity<B : ViewBinding> :
         toolbar?.let(this::setSupportActionBar)
     }
 
-    protected fun setDisplayHomeAsUp(isEnabled: Boolean, showUpAsClose: Boolean) {
+    protected fun setDisplayHomeAsUp(
+        isEnabled: Boolean,
+        showUpAsClose: Boolean,
+    ) {
         supportActionBar?.run {
             setDisplayHomeAsUpEnabled(isEnabled)
             if (showUpAsClose) {
@@ -136,7 +137,10 @@ abstract class BaseActivity<B : ViewBinding> :
         return true
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    override fun onKeyDown(
+        keyCode: Int,
+        event: KeyEvent?,
+    ): Boolean {
         if (BuildConfig.DEBUG) {
             if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
                 ActivityCompat.recreate(this)
@@ -146,12 +150,6 @@ abstract class BaseActivity<B : ViewBinding> :
             }
         }
         return super.onKeyDown(keyCode, event)
-    }
-
-    protected fun isDarkAmoledTheme(): Boolean {
-        val uiMode = resources.configuration.uiMode
-        val isNight = uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        return isNight && isAmoledTheme
     }
 
     @CallSuper
@@ -183,18 +181,19 @@ abstract class BaseActivity<B : ViewBinding> :
         intent?.putExtra(AppRouter.KEY_DATA, intent.data)
     }
 
-    protected fun setContentViewWebViewSafe(viewBindingProducer: () -> B): Boolean = try {
-        setContentView(viewBindingProducer())
-        true
-    } catch (e: Exception) {
-        if (e.isWebViewUnavailable()) {
-            Toast.makeText(this, R.string.web_view_unavailable, Toast.LENGTH_LONG).show()
-            finishAfterTransition()
-            false
-        } else {
-            throw e
+    protected fun setContentViewWebViewSafe(viewBindingProducer: () -> B): Boolean =
+        try {
+            setContentView(viewBindingProducer())
+            true
+        } catch (e: Exception) {
+            if (e.isWebViewUnavailable()) {
+                Toast.makeText(this, R.string.web_view_unavailable, Toast.LENGTH_LONG).show()
+                finishAfterTransition()
+                false
+            } else {
+                throw e
+            }
         }
-    }
 
     protected fun hasViewBinding() = ::viewBinding.isInitialized
 }

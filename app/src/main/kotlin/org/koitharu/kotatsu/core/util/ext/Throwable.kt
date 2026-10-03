@@ -47,7 +47,6 @@ import org.koitharu.kotatsu.parsers.exception.ParseException
 import org.koitharu.kotatsu.parsers.exception.TooManyRequestExceptions
 import org.koitharu.kotatsu.parsers.util.ifNullOrEmpty
 import org.koitharu.kotatsu.scrobbling.common.domain.ScrobblerAuthRequiredException
-import java.io.File
 import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.NoRouteToHostException
@@ -63,167 +62,277 @@ private const val IMAGE_FORMAT_NOT_SUPPORTED = "Image format not supported"
 
 private val FNFE_MESSAGE_REGEX = Regex("^(/[^\\s:]+)?.+?\\s([A-Z]{2,6})?\\s.+$")
 
-fun Throwable.getDisplayMessage(resources: Resources): String = getDisplayMessageOrNull(resources)
-    ?: resources.getString(R.string.error_occurred)
+fun Throwable.getDisplayMessage(resources: Resources): String =
+    getDisplayMessageOrNull(resources)
+        ?: resources.getString(R.string.error_occurred)
 
-private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = when (this) {
-    is CancellationException -> cause?.getDisplayMessageOrNull(resources) ?: message
-
-    is CaughtException -> cause.getDisplayMessageOrNull(resources)
-
-    is WrapperIOException -> cause.getDisplayMessageOrNull(resources)
-
-    is ScrobblerAuthRequiredException -> resources.getString(
-        R.string.scrobbler_auth_required,
-        resources.getString(scrobbler.titleResId),
-    )
-
-    is AuthRequiredException -> resources.getString(R.string.auth_required)
-
-    is InteractiveActionRequiredException -> resources.getString(R.string.additional_action_required)
-
-    is CloudFlareProtectedException -> resources.getString(R.string.captcha_required_message)
-
-    is CloudFlareBlockedException -> resources.getString(R.string.blocked_by_server_message)
-
-    is ActivityNotFoundException,
-    is UnsupportedOperationException,
-    -> resources.getString(R.string.operation_not_supported)
-
-    is TooManyRequestExceptions -> {
-        val delay = getRetryDelay()
-        val formattedTime = if (delay > 0L && delay < Long.MAX_VALUE) {
-            resources.formatDurationShort(delay)
-        } else {
-            null
+private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? =
+    when (this) {
+        is CancellationException -> {
+            cause?.getDisplayMessageOrNull(resources) ?: message
         }
-        if (formattedTime != null) {
-            resources.getString(R.string.too_many_requests_message_retry, formattedTime)
-        } else {
-            resources.getString(R.string.too_many_requests_message)
+
+        is CaughtException -> {
+            cause.getDisplayMessageOrNull(resources)
         }
-    }
 
-    is ZipException -> resources.getString(R.string.error_corrupted_zip, this.message.orEmpty())
-
-    is SQLiteFullException -> resources.getString(R.string.error_no_space_left)
-
-    is UnsupportedFileException -> resources.getString(R.string.text_file_not_supported)
-
-    is BadBackupFormatException -> resources.getString(R.string.unsupported_backup_message)
-
-    is FileNotFoundException -> parseMessage(resources) ?: message
-
-    is AccessDeniedException -> resources.getString(R.string.no_access_to_file)
-
-    is NonFileUriException -> resources.getString(R.string.error_non_file_uri)
-
-    is EmptyHistoryException -> resources.getString(R.string.history_is_empty)
-
-    is EmptyMangaException -> reason?.let { resources.getString(it.msgResId) } ?: cause?.getDisplayMessage(resources)
-
-    is ProxyConfigException -> resources.getString(R.string.invalid_proxy_configuration)
-
-    is SyncApiException,
-    is ContentUnavailableException,
-    -> message
-
-    is ParseException -> shortMessage
-
-    is ConnectException,
-    is UnknownHostException,
-    is NoRouteToHostException,
-    is SocketTimeoutException,
-    -> resources.getString(R.string.network_error)
-
-    is ImageDecodeException -> {
-        val type = format?.substringBefore('/')
-        val formatString = format.ifNullOrEmpty { resources.getString(R.string.unknown).lowercase(Locale.getDefault()) }
-        if (type.isNullOrEmpty() || type == "image") {
-            resources.getString(R.string.error_image_format, formatString)
-        } else {
-            resources.getString(R.string.error_not_image, formatString)
+        is WrapperIOException -> {
+            cause.getDisplayMessageOrNull(resources)
         }
-    }
 
-    is NoDataReceivedException -> resources.getString(R.string.error_no_data_received)
+        is ScrobblerAuthRequiredException -> {
+            resources.getString(
+                R.string.scrobbler_auth_required,
+                resources.getString(scrobbler.titleResId),
+            )
+        }
 
-    is IncompatiblePluginException -> {
-        cause?.getDisplayMessageOrNull(resources)?.let {
-            resources.getString(R.string.plugin_incompatible_with_cause, it)
-        } ?: resources.getString(R.string.plugin_incompatible)
-    }
+        is AuthRequiredException -> {
+            resources.getString(R.string.auth_required)
+        }
 
-    is WrongPasswordException -> resources.getString(R.string.wrong_password)
+        is InteractiveActionRequiredException -> {
+            resources.getString(R.string.additional_action_required)
+        }
 
-    is NotFoundException -> resources.getString(R.string.not_found_404)
+        is CloudFlareProtectedException -> {
+            resources.getString(R.string.captcha_required_message)
+        }
 
-    is UnsupportedSourceException -> resources.getString(R.string.unsupported_source)
+        is CloudFlareBlockedException -> {
+            resources.getString(R.string.blocked_by_server_message)
+        }
 
-    is HttpException -> getHttpDisplayMessage(response.code, resources)
+        is ActivityNotFoundException,
+        is UnsupportedOperationException,
+        -> {
+            resources.getString(R.string.operation_not_supported)
+        }
 
-    is HttpStatusException -> getHttpDisplayMessage(statusCode, resources)
+        is TooManyRequestExceptions -> {
+            val delay = getRetryDelay()
+            val formattedTime =
+                if (delay > 0L && delay < Long.MAX_VALUE) {
+                    resources.formatDurationShort(delay)
+                } else {
+                    null
+                }
+            if (formattedTime != null) {
+                resources.getString(R.string.too_many_requests_message_retry, formattedTime)
+            } else {
+                resources.getString(R.string.too_many_requests_message)
+            }
+        }
 
-    else -> mapDisplayMessage(message, resources) ?: message
-}.takeUnless { it.isNullOrBlank() }
+        is ZipException -> {
+            resources.getString(R.string.error_corrupted_zip, this.message.orEmpty())
+        }
+
+        is SQLiteFullException -> {
+            resources.getString(R.string.error_no_space_left)
+        }
+
+        is UnsupportedFileException -> {
+            resources.getString(R.string.text_file_not_supported)
+        }
+
+        is BadBackupFormatException -> {
+            resources.getString(R.string.unsupported_backup_message)
+        }
+
+        is FileNotFoundException -> {
+            parseMessage(resources) ?: message
+        }
+
+        is AccessDeniedException -> {
+            resources.getString(R.string.no_access_to_file)
+        }
+
+        is NonFileUriException -> {
+            resources.getString(R.string.error_non_file_uri)
+        }
+
+        is EmptyHistoryException -> {
+            resources.getString(R.string.history_is_empty)
+        }
+
+        is EmptyMangaException -> {
+            reason?.let { resources.getString(it.msgResId) } ?: cause?.getDisplayMessage(resources)
+        }
+
+        is ProxyConfigException -> {
+            resources.getString(R.string.invalid_proxy_configuration)
+        }
+
+        is SyncApiException,
+        is ContentUnavailableException,
+        -> {
+            message
+        }
+
+        is ParseException -> {
+            shortMessage
+        }
+
+        is ConnectException,
+        is UnknownHostException,
+        is NoRouteToHostException,
+        is SocketTimeoutException,
+        -> {
+            resources.getString(R.string.network_error)
+        }
+
+        is ImageDecodeException -> {
+            val type = format?.substringBefore('/')
+            val formatString =
+                format.ifNullOrEmpty {
+                    resources
+                        .getString(
+                            R.string.unknown,
+                        ).lowercase(Locale.getDefault())
+                }
+            if (type.isNullOrEmpty() || type == "image") {
+                resources.getString(R.string.error_image_format, formatString)
+            } else {
+                resources.getString(R.string.error_not_image, formatString)
+            }
+        }
+
+        is NoDataReceivedException -> {
+            resources.getString(R.string.error_no_data_received)
+        }
+
+        is IncompatiblePluginException -> {
+            cause?.getDisplayMessageOrNull(resources)?.let {
+                resources.getString(R.string.plugin_incompatible_with_cause, it)
+            } ?: resources.getString(R.string.plugin_incompatible)
+        }
+
+        is WrongPasswordException -> {
+            resources.getString(R.string.wrong_password)
+        }
+
+        is NotFoundException -> {
+            resources.getString(R.string.not_found_404)
+        }
+
+        is UnsupportedSourceException -> {
+            resources.getString(R.string.unsupported_source)
+        }
+
+        is HttpException -> {
+            getHttpDisplayMessage(response.code, resources)
+        }
+
+        is HttpStatusException -> {
+            getHttpDisplayMessage(statusCode, resources)
+        }
+
+        else -> {
+            mapDisplayMessage(message, resources) ?: message
+        }
+    }.takeUnless { it.isNullOrBlank() }
 
 @DrawableRes
-fun Throwable.getDisplayIcon(): Int = when (this) {
-    is AuthRequiredException -> R.drawable.ic_auth_key_large
+fun Throwable.getDisplayIcon(): Int =
+    when (this) {
+        is AuthRequiredException -> R.drawable.ic_auth_key_large
 
-    is CloudFlareProtectedException -> R.drawable.ic_bot_large
+        is CloudFlareProtectedException -> R.drawable.ic_bot_large
 
-    is UnknownHostException,
-    is SocketTimeoutException,
-    is ConnectException,
-    is NoRouteToHostException,
-    is ProtocolException,
-    -> R.drawable.ic_plug_large
+        is UnknownHostException,
+        is SocketTimeoutException,
+        is ConnectException,
+        is NoRouteToHostException,
+        is ProtocolException,
+        -> R.drawable.ic_plug_large
 
-    is CloudFlareBlockedException -> R.drawable.ic_denied_large
+        is CloudFlareBlockedException -> R.drawable.ic_denied_large
 
-    is InteractiveActionRequiredException -> R.drawable.ic_interaction_large
+        is InteractiveActionRequiredException -> R.drawable.ic_interaction_large
 
-    else -> R.drawable.ic_error_large
-}
+        else -> R.drawable.ic_error_large
+    }
 
-fun Throwable.getCauseUrl(): String? = when (this) {
-    is ParseException -> url
-    is NotFoundException -> url
-    is TooManyRequestExceptions -> url
-    is CaughtException -> cause.getCauseUrl()
-    is WrapperIOException -> cause.getCauseUrl()
-    is NoDataReceivedException -> url
-    is CloudFlareBlockedException -> url
-    is CloudFlareProtectedException -> url
-    is InteractiveActionRequiredException -> url
-    is HttpStatusException -> url
-    is UnsupportedSourceException -> manga?.publicUrl?.takeIf { it.isHttpUrl() }
-    is EmptyMangaException -> manga.publicUrl.takeIf { it.isHttpUrl() }
-    is HttpException -> (response.delegate as? Response)?.request?.url?.toString()
-    else -> null
-}
+fun Throwable.getCauseUrl(): String? =
+    when (this) {
+        is ParseException -> url
+        is NotFoundException -> url
+        is TooManyRequestExceptions -> url
+        is CaughtException -> cause.getCauseUrl()
+        is WrapperIOException -> cause.getCauseUrl()
+        is NoDataReceivedException -> url
+        is CloudFlareBlockedException -> url
+        is CloudFlareProtectedException -> url
+        is InteractiveActionRequiredException -> url
+        is HttpStatusException -> url
+        is UnsupportedSourceException -> manga?.publicUrl?.takeIf { it.isHttpUrl() }
+        is EmptyMangaException -> manga.publicUrl.takeIf { it.isHttpUrl() }
+        is HttpException -> (response.delegate as? Response)?.request?.url?.toString()
+        else -> null
+    }
 
-private fun getHttpDisplayMessage(statusCode: Int, resources: Resources): String? = when (statusCode) {
-    HttpURLConnection.HTTP_NOT_FOUND -> resources.getString(R.string.not_found_404)
-    HttpURLConnection.HTTP_FORBIDDEN -> resources.getString(R.string.access_denied_403)
-    HttpURLConnection.HTTP_GATEWAY_TIMEOUT -> resources.getString(R.string.network_unavailable)
-    in 500..599 -> resources.getString(R.string.server_error, statusCode)
-    else -> null
-}
+private fun getHttpDisplayMessage(
+    statusCode: Int,
+    resources: Resources,
+): String? =
+    when (statusCode) {
+        HttpURLConnection.HTTP_NOT_FOUND -> resources.getString(R.string.not_found_404)
+        HttpURLConnection.HTTP_FORBIDDEN -> resources.getString(R.string.access_denied_403)
+        HttpURLConnection.HTTP_GATEWAY_TIMEOUT -> resources.getString(R.string.network_unavailable)
+        in 500..599 -> resources.getString(R.string.server_error, statusCode)
+        else -> null
+    }
 
-private fun mapDisplayMessage(msg: String?, resources: Resources): String? = when {
-    msg.isNullOrEmpty() -> null
-    msg.contains(MSG_NO_SPACE_LEFT) -> resources.getString(R.string.error_no_space_left)
-    msg.contains(IMAGE_FORMAT_NOT_SUPPORTED) -> resources.getString(R.string.error_corrupted_file)
-    msg == MSG_CONNECTION_RESET -> resources.getString(R.string.error_connection_reset)
-    msg == FILTER_MULTIPLE_GENRES_NOT_SUPPORTED -> resources.getString(R.string.error_multiple_genres_not_supported)
-    msg == FILTER_MULTIPLE_STATES_NOT_SUPPORTED -> resources.getString(R.string.error_multiple_states_not_supported)
-    msg == SEARCH_NOT_SUPPORTED -> resources.getString(R.string.error_search_not_supported)
-    msg == FILTER_BOTH_LOCALE_GENRES_NOT_SUPPORTED -> resources.getString(R.string.error_filter_locale_genre_not_supported)
-    msg == FILTER_BOTH_STATES_GENRES_NOT_SUPPORTED -> resources.getString(R.string.error_filter_states_genre_not_supported)
-    else -> null
-}
+private fun mapDisplayMessage(
+    msg: String?,
+    resources: Resources,
+): String? =
+    when {
+        msg.isNullOrEmpty() -> {
+            null
+        }
+
+        msg.contains(MSG_NO_SPACE_LEFT) -> {
+            resources.getString(R.string.error_no_space_left)
+        }
+
+        msg.contains(IMAGE_FORMAT_NOT_SUPPORTED) -> {
+            resources.getString(R.string.error_corrupted_file)
+        }
+
+        msg == MSG_CONNECTION_RESET -> {
+            resources.getString(R.string.error_connection_reset)
+        }
+
+        msg == FILTER_MULTIPLE_GENRES_NOT_SUPPORTED -> {
+            resources.getString(R.string.error_multiple_genres_not_supported)
+        }
+
+        msg == FILTER_MULTIPLE_STATES_NOT_SUPPORTED -> {
+            resources.getString(R.string.error_multiple_states_not_supported)
+        }
+
+        msg == SEARCH_NOT_SUPPORTED -> {
+            resources.getString(R.string.error_search_not_supported)
+        }
+
+        msg == FILTER_BOTH_LOCALE_GENRES_NOT_SUPPORTED -> {
+            resources.getString(
+                R.string.error_filter_locale_genre_not_supported,
+            )
+        }
+
+        msg == FILTER_BOTH_STATES_GENRES_NOT_SUPPORTED -> {
+            resources.getString(
+                R.string.error_filter_states_genre_not_supported,
+            )
+        }
+
+        else -> {
+            null
+        }
+    }
 
 fun Throwable.isReportable(): Boolean {
     if (this is Error) {
@@ -252,11 +361,12 @@ fun Throwable.isReportable(): Boolean {
     return true
 }
 
-fun Throwable.isNetworkError(): Boolean = this is UnknownHostException ||
-    this is SocketTimeoutException ||
-    this is StreamResetException ||
-    this is SocketException ||
-    (this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT)
+fun Throwable.isNetworkError(): Boolean =
+    this is UnknownHostException ||
+        this is SocketTimeoutException ||
+        this is StreamResetException ||
+        this is SocketException ||
+        (this is HttpException && response.code == HttpURLConnection.HTTP_GATEWAY_TIMEOUT)
 
 fun Throwable.report(silent: Boolean = false) {
     val exception = CaughtException(this)
@@ -275,11 +385,6 @@ fun Throwable.isWebViewUnavailable(): Boolean {
 @Suppress("FunctionName")
 fun NoSpaceLeftException() = IOException(MSG_NO_SPACE_LEFT)
 
-fun FileNotFoundException.getFile(): File? {
-    val groups = FNFE_MESSAGE_REGEX.matchEntire(message ?: return null)?.groupValues ?: return null
-    return groups.getOrNull(1)?.let { File(it) }
-}
-
 fun FileNotFoundException.parseMessage(resources: Resources): String? {
     /*
     Examples:
@@ -290,11 +395,12 @@ fun FileNotFoundException.parseMessage(resources: Resources): String? {
     val groups = FNFE_MESSAGE_REGEX.matchEntire(message ?: return null)?.groupValues ?: return null
     val path = groups.getOrNull(1)
     val error = groups.getOrNull(2)
-    val baseMessageIs = when (error) {
-        "EROFS" -> R.string.no_write_permission_to_file
-        "ENOENT" -> R.string.file_not_found
-        else -> return null
-    }
+    val baseMessageIs =
+        when (error) {
+            "EROFS" -> R.string.no_write_permission_to_file
+            "ENOENT" -> R.string.file_not_found
+            else -> return null
+        }
     return if (path.isNullOrEmpty()) {
         resources.getString(baseMessageIs)
     } else {
@@ -307,9 +413,14 @@ fun FileNotFoundException.parseMessage(resources: Resources): String? {
 }
 
 /** Walks the exception cause chain and returns the first [CloudFlareException] found, or `null`. */
-fun Throwable.findCloudFlareException(): CloudFlareException? = generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
-    .filterIsInstance<CloudFlareException>()
-    .firstOrNull()
+fun Throwable.findCloudFlareException(): CloudFlareException? =
+    generateSequence(this) {
+        it.cause?.takeIf { c ->
+            c !==
+                it
+        }
+    }.filterIsInstance<CloudFlareException>()
+        .firstOrNull()
 
 /**
  * `true` when the source answered "this title is gone": a 404, or a parser explicitly reporting the
@@ -319,15 +430,18 @@ fun Throwable.findCloudFlareException(): CloudFlareException? = generateSequence
  * Note this is deliberately narrower than [getDisplayMessage]'s 404 mapping: only errors that mean
  * *the manga itself* is missing qualify, so callers can offer to look for it on another source.
  */
-fun Throwable.isContentNotFound(): Boolean = generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
-    .any { e ->
-        when (e) {
-            is NotFoundException,
-            is ContentUnavailableException,
-            -> true
+fun Throwable.isContentNotFound(): Boolean =
+    generateSequence(this) { it.cause?.takeIf { c -> c !== it } }
+        .any { e ->
+            when (e) {
+                is NotFoundException,
+                is ContentUnavailableException,
+                -> true
 
-            is HttpException -> e.response.code == HttpURLConnection.HTTP_NOT_FOUND
-            is HttpStatusException -> e.statusCode == HttpURLConnection.HTTP_NOT_FOUND
-            else -> false
+                is HttpException -> e.response.code == HttpURLConnection.HTTP_NOT_FOUND
+
+                is HttpStatusException -> e.statusCode == HttpURLConnection.HTTP_NOT_FOUND
+
+                else -> false
+            }
         }
-    }

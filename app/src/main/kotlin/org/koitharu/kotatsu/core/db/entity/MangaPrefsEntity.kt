@@ -36,9 +36,19 @@ data class MangaPrefsEntity(
     @ColumnInfo(name = "cf_grain", defaultValue = "0") val cfGrain: Float,
     /** Legacy (pre-v35) sharpen-mode selector (0 off, 1 RCAS+USM, 2 adaptive). Migrated; always written as 0. */
     @ColumnInfo(name = "cf_sharpen_mode", defaultValue = "0") val cfSharpenMode: Int,
+    /** Legacy (pre-v36) mislabeled sharpen intensity. Migrated to [cfRcas]; always written as 0. */
     @ColumnInfo(name = "cf_rcas_usm", defaultValue = "0") val cfRcasUsm: Float,
+    /** Legacy (pre-v36) mislabeled sharpen intensity. Migrated to [cfAdaptiveSharpen]; always written as 0. */
     @ColumnInfo(name = "cf_adaptive_smoothstep", defaultValue = "0") val cfAdaptiveSmoothstep: Float,
+    /** Legacy (pre-v36) mislabeled sharpen intensity. Migrated to [cfAdaptiveSharpen]; always written as 0. */
     @ColumnInfo(name = "cf_adaptive_sigmoid", defaultValue = "0") val cfAdaptiveSigmoid: Float,
+    /** Sharpen intensity, real AMD FidelityFX RCAS. */
+    @ColumnInfo(name = "cf_rcas", defaultValue = "0") val cfRcas: Float,
+    /** Sharpen intensity, real bacondither Adaptive-Sharpen. */
+    @ColumnInfo(name = "cf_adaptive_sharpen", defaultValue = "0") val cfAdaptiveSharpen: Float,
+    /** Deband intensity — f3kdb-documented "square" mode, independent implementation (see
+     *  `deband.frag`'s doc comment; not GPL-encumbered). */
+    @ColumnInfo(name = "cf_deband", defaultValue = "0") val cfDeband: Float,
     /** Legacy: from an early build that had Catmull-Rom/B-Spline as decode-time filters. Never read; always 0. */
     @ColumnInfo(name = "cf_catmull_rom", defaultValue = "0") val cfCatmullRom: Float,
     /** Legacy, see [cfCatmullRom]. */

@@ -1,21 +1,7 @@
 package org.koitharu.kotatsu.reader.ui.pager.doublepage
 
-import androidx.core.view.children
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
-import org.koitharu.kotatsu.reader.ui.pager.standard.PageHolder
-
-fun RecyclerView.visiblePageHolders(): Sequence<PageHolder> {
-    val lm = layoutManager as? LinearLayoutManager ?: return emptySequence()
-    return (lm.findFirstVisibleItemPosition()..lm.findLastVisibleItemPosition()).asSequence()
-        .mapNotNull { findViewHolderForAdapterPosition(it) as? PageHolder }
-}
-
-fun RecyclerView.allPageHolders(): Sequence<PageHolder> = children.mapNotNull {
-    findContainingViewHolder(it) as? PageHolder
-}
 
 /**
  * Pads the page list so that chapters with an odd number of pages get a spacer at the end.
@@ -62,7 +48,10 @@ fun List<ReaderPage>.padForDoublePage(coverPage: Boolean): List<ReaderPage> {
     return result
 }
 
-private fun MutableList<ReaderPage>.addSpacer(chapterId: Long, source: MangaSource) {
+private fun MutableList<ReaderPage>.addSpacer(
+    chapterId: Long,
+    source: MangaSource,
+) {
     add(
         ReaderPage(
             id = Long.MIN_VALUE + size,

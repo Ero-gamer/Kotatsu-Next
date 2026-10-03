@@ -31,8 +31,11 @@ import java.io.File
 class SourceSettingsFragment :
     BasePreferenceFragment(0),
     Preference.OnPreferenceChangeListener {
-
     private val viewModel: SourceSettingsViewModel by viewModels()
+
+    // Per-source preferences live in their own file (see onCreatePreferences).
+    override val usesAppSettingsStore: Boolean
+        get() = false
 
     override fun onResume() {
         super.onResume()
@@ -44,7 +47,10 @@ class SourceSettingsFragment :
         updateCfAutoSolvePrefState()
     }
 
-    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+    override fun onCreatePreferences(
+        savedInstanceState: Bundle?,
+        rootKey: String?,
+    ) {
         preferenceManager.sharedPreferencesName = viewModel.source.name.replace(File.separatorChar, '$')
         addPreferencesFromResource(R.xml.pref_source)
         addPreferencesFromRepository(viewModel.repository)
@@ -62,15 +68,19 @@ class SourceSettingsFragment :
         updateCfAutoSolvePrefState()
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.isAuthorized.filterNotNull().observe(viewLifecycleOwner) { isAuthorized ->
             findPreference<Preference>(KEY_AUTH)?.isEnabled = !isAuthorized
         }
         viewModel.username.observe(viewLifecycleOwner) { username ->
-            findPreference<Preference>(KEY_AUTH)?.summary = username?.let {
-                getString(R.string.logged_in_as, it)
-            }
+            findPreference<Preference>(KEY_AUTH)?.summary =
+                username?.let {
+                    getString(R.string.logged_in_as, it)
+                }
         }
         viewModel.onError.observeEvent(
             viewLifecycleOwner,
@@ -116,7 +126,9 @@ class SourceSettingsFragment :
                 true
             }
 
-            else -> super.onPreferenceTreeClick(preference)
+            else -> {
+                super.onPreferenceTreeClick(preference)
+            }
         }
     }
 
@@ -134,7 +146,10 @@ class SourceSettingsFragment :
         super.onDisplayPreferenceDialog(preference)
     }
 
-    override fun onPreferenceChange(preference: Preference, newValue: Any?): Boolean {
+    override fun onPreferenceChange(
+        preference: Preference,
+        newValue: Any?,
+    ): Boolean {
         when (preference.key) {
             KEY_ENABLE -> viewModel.setEnabled(newValue == true)
             else -> return false
@@ -143,7 +158,6 @@ class SourceSettingsFragment :
     }
 
     class DomainDialogFragment : EditTextPreferenceDialogFragmentCompat() {
-
         override fun onPrepareDialogBuilder(builder: AlertDialog.Builder) {
             super.onPrepareDialogBuilder(builder)
             builder.setNeutralButton(R.string.reset) { _, _ ->
@@ -159,12 +173,12 @@ class SourceSettingsFragment :
         }
 
         companion object {
-
             const val DIALOG_FRAGMENT_TAG: String = "androidx.preference.PreferenceFragment.DIALOG"
 
-            fun newInstance(key: String) = DomainDialogFragment().withArgs(1) {
-                putString(ARG_KEY, key)
-            }
+            fun newInstance(key: String) =
+                DomainDialogFragment().withArgs(1) {
+                    putString(ARG_KEY, key)
+                }
         }
     }
 
@@ -177,21 +191,22 @@ class SourceSettingsFragment :
         val globalDisabled = settings.isCfAutoSolveDisabled
         findPreference<SwitchPreferenceCompat>(SourceSettings.KEY_NO_AUTO_CAPTCHA)?.apply {
             isEnabled = !globalDisabled
-            summary = if (globalDisabled) {
-                context.getString(R.string.disable_captcha_auto_solve_global_hint)
-            } else {
-                context.getString(R.string.disable_captcha_auto_solve_summary)
-            }
+            summary =
+                if (globalDisabled) {
+                    context.getString(R.string.disable_captcha_auto_solve_global_hint)
+                } else {
+                    context.getString(R.string.disable_captcha_auto_solve_summary)
+                }
         }
     }
 
     companion object {
-
         private const val KEY_AUTH = "auth"
         private const val KEY_ENABLE = "enable"
 
-        fun newInstance(source: MangaSource) = SourceSettingsFragment().withArgs(1) {
-            putString(AppRouter.KEY_SOURCE, source.name)
-        }
+        fun newInstance(source: MangaSource) =
+            SourceSettingsFragment().withArgs(1) {
+                putString(AppRouter.KEY_SOURCE, source.name)
+            }
     }
 }

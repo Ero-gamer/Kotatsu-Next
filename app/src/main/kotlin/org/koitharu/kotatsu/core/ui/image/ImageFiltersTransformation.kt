@@ -12,8 +12,9 @@ import kotlinx.coroutines.sync.withPermit
  * post-processing is done by the GPU shader in [GpuTileRenderer].
  *
  * Applies lightweight CPU sharpening (USM unsharp-mask, no neighbour OOM risk at preview size)
- * and vibrance (per-pixel channel mix). Both are single-pass, allocation-minimal, and safe on
- * a thumbnail-scale bitmap (preview is loaded at screen width, not full JPEG size).
+ * and vibrance (real SweetFX/CeeJay.dk Vibrance formula, same one used by the GPU shader).
+ * Both are single-pass, allocation-minimal, and safe on a thumbnail-scale bitmap (preview is
+ * loaded at screen width, not full JPEG size).
  *
  * **Removed:** Denoise, Dither, and Grain CPU loops — these caused OOM on full-res tile bitmaps
  * and produced no perceptible benefit at small preview scale. All three are now GPU-only.
@@ -23,7 +24,7 @@ class ImageFiltersTransformation(
     private val vibrance: Float = 0f,
 ) : Transformation() {
 
-    override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v9_gpu"
+    override val cacheKey: String = "img_filters_s${sharpening}_v${vibrance}_v10_gpu"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         val doSharpen = sharpening > 0.01f
@@ -97,10 +98,10 @@ class ImageFiltersTransformation(
                 if (doVibrance) {
                     val factor = vibranceFactor(r, g, b, vibrance)
                     if (factor != 1f) {
-                        val mean = (r + g + b) / 3f
-                        r = clamp255(mean + (r - mean) * factor)
-                        g = clamp255(mean + (g - mean) * factor)
-                        b = clamp255(mean + (b - mean) * factor)
+                        val luma = 0.212656f * r + 0.715158f * g + 0.072186f * b
+                        r = clamp255(luma + (r - luma) * factor)
+                        g = clamp255(luma + (g - luma) * factor)
+                        b = clamp255(luma + (b - luma) * factor)
                     }
                 }
 
@@ -142,7 +143,9 @@ class ImageFiltersTransformation(
 
         /**
          * Per-pixel vibrance factor: boosts muted colours (low saturation) more than vivid ones.
-         * Returns 1.0 when colour is perfectly neutral (no-op branch in the hot loop).
+         * Returns 1.0 when colour is perfectly neutral (no-op branch in the hot loop). Same shape
+         * as the real SweetFX/CeeJay.dk formula used by the GPU shader — `1 + coeff*(1-sat)` for
+         * coeff >= 0, which is the only range this UI's slider allows (0..1).
          */
         private fun vibranceFactor(r: Int, g: Int, b: Int, vibrance: Float): Float {
             val maxC = maxOf(r, g, b)

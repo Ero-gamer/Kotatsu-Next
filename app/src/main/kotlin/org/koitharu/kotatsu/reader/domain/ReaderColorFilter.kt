@@ -16,11 +16,13 @@ import android.graphics.ColorMatrixColorFilter
  * - [vibrance]            → `u_enableVibrance` + `u_vibranceIntensity`
  * - [denoise]             → `u_enableDenoise` + `u_denoiseStrength` (3x3 luma-weighted denoise)
  * - [isLineDarkenEnabled] → `u_enableDarken`
- * - [rcasUsm]             → `u_enableRcasUsm` + `u_rcasUsmIntensity` (RCAS-style clamp + unsharp mask)
- * - [adaptiveSmoothstep]  → `u_enableAdaptiveSmoothstep` + `u_adaptiveSmoothstepIntensity`
- * - [adaptiveSigmoid]     → `u_enableAdaptiveSigmoid` + `u_adaptiveSigmoidIntensity`
+ * - [rcas]                → real AMD FidelityFX FSR1 RCAS (single shader pass)
+ * - [adaptiveSharpen]     → real bacondither Adaptive-Sharpen (two shader passes: edge, then sharpen)
  *
- * Bicubic *scalers* (Catmull-Rom, B-Spline) are not filters: they are a separate reader setting
+ * [rcas] and [adaptiveSharpen] are independent, like every other filter here — neither excludes
+ * the other; enabling both runs RCAS first and Adaptive-Sharpen sharpens its output.
+ *
+ * Bicubic *scalers* (Catmull-Rom, Robidoux) are not filters: they are a separate reader setting
  * ([org.koitharu.kotatsu.core.prefs.AppSettings.readerScaler]) applied at draw time.
  *
  * ### Deprecated / no-op:
@@ -34,12 +36,15 @@ data class ReaderColorFilter(
     val saturation: Float,
     val vibrance: Float,
     val denoise: Float = 0f,
-    /** Sharpen intensity, RCAS-style clamped unsharp mask (`u_rcasUsmIntensity`). */
-    val rcasUsm: Float = 0f,
-    /** Sharpen intensity, adaptive with a smoothstep edge weight (`u_adaptiveSmoothstepIntensity`). */
-    val adaptiveSmoothstep: Float = 0f,
-    /** Sharpen intensity, adaptive with a true logistic-sigmoid edge weight (`u_adaptiveSigmoidIntensity`). */
-    val adaptiveSigmoid: Float = 0f,
+    /** Sharpen intensity, real AMD FidelityFX RCAS. 0..1 maps linearly onto `u_rcasCon`. */
+    val rcas: Float = 0f,
+    /** Sharpen intensity, real bacondither Adaptive-Sharpen. 0..1 maps onto `curve_height` in
+     *  the algorithm's own sane range [0.3, 2.0]. */
+    val adaptiveSharpen: Float = 0f,
+    /** Deband intensity — f3kdb/flash3kyuu_deband's own documented "square" mode, independently
+     *  implemented from its published docs (see `deband.frag`'s doc comment; not GPL-encumbered).
+     *  0..1 maps onto range/threshold/grain together — see `GpuTileRenderer`'s deband stage. */
+    val deband: Float = 0f,
     @Deprecated("CPU grain filter removed. Field retained for DB compatibility only.")
     val dither: Float = 0f,
     @Deprecated("CPU grain filter removed. Field retained for DB compatibility only.")
@@ -50,11 +55,11 @@ data class ReaderColorFilter(
     /** Line darkening (`u_enableDarken`) — Anime4K-inspired heuristic, not the Anime4K algorithm. */
     val isLineDarkenEnabled: Boolean = false,
 ) {
-
     val isEmpty: Boolean
-        get() = !isGrayscale && !isInverted && !isBookBackground && !isLineDarkenEnabled &&
-            brightness == 0f && contrast == 0f && saturation == 0f && vibrance == 0f && denoise == 0f &&
-            rcasUsm == 0f && adaptiveSmoothstep == 0f && adaptiveSigmoid == 0f
+        get() =
+            !isGrayscale && !isInverted && !isBookBackground && !isLineDarkenEnabled &&
+                brightness == 0f && contrast == 0f && saturation == 0f && vibrance == 0f && denoise == 0f &&
+                rcas == 0f && adaptiveSharpen == 0f && deband == 0f
     // dither and grain intentionally excluded — they're always ignored.
 
     /**
@@ -72,43 +77,86 @@ data class ReaderColorFilter(
         return ColorMatrixColorFilter(cm)
     }
 
-    fun getBackgroundTint(): ColorStateList? = if (isBookBackground) {
-        ColorStateList.valueOf(Color.rgb(255, 255, (255 * BOOK_BLUE_FACTOR).toInt()))
-    } else {
-        null
-    }
+    fun getBackgroundTint(): ColorStateList? =
+        if (isBookBackground) {
+            ColorStateList.valueOf(Color.rgb(255, 255, (255 * BOOK_BLUE_FACTOR).toInt()))
+        } else {
+            null
+        }
 
     companion object {
-
         private const val BOOK_BLUE_FACTOR = 0.92f
 
         @Suppress("DEPRECATION")
-        val EMPTY = ReaderColorFilter(
-            brightness = 0f, contrast = 0f,
-            saturation = 0f, vibrance = 0f, denoise = 0f,
-            rcasUsm = 0f, adaptiveSmoothstep = 0f, adaptiveSigmoid = 0f,
-            dither = 0f, grain = 0f,
-            isInverted = false, isGrayscale = false, isBookBackground = false,
-            isLineDarkenEnabled = false,
-        )
+        val EMPTY =
+            ReaderColorFilter(
+                brightness = 0f,
+                contrast = 0f,
+                saturation = 0f,
+                vibrance = 0f,
+                denoise = 0f,
+                rcas = 0f,
+                adaptiveSharpen = 0f,
+                deband = 0f,
+                dither = 0f,
+                grain = 0f,
+                isInverted = false,
+                isGrayscale = false,
+                isBookBackground = false,
+                isLineDarkenEnabled = false,
+            )
 
-        private val INVERT_MATRIX = ColorMatrix(
-            floatArrayOf(
-                -1f, 0f, 0f, 0f, 255f,
-                0f, -1f, 0f, 0f, 255f,
-                0f, 0f, -1f, 0f, 255f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        )
+        private val INVERT_MATRIX =
+            ColorMatrix(
+                floatArrayOf(
+                    -1f,
+                    0f,
+                    0f,
+                    0f,
+                    255f,
+                    0f,
+                    -1f,
+                    0f,
+                    0f,
+                    255f,
+                    0f,
+                    0f,
+                    -1f,
+                    0f,
+                    255f,
+                    0f,
+                    0f,
+                    0f,
+                    1f,
+                    0f,
+                ),
+            )
 
-        private val BOOK_MATRIX = ColorMatrix(
-            floatArrayOf(
-                1f, 0f, 0f, 0f, 0f,
-                0f, 1f, 0f, 0f, 0f,
-                0f, 0f, BOOK_BLUE_FACTOR, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        )
+        private val BOOK_MATRIX =
+            ColorMatrix(
+                floatArrayOf(
+                    1f,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    1f,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    BOOK_BLUE_FACTOR,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    0f,
+                    1f,
+                    0f,
+                ),
+            )
 
         private fun brightnessMatrix(b: Float): ColorMatrix = ColorMatrix().also { it.setScale(b + 1f, b + 1f, b + 1f, 1f) }
 
@@ -117,10 +165,26 @@ data class ReaderColorFilter(
             val t = (-0.5f * s + 0.5f) * 255f
             return ColorMatrix(
                 floatArrayOf(
-                    s, 0f, 0f, 0f, t,
-                    0f, s, 0f, 0f, t,
-                    0f, 0f, s, 0f, t,
-                    0f, 0f, 0f, 1f, 0f,
+                    s,
+                    0f,
+                    0f,
+                    0f,
+                    t,
+                    0f,
+                    s,
+                    0f,
+                    0f,
+                    t,
+                    0f,
+                    0f,
+                    s,
+                    0f,
+                    t,
+                    0f,
+                    0f,
+                    0f,
+                    1f,
+                    0f,
                 ),
             )
         }

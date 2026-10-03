@@ -7,6 +7,7 @@ import android.view.View
 import androidx.preference.ListPreference
 import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
+import com.davemorrissey.labs.subscaleview.ImageDownscaler
 import com.davemorrissey.labs.subscaleview.ImageScaler
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
@@ -31,20 +32,23 @@ import org.koitharu.kotatsu.settings.utils.SliderPreference
 class ReaderSettingsFragment :
     BasePreferenceFragment(R.string.reader_settings),
     SharedPreferences.OnSharedPreferenceChangeListener {
-
-    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+    override fun onCreatePreferences(
+        savedInstanceState: Bundle?,
+        rootKey: String?,
+    ) {
         addPreferencesFromResource(R.xml.pref_reader)
         findPreference<ListPreference>(AppSettings.KEY_READER_MODE)?.run {
             entryValues = ReaderMode.entries.names()
             setDefaultValueCompat(ReaderMode.STANDARD.name)
         }
         findPreference<ListPreference>(AppSettings.KEY_READER_ORIENTATION)?.run {
-            entryValues = arrayOf(
-                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED.toString(),
-                ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR.toString(),
-                ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT.toString(),
-                ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE.toString(),
-            )
+            entryValues =
+                arrayOf(
+                    ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED.toString(),
+                    ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR.toString(),
+                    ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT.toString(),
+                    ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE.toString(),
+                )
             setDefaultValueCompat(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED.toString())
         }
         findPreference<MultiSelectListPreference>(AppSettings.KEY_READER_CONTROLS)?.run {
@@ -64,6 +68,10 @@ class ReaderSettingsFragment :
             entryValues = ImageScaler.entries.names()
             setDefaultValueCompat(ImageScaler.DEFAULT.name)
         }
+        findPreference<ListPreference>(AppSettings.KEY_READER_DOWNSCALER)?.run {
+            entryValues = ImageDownscaler.entries.names()
+            setDefaultValueCompat(ImageDownscaler.DEFAULT.name)
+        }
         findPreference<ListPreference>(AppSettings.KEY_ZOOM_MODE)?.run {
             entryValues = ZoomMode.entries.names()
             setDefaultValueCompat(ZoomMode.FIT_CENTER.name)
@@ -77,17 +85,21 @@ class ReaderSettingsFragment :
         findPreference<SliderPreference>(AppSettings.KEY_EINK_FLASH_EVERY)?.summaryProvider =
             FlashEverySummaryProvider
         findPreference<ListPreference>(AppSettings.KEY_EINK_FLASH_COLOR)?.run {
-            entries = arrayOf(
-                getString(R.string.color_white),
-                getString(R.string.color_black),
-            )
+            entries =
+                arrayOf(
+                    getString(R.string.color_white),
+                    getString(R.string.color_black),
+                )
             entryValues = EInkFlashColor.entries.names()
             setDefaultValueCompat(EInkFlashColor.WHITE.name)
         }
         updateReaderModeDependency()
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         settings.subscribe(this)
     }
@@ -97,16 +109,22 @@ class ReaderSettingsFragment :
         super.onDestroyView()
     }
 
-    override fun onPreferenceTreeClick(preference: Preference): Boolean = when (preference.key) {
-        AppSettings.KEY_READER_TAP_ACTIONS -> {
-            router.openReaderTapGridSettings()
-            true
+    override fun onPreferenceTreeClick(preference: Preference): Boolean =
+        when (preference.key) {
+            AppSettings.KEY_READER_TAP_ACTIONS -> {
+                router.openReaderTapGridSettings()
+                true
+            }
+
+            else -> {
+                super.onPreferenceTreeClick(preference)
+            }
         }
 
-        else -> super.onPreferenceTreeClick(preference)
-    }
-
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+    override fun onSharedPreferenceChanged(
+        sharedPreferences: SharedPreferences?,
+        key: String?,
+    ) {
         when (key) {
             AppSettings.KEY_READER_MODE -> updateReaderModeDependency()
         }
@@ -119,12 +137,10 @@ class ReaderSettingsFragment :
     }
 
     private object FlashDurationSummaryProvider : Preference.SummaryProvider<SliderPreference> {
-
         override fun provideSummary(preference: SliderPreference): CharSequence = preference.context.getString(R.string.milliseconds_pattern, preference.value)
     }
 
     private object FlashEverySummaryProvider : Preference.SummaryProvider<SliderPreference> {
-
         override fun provideSummary(preference: SliderPreference): CharSequence {
             val value = preference.value
             return preference.context.resources.getQuantityStringSafe(R.plurals.pages, value, value)
