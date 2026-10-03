@@ -353,23 +353,22 @@ class MainActivity :
         adjustFabVisibility(isResumeEnabled = isEnabled)
     }
 
-    private fun onFirstStart() =
-        try {
-            lifecycleScope.launch(Dispatchers.Main) {
-                // not a default `Main.immediate` dispatcher
-                withContext(Dispatchers.Default) {
-                    LocalStorageCleanupWorker.enqueue(applicationContext)
-                }
-                withResumed {
-                    MangaPrefetchService.prefetchLast(this@MainActivity)
-                    requestNotificationsPermission()
-                    startService(Intent(this@MainActivity, LocalIndexUpdateService::class.java))
-                    startService(Intent(this@MainActivity, PeriodicalBackupService::class.java))
-                }
+    private fun onFirstStart() = try {
+        lifecycleScope.launch(Dispatchers.Main) {
+            // not a default `Main.immediate` dispatcher
+            withContext(Dispatchers.Default) {
+                LocalStorageCleanupWorker.enqueue(applicationContext)
             }
-        } catch (e: IllegalStateException) {
-            e.printStackTraceDebug()
+            withResumed {
+                MangaPrefetchService.prefetchLast(this@MainActivity)
+                requestNotificationsPermission()
+                startService(Intent(this@MainActivity, LocalIndexUpdateService::class.java))
+                startService(Intent(this@MainActivity, PeriodicalBackupService::class.java))
+            }
         }
+    } catch (e: IllegalStateException) {
+        e.printStackTraceDebug()
+    }
 
     private fun adjustAppbar(topFragment: Fragment) {
         if (topFragment is FavouritesContainerFragment) {
@@ -521,13 +520,12 @@ class MainActivity :
         }
     }
 
-    private fun SearchView.observeState() =
-        callbackFlow {
-            val listener =
-                SearchView.TransitionListener { _, _, state ->
-                    trySendBlocking(state)
-                }
-            addTransitionListener(listener)
-            awaitClose { removeTransitionListener(listener) }
-        }
+    private fun SearchView.observeState() = callbackFlow {
+        val listener =
+            SearchView.TransitionListener { _, _, state ->
+                trySendBlocking(state)
+            }
+        addTransitionListener(listener)
+        awaitClose { removeTransitionListener(listener) }
+    }
 }

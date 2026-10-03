@@ -22,10 +22,9 @@ open class BaseListAdapter<T : ListModel> :
             .build(),
     ),
     FlowCollector<List<T>?> {
-    override suspend fun emit(value: List<T>?) =
-        suspendCoroutine { cont ->
-            setItems(value.orEmpty(), ContinuationResumeRunnable(cont))
-        }
+    override suspend fun emit(value: List<T>?) = suspendCoroutine { cont ->
+        setItems(value.orEmpty(), ContinuationResumeRunnable(cont))
+    }
 
     fun addDelegate(
         type: ListItemType,

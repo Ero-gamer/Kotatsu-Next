@@ -457,14 +457,13 @@ class ColorFilterConfigActivity :
             }
     }
 
-    private fun loadPreview(page: MangaPage) =
-        with(viewBinding.imageViewBefore) {
-            addImageRequestListener(
-                ImageRequestIndicatorListener(listOf(viewBinding.progressBefore, viewBinding.progressAfter)),
-            )
-            addImageRequestListener(BeforeImageListener())
-            setImageAsync(page, allowHardware = false)
-        }
+    private fun loadPreview(page: MangaPage) = with(viewBinding.imageViewBefore) {
+        addImageRequestListener(
+            ImageRequestIndicatorListener(listOf(viewBinding.progressBefore, viewBinding.progressAfter)),
+        )
+        addImageRequestListener(BeforeImageListener())
+        setImageAsync(page, allowHardware = false)
+    }
 
     private fun onLoadingChanged(isLoading: Boolean) {
         viewBinding.sliderBrightness.isEnabled = !isLoading

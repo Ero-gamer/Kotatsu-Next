@@ -77,12 +77,11 @@ data class ReaderColorFilter(
         return ColorMatrixColorFilter(cm)
     }
 
-    fun getBackgroundTint(): ColorStateList? =
-        if (isBookBackground) {
-            ColorStateList.valueOf(Color.rgb(255, 255, (255 * BOOK_BLUE_FACTOR).toInt()))
-        } else {
-            null
-        }
+    fun getBackgroundTint(): ColorStateList? = if (isBookBackground) {
+        ColorStateList.valueOf(Color.rgb(255, 255, (255 * BOOK_BLUE_FACTOR).toInt()))
+    } else {
+        null
+    }
 
     companion object {
         private const val BOOK_BLUE_FACTOR = 0.92f

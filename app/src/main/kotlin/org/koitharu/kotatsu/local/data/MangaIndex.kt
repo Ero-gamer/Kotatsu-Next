@@ -72,44 +72,43 @@ class MangaIndex(
         json.put(KEY_APP_VERSION, BuildConfig.VERSION_CODE)
     }
 
-    fun getMangaInfo(): Manga? =
-        if (json.length() == 0) {
-            null
-        } else {
-            runCatching {
-                val source = MangaSource(json.getString(KEY_SOURCE))
-                Manga(
-                    id = json.getLong(KEY_ID),
-                    title = json.getString(KEY_TITLE),
-                    altTitles =
-                        json.optJSONArray(KEY_ALT_TITLES)?.toStringSet()
-                            ?: setOfNotNull(json.getStringOrNull(KEY_TITLE_ALT)),
-                    url = json.getString(KEY_URL),
-                    publicUrl = json.getStringOrNull(KEY_PUBLIC_URL).orEmpty(),
-                    authors =
-                        json.optJSONArray(KEY_AUTHORS)?.toStringSet()
-                            ?: setOfNotNull(json.getStringOrNull(KEY_AUTHOR)),
-                    largeCoverUrl = json.getStringOrNull(KEY_COVER_LARGE),
-                    source = source,
-                    rating = json.getFloatOrDefault(KEY_RATING, RATING_UNKNOWN),
-                    contentRating =
-                        json.getEnumValueOrNull(KEY_CONTENT_RATING, ContentRating::class.java)
-                            ?: if (json.getBooleanOrDefault(KEY_NSFW, false)) ContentRating.ADULT else null,
-                    coverUrl = json.getStringOrNull(KEY_COVER),
-                    state = json.getEnumValueOrNull(KEY_STATE, MangaState::class.java),
-                    description = json.getStringOrNull(KEY_DESCRIPTION),
-                    tags =
-                        json.getJSONArray(KEY_TAGS).mapJSONToSet { x ->
-                            MangaTag(
-                                title = x.getString(KEY_TITLE).toTitleCase(),
-                                key = x.getString(KEY_KEY),
-                                source = source,
-                            )
-                        },
-                    chapters = getChapters(json.getJSONObject(KEY_CHAPTERS), source),
-                )
-            }.getOrNull()
-        }
+    fun getMangaInfo(): Manga? = if (json.length() == 0) {
+        null
+    } else {
+        runCatching {
+            val source = MangaSource(json.getString(KEY_SOURCE))
+            Manga(
+                id = json.getLong(KEY_ID),
+                title = json.getString(KEY_TITLE),
+                altTitles =
+                json.optJSONArray(KEY_ALT_TITLES)?.toStringSet()
+                    ?: setOfNotNull(json.getStringOrNull(KEY_TITLE_ALT)),
+                url = json.getString(KEY_URL),
+                publicUrl = json.getStringOrNull(KEY_PUBLIC_URL).orEmpty(),
+                authors =
+                json.optJSONArray(KEY_AUTHORS)?.toStringSet()
+                    ?: setOfNotNull(json.getStringOrNull(KEY_AUTHOR)),
+                largeCoverUrl = json.getStringOrNull(KEY_COVER_LARGE),
+                source = source,
+                rating = json.getFloatOrDefault(KEY_RATING, RATING_UNKNOWN),
+                contentRating =
+                json.getEnumValueOrNull(KEY_CONTENT_RATING, ContentRating::class.java)
+                    ?: if (json.getBooleanOrDefault(KEY_NSFW, false)) ContentRating.ADULT else null,
+                coverUrl = json.getStringOrNull(KEY_COVER),
+                state = json.getEnumValueOrNull(KEY_STATE, MangaState::class.java),
+                description = json.getStringOrNull(KEY_DESCRIPTION),
+                tags =
+                json.getJSONArray(KEY_TAGS).mapJSONToSet { x ->
+                    MangaTag(
+                        title = x.getString(KEY_TITLE).toTitleCase(),
+                        key = x.getString(KEY_KEY),
+                        source = source,
+                    )
+                },
+                chapters = getChapters(json.getJSONObject(KEY_CHAPTERS), source),
+            )
+        }.getOrNull()
+    }
 
     fun getCoverEntry(): String? = json.getStringOrNull(KEY_COVER_ENTRY)
 
@@ -141,13 +140,12 @@ class MangaIndex(
         json.put(KEY_COVER_ENTRY, name)
     }
 
-    fun getChapterNamesPattern(chapter: MangaChapter) =
-        Regex(
-            json
-                .getJSONObject(KEY_CHAPTERS)
-                .getJSONObject(chapter.id.toString())
-                .getString(KEY_ENTRIES),
-        )
+    fun getChapterNamesPattern(chapter: MangaChapter) = Regex(
+        json
+            .getJSONObject(KEY_CHAPTERS)
+            .getJSONObject(chapter.id.toString())
+            .getString(KEY_ENTRIES),
+    )
 
     fun clear() {
         val keys = json.keys()
@@ -187,12 +185,11 @@ class MangaIndex(
         return chapters.sortedBy { it.number }
     }
 
-    override fun toString(): String =
-        if (BuildConfig.DEBUG) {
-            json.toString(4)
-        } else {
-            json.toString()
-        }
+    override fun toString(): String = if (BuildConfig.DEBUG) {
+        json.toString(4)
+    } else {
+        json.toString()
+    }
 
     companion object {
         private const val KEY_ID = "id"
@@ -231,25 +228,24 @@ class MangaIndex(
         fun read(
             fileSystem: FileSystem,
             path: Path,
-        ): MangaIndex? =
-            runCatchingCancellable {
-                if (!fileSystem.exists(path)) {
-                    return@runCatchingCancellable null
-                }
-                val text =
-                    fileSystem.source(path).use {
-                        it.buffer().use { buffer ->
-                            buffer.readUtf8()
-                        }
+        ): MangaIndex? = runCatchingCancellable {
+            if (!fileSystem.exists(path)) {
+                return@runCatchingCancellable null
+            }
+            val text =
+                fileSystem.source(path).use {
+                    it.buffer().use { buffer ->
+                        buffer.readUtf8()
                     }
-                if (text.length > 2) {
-                    MangaIndex(text)
-                } else {
-                    null
                 }
-            }.onFailure { e ->
-                e.printStackTraceDebug()
-            }.getOrNull()
+            if (text.length > 2) {
+                MangaIndex(text)
+            } else {
+                null
+            }
+        }.onFailure { e ->
+            e.printStackTraceDebug()
+        }.getOrNull()
 
         @Blocking
         @WorkerThread

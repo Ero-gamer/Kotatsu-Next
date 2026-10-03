@@ -109,17 +109,16 @@ class ReaderSettingsFragment :
         super.onDestroyView()
     }
 
-    override fun onPreferenceTreeClick(preference: Preference): Boolean =
-        when (preference.key) {
-            AppSettings.KEY_READER_TAP_ACTIONS -> {
-                router.openReaderTapGridSettings()
-                true
-            }
-
-            else -> {
-                super.onPreferenceTreeClick(preference)
-            }
+    override fun onPreferenceTreeClick(preference: Preference): Boolean = when (preference.key) {
+        AppSettings.KEY_READER_TAP_ACTIONS -> {
+            router.openReaderTapGridSettings()
+            true
         }
+
+        else -> {
+            super.onPreferenceTreeClick(preference)
+        }
+    }
 
     override fun onSharedPreferenceChanged(
         sharedPreferences: SharedPreferences?,

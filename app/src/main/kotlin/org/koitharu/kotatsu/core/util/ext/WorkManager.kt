@@ -15,35 +15,33 @@ import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 @SuppressLint("RestrictedApi")
-suspend fun WorkManager.deleteWork(id: UUID) =
-    suspendCoroutine { cont ->
-        workManagerImpl.workTaskExecutor.executeOnTaskThread {
-            try {
-                workManagerImpl.workDatabase.workSpecDao().delete(id.toString())
-                cont.resume(Unit)
-            } catch (e: Exception) {
-                cont.resumeWithException(e)
-            }
+suspend fun WorkManager.deleteWork(id: UUID) = suspendCoroutine { cont ->
+    workManagerImpl.workTaskExecutor.executeOnTaskThread {
+        try {
+            workManagerImpl.workDatabase.workSpecDao().delete(id.toString())
+            cont.resume(Unit)
+        } catch (e: Exception) {
+            cont.resumeWithException(e)
         }
     }
+}
 
 @SuppressLint("RestrictedApi")
-suspend fun WorkManager.deleteWorks(ids: Collection<UUID>) =
-    suspendCoroutine { cont ->
-        workManagerImpl.workTaskExecutor.executeOnTaskThread {
-            try {
-                val db = workManagerImpl.workDatabase
-                db.runInTransaction {
-                    for (id in ids) {
-                        db.workSpecDao().delete(id.toString())
-                    }
+suspend fun WorkManager.deleteWorks(ids: Collection<UUID>) = suspendCoroutine { cont ->
+    workManagerImpl.workTaskExecutor.executeOnTaskThread {
+        try {
+            val db = workManagerImpl.workDatabase
+            db.runInTransaction {
+                for (id in ids) {
+                    db.workSpecDao().delete(id.toString())
                 }
-                cont.resume(Unit)
-            } catch (e: Exception) {
-                cont.resumeWithException(e)
             }
+            cont.resume(Unit)
+        } catch (e: Exception) {
+            cont.resumeWithException(e)
         }
     }
+}
 
 @SuppressLint("RestrictedApi")
 suspend fun WorkManager.awaitWorkInfosByTag(tag: String): List<WorkInfo> = getWorkInfosByTag(tag).await()
@@ -65,17 +63,16 @@ suspend fun WorkManager.awaitUniqueWorkInfoByName(name: String): List<WorkInfo> 
 suspend fun WorkManager.awaitUpdateWork(request: WorkRequest): WorkManager.UpdateResult = updateWork(request).await()
 
 @SuppressLint("RestrictedApi")
-suspend fun WorkManager.getWorkSpec(id: UUID): WorkSpec? =
-    suspendCoroutine { cont ->
-        workManagerImpl.workTaskExecutor.executeOnTaskThread {
-            try {
-                val spec = workManagerImpl.workDatabase.workSpecDao().getWorkSpec(id.toString())
-                cont.resume(spec)
-            } catch (e: Exception) {
-                cont.resumeWithException(e)
-            }
+suspend fun WorkManager.getWorkSpec(id: UUID): WorkSpec? = suspendCoroutine { cont ->
+    workManagerImpl.workTaskExecutor.executeOnTaskThread {
+        try {
+            val spec = workManagerImpl.workDatabase.workSpecDao().getWorkSpec(id.toString())
+            cont.resume(spec)
+        } catch (e: Exception) {
+            cont.resumeWithException(e)
         }
     }
+}
 
 @SuppressLint("RestrictedApi")
 suspend fun WorkManager.getWorkInputData(id: UUID): Data? = getWorkSpec(id)?.input

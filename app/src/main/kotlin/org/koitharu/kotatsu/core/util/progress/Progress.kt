@@ -16,38 +16,34 @@ data class Progress(
     val isIndeterminate: Boolean
         get() = total < 0
 
-    override fun compareTo(other: Progress): Int =
-        if (total == other.total) {
-            progress.compareTo(other.progress)
-        } else {
-            percent.compareTo(other.percent)
-        }
+    override fun compareTo(other: Progress): Int = if (total == other.total) {
+        progress.compareTo(other.progress)
+    } else {
+        percent.compareTo(other.percent)
+    }
 
-    operator fun inc() =
-        if (isFull) {
-            this
-        } else {
-            copy(
-                progress = progress + 1,
-                total = total,
-            )
-        }
-
-    operator fun dec() =
-        if (isEmpty) {
-            this
-        } else {
-            copy(
-                progress = progress - 1,
-                total = total,
-            )
-        }
-
-    operator fun plus(child: Progress) =
-        Progress(
-            progress = progress * child.total + child.progress,
-            total = total * child.total,
+    operator fun inc() = if (isFull) {
+        this
+    } else {
+        copy(
+            progress = progress + 1,
+            total = total,
         )
+    }
+
+    operator fun dec() = if (isEmpty) {
+        this
+    } else {
+        copy(
+            progress = progress - 1,
+            total = total,
+        )
+    }
+
+    operator fun plus(child: Progress) = Progress(
+        progress = progress * child.total + child.progress,
+        total = total * child.total,
+    )
 
     companion object {
         val INDETERMINATE = Progress(0, -1)

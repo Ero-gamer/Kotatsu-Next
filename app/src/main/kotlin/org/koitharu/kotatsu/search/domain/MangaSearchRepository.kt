@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.db.entity.toEntity
 import org.koitharu.kotatsu.core.db.entity.toManga
@@ -28,7 +29,6 @@ import org.koitharu.kotatsu.parsers.util.mapToSet
 import org.koitharu.kotatsu.search.ui.MangaSuggestionsProvider
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionScope
 import javax.inject.Inject
-import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.model.MangaSource as mangaSourceOf
 
 /** How many of a screen's sources to consider when suggesting names to filter by. */

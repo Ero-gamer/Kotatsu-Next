@@ -71,11 +71,11 @@ data class ReaderSettings(
         isColorFilterDisabled = isColorFilterDisabled,
         isReaderOptimizationEnabled = settings.isReaderOptimizationEnabled,
         bitmapConfig =
-            if (!settings.is32BitColorsEnabled && settings.isReaderOptimizationEnabled) {
-                Bitmap.Config.RGB_565
-            } else {
-                Bitmap.Config.ARGB_8888
-            },
+        if (!settings.is32BitColorsEnabled && settings.isReaderOptimizationEnabled) {
+            Bitmap.Config.RGB_565
+        } else {
+            Bitmap.Config.ARGB_8888
+        },
         is32BitEnabled = settings.is32BitColorsEnabled,
         isPagesNumbersEnabled = settings.isPagesNumbersEnabled,
         isPagesCropEnabledStandard = settings.isPagesCropEnabled(ReaderMode.STANDARD),
@@ -99,12 +99,11 @@ data class ReaderSettings(
             }
     }
 
-    fun isPagesCropEnabled(isWebtoon: Boolean) =
-        if (isWebtoon) {
-            isPagesCropEnabledWebtoon
-        } else {
-            isPagesCropEnabledStandard
-        }
+    fun isPagesCropEnabled(isWebtoon: Boolean) = if (isWebtoon) {
+        isPagesCropEnabledWebtoon
+    } else {
+        isPagesCropEnabledStandard
+    }
 
     /**
      * Applies bitmap quality and GPU filter configuration to [ssiv].
@@ -251,15 +250,14 @@ data class ReaderSettings(
         }
 
         /** `true` if [renderer] already holds exactly these values (no reload needed). */
-        fun matches(renderer: GpuTileRenderer): Boolean =
-            renderer.enableDeband == deband.isOn() && renderer.debandIntensity == deband &&
-                renderer.enableDenoise == denoise.isOn() && renderer.denoiseStrength == denoise &&
-                renderer.enableVibrance == vibrance.isOn() && renderer.vibranceIntensity == vibrance &&
-                renderer.enableDarken == isLineDarken &&
-                renderer.enableRcas == rcas.isOn() && renderer.rcasIntensity == rcas &&
-                renderer.enableAdaptiveSharpen == adaptiveSharpen.isOn() &&
-                renderer.adaptiveSharpenIntensity == adaptiveSharpen &&
-                renderer.enableScreentoneCap == smartSharpen
+        fun matches(renderer: GpuTileRenderer): Boolean = renderer.enableDeband == deband.isOn() && renderer.debandIntensity == deband &&
+            renderer.enableDenoise == denoise.isOn() && renderer.denoiseStrength == denoise &&
+            renderer.enableVibrance == vibrance.isOn() && renderer.vibranceIntensity == vibrance &&
+            renderer.enableDarken == isLineDarken &&
+            renderer.enableRcas == rcas.isOn() && renderer.rcasIntensity == rcas &&
+            renderer.enableAdaptiveSharpen == adaptiveSharpen.isOn() &&
+            renderer.adaptiveSharpenIntensity == adaptiveSharpen &&
+            renderer.enableScreentoneCap == smartSharpen
 
         companion object {
             /** A filter counts as enabled above this intensity (same threshold as before the split). */
@@ -283,76 +281,76 @@ data class ReaderSettings(
     }
 
     class Producer
-        @AssistedInject
-        constructor(
-            @Assisted private val mangaId: Flow<Long>,
-            private val settings: AppSettings,
-            private val mangaDataRepository: MangaDataRepository,
-        ) : MediatorStateFlow<ReaderSettings>(ReaderSettings(settings, null, false)) {
-            private val settingsKeys =
-                scatterSetOf(
-                    AppSettings.KEY_ZOOM_MODE,
-                    AppSettings.KEY_PAGES_NUMBERS,
-                    AppSettings.KEY_READER_BACKGROUND,
-                    AppSettings.KEY_32BIT_COLOR,
-                    AppSettings.KEY_READER_OPTIMIZE,
-                    AppSettings.KEY_CF_CONTRAST,
-                    AppSettings.KEY_CF_BRIGHTNESS,
-                    AppSettings.KEY_CF_INVERTED,
-                    AppSettings.KEY_CF_GRAYSCALE,
-                    AppSettings.KEY_CF_SATURATION,
-                    AppSettings.KEY_CF_VIBRANCE,
-                    AppSettings.KEY_CF_BOOK,
-                    AppSettings.KEY_CF_DENOISE,
-                    AppSettings.KEY_CF_RCAS,
-                    AppSettings.KEY_CF_ADAPTIVE_SHARPEN,
-                    AppSettings.KEY_CF_DEBAND,
-                    AppSettings.KEY_READER_SCALER,
-                    AppSettings.KEY_READER_DOWNSCALER,
-                    AppSettings.KEY_READER_SMART_SHARPEN,
-                    AppSettings.KEY_CF_LINE_DARKEN,
-                    AppSettings.KEY_READER_CROP,
-                )
-            private var job: Job? = null
+    @AssistedInject
+    constructor(
+        @Assisted private val mangaId: Flow<Long>,
+        private val settings: AppSettings,
+        private val mangaDataRepository: MangaDataRepository,
+    ) : MediatorStateFlow<ReaderSettings>(ReaderSettings(settings, null, false)) {
+        private val settingsKeys =
+            scatterSetOf(
+                AppSettings.KEY_ZOOM_MODE,
+                AppSettings.KEY_PAGES_NUMBERS,
+                AppSettings.KEY_READER_BACKGROUND,
+                AppSettings.KEY_32BIT_COLOR,
+                AppSettings.KEY_READER_OPTIMIZE,
+                AppSettings.KEY_CF_CONTRAST,
+                AppSettings.KEY_CF_BRIGHTNESS,
+                AppSettings.KEY_CF_INVERTED,
+                AppSettings.KEY_CF_GRAYSCALE,
+                AppSettings.KEY_CF_SATURATION,
+                AppSettings.KEY_CF_VIBRANCE,
+                AppSettings.KEY_CF_BOOK,
+                AppSettings.KEY_CF_DENOISE,
+                AppSettings.KEY_CF_RCAS,
+                AppSettings.KEY_CF_ADAPTIVE_SHARPEN,
+                AppSettings.KEY_CF_DEBAND,
+                AppSettings.KEY_READER_SCALER,
+                AppSettings.KEY_READER_DOWNSCALER,
+                AppSettings.KEY_READER_SMART_SHARPEN,
+                AppSettings.KEY_CF_LINE_DARKEN,
+                AppSettings.KEY_READER_CROP,
+            )
+        private var job: Job? = null
 
-            override fun onActive() {
-                assert(job?.isActive != true)
-                job?.cancel()
-                publishValue(ReaderSettings(settings, value.colorFilter, value.isColorFilterDisabled))
-                job =
-                    processLifecycleScope.launch(Dispatchers.Default) {
-                        observeImpl()
-                    }
-            }
-
-            override fun onInactive() {
-                job?.cancel()
-                job = null
-            }
-
-            private suspend fun observeImpl() {
-                combine(
-                    mangaId
-                        .flatMapLatest { mangaDataRepository.observeColorFilter(it) }
-                        .onStart { emit(value.colorFilter) },
-                    mangaId
-                        .flatMapLatest { mangaDataRepository.observeColorFilterDisabled(it) }
-                        .onStart { emit(value.isColorFilterDisabled) },
-                    settings
-                        .observeChanges()
-                        .filter { x -> x == null || x in settingsKeys }
-                        .conflate()
-                        .onStart { emit(null) },
-                ) { mangaCf, isDisabled, _ ->
-                    ReaderSettings(settings, mangaCf, isDisabled)
-                }.collect {
-                    publishValue(it)
+        override fun onActive() {
+            assert(job?.isActive != true)
+            job?.cancel()
+            publishValue(ReaderSettings(settings, value.colorFilter, value.isColorFilterDisabled))
+            job =
+                processLifecycleScope.launch(Dispatchers.Default) {
+                    observeImpl()
                 }
-            }
+        }
 
-            @AssistedFactory
-            interface Factory {
-                fun create(mangaId: Flow<Long>): Producer
+        override fun onInactive() {
+            job?.cancel()
+            job = null
+        }
+
+        private suspend fun observeImpl() {
+            combine(
+                mangaId
+                    .flatMapLatest { mangaDataRepository.observeColorFilter(it) }
+                    .onStart { emit(value.colorFilter) },
+                mangaId
+                    .flatMapLatest { mangaDataRepository.observeColorFilterDisabled(it) }
+                    .onStart { emit(value.isColorFilterDisabled) },
+                settings
+                    .observeChanges()
+                    .filter { x -> x == null || x in settingsKeys }
+                    .conflate()
+                    .onStart { emit(null) },
+            ) { mangaCf, isDisabled, _ ->
+                ReaderSettings(settings, mangaCf, isDisabled)
+            }.collect {
+                publishValue(it)
             }
         }
+
+        @AssistedFactory
+        interface Factory {
+            fun create(mangaId: Flow<Long>): Producer
+        }
+    }
 }

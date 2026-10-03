@@ -111,12 +111,11 @@ abstract class BasePreferenceFragment(
         (activity as? SettingsActivity)?.setSectionTitle(title)
     }
 
-    protected fun getWarningIcon(): Drawable? =
-        context?.let { ctx ->
-            ContextCompat.getDrawable(ctx, R.drawable.ic_alert_outline)?.also {
-                it.setTint(ContextCompat.getColor(ctx, R.color.warning))
-            }
+    protected fun getWarningIcon(): Drawable? = context?.let { ctx ->
+        ContextCompat.getDrawable(ctx, R.drawable.ic_alert_outline)?.also {
+            it.setTint(ContextCompat.getColor(ctx, R.color.warning))
         }
+    }
 
     private fun focusPreference(key: String) {
         val pref = findPreference<Preference>(key)

@@ -17,20 +17,20 @@ import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionScope
  */
 object ScreenFilterLog {
 
-	const val TAG = "KotatsuFilter"
+    const val TAG = "KotatsuFilter"
 
-	/** What the user's tap turned into, and where it came from. */
-	fun applied(scope: SearchSuggestionScope, value: String, origin: String) {
-		Log.i(TAG, "APPLY scope=$scope origin=$origin text=\"$value\"")
-	}
+    /** What the user's tap turned into, and where it came from. */
+    fun applied(scope: SearchSuggestionScope, value: String, origin: String) {
+        Log.i(TAG, "APPLY scope=$scope origin=$origin text=\"$value\"")
+    }
 
-	/** The predicate the text produced. */
-	fun condition(table: String, sql: String) {
-		Log.i(TAG, "SQL   $table -> $sql")
-	}
+    /** The predicate the text produced. */
+    fun condition(table: String, sql: String) {
+        Log.i(TAG, "SQL   $table -> $sql")
+    }
 
-	/** How many rows came back for it. */
-	fun result(scope: SearchSuggestionScope, query: String, count: Int) {
-		Log.i(TAG, "RESULT scope=$scope text=\"$query\" rows=$count")
-	}
+    /** How many rows came back for it. */
+    fun result(scope: SearchSuggestionScope, query: String, count: Int) {
+        Log.i(TAG, "RESULT scope=$scope text=\"$query\" rows=$count")
+    }
 }

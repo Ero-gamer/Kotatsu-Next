@@ -115,24 +115,23 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
         filterOptions: Set<ListFilterOption>,
         limit: Int,
         searchQuery: String = "",
-    ): Flow<List<FavouriteManga>> =
-        observeAllImpl(
-            MangaQueryBuilder(TABLE_FAVOURITES, this)
-                .join("LEFT JOIN manga ON favourites.manga_id = manga.manga_id")
-                .where("deleted_at = 0")
-                .where(
-                    if (categoryId != 0L) {
-                        "category_id = $categoryId"
-                    } else {
-                        "(SELECT show_in_lib FROM favourite_categories WHERE favourite_categories.category_id = favourites.category_id) = 1"
-                    },
-                ).let { if (searchQuery.isEmpty()) it else it.where(searchCondition(searchQuery)) }
-                .filters(filterOptions)
-                .groupBy("favourites.manga_id")
-                .orderBy(getOrderBy(order))
-                .limit(limit)
-                .build(),
-        )
+    ): Flow<List<FavouriteManga>> = observeAllImpl(
+        MangaQueryBuilder(TABLE_FAVOURITES, this)
+            .join("LEFT JOIN manga ON favourites.manga_id = manga.manga_id")
+            .where("deleted_at = 0")
+            .where(
+                if (categoryId != 0L) {
+                    "category_id = $categoryId"
+                } else {
+                    "(SELECT show_in_lib FROM favourite_categories WHERE favourite_categories.category_id = favourites.category_id) = 1"
+                },
+            ).let { if (searchQuery.isEmpty()) it else it.where(searchCondition(searchQuery)) }
+            .filters(filterOptions)
+            .groupBy("favourites.manga_id")
+            .orderBy(getOrderBy(order))
+            .limit(limit)
+            .build(),
+    )
 
     suspend fun findCovers(
         categoryId: Long,
@@ -227,19 +226,18 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
         limit: Int,
     ): List<String>
 
-    fun dump(): Flow<FavouriteManga> =
-        flow {
-            val window = 10
-            var offset = 0
-            while (currentCoroutineContext().isActive) {
-                val list = findAllRaw(offset, window)
-                if (list.isEmpty()) {
-                    break
-                }
-                offset += window
-                list.forEach { emit(it) }
+    fun dump(): Flow<FavouriteManga> = flow {
+        val window = 10
+        var offset = 0
+        while (currentCoroutineContext().isActive) {
+            val list = findAllRaw(offset, window)
+            if (list.isEmpty()) {
+                break
             }
+            offset += window
+            list.forEach { emit(it) }
         }
+    }
 
     /** INSERT **/
 
@@ -248,11 +246,10 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
 
     /** DELETE **/
 
-    suspend fun delete(mangaId: Long) =
-        setDeletedAt(
-            mangaId = mangaId,
-            deletedAt = System.currentTimeMillis(),
-        )
+    suspend fun delete(mangaId: Long) = setDeletedAt(
+        mangaId = mangaId,
+        deletedAt = System.currentTimeMillis(),
+    )
 
     suspend fun delete(
         mangaId: Long,
@@ -263,17 +260,15 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
         deletedAt = System.currentTimeMillis(),
     )
 
-    suspend fun deleteAll(categoryId: Long) =
-        setDeletedAtAll(
-            categoryId = categoryId,
-            deletedAt = System.currentTimeMillis(),
-        )
+    suspend fun deleteAll(categoryId: Long) = setDeletedAtAll(
+        categoryId = categoryId,
+        deletedAt = System.currentTimeMillis(),
+    )
 
-    suspend fun recover(mangaId: Long) =
-        setDeletedAt(
-            mangaId = mangaId,
-            deletedAt = 0L,
-        )
+    suspend fun recover(mangaId: Long) = setDeletedAt(
+        mangaId = mangaId,
+        deletedAt = 0L,
+    )
 
     suspend fun recover(
         categoryId: Long,
@@ -339,45 +334,43 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
     @Query("SELECT DISTINCT manga_id FROM favourites WHERE pinned = 1 AND deleted_at = 0")
     abstract suspend fun findAllPinnedIds(): List<Long>
 
-    private fun getOrderBy(sortOrder: ListSortOrder) =
-        "favourites.pinned DESC, " +
-            when (sortOrder) {
-                ListSortOrder.RATING -> "manga.rating DESC"
-                ListSortOrder.NEWEST -> "favourites.created_at DESC"
-                ListSortOrder.OLDEST -> "favourites.created_at ASC"
-                ListSortOrder.ALPHABETIC -> "manga.title ASC"
-                ListSortOrder.ALPHABETIC_REVERSE -> "manga.title DESC"
-                ListSortOrder.NEW_CHAPTERS -> "IFNULL((SELECT chapters_new FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
-                ListSortOrder.PROGRESS -> "IFNULL((SELECT percent FROM history WHERE history.manga_id = manga.manga_id), 0) DESC"
-                ListSortOrder.UNREAD -> "IFNULL((SELECT percent FROM history WHERE history.manga_id = manga.manga_id), 0) ASC"
-                ListSortOrder.LAST_READ -> "IFNULL((SELECT updated_at FROM history WHERE history.manga_id = manga.manga_id), 0) DESC"
-                ListSortOrder.LONG_AGO_READ -> "IFNULL((SELECT updated_at FROM history WHERE history.manga_id = manga.manga_id), 0) ASC"
-                ListSortOrder.UPDATED -> "IFNULL((SELECT last_chapter_date FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
-                else -> throw IllegalArgumentException("Sort order $sortOrder is not supported")
-            }
-
-    override fun getCondition(option: ListFilterOption): String? =
-        when (option) {
-            ListFilterOption.Macro.COMPLETED -> "EXISTS(SELECT * FROM history WHERE history.manga_id = favourites.manga_id AND history.percent >= $PROGRESS_COMPLETED)"
-
-            ListFilterOption.Macro.NEW_CHAPTERS -> "(SELECT chapters_new FROM tracks WHERE tracks.manga_id = favourites.manga_id) > 0"
-
-            ListFilterOption.Macro.NSFW -> "manga.nsfw = 1"
-
-            is ListFilterOption.Tag -> "EXISTS(SELECT * FROM manga_tags WHERE favourites.manga_id = manga_tags.manga_id AND tag_id = ${option.tagId})"
-
-            is ListFilterOption.TagTitle -> "EXISTS(SELECT * FROM manga_tags LEFT JOIN tags ON tags.tag_id = manga_tags.tag_id WHERE favourites.manga_id = manga_tags.manga_id AND tags.title = ${sqlEscapeString(
-                option.titleText,
-            )})"
-
-            ListFilterOption.Downloaded -> "EXISTS(SELECT * FROM local_index WHERE local_index.manga_id = favourites.manga_id)"
-
-            is ListFilterOption.Source -> "manga.source = ${sqlEscapeString(option.mangaSource.name)}"
-
-            is ListFilterOption.ContentType -> contentTypeCondition(option)
-
-            else -> null
+    private fun getOrderBy(sortOrder: ListSortOrder) = "favourites.pinned DESC, " +
+        when (sortOrder) {
+            ListSortOrder.RATING -> "manga.rating DESC"
+            ListSortOrder.NEWEST -> "favourites.created_at DESC"
+            ListSortOrder.OLDEST -> "favourites.created_at ASC"
+            ListSortOrder.ALPHABETIC -> "manga.title ASC"
+            ListSortOrder.ALPHABETIC_REVERSE -> "manga.title DESC"
+            ListSortOrder.NEW_CHAPTERS -> "IFNULL((SELECT chapters_new FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
+            ListSortOrder.PROGRESS -> "IFNULL((SELECT percent FROM history WHERE history.manga_id = manga.manga_id), 0) DESC"
+            ListSortOrder.UNREAD -> "IFNULL((SELECT percent FROM history WHERE history.manga_id = manga.manga_id), 0) ASC"
+            ListSortOrder.LAST_READ -> "IFNULL((SELECT updated_at FROM history WHERE history.manga_id = manga.manga_id), 0) DESC"
+            ListSortOrder.LONG_AGO_READ -> "IFNULL((SELECT updated_at FROM history WHERE history.manga_id = manga.manga_id), 0) ASC"
+            ListSortOrder.UPDATED -> "IFNULL((SELECT last_chapter_date FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
+            else -> throw IllegalArgumentException("Sort order $sortOrder is not supported")
         }
+
+    override fun getCondition(option: ListFilterOption): String? = when (option) {
+        ListFilterOption.Macro.COMPLETED -> "EXISTS(SELECT * FROM history WHERE history.manga_id = favourites.manga_id AND history.percent >= $PROGRESS_COMPLETED)"
+
+        ListFilterOption.Macro.NEW_CHAPTERS -> "(SELECT chapters_new FROM tracks WHERE tracks.manga_id = favourites.manga_id) > 0"
+
+        ListFilterOption.Macro.NSFW -> "manga.nsfw = 1"
+
+        is ListFilterOption.Tag -> "EXISTS(SELECT * FROM manga_tags WHERE favourites.manga_id = manga_tags.manga_id AND tag_id = ${option.tagId})"
+
+        is ListFilterOption.TagTitle -> "EXISTS(SELECT * FROM manga_tags LEFT JOIN tags ON tags.tag_id = manga_tags.tag_id WHERE favourites.manga_id = manga_tags.manga_id AND tags.title = ${sqlEscapeString(
+            option.titleText,
+        )})"
+
+        ListFilterOption.Downloaded -> "EXISTS(SELECT * FROM local_index WHERE local_index.manga_id = favourites.manga_id)"
+
+        is ListFilterOption.Source -> "manga.source = ${sqlEscapeString(option.mangaSource.name)}"
+
+        is ListFilterOption.ContentType -> contentTypeCondition(option)
+
+        else -> null
+    }
 
     private fun contentTypeCondition(option: ListFilterOption.ContentType): String {
         val sources =

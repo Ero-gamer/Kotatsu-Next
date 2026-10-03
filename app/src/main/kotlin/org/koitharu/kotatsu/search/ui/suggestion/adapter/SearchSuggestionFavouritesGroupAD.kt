@@ -11,18 +11,17 @@ import org.koitharu.kotatsu.search.ui.suggestion.model.SearchSuggestionItem
  * will open, without needing a count nobody can interpret.
  */
 fun searchSuggestionFavouritesGroupAD(
-	listener: SearchSuggestionListener,
+    listener: SearchSuggestionListener,
 ) = adapterDelegateViewBinding<SearchSuggestionItem.FavouritesGroup, SearchSuggestionItem, ItemSearchSuggestionSourceTipBinding>(
-	{ inflater, parent -> ItemSearchSuggestionSourceTipBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemSearchSuggestionSourceTipBinding.inflate(inflater, parent, false) },
 ) {
+    binding.root.setOnClickListener {
+        listener.onFavouritesGroupClick()
+    }
 
-	binding.root.setOnClickListener {
-		listener.onFavouritesGroupClick()
-	}
-
-	bind {
-		binding.textViewTitle.setText(R.string.favourites)
-		binding.textViewSubtitle.text = item.preview
-		binding.imageViewCover.setImageAsync(R.drawable.ic_heart_outline)
-	}
+    bind {
+        binding.textViewTitle.setText(R.string.favourites)
+        binding.textViewSubtitle.text = item.preview
+        binding.imageViewCover.setImageAsync(R.drawable.ic_heart_outline)
+    }
 }

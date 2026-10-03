@@ -6,13 +6,12 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.parsers.util.ellipsize
 import java.util.UUID
 
-fun String.toUUIDOrNull(): UUID? =
-    try {
-        UUID.fromString(this)
-    } catch (e: IllegalArgumentException) {
-        e.printStackTraceDebug()
-        null
-    }
+fun String.toUUIDOrNull(): UUID? = try {
+    UUID.fromString(this)
+} catch (e: IllegalArgumentException) {
+    e.printStackTraceDebug()
+    null
+}
 
 fun String.transliterate(skipMissing: Boolean): String {
     val cyr =
@@ -105,11 +104,10 @@ fun String.transliterate(skipMissing: Boolean): String {
     }
 }
 
-fun String.toFileNameSafe(): String =
-    this
-        .transliterate(false)
-        .replace(Regex("[^a-z0-9_\\-]", arraySetOf(RegexOption.IGNORE_CASE)), " ")
-        .replace(Regex("\\s+"), "_")
+fun String.toFileNameSafe(): String = this
+    .transliterate(false)
+    .replace(Regex("[^a-z0-9_\\-]", arraySetOf(RegexOption.IGNORE_CASE)), " ")
+    .replace(Regex("\\s+"), "_")
 
 fun CharSequence.sanitize(): CharSequence = filterNot { c -> c.isReplacement() }
 

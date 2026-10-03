@@ -12,16 +12,15 @@ package org.koitharu.kotatsu.core.prefs.mmkv
  * that single setting (its default applies again), never the whole store.
  */
 internal object PrefCodec {
-    fun encode(value: Any): String =
-        when (value) {
-            is String -> "s$value"
-            is Int -> "i$value"
-            is Long -> "l$value"
-            is Float -> "f$value"
-            is Boolean -> if (value) "b1" else "b0"
-            is Set<*> -> encodeSet(value)
-            else -> throw IllegalArgumentException("Unsupported preference type: ${value.javaClass.name}")
-        }
+    fun encode(value: Any): String = when (value) {
+        is String -> "s$value"
+        is Int -> "i$value"
+        is Long -> "l$value"
+        is Float -> "f$value"
+        is Boolean -> if (value) "b1" else "b0"
+        is Set<*> -> encodeSet(value)
+        else -> throw IllegalArgumentException("Unsupported preference type: ${value.javaClass.name}")
+    }
 
     fun decode(raw: String): Any? {
         if (raw.isEmpty()) return null

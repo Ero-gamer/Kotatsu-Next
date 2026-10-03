@@ -33,362 +33,350 @@ import javax.inject.Inject
 
 @Reusable
 class FavouritesRepository
-    @Inject
-    constructor(
-        private val db: MangaDatabase,
-        private val localObserver: LocalFavoritesObserver,
-    ) {
-        suspend fun getAllManga(): List<Manga> {
-            val entities = db.getFavouritesDao().findAll()
-            return entities.toMangaList()
-        }
+@Inject
+constructor(
+    private val db: MangaDatabase,
+    private val localObserver: LocalFavoritesObserver,
+) {
+    suspend fun getAllManga(): List<Manga> {
+        val entities = db.getFavouritesDao().findAll()
+        return entities.toMangaList()
+    }
 
-        suspend fun getLastManga(limit: Int): List<Manga> {
-            val entities = db.getFavouritesDao().findLast(limit)
-            return entities.toMangaList()
-        }
+    suspend fun getLastManga(limit: Int): List<Manga> {
+        val entities = db.getFavouritesDao().findLast(limit)
+        return entities.toMangaList()
+    }
 
-        suspend fun search(
-            query: String,
-            kind: SearchKind,
-            limit: Int,
-        ): List<Manga> {
-            val dao = db.getFavouritesDao()
-            val q = "%$query%"
-            val entities =
-                when (kind) {
-                    SearchKind.SIMPLE,
-                    SearchKind.TITLE,
-                    -> dao.searchByTitle(q, limit).sortedBy { it.manga.title.levenshteinDistance(query) }
+    suspend fun search(
+        query: String,
+        kind: SearchKind,
+        limit: Int,
+    ): List<Manga> {
+        val dao = db.getFavouritesDao()
+        val q = "%$query%"
+        val entities =
+            when (kind) {
+                SearchKind.SIMPLE,
+                SearchKind.TITLE,
+                -> dao.searchByTitle(q, limit).sortedBy { it.manga.title.levenshteinDistance(query) }
 
-                    SearchKind.AUTHOR -> dao.searchByAuthor(q, limit)
+                SearchKind.AUTHOR -> dao.searchByAuthor(q, limit)
 
-                    SearchKind.TAG -> dao.searchByTag(q, limit)
-                }
-            return entities.toMangaList()
-        }
-
-        fun observeAll(
-            order: ListSortOrder,
-            filterOptions: Set<ListFilterOption>,
-            limit: Int,
-            searchQuery: String = "",
-        ): Flow<List<Manga>> {
-            if (ListFilterOption.Downloaded in filterOptions) {
-                return localObserver.observeAll(order, filterOptions, limit).filterByTitle(searchQuery)
+                SearchKind.TAG -> dao.searchByTag(q, limit)
             }
-            return db
-                .getFavouritesDao()
-                .observeAll(order, filterOptions, limit, searchQuery)
-                .map { it.toMangaList() }
+        return entities.toMangaList()
+    }
+
+    fun observeAll(
+        order: ListSortOrder,
+        filterOptions: Set<ListFilterOption>,
+        limit: Int,
+        searchQuery: String = "",
+    ): Flow<List<Manga>> {
+        if (ListFilterOption.Downloaded in filterOptions) {
+            return localObserver.observeAll(order, filterOptions, limit).filterByTitle(searchQuery)
         }
+        return db
+            .getFavouritesDao()
+            .observeAll(order, filterOptions, limit, searchQuery)
+            .map { it.toMangaList() }
+    }
 
-        /**
-         * The on-device observer reads the filesystem index rather than the favourites table, so it cannot
-         * take a SQL predicate; narrow it in memory instead.
-         */
-        private fun Flow<List<Manga>>.filterByTitle(query: String): Flow<List<Manga>> =
-            if (query.isEmpty()) {
-                this
-            } else {
-                map { list -> list.filter { it.title.contains(query, ignoreCase = true) } }
-            }
+    /**
+     * The on-device observer reads the filesystem index rather than the favourites table, so it cannot
+     * take a SQL predicate; narrow it in memory instead.
+     */
+    private fun Flow<List<Manga>>.filterByTitle(query: String): Flow<List<Manga>> = if (query.isEmpty()) {
+        this
+    } else {
+        map { list -> list.filter { it.title.contains(query, ignoreCase = true) } }
+    }
 
-        suspend fun getManga(categoryId: Long): List<Manga> {
-            val entities = db.getFavouritesDao().findAll(categoryId)
-            return entities.toMangaList()
+    suspend fun getManga(categoryId: Long): List<Manga> {
+        val entities = db.getFavouritesDao().findAll(categoryId)
+        return entities.toMangaList()
+    }
+
+    fun observeAll(
+        categoryId: Long,
+        order: ListSortOrder,
+        filterOptions: Set<ListFilterOption>,
+        limit: Int,
+        searchQuery: String = "",
+    ): Flow<List<Manga>> {
+        if (ListFilterOption.Downloaded in filterOptions) {
+            return localObserver.observeAll(categoryId, order, filterOptions, limit).filterByTitle(searchQuery)
         }
+        return db
+            .getFavouritesDao()
+            .observeAll(categoryId, order, filterOptions, limit, searchQuery)
+            .map { it.toMangaList() }
+    }
 
-        fun observeAll(
-            categoryId: Long,
-            order: ListSortOrder,
-            filterOptions: Set<ListFilterOption>,
-            limit: Int,
-            searchQuery: String = "",
-        ): Flow<List<Manga>> {
-            if (ListFilterOption.Downloaded in filterOptions) {
-                return localObserver.observeAll(categoryId, order, filterOptions, limit).filterByTitle(searchQuery)
-            }
-            return db
-                .getFavouritesDao()
-                .observeAll(categoryId, order, filterOptions, limit, searchQuery)
-                .map { it.toMangaList() }
+    fun observeAll(
+        categoryId: Long,
+        filterOptions: Set<ListFilterOption>,
+        limit: Int,
+        searchQuery: String = "",
+    ): Flow<List<Manga>> = observeOrder(categoryId)
+        .flatMapLatest { order -> observeAll(categoryId, order, filterOptions, limit, searchQuery) }
+
+    fun observeMangaCount(): Flow<Int> = db
+        .getFavouritesDao()
+        .observeMangaCount()
+        .distinctUntilChanged()
+
+    suspend fun findPopularTagTitles(
+        categoryId: Long,
+        limit: Int,
+    ): List<String> = db.getFavouritesDao().run {
+        if (categoryId == 0L) {
+            findPopularTagTitles(limit)
+        } else {
+            findPopularTagTitles(categoryId, limit)
         }
+    }
 
-        fun observeAll(
-            categoryId: Long,
-            filterOptions: Set<ListFilterOption>,
-            limit: Int,
-            searchQuery: String = "",
-        ): Flow<List<Manga>> =
-            observeOrder(categoryId)
-                .flatMapLatest { order -> observeAll(categoryId, order, filterOptions, limit, searchQuery) }
+    fun observeCategories(): Flow<List<FavouriteCategory>> = db
+        .getFavouriteCategoriesDao()
+        .observeAll()
+        .mapItems {
+            it.toFavouriteCategory()
+        }.distinctUntilChanged()
 
-        fun observeMangaCount(): Flow<Int> =
-            db
-                .getFavouritesDao()
-                .observeMangaCount()
-                .distinctUntilChanged()
+    fun observeCategoriesForLibrary(): Flow<List<FavouriteCategory>> = db
+        .getFavouriteCategoriesDao()
+        .observeAllVisible()
+        .mapItems {
+            it.toFavouriteCategory()
+        }.distinctUntilChanged()
 
-        suspend fun findPopularTagTitles(
-            categoryId: Long,
-            limit: Int,
-        ): List<String> =
-            db.getFavouritesDao().run {
-                if (categoryId == 0L) {
-                    findPopularTagTitles(limit)
-                } else {
-                    findPopularTagTitles(categoryId, limit)
-                }
-            }
-
-        fun observeCategories(): Flow<List<FavouriteCategory>> =
-            db
-                .getFavouriteCategoriesDao()
-                .observeAll()
-                .mapItems {
-                    it.toFavouriteCategory()
-                }.distinctUntilChanged()
-
-        fun observeCategoriesForLibrary(): Flow<List<FavouriteCategory>> =
-            db
-                .getFavouriteCategoriesDao()
-                .observeAllVisible()
-                .mapItems {
-                    it.toFavouriteCategory()
-                }.distinctUntilChanged()
-
-        fun observeCategoriesWithCovers(): Flow<Map<FavouriteCategory, List<Cover>>> =
-            db.invalidationTracker
-                .createFlow(
-                    TABLE_FAVOURITES,
-                    TABLE_FAVOURITE_CATEGORIES,
-                    emitInitialState = true,
-                ).mapLatest {
-                    db.withTransaction {
-                        val categories = db.getFavouriteCategoriesDao().findAll()
-                        val res = LinkedHashMap<FavouriteCategory, List<Cover>>(categories.size)
-                        for (entity in categories) {
-                            val cat = entity.toFavouriteCategory()
-                            res[cat] =
-                                db.getFavouritesDao().findCovers(
-                                    categoryId = cat.id,
-                                    order = cat.order,
-                                )
-                        }
-                        res
-                    }
-                }.distinctUntilChanged()
-
-        suspend fun getAllFavoritesCovers(
-            order: ListSortOrder,
-            limit: Int,
-        ): List<Cover> = db.getFavouritesDao().findCovers(order, limit)
-
-        fun observeCategory(id: Long): Flow<FavouriteCategory?> =
-            db
-                .getFavouriteCategoriesDao()
-                .observe(id)
-                .map { it?.toFavouriteCategory() }
-
-        fun observeCategories(mangaId: Long): Flow<Set<FavouriteCategory>> =
-            db.getFavouritesDao().observeCategories(mangaId).map {
-                it.mapTo(LinkedHashSet(it.size)) { x -> x.toFavouriteCategory() }
-            }
-
-        suspend fun getCategory(id: Long): FavouriteCategory = db.getFavouriteCategoriesDao().find(id.toInt()).toFavouriteCategory()
-
-        suspend fun isFavorite(mangaId: Long): Boolean = db.getFavouritesDao().findCategoriesCount(mangaId) != 0
-
-        suspend fun getCategoriesIds(mangaId: Long): Set<Long> = db.getFavouritesDao().findCategoriesIds(mangaId).toSet()
-
-        suspend fun findPopularSources(
-            categoryId: Long,
-            limit: Int,
-        ): List<MangaSource> =
-            db
-                .getFavouritesDao()
-                .run {
-                    if (categoryId == 0L) {
-                        findPopularSources(limit)
-                    } else {
-                        findPopularSources(categoryId, limit)
-                    }
-                }.toMangaSources()
-
-        suspend fun createCategory(
-            title: String,
-            sortOrder: ListSortOrder,
-            isTrackerEnabled: Boolean,
-            isVisibleOnShelf: Boolean,
-        ): FavouriteCategory {
-            val entity =
-                FavouriteCategoryEntity(
-                    title = title,
-                    createdAt = System.currentTimeMillis(),
-                    sortKey = db.getFavouriteCategoriesDao().getNextSortKey(),
-                    categoryId = 0,
-                    order = sortOrder.name,
-                    track = isTrackerEnabled,
-                    deletedAt = 0L,
-                    isVisibleInLibrary = isVisibleOnShelf,
-                )
-            val id = db.getFavouriteCategoriesDao().insert(entity)
-            val category = entity.toFavouriteCategory(id)
-            return category
-        }
-
-        suspend fun updateCategory(
-            id: Long,
-            title: String,
-            sortOrder: ListSortOrder,
-            isTrackerEnabled: Boolean,
-            isVisibleOnShelf: Boolean,
-        ) {
-            db.getFavouriteCategoriesDao().update(id, title, sortOrder.name, isTrackerEnabled, isVisibleOnShelf)
-        }
-
-        suspend fun updateCategory(
-            id: Long,
-            isVisibleInLibrary: Boolean,
-        ) {
-            db.getFavouriteCategoriesDao().updateVisibility(id, isVisibleInLibrary)
-        }
-
-        suspend fun updateCategoryTracking(
-            id: Long,
-            isTrackingEnabled: Boolean,
-        ) {
-            db.getFavouriteCategoriesDao().updateTracking(id, isTrackingEnabled)
-        }
-
-        suspend fun removeCategories(ids: Collection<Long>) {
+    fun observeCategoriesWithCovers(): Flow<Map<FavouriteCategory, List<Cover>>> = db.invalidationTracker
+        .createFlow(
+            TABLE_FAVOURITES,
+            TABLE_FAVOURITE_CATEGORIES,
+            emitInitialState = true,
+        ).mapLatest {
             db.withTransaction {
-                for (id in ids) {
-                    db.getFavouritesDao().deleteAll(id)
-                    db.getFavouriteCategoriesDao().delete(id)
-                }
-                db.getChaptersDao().gc()
-            }
-        }
-
-        suspend fun setCategoryOrder(
-            id: Long,
-            order: ListSortOrder,
-        ) {
-            db.getFavouriteCategoriesDao().updateOrder(id, order.name)
-        }
-
-        suspend fun reorderCategories(orderedIds: List<Long>) {
-            val dao = db.getFavouriteCategoriesDao()
-            db.withTransaction {
-                for ((i, id) in orderedIds.withIndex()) {
-                    dao.updateSortKey(id, i)
-                }
-            }
-        }
-
-        suspend fun addToCategory(
-            categoryId: Long,
-            mangas: Collection<Manga>,
-        ) {
-            db.withTransaction {
-                for (manga in mangas) {
-                    val tags = manga.tags.toEntities()
-                    db.getTagsDao().upsert(tags)
-                    db.getMangaDao().upsert(manga.toEntity(), tags)
-                    val entity =
-                        FavouriteEntity(
-                            mangaId = manga.id,
-                            categoryId = categoryId,
-                            createdAt = System.currentTimeMillis(),
-                            sortKey = 0,
-                            deletedAt = 0L,
-                            isPinned = false,
+                val categories = db.getFavouriteCategoriesDao().findAll()
+                val res = LinkedHashMap<FavouriteCategory, List<Cover>>(categories.size)
+                for (entity in categories) {
+                    val cat = entity.toFavouriteCategory()
+                    res[cat] =
+                        db.getFavouritesDao().findCovers(
+                            categoryId = cat.id,
+                            order = cat.order,
                         )
-                    db.getFavouritesDao().insert(entity)
                 }
+                res
             }
-        }
+        }.distinctUntilChanged()
 
-        suspend fun removeFromFavourites(ids: Collection<Long>): ReversibleHandle {
-            db.withTransaction {
-                for (id in ids) {
-                    db.getFavouritesDao().delete(mangaId = id)
-                }
-                db.getChaptersDao().gc()
-            }
-            return ReversibleHandle { recoverToFavourites(ids) }
-        }
+    suspend fun getAllFavoritesCovers(
+        order: ListSortOrder,
+        limit: Int,
+    ): List<Cover> = db.getFavouritesDao().findCovers(order, limit)
 
-        suspend fun removeFromCategory(
-            categoryId: Long,
-            ids: Collection<Long>,
-        ): ReversibleHandle {
-            db.withTransaction {
-                for (id in ids) {
-                    db.getFavouritesDao().delete(categoryId = categoryId, mangaId = id)
-                }
-                db.getChaptersDao().gc()
-            }
-            return ReversibleHandle { recoverToCategory(categoryId, ids) }
-        }
+    fun observeCategory(id: Long): Flow<FavouriteCategory?> = db
+        .getFavouriteCategoriesDao()
+        .observe(id)
+        .map { it?.toFavouriteCategory() }
 
-        suspend fun setPinned(
-            mangaIds: Collection<Long>,
-            categoryId: Long,
-            isPinned: Boolean,
-        ) {
-            db.withTransaction {
-                val dao = db.getFavouritesDao()
-                for (id in mangaIds) {
-                    if (categoryId == 0L) {
-                        dao.setPinned(id, isPinned)
-                    } else {
-                        dao.setPinned(id, categoryId, isPinned)
-                    }
-                }
-            }
-        }
+    fun observeCategories(mangaId: Long): Flow<Set<FavouriteCategory>> = db.getFavouritesDao().observeCategories(mangaId).map {
+        it.mapTo(LinkedHashSet(it.size)) { x -> x.toFavouriteCategory() }
+    }
 
-        suspend fun getPinnedIds(categoryId: Long): Set<Long> {
-            val dao = db.getFavouritesDao()
-            return if (categoryId == 0L) {
-                dao.findAllPinnedIds().toSet()
+    suspend fun getCategory(id: Long): FavouriteCategory = db.getFavouriteCategoriesDao().find(id.toInt()).toFavouriteCategory()
+
+    suspend fun isFavorite(mangaId: Long): Boolean = db.getFavouritesDao().findCategoriesCount(mangaId) != 0
+
+    suspend fun getCategoriesIds(mangaId: Long): Set<Long> = db.getFavouritesDao().findCategoriesIds(mangaId).toSet()
+
+    suspend fun findPopularSources(
+        categoryId: Long,
+        limit: Int,
+    ): List<MangaSource> = db
+        .getFavouritesDao()
+        .run {
+            if (categoryId == 0L) {
+                findPopularSources(limit)
             } else {
-                dao.findPinnedIds(categoryId).toSet()
+                findPopularSources(categoryId, limit)
+            }
+        }.toMangaSources()
+
+    suspend fun createCategory(
+        title: String,
+        sortOrder: ListSortOrder,
+        isTrackerEnabled: Boolean,
+        isVisibleOnShelf: Boolean,
+    ): FavouriteCategory {
+        val entity =
+            FavouriteCategoryEntity(
+                title = title,
+                createdAt = System.currentTimeMillis(),
+                sortKey = db.getFavouriteCategoriesDao().getNextSortKey(),
+                categoryId = 0,
+                order = sortOrder.name,
+                track = isTrackerEnabled,
+                deletedAt = 0L,
+                isVisibleInLibrary = isVisibleOnShelf,
+            )
+        val id = db.getFavouriteCategoriesDao().insert(entity)
+        val category = entity.toFavouriteCategory(id)
+        return category
+    }
+
+    suspend fun updateCategory(
+        id: Long,
+        title: String,
+        sortOrder: ListSortOrder,
+        isTrackerEnabled: Boolean,
+        isVisibleOnShelf: Boolean,
+    ) {
+        db.getFavouriteCategoriesDao().update(id, title, sortOrder.name, isTrackerEnabled, isVisibleOnShelf)
+    }
+
+    suspend fun updateCategory(
+        id: Long,
+        isVisibleInLibrary: Boolean,
+    ) {
+        db.getFavouriteCategoriesDao().updateVisibility(id, isVisibleInLibrary)
+    }
+
+    suspend fun updateCategoryTracking(
+        id: Long,
+        isTrackingEnabled: Boolean,
+    ) {
+        db.getFavouriteCategoriesDao().updateTracking(id, isTrackingEnabled)
+    }
+
+    suspend fun removeCategories(ids: Collection<Long>) {
+        db.withTransaction {
+            for (id in ids) {
+                db.getFavouritesDao().deleteAll(id)
+                db.getFavouriteCategoriesDao().delete(id)
+            }
+            db.getChaptersDao().gc()
+        }
+    }
+
+    suspend fun setCategoryOrder(
+        id: Long,
+        order: ListSortOrder,
+    ) {
+        db.getFavouriteCategoriesDao().updateOrder(id, order.name)
+    }
+
+    suspend fun reorderCategories(orderedIds: List<Long>) {
+        val dao = db.getFavouriteCategoriesDao()
+        db.withTransaction {
+            for ((i, id) in orderedIds.withIndex()) {
+                dao.updateSortKey(id, i)
             }
         }
+    }
 
-        private fun observeOrder(categoryId: Long): Flow<ListSortOrder> =
-            db
-                .getFavouriteCategoriesDao()
-                .observe(categoryId)
-                .filterNotNull()
-                .map { x -> ListSortOrder(x.order, ListSortOrder.NEWEST) }
-                .distinctUntilChanged()
-
-        suspend fun getMostUpdatedCategories(limit: Int): List<FavouriteCategory> =
-            db.getFavouriteCategoriesDao().getMostUpdatedCategories(limit).map {
-                it.toFavouriteCategory()
-            }
-
-        private suspend fun recoverToFavourites(ids: Collection<Long>) {
-            db.withTransaction {
-                for (id in ids) {
-                    db.getFavouritesDao().recover(mangaId = id)
-                }
+    suspend fun addToCategory(
+        categoryId: Long,
+        mangas: Collection<Manga>,
+    ) {
+        db.withTransaction {
+            for (manga in mangas) {
+                val tags = manga.tags.toEntities()
+                db.getTagsDao().upsert(tags)
+                db.getMangaDao().upsert(manga.toEntity(), tags)
+                val entity =
+                    FavouriteEntity(
+                        mangaId = manga.id,
+                        categoryId = categoryId,
+                        createdAt = System.currentTimeMillis(),
+                        sortKey = 0,
+                        deletedAt = 0L,
+                        isPinned = false,
+                    )
+                db.getFavouritesDao().insert(entity)
             }
         }
+    }
 
-        private suspend fun recoverToCategory(
-            categoryId: Long,
-            ids: Collection<Long>,
-        ) {
-            db.withTransaction {
-                for (id in ids) {
-                    db.getFavouritesDao().recover(mangaId = id, categoryId = categoryId)
+    suspend fun removeFromFavourites(ids: Collection<Long>): ReversibleHandle {
+        db.withTransaction {
+            for (id in ids) {
+                db.getFavouritesDao().delete(mangaId = id)
+            }
+            db.getChaptersDao().gc()
+        }
+        return ReversibleHandle { recoverToFavourites(ids) }
+    }
+
+    suspend fun removeFromCategory(
+        categoryId: Long,
+        ids: Collection<Long>,
+    ): ReversibleHandle {
+        db.withTransaction {
+            for (id in ids) {
+                db.getFavouritesDao().delete(categoryId = categoryId, mangaId = id)
+            }
+            db.getChaptersDao().gc()
+        }
+        return ReversibleHandle { recoverToCategory(categoryId, ids) }
+    }
+
+    suspend fun setPinned(
+        mangaIds: Collection<Long>,
+        categoryId: Long,
+        isPinned: Boolean,
+    ) {
+        db.withTransaction {
+            val dao = db.getFavouritesDao()
+            for (id in mangaIds) {
+                if (categoryId == 0L) {
+                    dao.setPinned(id, isPinned)
+                } else {
+                    dao.setPinned(id, categoryId, isPinned)
                 }
             }
         }
     }
+
+    suspend fun getPinnedIds(categoryId: Long): Set<Long> {
+        val dao = db.getFavouritesDao()
+        return if (categoryId == 0L) {
+            dao.findAllPinnedIds().toSet()
+        } else {
+            dao.findPinnedIds(categoryId).toSet()
+        }
+    }
+
+    private fun observeOrder(categoryId: Long): Flow<ListSortOrder> = db
+        .getFavouriteCategoriesDao()
+        .observe(categoryId)
+        .filterNotNull()
+        .map { x -> ListSortOrder(x.order, ListSortOrder.NEWEST) }
+        .distinctUntilChanged()
+
+    suspend fun getMostUpdatedCategories(limit: Int): List<FavouriteCategory> = db.getFavouriteCategoriesDao().getMostUpdatedCategories(limit).map {
+        it.toFavouriteCategory()
+    }
+
+    private suspend fun recoverToFavourites(ids: Collection<Long>) {
+        db.withTransaction {
+            for (id in ids) {
+                db.getFavouritesDao().recover(mangaId = id)
+            }
+        }
+    }
+
+    private suspend fun recoverToCategory(
+        categoryId: Long,
+        ids: Collection<Long>,
+    ) {
+        db.withTransaction {
+            for (id in ids) {
+                db.getFavouritesDao().recover(mangaId = id, categoryId = categoryId)
+            }
+        }
+    }
+}

@@ -9,8 +9,8 @@ package org.koitharu.kotatsu.search.ui.suggestion
  */
 enum class SearchSuggestionScope {
 
-	/** Library-wide suggestions: the behaviour everywhere else. */
-	ALL,
-	HISTORY,
-	FAVOURITES,
+    /** Library-wide suggestions: the behaviour everywhere else. */
+    ALL,
+    HISTORY,
+    FAVOURITES,
 }

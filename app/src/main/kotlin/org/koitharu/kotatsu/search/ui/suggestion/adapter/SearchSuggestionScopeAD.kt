@@ -11,16 +11,15 @@ import org.koitharu.kotatsu.search.ui.suggestion.model.SearchSuggestionItem
  * switch its own look would make it read as unrelated to the rest of the suggestions.
  */
 fun searchSuggestionScopeAD(
-	listener: SearchSuggestionListener,
+    listener: SearchSuggestionListener,
 ) = adapterDelegateViewBinding<SearchSuggestionItem.Scope, SearchSuggestionItem, ItemSearchSuggestionTagsBinding>(
-	{ layoutInflater, parent -> ItemSearchSuggestionTagsBinding.inflate(layoutInflater, parent, false) },
+    { layoutInflater, parent -> ItemSearchSuggestionTagsBinding.inflate(layoutInflater, parent, false) },
 ) {
+    binding.chipsGenres.onChipClickListener = ChipsView.OnChipClickListener { _, data ->
+        listener.onScopeChanged(data as? Boolean ?: return@OnChipClickListener)
+    }
 
-	binding.chipsGenres.onChipClickListener = ChipsView.OnChipClickListener { _, data ->
-		listener.onScopeChanged(data as? Boolean ?: return@OnChipClickListener)
-	}
-
-	bind {
-		binding.chipsGenres.setChips(item.chips)
-	}
+    bind {
+        binding.chipsGenres.setChips(item.chips)
+    }
 }

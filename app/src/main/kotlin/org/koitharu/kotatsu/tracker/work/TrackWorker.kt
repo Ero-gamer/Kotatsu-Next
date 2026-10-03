@@ -70,12 +70,12 @@ import org.koitharu.kotatsu.tracker.domain.GetTracksUseCase
 import org.koitharu.kotatsu.tracker.domain.model.MangaTracking
 import org.koitharu.kotatsu.tracker.domain.model.MangaUpdates
 import org.koitharu.kotatsu.tracker.work.TrackerNotificationHelper.NotificationInfo
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.math.roundToInt
-import java.time.Instant
-import java.time.temporal.ChronoUnit
 import androidx.appcompat.R as appcompatR
 
 @HiltWorker
@@ -285,6 +285,7 @@ class TrackWorker @AssistedInject constructor(
         }
         val shouldDownload = when (settings.trackerDownloadStrategy) {
             TrackerDownloadStrategy.DISABLED -> false
+
             TrackerDownloadStrategy.DOWNLOADED -> localRepositoryLazy.get()
                 .findSavedManga(mangaUpdates.manga) != null
 

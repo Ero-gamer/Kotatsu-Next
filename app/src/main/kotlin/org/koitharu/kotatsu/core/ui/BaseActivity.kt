@@ -181,19 +181,18 @@ abstract class BaseActivity<B : ViewBinding> :
         intent?.putExtra(AppRouter.KEY_DATA, intent.data)
     }
 
-    protected fun setContentViewWebViewSafe(viewBindingProducer: () -> B): Boolean =
-        try {
-            setContentView(viewBindingProducer())
-            true
-        } catch (e: Exception) {
-            if (e.isWebViewUnavailable()) {
-                Toast.makeText(this, R.string.web_view_unavailable, Toast.LENGTH_LONG).show()
-                finishAfterTransition()
-                false
-            } else {
-                throw e
-            }
+    protected fun setContentViewWebViewSafe(viewBindingProducer: () -> B): Boolean = try {
+        setContentView(viewBindingProducer())
+        true
+    } catch (e: Exception) {
+        if (e.isWebViewUnavailable()) {
+            Toast.makeText(this, R.string.web_view_unavailable, Toast.LENGTH_LONG).show()
+            finishAfterTransition()
+            false
+        } else {
+            throw e
         }
+    }
 
     protected fun hasViewBinding() = ::viewBinding.isInitialized
 }

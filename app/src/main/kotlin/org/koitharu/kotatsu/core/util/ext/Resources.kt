@@ -19,20 +19,18 @@ fun Resources.getQuantityStringSafe(
     @PluralsRes resId: Int,
     quantity: Int,
     vararg formatArgs: Any,
-): String =
-    try {
-        getQuantityString(resId, quantity, *formatArgs)
-    } catch (e: Resources.NotFoundException) {
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.VANILLA_ICE_CREAM) { // known issue
-            e.printStackTraceDebug()
-            formatArgs.firstOrNull()?.toString() ?: quantity.toString()
-        } else {
-            throw e
-        }
+): String = try {
+    getQuantityString(resId, quantity, *formatArgs)
+} catch (e: Resources.NotFoundException) {
+    if (Build.VERSION.SDK_INT == Build.VERSION_CODES.VANILLA_ICE_CREAM) { // known issue
+        e.printStackTraceDebug()
+        formatArgs.firstOrNull()?.toString() ?: quantity.toString()
+    } else {
+        throw e
     }
+}
 
-fun Resources.getNotificationIconSize() =
-    Size(
-        getDimensionPixelSize(androidxR.dimen.compat_notification_large_icon_max_width),
-        getDimensionPixelSize(androidxR.dimen.compat_notification_large_icon_max_height),
-    )
+fun Resources.getNotificationIconSize() = Size(
+    getDimensionPixelSize(androidxR.dimen.compat_notification_large_icon_max_width),
+    getDimensionPixelSize(androidxR.dimen.compat_notification_large_icon_max_height),
+)

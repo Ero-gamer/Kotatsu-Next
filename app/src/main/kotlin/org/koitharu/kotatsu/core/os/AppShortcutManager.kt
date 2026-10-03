@@ -84,7 +84,8 @@ class AppShortcutManager @Inject constructor(
             // Rebuild straight away, so turning the filter on removes what is already on the home screen
             // instead of waiting for the next history change.
             AppSettings.KEY_SHORTCUTS_NO_NSFW,
-            AppSettings.KEY_DISABLE_NSFW -> if (settings.isDynamicShortcutsEnabled) {
+            AppSettings.KEY_DISABLE_NSFW,
+            -> if (settings.isDynamicShortcutsEnabled) {
                 onInvalidated(emptySet())
             }
         }

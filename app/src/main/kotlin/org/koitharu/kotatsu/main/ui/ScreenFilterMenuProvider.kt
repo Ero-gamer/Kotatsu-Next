@@ -13,24 +13,24 @@ import org.koitharu.kotatsu.R
  * to miss - the list just looks short.
  */
 class ScreenFilterMenuProvider(
-	private val isFilterActive: () -> Boolean,
-	private val onClear: () -> Unit,
+    private val isFilterActive: () -> Boolean,
+    private val onClear: () -> Unit,
 ) : MenuProvider {
 
-	override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-		menuInflater.inflate(R.menu.opt_screen_filter, menu)
-	}
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+        menuInflater.inflate(R.menu.opt_screen_filter, menu)
+    }
 
-	override fun onPrepareMenu(menu: Menu) {
-		menu.findItem(R.id.action_clear_screen_filter)?.isVisible = isFilterActive()
-	}
+    override fun onPrepareMenu(menu: Menu) {
+        menu.findItem(R.id.action_clear_screen_filter)?.isVisible = isFilterActive()
+    }
 
-	override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
-		R.id.action_clear_screen_filter -> {
-			onClear()
-			true
-		}
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
+        R.id.action_clear_screen_filter -> {
+            onClear()
+            true
+        }
 
-		else -> false
-	}
+        else -> false
+    }
 }

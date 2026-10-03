@@ -80,29 +80,26 @@ class LocalMangaDirOutput(
         index.addChapter(chapter, chapterFileName(chapter))
     }
 
-    override suspend fun flushChapter(chapter: MangaChapter): Boolean =
-        mutex.withLock {
-            val output = chaptersOutput.remove(chapter) ?: return@withLock false
+    override suspend fun flushChapter(chapter: MangaChapter): Boolean = mutex.withLock {
+        val output = chaptersOutput.remove(chapter) ?: return@withLock false
+        output.flushAndFinish()
+        flushIndex()
+        true
+    }
+
+    override suspend fun finish() = mutex.withLock {
+        flushIndex()
+        for (output in chaptersOutput.values) {
             output.flushAndFinish()
-            flushIndex()
-            true
         }
+        chaptersOutput.clear()
+    }
 
-    override suspend fun finish() =
-        mutex.withLock {
-            flushIndex()
-            for (output in chaptersOutput.values) {
-                output.flushAndFinish()
-            }
-            chaptersOutput.clear()
+    override suspend fun cleanup() = mutex.withLock {
+        for (output in chaptersOutput.values) {
+            output.file.deleteAwait()
         }
-
-    override suspend fun cleanup() =
-        mutex.withLock {
-            for (output in chaptersOutput.values) {
-                output.file.deleteAwait()
-            }
-        }
+    }
 
     override fun close() {
         for (output in chaptersOutput.values) {
@@ -110,52 +107,50 @@ class LocalMangaDirOutput(
         }
     }
 
-    suspend fun deleteChapters(ids: Set<Long>) =
-        mutex.withLock {
-            val chapters =
-                checkNotNull(
-                    (index.getMangaInfo() ?: LocalMangaParser(rootFile).getManga(withDetails = true).manga).chapters,
-                ) {
-                    "No chapters found"
-                }.withIndex()
-            val victimsIds = ids.toMutableSet()
-            for (chapter in chapters) {
-                if (!victimsIds.remove(chapter.value.id)) {
-                    continue
-                }
-                val chapterFile =
-                    index.getChapterFileName(chapter.value.id)?.let {
-                        File(rootFile, it)
-                    } ?: chapter.value.url
-                        .toUri()
-                        .toFile()
-                chapterFile.deleteAwait()
-                index.removeChapter(chapter.value.id)
+    suspend fun deleteChapters(ids: Set<Long>) = mutex.withLock {
+        val chapters =
+            checkNotNull(
+                (index.getMangaInfo() ?: LocalMangaParser(rootFile).getManga(withDetails = true).manga).chapters,
+            ) {
+                "No chapters found"
+            }.withIndex()
+        val victimsIds = ids.toMutableSet()
+        for (chapter in chapters) {
+            if (!victimsIds.remove(chapter.value.id)) {
+                continue
             }
-            check(victimsIds.isEmpty()) {
-                "${victimsIds.size} of ${ids.size} chapters was not removed: not found"
-            }
+            val chapterFile =
+                index.getChapterFileName(chapter.value.id)?.let {
+                    File(rootFile, it)
+                } ?: chapter.value.url
+                    .toUri()
+                    .toFile()
+            chapterFile.deleteAwait()
+            index.removeChapter(chapter.value.id)
         }
+        check(victimsIds.isEmpty()) {
+            "${victimsIds.size} of ${ids.size} chapters was not removed: not found"
+        }
+    }
 
-    private suspend fun ZipOutput.flushAndFinish() =
-        runInterruptible(Dispatchers.IO) {
-            val e: Throwable? =
-                try {
-                    finish()
-                    null
-                } catch (e: Throwable) {
-                    e
-                } finally {
-                    close()
-                }
-            if (e == null) {
-                val resFile = File(file.absolutePath.removeSuffix(SUFFIX_TMP))
-                file.renameTo(resFile)
-            } else {
-                file.delete()
-                throw e
+    private suspend fun ZipOutput.flushAndFinish() = runInterruptible(Dispatchers.IO) {
+        val e: Throwable? =
+            try {
+                finish()
+                null
+            } catch (e: Throwable) {
+                e
+            } finally {
+                close()
             }
+        if (e == null) {
+            val resFile = File(file.absolutePath.removeSuffix(SUFFIX_TMP))
+            file.renameTo(resFile)
+        } else {
+            file.delete()
+            throw e
         }
+    }
 
     private fun chapterFileName(chapter: IndexedValue<MangaChapter>): String {
         index.getChapterFileName(chapter.value.id)?.let {
@@ -182,10 +177,9 @@ class LocalMangaDirOutput(
         }
     }
 
-    private suspend fun flushIndex() =
-        runInterruptible(Dispatchers.IO) {
-            File(rootFile, ENTRY_NAME_INDEX).writeText(index.toString())
-        }
+    private suspend fun flushIndex() = runInterruptible(Dispatchers.IO) {
+        File(rootFile, ENTRY_NAME_INDEX).writeText(index.toString())
+    }
 
     companion object {
         private const val FILENAME_PATTERN = "%08d_%04d%04d"

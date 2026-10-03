@@ -100,7 +100,7 @@ fun Manga.getPreferredBranch(history: MangaHistory?): String? {
             if (branch != null && (
                     branch.contains(displayLanguage, ignoreCase = true) ||
                         branch.contains(displayName, ignoreCase = true)
-                )
+                    )
             ) {
                 candidates[branch] = groups[branch] ?: continue
             }
@@ -146,20 +146,19 @@ fun Manga.chaptersCount(): Int {
 
 fun Manga.isNsfw(): Boolean = contentRating == ContentRating.ADULT || source.isNsfw()
 
-fun MangaListFilter.getSummary() =
-    buildSpannedString {
-        if (!query.isNullOrEmpty()) {
-            append(query)
-            if (tags.isNotEmpty() || tagsExclude.isNotEmpty()) {
-                append(' ')
-                append('(')
-                appendTagsSummary(this@getSummary)
-                append(')')
-            }
-        } else {
+fun MangaListFilter.getSummary() = buildSpannedString {
+    if (!query.isNullOrEmpty()) {
+        append(query)
+        if (tags.isNotEmpty() || tagsExclude.isNotEmpty()) {
+            append(' ')
+            append('(')
             appendTagsSummary(this@getSummary)
+            append(')')
         }
+    } else {
+        appendTagsSummary(this@getSummary)
     }
+}
 
 private fun SpannableStringBuilder.appendTagsSummary(filter: MangaListFilter) {
     var isFirst = true
@@ -218,14 +217,13 @@ fun MangaChapter.getLocalizedTitle(
     }
 }
 
-fun Manga.withOverride(override: MangaOverride?) =
-    if (override != null) {
-        copy(
-            title = override.title.ifNullOrEmpty { title },
-            coverUrl = override.coverUrl.ifNullOrEmpty { coverUrl },
-            largeCoverUrl = override.coverUrl.ifNullOrEmpty { largeCoverUrl },
-            contentRating = override.contentRating ?: contentRating,
-        )
-    } else {
-        this
-    }
+fun Manga.withOverride(override: MangaOverride?) = if (override != null) {
+    copy(
+        title = override.title.ifNullOrEmpty { title },
+        coverUrl = override.coverUrl.ifNullOrEmpty { coverUrl },
+        largeCoverUrl = override.coverUrl.ifNullOrEmpty { largeCoverUrl },
+        contentRating = override.contentRating ?: contentRating,
+    )
+} else {
+    this
+}

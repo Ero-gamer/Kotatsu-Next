@@ -11,18 +11,17 @@ import org.koitharu.kotatsu.search.ui.suggestion.model.SearchSuggestionItem
  * icon, name, subtitle - with a heart standing in for the favicon.
  */
 fun searchSuggestionFavouriteTipAD(
-	listener: SearchSuggestionListener,
+    listener: SearchSuggestionListener,
 ) = adapterDelegateViewBinding<SearchSuggestionItem.FavouriteTip, SearchSuggestionItem, ItemSearchSuggestionSourceTipBinding>(
-	{ inflater, parent -> ItemSearchSuggestionSourceTipBinding.inflate(inflater, parent, false) },
+    { inflater, parent -> ItemSearchSuggestionSourceTipBinding.inflate(inflater, parent, false) },
 ) {
+    binding.root.setOnClickListener {
+        listener.onFavouriteCategoryClick(item.category)
+    }
 
-	binding.root.setOnClickListener {
-		listener.onFavouriteCategoryClick(item.category)
-	}
-
-	bind {
-		binding.textViewTitle.text = item.category.title
-		binding.textViewSubtitle.setText(R.string.favourites)
-		binding.imageViewCover.setImageAsync(R.drawable.ic_heart_outline)
-	}
+    bind {
+        binding.textViewTitle.text = item.category.title
+        binding.textViewSubtitle.setText(R.string.favourites)
+        binding.imageViewCover.setImageAsync(R.drawable.ic_heart_outline)
+    }
 }

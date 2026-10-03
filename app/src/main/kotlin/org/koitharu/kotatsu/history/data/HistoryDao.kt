@@ -90,32 +90,31 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
         filterOptions: Set<ListFilterOption>,
         limit: Int,
         searchQuery: String = "",
-    ): Flow<List<HistoryWithManga>> =
-        observeAllImpl(
-            MangaQueryBuilder(TABLE_HISTORY, this)
-                .join("LEFT JOIN manga ON history.manga_id = manga.manga_id")
-                .where("history.deleted_at = 0")
-                .let { if (searchQuery.isEmpty()) it else it.where(searchCondition(searchQuery)) }
-                .filters(filterOptions)
-                .orderBy(
-                    orderBy =
-                        when (order) {
-                            ListSortOrder.LAST_READ -> "history.updated_at DESC"
-                            ListSortOrder.LONG_AGO_READ -> "history.updated_at ASC"
-                            ListSortOrder.NEWEST -> "history.created_at DESC"
-                            ListSortOrder.OLDEST -> "history.created_at ASC"
-                            ListSortOrder.PROGRESS -> "history.percent DESC"
-                            ListSortOrder.UNREAD -> "history.percent ASC"
-                            ListSortOrder.ALPHABETIC -> "manga.title"
-                            ListSortOrder.ALPHABETIC_REVERSE -> "manga.title DESC"
-                            ListSortOrder.NEW_CHAPTERS -> "IFNULL((SELECT chapters_new FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
-                            ListSortOrder.UPDATED -> "IFNULL((SELECT last_chapter_date FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
-                            else -> throw IllegalArgumentException("Sort order $order is not supported")
-                        },
-                ).groupBy("history.manga_id")
-                .limit(limit)
-                .build(),
-        )
+    ): Flow<List<HistoryWithManga>> = observeAllImpl(
+        MangaQueryBuilder(TABLE_HISTORY, this)
+            .join("LEFT JOIN manga ON history.manga_id = manga.manga_id")
+            .where("history.deleted_at = 0")
+            .let { if (searchQuery.isEmpty()) it else it.where(searchCondition(searchQuery)) }
+            .filters(filterOptions)
+            .orderBy(
+                orderBy =
+                when (order) {
+                    ListSortOrder.LAST_READ -> "history.updated_at DESC"
+                    ListSortOrder.LONG_AGO_READ -> "history.updated_at ASC"
+                    ListSortOrder.NEWEST -> "history.created_at DESC"
+                    ListSortOrder.OLDEST -> "history.created_at ASC"
+                    ListSortOrder.PROGRESS -> "history.percent DESC"
+                    ListSortOrder.UNREAD -> "history.percent ASC"
+                    ListSortOrder.ALPHABETIC -> "manga.title"
+                    ListSortOrder.ALPHABETIC_REVERSE -> "manga.title DESC"
+                    ListSortOrder.NEW_CHAPTERS -> "IFNULL((SELECT chapters_new FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
+                    ListSortOrder.UPDATED -> "IFNULL((SELECT last_chapter_date FROM tracks WHERE tracks.manga_id = manga.manga_id), 0) DESC"
+                    else -> throw IllegalArgumentException("Sort order $order is not supported")
+                },
+            ).groupBy("history.manga_id")
+            .limit(limit)
+            .build(),
+    )
 
     @Query("SELECT manga_id FROM history WHERE deleted_at = 0")
     abstract suspend fun findAllIds(): LongArray
@@ -145,19 +144,18 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
     @Query("SELECT COUNT(*) FROM history WHERE deleted_at = 0")
     abstract suspend fun getCount(): Int
 
-    fun dump(): Flow<HistoryWithManga> =
-        flow {
-            val window = 10
-            var offset = 0
-            while (currentCoroutineContext().isActive) {
-                val list = findAll(offset, window)
-                if (list.isEmpty()) {
-                    break
-                }
-                offset += window
-                list.forEach { emit(it) }
+    fun dump(): Flow<HistoryWithManga> = flow {
+        val window = 10
+        var offset = 0
+        while (currentCoroutineContext().isActive) {
+            val list = findAll(offset, window)
+            if (list.isEmpty()) {
+                break
             }
+            offset += window
+            list.forEach { emit(it) }
         }
+    }
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insert(entity: HistoryEntity): Long
@@ -188,25 +186,23 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
 
     suspend fun clear() = setDeletedAtAfter(0L, System.currentTimeMillis())
 
-    suspend fun update(entity: HistoryEntity) =
-        update(
-            mangaId = entity.mangaId,
-            page = entity.page,
-            chapterId = entity.chapterId,
-            scroll = entity.scroll,
-            percent = entity.percent,
-            chapters = entity.chaptersCount,
-            updatedAt = entity.updatedAt,
-        )
+    suspend fun update(entity: HistoryEntity) = update(
+        mangaId = entity.mangaId,
+        page = entity.page,
+        chapterId = entity.chapterId,
+        scroll = entity.scroll,
+        percent = entity.percent,
+        chapters = entity.chaptersCount,
+        updatedAt = entity.updatedAt,
+    )
 
     @Transaction
-    open suspend fun upsert(entity: HistoryEntity): Boolean =
-        if (update(entity) == 0) {
-            insert(entity)
-            true
-        } else {
-            false
-        }
+    open suspend fun upsert(entity: HistoryEntity): Boolean = if (update(entity) == 0) {
+        insert(entity)
+        true
+    } else {
+        false
+    }
 
     @Transaction
     open suspend fun upsert(entities: Iterable<HistoryEntity>) {
@@ -238,18 +234,17 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
     @RawQuery(observedEntities = [HistoryEntity::class])
     protected abstract fun observeAllImpl(query: SupportSQLiteQuery): Flow<List<HistoryWithManga>>
 
-    override fun getCondition(option: ListFilterOption): String? =
-        when (option) {
-            is ListFilterOption.Favorite -> "EXISTS(SELECT * FROM favourites WHERE history.manga_id = favourites.manga_id AND category_id = ${option.category.id})"
-            ListFilterOption.Macro.COMPLETED -> "percent >= $PROGRESS_COMPLETED"
-            ListFilterOption.Macro.NEW_CHAPTERS -> "(SELECT chapters_new FROM tracks WHERE tracks.manga_id = history.manga_id) > 0"
-            ListFilterOption.Macro.FAVORITE -> "EXISTS(SELECT * FROM favourites WHERE history.manga_id = favourites.manga_id)"
-            ListFilterOption.Macro.NSFW -> "manga.nsfw = 1"
-            is ListFilterOption.Tag -> "EXISTS(SELECT * FROM manga_tags WHERE history.manga_id = manga_tags.manga_id AND tag_id = ${option.tagId})"
-            ListFilterOption.Downloaded -> "EXISTS(SELECT * FROM local_index WHERE local_index.manga_id = history.manga_id)"
-            is ListFilterOption.Source -> "manga.source = ${sqlEscapeString(option.mangaSource.name)}"
-            else -> null
-        }
+    override fun getCondition(option: ListFilterOption): String? = when (option) {
+        is ListFilterOption.Favorite -> "EXISTS(SELECT * FROM favourites WHERE history.manga_id = favourites.manga_id AND category_id = ${option.category.id})"
+        ListFilterOption.Macro.COMPLETED -> "percent >= $PROGRESS_COMPLETED"
+        ListFilterOption.Macro.NEW_CHAPTERS -> "(SELECT chapters_new FROM tracks WHERE tracks.manga_id = history.manga_id) > 0"
+        ListFilterOption.Macro.FAVORITE -> "EXISTS(SELECT * FROM favourites WHERE history.manga_id = favourites.manga_id)"
+        ListFilterOption.Macro.NSFW -> "manga.nsfw = 1"
+        is ListFilterOption.Tag -> "EXISTS(SELECT * FROM manga_tags WHERE history.manga_id = manga_tags.manga_id AND tag_id = ${option.tagId})"
+        ListFilterOption.Downloaded -> "EXISTS(SELECT * FROM local_index WHERE local_index.manga_id = history.manga_id)"
+        is ListFilterOption.Source -> "manga.source = ${sqlEscapeString(option.mangaSource.name)}"
+        else -> null
+    }
 
     /**
      * Matches anything that identifies an entry on this screen - title, source, or the favourites list

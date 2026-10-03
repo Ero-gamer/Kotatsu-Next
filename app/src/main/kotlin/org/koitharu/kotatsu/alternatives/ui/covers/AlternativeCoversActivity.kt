@@ -128,12 +128,11 @@ class AlternativeCoversActivity :
         override fun parseResult(
             resultCode: Int,
             intent: Intent?,
-        ): String? =
-            if (resultCode == RESULT_OK) {
-                intent?.getStringExtra(EXTRA_COVER_URL)
-            } else {
-                null
-            }
+        ): String? = if (resultCode == RESULT_OK) {
+            intent?.getStringExtra(EXTRA_COVER_URL)
+        } else {
+            null
+        }
     }
 
     private companion object {

@@ -23,27 +23,27 @@ import javax.inject.Singleton
 @Singleton
 class ScreenSearchQuery @Inject constructor() {
 
-	private val queries = ConcurrentHashMap<SearchSuggestionScope, MutableStateFlow<String>>()
-	private val activeScope = MutableStateFlow(SearchSuggestionScope.ALL)
+    private val queries = ConcurrentHashMap<SearchSuggestionScope, MutableStateFlow<String>>()
+    private val activeScope = MutableStateFlow(SearchSuggestionScope.ALL)
 
-	/** What the screen showing [scope] should be filtered by. Empty means no filter. */
-	fun query(scope: SearchSuggestionScope): StateFlow<String> = flowFor(scope)
+    /** What the screen showing [scope] should be filtered by. Empty means no filter. */
+    fun query(scope: SearchSuggestionScope): StateFlow<String> = flowFor(scope)
 
-	/** The filter for whichever screen the search bar currently belongs to. */
-	@OptIn(ExperimentalCoroutinesApi::class)
-	val activeQuery: Flow<String> = activeScope.flatMapLatest { flowFor(it) }
+    /** The filter for whichever screen the search bar currently belongs to. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val activeQuery: Flow<String> = activeScope.flatMapLatest { flowFor(it) }
 
-	fun setActiveScope(scope: SearchSuggestionScope) {
-		activeScope.value = scope
-	}
+    fun setActiveScope(scope: SearchSuggestionScope) {
+        activeScope.value = scope
+    }
 
-	fun set(scope: SearchSuggestionScope, value: String) {
-		flowFor(scope).value = value.trim()
-	}
+    fun set(scope: SearchSuggestionScope, value: String) {
+        flowFor(scope).value = value.trim()
+    }
 
-	fun clear(scope: SearchSuggestionScope) {
-		flowFor(scope).value = ""
-	}
+    fun clear(scope: SearchSuggestionScope) {
+        flowFor(scope).value = ""
+    }
 
-	private fun flowFor(scope: SearchSuggestionScope) = queries.getOrPut(scope) { MutableStateFlow("") }
+    private fun flowFor(scope: SearchSuggestionScope) = queries.getOrPut(scope) { MutableStateFlow("") }
 }

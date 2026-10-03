@@ -113,26 +113,24 @@ internal class MmkvSharedPreferences(
      * Replaces the whole content with [values] (a legacy `SharedPreferences.getAll()`), without
      * notifying listeners. Returns `false` if the store rejected any write. Used by migration only.
      */
-    fun importAll(values: Map<String, *>): Boolean =
-        synchronized(writeLock) {
-            val next = HashMap<String, Any>(values.size * 2)
-            var ok = true
-            for ((key, value) in values) {
-                if (value == null || key.startsWith(INTERNAL_PREFIX)) continue
-                val stored = normalize(value)
-                next[key] = stored
-                ok = store.putString(key, PrefCodec.encode(stored)) && ok
-            }
-            snapshot = next
-            ok
+    fun importAll(values: Map<String, *>): Boolean = synchronized(writeLock) {
+        val next = HashMap<String, Any>(values.size * 2)
+        var ok = true
+        for ((key, value) in values) {
+            if (value == null || key.startsWith(INTERNAL_PREFIX)) continue
+            val stored = normalize(value)
+            next[key] = stored
+            ok = store.putString(key, PrefCodec.encode(stored)) && ok
         }
+        snapshot = next
+        ok
+    }
 
     /** Empties the store and the in-memory content, without notifying listeners. Migration only. */
-    fun resetStorage() =
-        synchronized(writeLock) {
-            store.clearAll()
-            snapshot = emptyMap()
-        }
+    fun resetStorage() = synchronized(writeLock) {
+        store.clearAll()
+        snapshot = emptyMap()
+    }
 
     fun isMigrated(): Boolean = store.getString(MIGRATED_KEY) == MIGRATED_VALUE
 
@@ -150,12 +148,11 @@ internal class MmkvSharedPreferences(
     }
 
     /** Immutable defensive copy for sets; every other supported type is already immutable. */
-    private fun normalize(value: Any): Any =
-        if (value is Set<*>) {
-            Collections.unmodifiableSet(LinkedHashSet<Any?>(value))
-        } else {
-            value
-        }
+    private fun normalize(value: Any): Any = if (value is Set<*>) {
+        Collections.unmodifiableSet(LinkedHashSet<Any?>(value))
+    } else {
+        value
+    }
 
     /** Applies one edit; returns whether every store write was accepted. */
     private fun applyEdit(

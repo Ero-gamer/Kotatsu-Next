@@ -175,10 +175,9 @@ class SourceSettingsFragment :
         companion object {
             const val DIALOG_FRAGMENT_TAG: String = "androidx.preference.PreferenceFragment.DIALOG"
 
-            fun newInstance(key: String) =
-                DomainDialogFragment().withArgs(1) {
-                    putString(ARG_KEY, key)
-                }
+            fun newInstance(key: String) = DomainDialogFragment().withArgs(1) {
+                putString(ARG_KEY, key)
+            }
         }
     }
 
@@ -204,9 +203,8 @@ class SourceSettingsFragment :
         private const val KEY_AUTH = "auth"
         private const val KEY_ENABLE = "enable"
 
-        fun newInstance(source: MangaSource) =
-            SourceSettingsFragment().withArgs(1) {
-                putString(AppRouter.KEY_SOURCE, source.name)
-            }
+        fun newInstance(source: MangaSource) = SourceSettingsFragment().withArgs(1) {
+            putString(AppRouter.KEY_SOURCE, source.name)
+        }
     }
 }

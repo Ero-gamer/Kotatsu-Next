@@ -64,10 +64,9 @@ fun Context.getThemeColorStateList(
 fun Context.getThemeResId(
     @AttrRes resId: Int,
     fallback: Int,
-): Int =
-    obtainStyledAttributes(intArrayOf(resId)).use {
-        it.getResourceId(0, fallback)
-    }
+): Int = obtainStyledAttributes(intArrayOf(resId)).use {
+    it.getResourceId(0, fallback)
+}
 
 @Deprecated("")
 fun TypedArray.getDrawableCompat(

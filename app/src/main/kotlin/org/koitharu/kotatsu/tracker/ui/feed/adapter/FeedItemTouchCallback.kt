@@ -12,36 +12,36 @@ import org.koitharu.kotatsu.tracker.ui.feed.model.FeedItem
  * to delete.
  */
 class FeedItemTouchCallback(
-	private val listener: FeedItemListener,
+    private val listener: FeedItemListener,
 ) : ItemTouchHelper.Callback() {
 
-	private val movementFlags = makeMovementFlags(
-		0,
-		ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
-	)
+    private val movementFlags = makeMovementFlags(
+        0,
+        ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT,
+    )
 
-	override fun getMovementFlags(
-		recyclerView: RecyclerView,
-		viewHolder: RecyclerView.ViewHolder,
-	): Int = if (viewHolder.itemViewType == ListItemType.FEED.ordinal) {
-		movementFlags
-	} else {
-		0
-	}
+    override fun getMovementFlags(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder,
+    ): Int = if (viewHolder.itemViewType == ListItemType.FEED.ordinal) {
+        movementFlags
+    } else {
+        0
+    }
 
-	override fun onMove(
-		recyclerView: RecyclerView,
-		viewHolder: RecyclerView.ViewHolder,
-		target: RecyclerView.ViewHolder,
-	): Boolean = false
+    override fun onMove(
+        recyclerView: RecyclerView,
+        viewHolder: RecyclerView.ViewHolder,
+        target: RecyclerView.ViewHolder,
+    ): Boolean = false
 
-	override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-		val item = viewHolder.getItem(FeedItem::class.java) ?: return
-		listener.onRemoveFeedItem(item)
-	}
+    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+        val item = viewHolder.getItem(FeedItem::class.java) ?: return
+        listener.onRemoveFeedItem(item)
+    }
 
-	fun interface FeedItemListener {
+    fun interface FeedItemListener {
 
-		fun onRemoveFeedItem(item: FeedItem)
-	}
+        fun onRemoveFeedItem(item: FeedItem)
+    }
 }

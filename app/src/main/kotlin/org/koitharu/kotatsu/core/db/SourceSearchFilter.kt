@@ -17,27 +17,27 @@ import org.koitharu.kotatsu.parsers.model.MangaParserSource
  * a contains match, where selecting every MangaFire locale is the reasonable reading.
  */
 internal fun sourceNamesFor(query: String): List<String> {
-	val q = query.trim()
-	if (q.length < MIN_QUERY_LENGTH) {
-		return emptyList()
-	}
-	val exact = MangaParserSource.entries.filter { it.title.equals(q, ignoreCase = true) }
-	if (exact.isNotEmpty()) {
-		return exact.map { it.name }
-	}
-	return MangaParserSource.entries
-		.filter { it.title.contains(q, ignoreCase = true) }
-		.take(MAX_SOURCES)
-		.map { it.name }
+    val q = query.trim()
+    if (q.length < MIN_QUERY_LENGTH) {
+        return emptyList()
+    }
+    val exact = MangaParserSource.entries.filter { it.title.equals(q, ignoreCase = true) }
+    if (exact.isNotEmpty()) {
+        return exact.map { it.name }
+    }
+    return MangaParserSource.entries
+        .filter { it.title.contains(q, ignoreCase = true) }
+        .take(MAX_SOURCES)
+        .map { it.name }
 }
 
 /** `OR manga.source IN (...)`, or an empty string when the text names no source. */
 internal fun sourceCondition(query: String): String {
-	val names = sourceNamesFor(query)
-	if (names.isEmpty()) {
-		return ""
-	}
-	return "OR manga.source IN (${names.joinToString(", ") { sqlEscapeString(it) }}) "
+    val names = sourceNamesFor(query)
+    if (names.isEmpty()) {
+        return ""
+    }
+    return "OR manga.source IN (${names.joinToString(", ") { sqlEscapeString(it) }}) "
 }
 
 /** Two characters is where a contains match stops selecting most of the source list. */

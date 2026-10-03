@@ -255,12 +255,11 @@ class AppRouter private constructor(
         startActivity(browserIntent(contextOrNull() ?: return, url, source, title))
     }
 
-    fun openBrowser(manga: Manga) =
-        openBrowser(
-            url = manga.publicUrl,
-            source = manga.source,
-            title = manga.title,
-        )
+    fun openBrowser(manga: Manga) = openBrowser(
+        url = manga.publicUrl,
+        source = manga.source,
+        title = manga.title,
+    )
 
     fun openColorFilterConfig(
         manga: Manga,
@@ -533,12 +532,11 @@ class AppRouter private constructor(
         ImportDialogFragment().showDistinct()
     }
 
-    fun showFilterSheet(): Boolean =
-        if (isFilterSupported()) {
-            FilterSheetFragment().showDistinct()
-        } else {
-            false
-        }
+    fun showFilterSheet(): Boolean = if (isFilterSupported()) {
+        FilterSheetFragment().showDistinct()
+    } else {
+        false
+    }
 
     fun showTagsCatalogSheet(excludeMode: Boolean) {
         if (!isFilterSupported()) {
@@ -659,12 +657,11 @@ class AppRouter private constructor(
 
     /** Public utils **/
 
-    fun isFilterSupported(): Boolean =
-        when {
-            fragment != null -> FilterCoordinator.find(fragment) != null
-            activity != null -> activity is FilterCoordinator.Owner
-            else -> false
-        }
+    fun isFilterSupported(): Boolean = when {
+        fragment != null -> FilterCoordinator.find(fragment) != null
+        activity != null -> activity is FilterCoordinator.Owner
+        else -> false
+    }
 
     fun isChapterPagesSheetShown(): Boolean {
         val sheet = getFragmentManager()?.findFragmentByTag(fragmentTag<ChaptersPagesSheet>()) as? ChaptersPagesSheet
@@ -698,24 +695,22 @@ class AppRouter private constructor(
         } ?: activity?.startActivity(intent, options)
     }
 
-    private fun startActivitySafe(intent: Intent): Boolean =
-        try {
-            startActivity(intent)
-            true
-        } catch (_: ActivityNotFoundException) {
-            false
-        }
+    private fun startActivitySafe(intent: Intent): Boolean = try {
+        startActivity(intent)
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
 
     private fun startActivity(activityClass: Class<out Activity>) {
         startActivity(Intent(contextOrNull() ?: return, activityClass))
     }
 
-    private fun getFragmentManager(): FragmentManager? =
-        runCatching {
-            fragment?.childFragmentManager ?: activity?.supportFragmentManager
-        }.onFailure { exception ->
-            exception.printStackTraceDebug()
-        }.getOrNull()
+    private fun getFragmentManager(): FragmentManager? = runCatching {
+        fragment?.childFragmentManager ?: activity?.supportFragmentManager
+    }.onFailure { exception ->
+        exception.printStackTraceDebug()
+    }.getOrNull()
 
     private fun shareLink(
         link: String,
@@ -778,12 +773,11 @@ class AppRouter private constructor(
     }
 
     companion object {
-        fun from(view: View): AppRouter? =
-            runCatching {
-                AppRouter(view.findFragment())
-            }.getOrElse {
-                (view.context.findActivity() as? FragmentActivity)?.let(::AppRouter)
-            }
+        fun from(view: View): AppRouter? = runCatching {
+            AppRouter(view.findFragment())
+        }.getOrElse {
+            (view.context.findActivity() as? FragmentActivity)?.let(::AppRouter)
+        }
 
         fun detailsIntent(
             context: Context,
@@ -804,18 +798,17 @@ class AppRouter private constructor(
             source: MangaSource,
             filter: MangaListFilter?,
             sortOrder: SortOrder?,
-        ): Intent =
-            Intent(context, MangaListActivity::class.java)
-                .setAction(ACTION_MANGA_EXPLORE)
-                .putExtra(KEY_SOURCE, source.name)
-                .apply {
-                    if (!filter.isNullOrEmpty()) {
-                        putExtra(KEY_FILTER, ParcelableMangaListFilter(filter))
-                    }
-                    if (sortOrder != null) {
-                        putExtra(KEY_SORT_ORDER, sortOrder)
-                    }
+        ): Intent = Intent(context, MangaListActivity::class.java)
+            .setAction(ACTION_MANGA_EXPLORE)
+            .putExtra(KEY_SOURCE, source.name)
+            .apply {
+                if (!filter.isNullOrEmpty()) {
+                    putExtra(KEY_FILTER, ParcelableMangaListFilter(filter))
                 }
+                if (sortOrder != null) {
+                    putExtra(KEY_SORT_ORDER, sortOrder)
+                }
+            }
 
         fun cloudFlareResolveIntent(
             context: Context,
@@ -837,11 +830,10 @@ class AppRouter private constructor(
             url: String,
             source: MangaSource?,
             title: String?,
-        ): Intent =
-            Intent(context, BrowserActivity::class.java)
-                .setData(url.toUri())
-                .putExtra(KEY_TITLE, title)
-                .putExtra(KEY_SOURCE, source?.name)
+        ): Intent = Intent(context, BrowserActivity::class.java)
+            .setData(url.toUri())
+            .putExtra(KEY_TITLE, title)
+            .putExtra(KEY_SOURCE, source?.name)
 
         fun suggestionsIntent(context: Context) = Intent(context, SuggestionsActivity::class.java)
 
@@ -849,87 +841,74 @@ class AppRouter private constructor(
 
         fun mangaUpdatesIntent(context: Context) = Intent(context, UpdatesActivity::class.java)
 
-        fun readerSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_READER)
+        fun readerSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_READER)
 
-        fun suggestionsSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_SUGGESTIONS)
+        fun suggestionsSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_SUGGESTIONS)
 
-        fun trackerSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_TRACKER)
+        fun trackerSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_TRACKER)
 
-        fun periodicBackupSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_PERIODIC_BACKUP)
+        fun periodicBackupSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_PERIODIC_BACKUP)
 
-        fun proxySettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_PROXY)
+        fun proxySettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_PROXY)
 
-        fun sourcesSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_SOURCES)
+        fun sourcesSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_SOURCES)
 
-        fun manageSourcesIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_MANAGE_SOURCES)
+        fun manageSourcesIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_MANAGE_SOURCES)
 
-        fun downloadsSettingsIntent(context: Context) =
-            Intent(context, SettingsActivity::class.java)
-                .setAction(ACTION_MANAGE_DOWNLOADS)
+        fun downloadsSettingsIntent(context: Context) = Intent(context, SettingsActivity::class.java)
+            .setAction(ACTION_MANAGE_DOWNLOADS)
 
         fun sourceSettingsIntent(
             context: Context,
             source: MangaSource,
-        ): Intent =
-            when (source) {
-                is MangaSourceInfo -> {
-                    sourceSettingsIntent(context, source.mangaSource)
-                }
-
-                is ExternalMangaSource -> {
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                        .setData(Uri.fromParts("package", source.packageName, null))
-                }
-
-                else -> {
-                    Intent(context, SettingsActivity::class.java)
-                        .setAction(ACTION_SOURCE)
-                        .putExtra(KEY_SOURCE, source.name)
-                }
+        ): Intent = when (source) {
+            is MangaSourceInfo -> {
+                sourceSettingsIntent(context, source.mangaSource)
             }
+
+            is ExternalMangaSource -> {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    .setData(Uri.fromParts("package", source.packageName, null))
+            }
+
+            else -> {
+                Intent(context, SettingsActivity::class.java)
+                    .setAction(ACTION_SOURCE)
+                    .putExtra(KEY_SOURCE, source.name)
+            }
+        }
 
         fun sourceAuthIntent(
             context: Context,
             source: MangaSource,
-        ): Intent =
-            Intent(context, SourceAuthActivity::class.java)
-                .putExtra(KEY_SOURCE, source.name)
+        ): Intent = Intent(context, SourceAuthActivity::class.java)
+            .putExtra(KEY_SOURCE, source.name)
 
         fun overrideEditIntent(
             context: Context,
             manga: Manga,
-        ): Intent =
-            Intent(context, OverrideConfigActivity::class.java)
-                .putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false))
+        ): Intent = Intent(context, OverrideConfigActivity::class.java)
+            .putExtra(KEY_MANGA, ParcelableManga(manga, withDescription = false))
 
-        fun isShareSupported(manga: Manga): Boolean =
-            when {
-                manga.isBroken -> false
-                manga.isLocal -> manga.url.toUri().toFileOrNull() != null
-                else -> true
-            }
+        fun isShareSupported(manga: Manga): Boolean = when {
+            manga.isBroken -> false
+            manga.isLocal -> manga.url.toUri().toFileOrNull() != null
+            else -> true
+        }
 
-        fun shortMangaUrl(mangaId: Long): Uri =
-            Uri
-                .Builder()
-                .scheme("kotatsu")
-                .path("manga")
-                .appendQueryParameter("id", mangaId.toString())
-                .build()
+        fun shortMangaUrl(mangaId: Long): Uri = Uri
+            .Builder()
+            .scheme("kotatsu")
+            .path("manga")
+            .appendQueryParameter("id", mangaId.toString())
+            .build()
 
         const val KEY_DATA = "data"
         const val KEY_ENTRIES = "entries"

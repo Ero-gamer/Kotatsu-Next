@@ -70,15 +70,14 @@ object HistoryWriteLog {
      * outside the app - coroutine machinery, Room, the framework - is noise here, and this class's
      * own frames would only ever say "HistoryWriteLog".
      */
-    private fun caller(): String =
-        Throwable("stack capture")
-            .stackTrace
-            .asSequence()
-            .filter { it.className.startsWith("org.koitharu.kotatsu") }
-            .filterNot { it.className.startsWith(HistoryWriteLog::class.java.name) }
-            .take(CALLER_FRAMES)
-            .joinToString(" <- ") { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
-            .ifEmpty { "unknown" }
+    private fun caller(): String = Throwable("stack capture")
+        .stackTrace
+        .asSequence()
+        .filter { it.className.startsWith("org.koitharu.kotatsu") }
+        .filterNot { it.className.startsWith(HistoryWriteLog::class.java.name) }
+        .take(CALLER_FRAMES)
+        .joinToString(" <- ") { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
+        .ifEmpty { "unknown" }
 
     private const val CALLER_FRAMES = 6
 }

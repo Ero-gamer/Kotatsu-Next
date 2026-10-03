@@ -136,11 +136,11 @@ object FilterInfoRegistry {
                 caveatsRes = R.string.filter_info_rcas_caveats,
                 rating = 9,
                 stats =
-                    listOf(
-                        R.string.stat_sharpness to 6,
-                        R.string.stat_detail_preservation to 9,
-                        R.string.stat_ringing_risk to 2,
-                    ),
+                listOf(
+                    R.string.stat_sharpness to 6,
+                    R.string.stat_detail_preservation to 9,
+                    R.string.stat_ringing_risk to 2,
+                ),
             ),
             FilterInfo(
                 id = FilterId.ADAPTIVE_SHARPEN,
@@ -151,11 +151,11 @@ object FilterInfoRegistry {
                 caveatsRes = R.string.filter_info_adaptive_sharpen_caveats,
                 rating = 7,
                 stats =
-                    listOf(
-                        R.string.stat_sharpness to 9,
-                        R.string.stat_detail_preservation to 7,
-                        R.string.stat_ringing_risk to 5,
-                    ),
+                listOf(
+                    R.string.stat_sharpness to 9,
+                    R.string.stat_detail_preservation to 7,
+                    R.string.stat_ringing_risk to 5,
+                ),
             ),
             FilterInfo(
                 id = FilterId.DEBAND,
