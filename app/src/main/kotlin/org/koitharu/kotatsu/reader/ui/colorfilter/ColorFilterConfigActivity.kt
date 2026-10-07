@@ -7,6 +7,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.text.InputType
 import android.view.GestureDetector
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import android.widget.CompoundButton
@@ -257,6 +258,8 @@ class ColorFilterConfigActivity :
                 setOnClickListener { stepSlider(slider, +1) }
             }
             // Observes touches only (always returns false) so the slider keeps its own drag/tap handling.
+            // Double tap opens the value dialog; a long press (finger held still) resets to default.
+            var resetOnRelease = false
             val detector =
                 GestureDetector(
                     this,
@@ -269,12 +272,36 @@ class ColorFilterConfigActivity :
                             }
                             return false
                         }
+
+                        override fun onLongPress(e: MotionEvent) {
+                            if (slider.isEnabled) {
+                                resetOnRelease = true
+                                slider.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                                resetSlider(slider)
+                            }
+                        }
                     },
                 )
             slider.setOnTouchListener { _, event ->
                 detector.onTouchEvent(event)
+                val action = event.actionMasked
+                if (resetOnRelease && (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL)) {
+                    // The slider is still tracking the finger and may have nudged the value while it
+                    // was held; apply the reset once more after it has handled the release.
+                    resetOnRelease = false
+                    slider.post { resetSlider(slider) }
+                }
                 false
             }
+        }
+    }
+
+    /** Puts [slider] back to its default (0 for every filter slider). */
+    private fun resetSlider(slider: Slider) {
+        val target = 0f.coerceIn(slider.valueFrom, slider.valueTo)
+        if (target != slider.value) {
+            slider.value = target
+            dispatchValue(slider.id, target)
         }
     }
 

@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PointF
+import android.graphics.Rect
 import android.util.AttributeSet
-import androidx.core.view.ancestors
 import androidx.recyclerview.widget.RecyclerView
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import org.koitharu.kotatsu.core.util.ext.resolveDp
@@ -21,6 +21,54 @@ class WebtoonImageView @JvmOverloads constructor(
     private var scrollPos = 0
     private var pendingScrollPos = -1
     private var debugPaint: Paint? = null
+    private var host: RecyclerView? = null
+
+    /** How far beyond the visible part of the list tiles are decoded, in list heights. */
+    var prefetchFraction = 1f
+
+    private val prefetchMargin: Int
+        get() = ((host?.height ?: height) * prefetchFraction).toInt()
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        host = findHost()
+    }
+
+    override fun onDetachedFromWindow() {
+        host = null
+        super.onDetachedFromWindow()
+    }
+
+    /**
+     * A page is a viewport-sized window onto a very tall image and is itself only partly (or, while
+     * prefetched, not at all) visible inside the list. Decode only what the list shows plus a margin,
+     * not everything this view's bounds cover.
+     */
+    override fun computeTileWindow(out: Rect) {
+        val rv = host
+        if (rv == null || rv.height <= 0) {
+            super.computeTileWindow(out)
+            return
+        }
+        val margin = prefetchMargin
+        out.set(0, -margin, rv.width, rv.height + margin)
+        try {
+            rv.offsetRectIntoDescendantCoords(this, out)
+        } catch (_: IllegalArgumentException) {
+            super.computeTileWindow(out)
+        }
+    }
+
+    override val tileKeepSlop: Int
+        get() = prefetchMargin / 2
+
+    private fun findHost(): RecyclerView? {
+        var p = parent
+        while (p != null && p !is RecyclerView) {
+            p = p.parent
+        }
+        return p as? RecyclerView
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -175,7 +223,7 @@ class WebtoonImageView @JvmOverloads constructor(
         }
     }
 
-    private fun parentHeight(): Int = ancestors.firstNotNullOfOrNull { it as? RecyclerView }?.height ?: 0
+    private fun parentHeight(): Int = host?.height ?: findHost()?.height ?: 0
 
     private fun drawDebug(canvas: Canvas) {
         val paint = debugPaint ?: Paint(Paint.ANTI_ALIAS_FLAG).apply {

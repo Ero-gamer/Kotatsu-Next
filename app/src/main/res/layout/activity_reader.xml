@@ -67,6 +67,7 @@
 					android:layout_width="wrap_content"
 					android:layout_height="match_parent"
 					android:rotation="90"
+					android:stepSize="1.0"
 					android:valueFrom="0"
 					android:valueTo="1"
 					app:labelBehavior="gone" />

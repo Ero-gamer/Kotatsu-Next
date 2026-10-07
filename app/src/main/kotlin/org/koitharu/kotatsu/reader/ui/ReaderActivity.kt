@@ -27,6 +27,7 @@ import androidx.transition.TransitionManager
 import androidx.transition.TransitionSet
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
+import com.google.android.material.slider.Slider
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,8 @@ import org.koitharu.kotatsu.core.util.ext.hasGlobalPoint
 import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
+import org.koitharu.kotatsu.core.util.ext.setThumbVisible
+import org.koitharu.kotatsu.core.util.ext.setValueRounded
 import org.koitharu.kotatsu.core.util.ext.postDelayed
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.zipWithPrevious
@@ -110,6 +113,8 @@ class ReaderActivity :
     private lateinit var scrollTimer: ScrollTimer
     private lateinit var pageSaveHelper: PageSaveHelper
     private lateinit var touchHelper: TapGridDispatcher
+    private var isVerticalSliderTracking = false
+    private var isVerticalSliderChanged = false
     private lateinit var controlDelegate: ReaderControlDelegate
     private var gestureInsets: Insets = Insets.NONE
     private lateinit var readerManager: ReaderManager
@@ -133,20 +138,41 @@ class ReaderActivity :
         controlDelegate = ReaderControlDelegate(resources, settings, tapGridSettings, this)
         viewBinding.zoomControl.listener = this
         viewBinding.actionsView.listener = this
-        viewBinding.actionsView.isVerticalSliderActive = settings.isVerticalSliderEnabled
+        viewBinding.actionsView.isVerticalSliderActive = isVerticalSliderUsable()
         viewBinding.buttonTimer?.setOnClickListener(this)
         idlingDetector.bindToLifecycle(this)
         screenOrientationHelper.applySettings()
 
         // Vertical page-switch slider
-        viewBinding.sliderVertical?.addOnChangeListener { slider, value, fromUser ->
-            if (fromUser) {
+        // Mirrors the horizontal slider (ReaderActionsView): while dragging only the label follows
+        // the thumb, the page is switched once on release.
+        viewBinding.sliderVertical?.apply {
+            addOnChangeListener { slider, value, fromUser ->
+                if (!fromUser) return@addOnChangeListener
                 val newPage = value.toInt()
-                if (newPage != viewModel.uiState.value?.currentPage) {
-                    slider.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                viewBinding.textViewCurrentPageVertical?.text = (newPage + 1).toString()
+                slider.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                if (isVerticalSliderTracking) {
+                    isVerticalSliderChanged = true
+                } else {
                     switchPageTo(newPage)
                 }
             }
+            addOnSliderTouchListener(
+                object : Slider.OnSliderTouchListener {
+                    override fun onStartTrackingTouch(slider: Slider) {
+                        isVerticalSliderChanged = false
+                        isVerticalSliderTracking = true
+                    }
+
+                    override fun onStopTrackingTouch(slider: Slider) {
+                        isVerticalSliderTracking = false
+                        if (isVerticalSliderChanged) {
+                            switchPageTo(slider.value.toInt())
+                        }
+                    }
+                },
+            )
         }
         viewBinding.buttonPrevVertical?.setOnClickListener { switchChapterBy(-1) }
         viewBinding.buttonNextVertical?.setOnClickListener { switchChapterBy(1) }
@@ -370,10 +396,11 @@ class ReaderActivity :
     }
 
     override fun onVerticalSliderChanged(isEnabled: Boolean) {
-        viewBinding.actionsView.isVerticalSliderActive = isEnabled
-        viewBinding.actionsView.isSliderEnabled = !isEnabled && (viewModel.uiState.value?.isSliderAvailable() == true)
+        val usable = isEnabled && viewBinding.containerSliderVertical != null
+        viewBinding.actionsView.isVerticalSliderActive = usable
+        viewBinding.actionsView.isSliderEnabled = !usable && (viewModel.uiState.value?.isSliderAvailable() == true)
         val sliderAvailable = viewModel.uiState.value?.isSliderAvailable() == true
-        if (isEnabled && sliderAvailable) {
+        if (usable && sliderAvailable) {
             setUiIsVisible(true)
         } else {
             viewBinding.containerSliderVertical?.isVisible = false
@@ -417,7 +444,7 @@ class ReaderActivity :
             viewBinding.appbarTop.isVisible = isUiVisible
             viewBinding.toolbarDocked?.isVisible = isUiVisible
             viewBinding.containerSliderVertical?.isVisible =
-                isUiVisible && settings.isVerticalSliderEnabled && (viewModel.uiState.value?.isSliderAvailable() == true)
+                isUiVisible && isVerticalSliderUsable() && (viewModel.uiState.value?.isSliderAvailable() == true)
             viewBinding.infoBar.isGone = isUiVisible || (!viewModel.isInfoBarEnabled.value)
             viewBinding.infoBar.isTimeVisible = isFullscreen
             updateScrollTimerButton()
@@ -540,10 +567,8 @@ class ReaderActivity :
             supportActionBar?.subtitle = null
             viewBinding.actionsView.setSliderValue(0, 1)
             viewBinding.actionsView.isSliderEnabled = false
-            viewBinding.actionsView.isVerticalSliderActive = settings.isVerticalSliderEnabled
-            viewBinding.sliderVertical?.valueTo = 1f
-            viewBinding.sliderVertical?.value = 0f
-            viewBinding.sliderVertical?.isEnabled = false
+            viewBinding.actionsView.isVerticalSliderActive = isVerticalSliderUsable()
+            viewBinding.sliderVertical?.let { updateVerticalSlider(it, 0, 1, isAvailable = false) }
             return
         }
         val chapterTitle = uiState.getChapterTitle(resources)
@@ -564,20 +589,18 @@ class ReaderActivity :
                 value = uiState.currentPage,
                 max = uiState.totalPages - 1,
             )
-            viewBinding.sliderVertical?.valueTo = (uiState.totalPages - 1).toFloat()
-            viewBinding.sliderVertical?.value = uiState.currentPage.toFloat()
-            viewBinding.textViewCurrentPageVertical?.text = (uiState.currentPage + 1).toString()
-            viewBinding.textViewTotalPagesVertical?.text = uiState.totalPages.toString()
-            viewBinding.sliderVertical?.isEnabled = true
+            viewBinding.sliderVertical?.let {
+                updateVerticalSlider(it, uiState.currentPage, uiState.totalPages - 1, isAvailable = true)
+            }
         } else {
             viewBinding.actionsView.setSliderValue(0, 1)
-            viewBinding.sliderVertical?.valueTo = 1f
-            viewBinding.sliderVertical?.value = 0f
-            viewBinding.textViewCurrentPageVertical?.text = (uiState.currentPage + 1).toString()
-            viewBinding.textViewTotalPagesVertical?.text = uiState.totalPages.toString()
-            viewBinding.sliderVertical?.isEnabled = false
+            viewBinding.sliderVertical?.let { updateVerticalSlider(it, 0, 1, isAvailable = false) }
         }
-        val useVertical = settings.isVerticalSliderEnabled
+        if (!isVerticalSliderTracking) {
+            viewBinding.textViewCurrentPageVertical?.text = (uiState.currentPage + 1).toString()
+        }
+        viewBinding.textViewTotalPagesVertical?.text = uiState.totalPages.toString()
+        val useVertical = isVerticalSliderUsable()
         viewBinding.actionsView.isSliderEnabled = uiState.isSliderAvailable() && !useVertical
         viewBinding.actionsView.isVerticalSliderActive = useVertical
         viewBinding.actionsView.isNextEnabled = uiState.hasNextChapter()
@@ -585,7 +608,23 @@ class ReaderActivity :
         viewBinding.buttonPrevVertical?.isEnabled = uiState.hasPreviousChapter()
         viewBinding.buttonNextVertical?.isEnabled = uiState.hasNextChapter()
         viewBinding.containerSliderVertical?.isVisible =
-            viewBinding.appbarTop.isVisible && settings.isVerticalSliderEnabled && uiState.isSliderAvailable()
+            viewBinding.appbarTop.isVisible && useVertical && uiState.isSliderAvailable()
+    }
+
+    /** The vertical slider only exists in some layouts (not on wide landscape screens). */
+    private fun isVerticalSliderUsable() = settings.isVerticalSliderEnabled && viewBinding.containerSliderVertical != null
+
+    private fun updateVerticalSlider(
+        slider: Slider,
+        page: Int,
+        max: Int,
+        isAvailable: Boolean,
+    ) {
+        slider.valueTo = max.toFloat()
+        // A thumb being dragged is owned by the user; writing the (stale) page back would fight it.
+        slider.setValueRounded(if (isVerticalSliderTracking) slider.value else page.toFloat())
+        slider.isEnabled = isAvailable
+        slider.setThumbVisible(isAvailable)
     }
 
     private fun createEInkFlashView(): View = View(this).apply {

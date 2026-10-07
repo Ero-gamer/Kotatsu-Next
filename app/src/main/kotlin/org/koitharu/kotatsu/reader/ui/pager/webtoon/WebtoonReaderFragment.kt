@@ -22,6 +22,7 @@ import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.list.lifecycle.RecyclerViewLifecycleDispatcher
 import org.koitharu.kotatsu.core.util.ext.firstVisibleItemPosition
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.removeItemDecoration
 import org.koitharu.kotatsu.databinding.FragmentReaderWebtoonBinding
@@ -268,10 +269,12 @@ class WebtoonReaderFragment :
      * currently bound holders.
      */
     private fun applyMemorySaverMode(recyclerView: RecyclerView, enabled: Boolean) {
-        val cacheSize = if (enabled) 0 else 2
-        val poolSize = if (enabled) 1 else 5
+        // Devices that are not flagged "low RAM" but only have ~2 GB get the saver automatically.
+        val saver = enabled || recyclerView.context.isMemoryConstrained()
+        val cacheSize = if (saver) 0 else 2
+        val poolSize = if (saver) 1 else 5
         recyclerView.setItemViewCacheSize(cacheSize)
-        (recyclerView.layoutManager as? LinearLayoutManager)?.isItemPrefetchEnabled = !enabled
+        (recyclerView.layoutManager as? LinearLayoutManager)?.isItemPrefetchEnabled = !saver
         recyclerView.recycledViewPool.setMaxRecycledViews(0, poolSize)
     }
 

@@ -58,6 +58,13 @@ open class PageHolder(
         ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
     }
 
+    private companion object {
+        const val ZOOM_STAGE_1 = 2.5f
+        const val ZOOM_STAGE_2 = 4.5f
+        const val MAX_ZOOM_SCALE = 7f
+        const val KEEP_START_MAX_SCALE = 6f
+    }
+
     override fun onApplyWindowInsets(
         v: View,
         insets: WindowInsetsCompat,
@@ -87,42 +94,49 @@ open class PageHolder(
         super.onRecycled()
     }
 
-    override fun onReady() {
-        // Compute maxScale as 3× the "fill" scale factor (the larger of width-fill and
-        // height-fill ratios). Using 3× instead of 2× gives users noticeably more zoom
-        // headroom, especially on high-DPI phones and Android TV where the original 2×
-        // cap was too restrictive. 3× still keeps performance safe — SSIV loads
-        // higher-res tiles progressively, so this does not increase memory usage.
-        // Compute the natural dynamic max (4× fill scale) — used for double-tap levels.
-        // ssiv.maxScale (pinch/manual ceiling) is then capped at 6.0f to match webtoon mode.
-        val dynamicMaxScale = 4f * maxOf(
-            binding.ssiv.width / binding.ssiv.sWidth.toFloat(),
-            binding.ssiv.height / binding.ssiv.sHeight.toFloat(),
-        )
-        binding.ssiv.maxScale = minOf(dynamicMaxScale, 6.0f)
-        val maxScale = dynamicMaxScale // double-tap targets stay at natural dynamic levels
-        // 3-state double-tap: fit → 50% of max → 100% of max → reset to fit.
-        // ZOOM_FOCUS_FIXED anchors zoom to the tap point (same as webtoon).
-        // After each 500ms animation, postDelayed reads the settled scale and primes
-        // doubleTapZoomScale for the next tap.
-        binding.ssiv.doubleTapZoomScale = maxScale * 0.5f
-        scheduleNextTarget = object : Runnable {
-            override fun run() {
-                val ssiv = binding.ssiv
-                if (!ssiv.isReady) return
-                val half = maxScale * 0.5f
-                val eps = ssiv.minScale * 0.05f
-                ssiv.doubleTapZoomScale = if (ssiv.scale >= half - eps) maxScale else half
+    /**
+     * Installs the pinch ceiling and the 3-stage double-tap zoom (fit → stage 1 → stage 2 → fit).
+     * Stages are 2.5× and 4.5× the "fill" scale (the larger of the width-fill and height-fill
+     * ratios); the ceiling is capped at [MAX_ZOOM_SCALE] and the stages shrink with it so a
+     * double tap can always reach its target. Shared by the standard and the reversed (manga) pager.
+     * ZOOM_FOCUS_FIXED anchors the zoom to the tap point (same as webtoon). After each animation
+     * a delayed check reads the settled scale and primes doubleTapZoomScale for the next tap.
+     */
+    protected fun setupDoubleTapZoom() {
+        val ssiv = binding.ssiv
+        val fill = maxOf(ssiv.width / ssiv.sWidth.toFloat(), ssiv.height / ssiv.sHeight.toFloat())
+        val top = minOf(ZOOM_STAGE_2 * fill, MAX_ZOOM_SCALE)
+        val half = top * (ZOOM_STAGE_1 / ZOOM_STAGE_2)
+        ssiv.maxScale = top
+        ssiv.doubleTapZoomScale = half
+        ssiv.removeCallbacks(scheduleNextTarget)
+        val target =
+            object : Runnable {
+                override fun run() {
+                    if (!ssiv.isReady) return
+                    val eps = ssiv.minScale * 0.05f
+                    ssiv.doubleTapZoomScale = if (ssiv.scale >= half - eps) top else half
+                }
             }
-        }
-        val target = scheduleNextTarget
-        binding.ssiv.setOnTouchListener { v, event ->
+        scheduleNextTarget = target
+        ssiv.setOnTouchListener { v, event ->
             if (event.action == MotionEvent.ACTION_UP) {
                 v.removeCallbacks(target)
                 v.postDelayed(target, 550L)
             }
             false
         }
+    }
+
+    override fun onReady() {
+        val ssiv = binding.ssiv
+        // KEEP_START historically opens at 4× fill (capped); independent of the double-tap stages.
+        val keepStartScale =
+            minOf(
+                4f * maxOf(ssiv.width / ssiv.sWidth.toFloat(), ssiv.height / ssiv.sHeight.toFloat()),
+                KEEP_START_MAX_SCALE,
+            )
+        setupDoubleTapZoom()
         applyColorFilter()
         when (settings.zoomMode) {
             ZoomMode.FIT_CENTER -> {
@@ -151,7 +165,7 @@ open class PageHolder(
             ZoomMode.KEEP_START -> {
                 binding.ssiv.minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
                 binding.ssiv.setScaleAndCenter(
-                    binding.ssiv.maxScale,
+                    keepStartScale,
                     PointF(0f, 0f),
                 )
             }
@@ -190,14 +204,8 @@ open class PageHolder(
     }
 
     /**
-     * Cycles through four zoom levels on each double tap:
-     *   100% (fit) → 120% → 150% → 200% → reset to 100%
-     *
-     * Uses the same pivot-point zoom math as WebtoonScalingFrame so the tapped
-     * pixel stays visually fixed during zoom. SSIV's animateScaleAndCenter() pans
-     * so the given source point ends up at the VIEW CENTER — not at the tap point.
-     * We compensate by shifting the source center by (viewMid − tapPos) / targetScale,
-     * which exactly cancels the pan-to-center effect and anchors zoom to the tap.
+     * Zooms about the view centre by [factor] (used by the zoom-in / zoom-out controls).
+     * Double-tap zoom is handled separately, see [setupDoubleTapZoom].
      */
 
     private fun scaleBy(factor: Float) {

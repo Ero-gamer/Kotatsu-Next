@@ -110,6 +110,22 @@ fun View.resetTransformations() {
     rotationY = 0f
 }
 
+/** Shows or hides the slider thumb; a disabled slider has nothing to drag, so it shows no handle. */
+fun Slider.setThumbVisible(visible: Boolean) {
+    thumbWidth =
+        if (visible) {
+            resources.getDimensionPixelSize(com.google.android.material.R.dimen.m3_comp_slider_active_handle_width)
+        } else {
+            0
+        }
+    thumbHeight =
+        if (visible) {
+            resources.getDimensionPixelSize(com.google.android.material.R.dimen.m3_comp_slider_active_handle_height)
+        } else {
+            0
+        }
+}
+
 fun Slider.setValueRounded(newValue: Float) {
     val step = stepSize
     val roundedValue = if (step <= 0f) {

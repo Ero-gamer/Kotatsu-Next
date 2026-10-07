@@ -4,6 +4,7 @@ import android.view.View
 import androidx.lifecycle.LifecycleOwner
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.os.NetworkState
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.databinding.ItemPageWebtoonBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
@@ -27,10 +28,17 @@ class WebtoonHolder(
 
     override val ssiv = binding.ssiv
 
+    // Pages enter and leave the foreground constantly while scrolling; re-decoding them each time
+    // is pure stutter. Memory is bounded by tile windowing instead.
+    override val usesBackgroundDownSampling: Boolean
+        get() = false
+
     private var scrollToRestore = 0
 
     init {
         bindingInfo.progressBar.setVisibilityAfterHide(View.GONE)
+        binding.ssiv.prefetchFraction =
+            if (itemView.context.isMemoryConstrained()) PREFETCH_CONSTRAINED else PREFETCH_DEFAULT
     }
 
     override fun onReady() {
@@ -50,6 +58,12 @@ class WebtoonHolder(
     }
 
     fun getScrollY() = binding.ssiv.getScroll()
+
+    private companion object {
+        // Tiles are decoded this many list heights beyond what is on screen.
+        private const val PREFETCH_DEFAULT = 1f
+        private const val PREFETCH_CONSTRAINED = 0.5f
+    }
 
     fun restoreScroll(scroll: Int) {
         if (binding.ssiv.isReady) {

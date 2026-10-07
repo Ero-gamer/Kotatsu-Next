@@ -31,3 +31,9 @@
 -keep class org.acra.config.DefaultRetryPolicy { *; }
 -keep class org.acra.attachment.DefaultAttachmentProvider { *; }
 -keep class org.acra.sender.JobSenderService
+
+# Verbose/debug logging has no value in release builds; R8 drops the calls and their string building.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}

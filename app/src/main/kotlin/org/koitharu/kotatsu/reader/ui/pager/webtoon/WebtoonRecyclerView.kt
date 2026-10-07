@@ -78,6 +78,18 @@ constructor(
         super.onDetachedFromWindow()
     }
 
+    override fun onScrolled(
+        dx: Int,
+        dy: Int,
+    ) {
+        super.onScrolled(dx, dy)
+        // Pages moved inside the list without being redrawn themselves: tell them which part of
+        // them is visible now so tiles are loaded ahead / released behind.
+        for (i in 0 until childCount) {
+            (getChildAt(i) as? WebtoonFrameLayout)?.target?.requestTileRefresh()
+        }
+    }
+
     override fun startNestedScroll(axes: Int) = startNestedScroll(axes, TYPE_TOUCH)
 
     override fun startNestedScroll(

@@ -131,6 +131,33 @@ fun Context.getAnimationDuration(@IntegerRes resId: Int): Long = (resources.getI
 
 fun Context.isLowRamDevice(): Boolean = activityManager?.isLowRamDevice == true
 
+@Volatile
+private var memoryConstrainedCache: Boolean? = null
+
+private const val CONSTRAINED_TOTAL_RAM_BYTES = 2_684_354_560L // 2.5 GiB: a "2 GB" phone reports ~1.8-2.0 GB
+private const val CONSTRAINED_HEAP_CLASS_MB = 128
+
+/**
+ * True on devices where decoded page bitmaps have to be budgeted tightly. [isLowRamDevice] is only
+ * set for "Go" builds, so a plain 2 GB phone reports `false` there and would get no protection.
+ * The answer cannot change while the process lives, so it is computed once.
+ */
+fun Context.isMemoryConstrained(): Boolean {
+    memoryConstrainedCache?.let { return it }
+    val am = activityManager
+    val result =
+        if (am == null) {
+            false
+        } else {
+            val info = MemoryInfo()
+            am.getMemoryInfo(info)
+            am.isLowRamDevice || (info.totalMem in 1 until CONSTRAINED_TOTAL_RAM_BYTES) ||
+                am.memoryClass <= CONSTRAINED_HEAP_CLASS_MB
+        }
+    memoryConstrainedCache = result
+    return result
+}
+
 fun Context.isPowerSaveMode(): Boolean = powerManager?.isPowerSaveMode == true
 
 val Context.ramAvailable: Long

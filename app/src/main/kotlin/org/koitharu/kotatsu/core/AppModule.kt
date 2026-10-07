@@ -14,6 +14,7 @@ import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.gif.AnimatedImageDecoder
 import coil3.gif.GifDecoder
+import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.allowRgb565
 import coil3.svg.SvgDecoder
@@ -51,6 +52,7 @@ import org.koitharu.kotatsu.core.util.AcraScreenLogger
 import org.koitharu.kotatsu.core.util.FileSize
 import org.koitharu.kotatsu.core.util.ext.connectivityManager
 import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.details.ui.pager.pages.MangaPageFetcher
 import org.koitharu.kotatsu.details.ui.pager.pages.MangaPageKeyer
 import org.koitharu.kotatsu.local.data.CacheDir
@@ -126,6 +128,13 @@ interface AppModule {
                 .diskCache(diskCacheFactory)
                 .logger(if (BuildConfig.DEBUG) DebugLogger() else null)
                 .allowRgb565(context.isLowRamDevice())
+                .apply {
+                    // Coil's default budget (25% of the heap) competes with the reader's tile bitmaps; use
+                    // its low-RAM budget (15%) on small devices. Coil trims it itself on onTrimMemory.
+                    if (context.isMemoryConstrained()) {
+                        memoryCache { MemoryCache.Builder().maxSizePercent(context, 0.15).build() }
+                    }
+                }
                 .eventListener(captchaHandler)
                 .components {
                     add(

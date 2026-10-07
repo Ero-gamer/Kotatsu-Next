@@ -36,10 +36,10 @@ class ReversedPageHolder(
 
     override fun onReady() {
         with(binding.ssiv) {
-            maxScale = 2f * maxOf(
-                width / sWidth.toFloat(),
-                height / sHeight.toFloat(),
-            )
+            // KEEP_START historically opens at 2× fill here; independent of the double-tap stages.
+            val fillScale = maxOf(width / sWidth.toFloat(), height / sHeight.toFloat())
+            val keepStartScale = 2f * fillScale
+            setupDoubleTapZoom()
             applyColorFilter()
             when (settings.zoomMode) {
                 ZoomMode.FIT_CENTER -> {
@@ -68,7 +68,7 @@ class ReversedPageHolder(
                 ZoomMode.KEEP_START -> {
                     minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
                     setScaleAndCenter(
-                        maxScale,
+                        keepStartScale,
                         PointF(sWidth.toFloat(), 0f),
                     )
                 }

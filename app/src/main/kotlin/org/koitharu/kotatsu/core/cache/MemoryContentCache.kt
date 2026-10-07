@@ -3,7 +3,7 @@ package org.koitharu.kotatsu.core.cache
 import android.app.Application
 import android.content.ComponentCallbacks2
 import android.content.res.Configuration
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.model.MangaSource
@@ -14,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class MemoryContentCache @Inject constructor(application: Application) : ComponentCallbacks2 {
 
-    private val isLowRam = application.isLowRamDevice()
+    private val isLowRam = application.isMemoryConstrained()
 
     private val detailsCache = ExpiringLruCache<SafeDeferred<Manga>>(if (isLowRam) 1 else 4, 5, TimeUnit.MINUTES)
     private val pagesCache =

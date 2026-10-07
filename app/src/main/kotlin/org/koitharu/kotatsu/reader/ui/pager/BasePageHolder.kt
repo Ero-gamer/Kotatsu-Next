@@ -1,7 +1,7 @@
 package org.koitharu.kotatsu.reader.ui.pager
 
 import android.content.ComponentCallbacks2
-import android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+import android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
 import android.content.res.Configuration
 import android.view.View
 import androidx.annotation.CallSuper
@@ -23,7 +23,7 @@ import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.isSerializable
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.databinding.LayoutPageInfoBinding
@@ -74,10 +74,13 @@ abstract class BasePageHolder<B : ViewBinding>(
     init {
         lifecycleScope.launch(Dispatchers.Main) {
             ssiv.bindToLifecycle(this@BasePageHolder)
-            ssiv.isEagerLoadingEnabled = !context.isLowRamDevice()
-            if (context.isLowRamDevice()) {
-                ssiv.backgroundDispatcher = lowRamTileDecodeDispatcher
-            }
+            val constrained = context.isMemoryConstrained()
+            ssiv.isEagerLoadingEnabled = !constrained
+            // Bound the memory of a single decode and of the always-resident base layer; on small
+            // devices also pick the tightest sample size that is still as sharp as the screen.
+            ssiv.maxTilePixels = if (constrained) TILE_PIXELS_CONSTRAINED else TILE_PIXELS_DEFAULT
+            ssiv.baseLayerMaxPixels = if (constrained) BASE_PIXELS_CONSTRAINED else BASE_PIXELS_DEFAULT
+            ssiv.isTightSampling = constrained
             ssiv.addOnImageEventListener(viewModel)
             ssiv.addOnImageEventListener(this@BasePageHolder)
         }
@@ -184,17 +187,16 @@ abstract class BasePageHolder<B : ViewBinding>(
     }
 
     /**
-     * No GPU caches to trim — the EGL off-screen renderer in [GpuTileRenderer] holds no
-     * persistent tile cache; each tile is decoded → filtered → returned as a Bitmap and the
-     * GL texture is immediately deleted. Nothing to release here on memory pressure.
-     * PageLoader's own LRU file cache is trimmed separately by its own ComponentCallbacks2.
+     * Releases decoded tiles under memory pressure (the GPU renderer keeps no tile cache, so the
+     * tile bitmaps held by SSIV are the only thing to free). PageLoader's own file cache is
+     * trimmed separately by its own ComponentCallbacks2.
      */
-    override fun onTrimMemory(level: Int) = Unit
+    override fun onTrimMemory(level: Int) = ssiv.trimMemory(level)
 
     override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
     @Deprecated("Deprecated in Java")
-    final override fun onLowMemory() = onTrimMemory(TRIM_MEMORY_COMPLETE)
+    final override fun onLowMemory() = onTrimMemory(TRIM_MEMORY_RUNNING_CRITICAL)
 
     protected open fun onStateChanged(state: PageState) {
         bindingInfo.layoutError.isVisible = state is PageState.Error
@@ -279,11 +281,19 @@ abstract class BasePageHolder<B : ViewBinding>(
         }
     }
 
+    /**
+     * Whether a page that is not in the foreground is re-decoded at a lower resolution. Costs a
+     * full re-decode on every change, so a holder that is constantly shown and hidden while the
+     * app stays in the foreground (webtoon) opts out.
+     */
+    protected open val usesBackgroundDownSampling: Boolean
+        get() = true
+
     protected fun SubsamplingScaleImageView.applyDownSampling(isForeground: Boolean) {
         downSampling = when {
-            isForeground || !settings.isReaderOptimizationEnabled -> 1
+            isForeground || !usesBackgroundDownSampling || !settings.isReaderOptimizationEnabled -> 1
             BuildConfig.DEBUG -> 32
-            context.isLowRamDevice() -> 8
+            context.isMemoryConstrained() -> 8
             else -> 4
         }
     }
@@ -292,11 +302,10 @@ abstract class BasePageHolder<B : ViewBinding>(
         private const val PREPARING_STATUS_DELAY_MS = 600L
         private const val TILE_ERROR_SOFT = 1
         private const val TILE_ERROR_HARD = 3
-
-        // 4 = Cortex-A53 core count. Decode tiles in parallel for fast initial load.
-        // Memory is kept in check by RGB_565 (half per tile) + eager loading off.
-        @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-        private val lowRamTileDecodeDispatcher = Dispatchers.Default.limitedParallelism(4)
+        private const val TILE_PIXELS_DEFAULT = 3_145_728
+        private const val TILE_PIXELS_CONSTRAINED = 2_359_296
+        private const val BASE_PIXELS_DEFAULT = 4_000_000
+        private const val BASE_PIXELS_CONSTRAINED = 3_000_000
         private val UNSET_SENTINEL = Any()
     }
 }

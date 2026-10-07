@@ -1,6 +1,8 @@
 package org.koitharu.kotatsu.reader.domain
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.net.Uri
 import androidx.annotation.AnyThread
@@ -53,7 +55,7 @@ import org.koitharu.kotatsu.core.util.ext.ensureRamAtLeast
 import org.koitharu.kotatsu.core.util.ext.ensureSuccess
 import org.koitharu.kotatsu.core.util.ext.getCompletionResultOrNull
 import org.koitharu.kotatsu.core.util.ext.isFileUri
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.isNotEmpty
 import org.koitharu.kotatsu.core.util.ext.isPowerSaveMode
 import org.koitharu.kotatsu.core.util.ext.isZipUri
@@ -74,7 +76,7 @@ import org.koitharu.kotatsu.parsers.util.requireBody
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 import java.io.File
-import java.util.LinkedList
+import java.util.ArrayDeque
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.zip.ZipFile
@@ -105,7 +107,11 @@ constructor(
     // With 3 permits, rapid chapter switches could saturate all permits with prefetch
     // jobs, causing the user-triggered load to wait. 5 permits maintain throughput
     // while still protecting against runaway parallel requests on slow connections.
-    private val semaphore = Semaphore(5)
+    // Dynamic concurrency: fewer parallel transfers (each buffers and decodes) on small devices, and
+    // background prefetch can never take every permit, so a page the user is waiting for always has one.
+    private val isConstrained = context.isMemoryConstrained()
+    private val semaphore = Semaphore(if (isConstrained) PERMITS_CONSTRAINED else PERMITS_DEFAULT)
+    private val prefetchGate = Semaphore(if (isConstrained) PREFETCH_PERMITS_CONSTRAINED else PREFETCH_PERMITS_DEFAULT)
 
     // BUG 1 FIX: replaced single shared Mutex with a per-URI deduplication map.
     // The original `convertLock = Mutex()` serialized ALL bitmap conversions globally:
@@ -120,22 +126,42 @@ constructor(
 
     @Volatile
     private var repository: MangaRepository? = null
-    private val prefetchQueue = LinkedList<MangaPage>()
+    private val prefetchQueue = ArrayDeque<MangaPage>()
     private val counter = AtomicInteger(0)
 
     // On constrained devices (≤2GB RAM) cap prefetch to 2 pages and require
     // ≥200MB free RAM instead of the default 6 pages / 80MB. This prevents
     // prefetch from filling RAM just before a high-res tile decode burst.
     private var prefetchQueueLimit =
-        if (context.isLowRamDevice()) {
+        if (isConstrained) {
             PREFETCH_LIMIT_CONSTRAINED
         } else {
             PREFETCH_LIMIT_DEFAULT
         }
     private val edgeDetector = EdgeDetector(context)
 
+    // Under memory pressure stop queueing speculative downloads; they are re-requested on demand.
+    private val trimCallbacks =
+        object : ComponentCallbacks2 {
+            override fun onTrimMemory(level: Int) {
+                if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+                    loaderScope.launch { prefetchLock.withLock { prefetchQueue.clear() } }
+                }
+            }
+
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated in Java")
+            override fun onLowMemory() = onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
+        }
+
+    init {
+        context.registerComponentCallbacks(trimCallbacks)
+        lifecycle.addOnClearedListener { context.unregisterComponentCallbacks(trimCallbacks) }
+    }
+
     fun isPrefetchApplicable(): Boolean {
-        val minRamMb = if (context.isLowRamDevice()) PREFETCH_MIN_RAM_MB_CONSTRAINED else PREFETCH_MIN_RAM_MB
+        val minRamMb = if (isConstrained) PREFETCH_MIN_RAM_MB_CONSTRAINED else PREFETCH_MIN_RAM_MB
         return repository is CachingMangaRepository &&
             settings.isPagesPreloadEnabled &&
             !context.isPowerSaveMode() &&
@@ -288,12 +314,16 @@ constructor(
             loaderScope.async {
                 counter.incrementAndGet()
                 try {
-                    loadPageImpl(
-                        page = page,
-                        progress = progress,
-                        isPrefetch = isPrefetch,
-                        skipCache = skipCache,
-                    )
+                    val load =
+                        suspend {
+                            loadPageImpl(
+                                page = page,
+                                progress = progress,
+                                isPrefetch = isPrefetch,
+                                skipCache = skipCache,
+                            )
+                        }
+                    if (isPrefetch) prefetchGate.withPermit { load() } else load()
                 } finally {
                     if (counter.decrementAndGet() == 0) {
                         onIdle()
@@ -379,6 +409,10 @@ constructor(
 
     companion object {
         private const val PROGRESS_UNDEFINED = -1f
+        private const val PERMITS_DEFAULT = 5
+        private const val PERMITS_CONSTRAINED = 3
+        private const val PREFETCH_PERMITS_DEFAULT = 3
+        private const val PREFETCH_PERMITS_CONSTRAINED = 2
         private const val PREFETCH_LIMIT_DEFAULT = 6
         private const val PREFETCH_LIMIT_CONSTRAINED = 2
         private const val PREFETCH_MIN_RAM_MB = 80L

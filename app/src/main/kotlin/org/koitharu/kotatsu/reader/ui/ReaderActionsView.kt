@@ -25,13 +25,13 @@ import org.koitharu.kotatsu.core.util.ext.hasVisibleChildren
 import org.koitharu.kotatsu.core.util.ext.isRtl
 import org.koitharu.kotatsu.core.util.ext.setContentDescriptionAndTooltip
 import org.koitharu.kotatsu.core.util.ext.setTooltipCompat
+import org.koitharu.kotatsu.core.util.ext.setThumbVisible
 import org.koitharu.kotatsu.core.util.ext.setValueRounded
 import org.koitharu.kotatsu.databinding.LayoutReaderActionsBinding
 import org.koitharu.kotatsu.details.ui.pager.ChaptersPagesSheet
 import org.koitharu.kotatsu.details.ui.pager.ChaptersPagesSheet.Companion.TAB_PAGES
 import org.koitharu.kotatsu.reader.ui.ReaderControlDelegate.OnInteractionListener
 import javax.inject.Inject
-import com.google.android.material.R as materialR
 
 @AndroidEntryPoint
 class ReaderActionsView @JvmOverloads constructor(
@@ -309,17 +309,4 @@ class ReaderActionsView @JvmOverloads constructor(
         Settings.System.ACCELEROMETER_ROTATION,
         0,
     ) == 1
-
-    private fun Slider.setThumbVisible(visible: Boolean) {
-        thumbWidth = if (visible) {
-            resources.getDimensionPixelSize(materialR.dimen.m3_comp_slider_active_handle_width)
-        } else {
-            0
-        }
-        thumbHeight = if (visible) {
-            resources.getDimensionPixelSize(materialR.dimen.m3_comp_slider_active_handle_height)
-        } else {
-            0
-        }
-    }
 }
