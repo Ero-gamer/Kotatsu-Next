@@ -58,9 +58,9 @@ import org.koitharu.kotatsu.core.util.ext.hasGlobalPoint
 import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
-import org.koitharu.kotatsu.core.util.ext.postDelayed
 import org.koitharu.kotatsu.core.util.ext.setThumbVisible
 import org.koitharu.kotatsu.core.util.ext.setValueRounded
+import org.koitharu.kotatsu.core.util.ext.postDelayed
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
 import org.koitharu.kotatsu.core.util.ext.zipWithPrevious
 import org.koitharu.kotatsu.databinding.ActivityReaderBinding
@@ -161,8 +161,13 @@ class ReaderActivity :
             addOnSliderTouchListener(
                 object : Slider.OnSliderTouchListener {
                     override fun onStartTrackingTouch(slider: Slider) {
-                        isVerticalSliderChanged = false
-                        isVerticalSliderTracking = true
+                        // Material reports a tap as start-start-stop (the tap handler starts tracking a second
+                        // time on ACTION_UP). Resetting the changed flag on that second start made every tap
+                        // look like "nothing changed" and the page was never switched.
+                        if (!isVerticalSliderTracking) {
+                            isVerticalSliderChanged = false
+                            isVerticalSliderTracking = true
+                        }
                     }
 
                     override fun onStopTrackingTouch(slider: Slider) {
@@ -403,7 +408,7 @@ class ReaderActivity :
         if (usable && sliderAvailable) {
             setUiIsVisible(true)
         } else {
-            viewBinding.containerSliderVertical?.isVisible = false
+            setVerticalSliderVisible(false)
             if (viewBinding.appbarTop.isVisible) setUiIsVisible(false)
         }
     }
@@ -443,8 +448,9 @@ class ReaderActivity :
             val isFullscreen = settings.isReaderFullscreenEnabled
             viewBinding.appbarTop.isVisible = isUiVisible
             viewBinding.toolbarDocked?.isVisible = isUiVisible
-            viewBinding.containerSliderVertical?.isVisible =
-                isUiVisible && isVerticalSliderUsable() && (viewModel.uiState.value?.isSliderAvailable() == true)
+            setVerticalSliderVisible(
+                isUiVisible && isVerticalSliderUsable() && (viewModel.uiState.value?.isSliderAvailable() == true),
+            )
             viewBinding.infoBar.isGone = isUiVisible || (!viewModel.isInfoBarEnabled.value)
             viewBinding.infoBar.isTimeVisible = isFullscreen
             updateScrollTimerButton()
@@ -607,8 +613,17 @@ class ReaderActivity :
         viewBinding.actionsView.isPrevEnabled = uiState.hasPreviousChapter()
         viewBinding.buttonPrevVertical?.isEnabled = uiState.hasPreviousChapter()
         viewBinding.buttonNextVertical?.isEnabled = uiState.hasNextChapter()
-        viewBinding.containerSliderVertical?.isVisible =
-            viewBinding.appbarTop.isVisible && useVertical && uiState.isSliderAvailable()
+        setVerticalSliderVisible(viewBinding.appbarTop.isVisible && useVertical && uiState.isSliderAvailable())
+    }
+
+    private fun setVerticalSliderVisible(visible: Boolean) {
+        viewBinding.containerSliderVertical?.isVisible = visible
+        if (!visible) {
+            // A hidden slider never delivers the stop-tracking event; a stale "tracking" flag would
+            // freeze the thumb (it is not written back to the current page while tracking).
+            isVerticalSliderTracking = false
+            isVerticalSliderChanged = false
+        }
     }
 
     /** The vertical slider only exists in some layouts (not on wide landscape screens). */

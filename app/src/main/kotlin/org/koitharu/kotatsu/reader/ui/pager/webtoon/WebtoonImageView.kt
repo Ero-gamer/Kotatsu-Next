@@ -59,6 +59,8 @@ class WebtoonImageView @JvmOverloads constructor(
         }
     }
 
+    override fun isTileLoadingDeferred(): Boolean = (host as? WebtoonRecyclerView)?.isFastScrolling == true
+
     override val tileKeepSlop: Int
         get() = prefetchMargin / 2
 

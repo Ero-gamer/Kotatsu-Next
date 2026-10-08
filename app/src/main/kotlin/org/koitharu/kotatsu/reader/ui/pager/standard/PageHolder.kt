@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.graphics.PointF
 import android.os.Build
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.RoundedCorner
 import android.view.View
 import android.view.WindowInsets
@@ -50,17 +49,15 @@ open class PageHolder(
 
     override val ssiv = binding.ssiv
 
-    // Stored as a field so onRecycled() can cancel any pending postDelayed call.
-    // Each onReady() replaces this with a fresh Runnable for the new image's scale.
-    private var scheduleNextTarget: Runnable? = null
-
     init {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
     }
 
     private companion object {
-        const val ZOOM_STAGE_1 = 2.5f
-        const val ZOOM_STAGE_2 = 4.5f
+        // Double-tap stages, as multiples of the page's fit scale (100% = how the page is first shown).
+        const val ZOOM_STAGE_1 = 2f
+        const val ZOOM_STAGE_2 = 2.5f
+        const val PINCH_FILL_FACTOR = 4f
         const val MAX_ZOOM_SCALE = 7f
         const val KEEP_START_MAX_SCALE = 6f
     }
@@ -88,44 +85,24 @@ open class PageHolder(
     }
 
     override fun onRecycled() {
-        binding.ssiv.removeCallbacks(scheduleNextTarget)
-        scheduleNextTarget = null
-        binding.ssiv.setOnTouchListener(null)
+        binding.ssiv.doubleTapZoomStages = null
         super.onRecycled()
     }
 
     /**
-     * Installs the pinch ceiling and the 3-stage double-tap zoom (fit → stage 1 → stage 2 → fit).
-     * Stages are 2.5× and 4.5× the "fill" scale (the larger of the width-fill and height-fill
-     * ratios); the ceiling is capped at [MAX_ZOOM_SCALE] and the stages shrink with it so a
-     * double tap can always reach its target. Shared by the standard and the reversed (manga) pager.
-     * ZOOM_FOCUS_FIXED anchors the zoom to the tap point (same as webtoon). After each animation
-     * a delayed check reads the settled scale and primes doubleTapZoomScale for the next tap.
+     * Installs the pinch ceiling and the deterministic double-tap stages (fit → 2× → 2.5× → fit),
+     * both relative to the final fit scale, so call it after the zoom mode has been applied.
+     * Shared by the standard and the reversed (manga) pager.
      */
-    protected fun setupDoubleTapZoom() {
+    protected fun setupDoubleTapZoom(minCeiling: Float = 0f) {
         val ssiv = binding.ssiv
+        if (!ssiv.isReady) return
+        val fit = ssiv.minScale
+        if (fit <= 0f) return
         val fill = maxOf(ssiv.width / ssiv.sWidth.toFloat(), ssiv.height / ssiv.sHeight.toFloat())
-        val top = minOf(ZOOM_STAGE_2 * fill, MAX_ZOOM_SCALE)
-        val half = top * (ZOOM_STAGE_1 / ZOOM_STAGE_2)
-        ssiv.maxScale = top
-        ssiv.doubleTapZoomScale = half
-        ssiv.removeCallbacks(scheduleNextTarget)
-        val target =
-            object : Runnable {
-                override fun run() {
-                    if (!ssiv.isReady) return
-                    val eps = ssiv.minScale * 0.05f
-                    ssiv.doubleTapZoomScale = if (ssiv.scale >= half - eps) top else half
-                }
-            }
-        scheduleNextTarget = target
-        ssiv.setOnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_UP) {
-                v.removeCallbacks(target)
-                v.postDelayed(target, 550L)
-            }
-            false
-        }
+        val pinchCeiling = minOf(PINCH_FILL_FACTOR * fill, MAX_ZOOM_SCALE)
+        ssiv.maxScale = maxOf(ZOOM_STAGE_2 * fit, pinchCeiling, minCeiling)
+        ssiv.doubleTapZoomStages = floatArrayOf(ZOOM_STAGE_1 * fit, ZOOM_STAGE_2 * fit)
     }
 
     override fun onReady() {
@@ -136,7 +113,6 @@ open class PageHolder(
                 4f * maxOf(ssiv.width / ssiv.sWidth.toFloat(), ssiv.height / ssiv.sHeight.toFloat()),
                 KEEP_START_MAX_SCALE,
             )
-        setupDoubleTapZoom()
         applyColorFilter()
         when (settings.zoomMode) {
             ZoomMode.FIT_CENTER -> {
@@ -163,6 +139,7 @@ open class PageHolder(
             }
 
             ZoomMode.KEEP_START -> {
+                binding.ssiv.maxScale = maxOf(binding.ssiv.maxScale, keepStartScale)
                 binding.ssiv.minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
                 binding.ssiv.setScaleAndCenter(
                     keepStartScale,
@@ -170,6 +147,7 @@ open class PageHolder(
                 )
             }
         }
+        setupDoubleTapZoom(if (settings.zoomMode == ZoomMode.KEEP_START) keepStartScale else 0f)
     }
 
     override fun onZoomIn() {

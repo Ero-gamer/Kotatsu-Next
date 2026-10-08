@@ -81,6 +81,9 @@ abstract class BasePageHolder<B : ViewBinding>(
             ssiv.maxTilePixels = if (constrained) TILE_PIXELS_CONSTRAINED else TILE_PIXELS_DEFAULT
             ssiv.baseLayerMaxPixels = if (constrained) BASE_PIXELS_CONSTRAINED else BASE_PIXELS_DEFAULT
             ssiv.isTightSampling = constrained
+            // Global cap on decoded tiles kept for off-screen areas (shared by all pages).
+            SubsamplingScaleImageView.tileBudgetBytes =
+                if (constrained) TILE_BUDGET_CONSTRAINED else TILE_BUDGET_DEFAULT
             ssiv.addOnImageEventListener(viewModel)
             ssiv.addOnImageEventListener(this@BasePageHolder)
         }
@@ -306,6 +309,8 @@ abstract class BasePageHolder<B : ViewBinding>(
         private const val TILE_PIXELS_CONSTRAINED = 2_359_296
         private const val BASE_PIXELS_DEFAULT = 4_000_000
         private const val BASE_PIXELS_CONSTRAINED = 3_000_000
+        private const val TILE_BUDGET_DEFAULT = 64L * 1024 * 1024
+        private const val TILE_BUDGET_CONSTRAINED = 32L * 1024 * 1024
         private val UNSET_SENTINEL = Any()
     }
 }

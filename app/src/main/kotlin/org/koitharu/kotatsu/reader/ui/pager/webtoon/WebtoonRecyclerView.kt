@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.reader.ui.pager.webtoon
 
 import android.content.Context
 import android.graphics.Canvas
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -16,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import java.util.Collections
 import java.util.LinkedList
 import java.util.WeakHashMap
+import kotlin.math.abs
 
 class WebtoonRecyclerView
 @JvmOverloads
@@ -30,6 +32,17 @@ constructor(
     private var isFixingScroll = false
 
     private val pullGestureTracker = PullGestureTracker()
+
+    /**
+     * True while the list moves faster than [FAST_SCROLL_HEIGHTS_PER_SECOND] list heights per second.
+     * Pages skip decoding detail tiles then (they would be thrown away before being seen) and catch
+     * up as soon as the list settles.
+     */
+    var isFastScrolling: Boolean = false
+        private set
+    private var scrollSpeed = 0f
+    private var lastScrollTime = 0L
+    private val settleRunnable = Runnable { endFastScroll() }
 
     var isPullGestureEnabled: Boolean = false
         set(value) {
@@ -74,6 +87,8 @@ constructor(
     }
 
     override fun onDetachedFromWindow() {
+        removeCallbacks(settleRunnable)
+        isFastScrolling = false
         pullGestureTracker.reset(notifyListener = true)
         super.onDetachedFromWindow()
     }
@@ -83,6 +98,7 @@ constructor(
         dy: Int,
     ) {
         super.onScrolled(dx, dy)
+        trackScroll(dy)
         // Pages moved inside the list without being redrawn themselves: tell them which part of
         // them is visible now so tiles are loaded ahead / released behind.
         for (i in 0 until childCount) {
@@ -116,8 +132,35 @@ constructor(
             consumed[0] = 0
             consumed[1] = consumedY
         }
+        trackScroll(dy)
         notifyScrollChanged(dy)
         return consumedY != 0 || dy == 0
+    }
+
+    private fun trackScroll(dy: Int) {
+        if (dy == 0) {
+            return
+        }
+        val now = SystemClock.uptimeMillis()
+        val dt = (now - lastScrollTime).coerceIn(1L, SPEED_WINDOW_MS)
+        lastScrollTime = now
+        scrollSpeed = scrollSpeed * SPEED_KEEP + abs(dy) * 1000f / dt * (1f - SPEED_KEEP)
+        if (!isFastScrolling && height > 0 && scrollSpeed > height * FAST_SCROLL_HEIGHTS_PER_SECOND) {
+            isFastScrolling = true
+        }
+        removeCallbacks(settleRunnable)
+        postDelayed(settleRunnable, SETTLE_DELAY_MS)
+    }
+
+    private fun endFastScroll() {
+        scrollSpeed = 0f
+        if (!isFastScrolling) {
+            return
+        }
+        isFastScrolling = false
+        for (i in 0 until childCount) {
+            (getChildAt(i) as? WebtoonFrameLayout)?.target?.requestTileRefresh()
+        }
     }
 
     private fun consumeVerticalScroll(dy: Int): Int {
@@ -396,6 +439,13 @@ constructor(
             val ssiv = child.target
             return ssiv.getScroll() >= ssiv.getScrollRange()
         }
+    }
+
+    private companion object {
+        const val FAST_SCROLL_HEIGHTS_PER_SECOND = 3f
+        const val SPEED_WINDOW_MS = 100L
+        const val SPEED_KEEP = 0.6f
+        const val SETTLE_DELAY_MS = 120L
     }
 
     private enum class PullEdge {

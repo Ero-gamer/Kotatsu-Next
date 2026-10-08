@@ -34,7 +34,7 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ReaderBackground
 import org.koitharu.kotatsu.core.prefs.ReaderMode
 import org.koitharu.kotatsu.core.util.MediatorStateFlow
-import org.koitharu.kotatsu.core.util.ext.isLowRamDevice
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 
@@ -141,9 +141,16 @@ data class ReaderSettings(
     fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
         ssiv.scaler = scaler
         ssiv.downscaler = downscaler
-        val isLowRam = ssiv.context.isLowRamDevice()
+        // ── GPU filter params — read directly, no cross-field inference ─────
+        val gpu = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled)
+
+        // Small devices (2 GB class, not only Go builds) decode pages as RGB_565 (half the memory) unless the
+        // user turned "32-bit color mode" on, which is the opt-out. Not while a GPU filter is active: that
+        // pass converts its input to ARGB_8888 and outputs ARGB_8888, so RGB_565 would save nothing and
+        // only add an extra copy and lose precision for the filters.
+        val isAutoRgb565 = !is32BitEnabled && !gpu.isAnyActive && ssiv.context.isMemoryConstrained()
         val config =
-            if (bitmapConfig == Bitmap.Config.ARGB_8888 && isLowRam && !is32BitEnabled) {
+            if (bitmapConfig == Bitmap.Config.ARGB_8888 && isAutoRgb565) {
                 Bitmap.Config.RGB_565
             } else {
                 bitmapConfig
@@ -154,9 +161,6 @@ data class ReaderSettings(
             } else {
                 BitmapQuality.STANDARD
             }
-
-        // ── GPU filter params — read directly, no cross-field inference ─────
-        val gpu = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled)
 
         // ── Factory change detection ───────────────────────────────────────
         val current = ssiv.regionDecoderFactory
