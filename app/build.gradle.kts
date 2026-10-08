@@ -44,8 +44,8 @@ android {
         applicationId = "io.github.kotatsu.next"
         minSdk = 23
         targetSdk = 37
-        versionCode = 2044
-        versionName = "9.9.3"
+        versionCode = 2045
+        versionName = "9.9.4"
 
         testInstrumentationRunner = "org.koitharu.kotatsu.HiltTestRunner"
 
