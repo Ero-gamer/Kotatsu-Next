@@ -19,7 +19,7 @@ coroutines = "1.11.0"
 # "AGP 9 support was held back from this release because it forces users onto AGP 9"), so it's
 # the safe ceiling while `gradle` above stays on 8.13.2. See also the `hilt` key's note.
 dagger = "2.58"
-decoroutinator = "2.6.4"
+decoroutinator = "2.6.6"
 desugar = "2.1.5"
 diskLruCache = "1.5"
 documentfile = "1.1.0"
