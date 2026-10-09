@@ -21,7 +21,7 @@ coroutines = "1.11.0"
 dagger = "2.58"
 decoroutinator = "2.6.4"
 desugar = "2.1.5"
-diskLruCache = "1.5"
+diskLruCache = "1.8"
 documentfile = "1.1.0"
 fragment = "1.8.9"
 # AGP 9.x is the current latest major, but requires migrating deprecated DSL (kotlinOptions,
