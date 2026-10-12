@@ -41,7 +41,7 @@ jobs:
           echo "FILE_NAME=$OUTPUT_FILE" >> $GITHUB_ENV
 
       - name: Upload Markdown Log as Artifact
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: commit-log
           path: ${{ env.FILE_NAME }}
