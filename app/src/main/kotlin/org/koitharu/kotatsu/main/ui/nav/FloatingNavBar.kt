@@ -54,17 +54,17 @@ import androidx.compose.ui.viewinterop.AndroidView
 import org.koitharu.kotatsu.R
 
 data class FloatingNavBarItem(
-	@IdRes val id: Int,
-	@StringRes val titleRes: Int,
-	@DrawableRes val icon: Int,
-	val badgeCount: Int = 0,
+    @IdRes val id: Int,
+    @StringRes val titleRes: Int,
+    @DrawableRes val icon: Int,
+    val badgeCount: Int = 0,
 )
 
 data class FloatingNavBarColors(
-	val container: Int,
-	val selectedContainer: Int,
-	val selectedContent: Int,
-	val unselectedContent: Int,
+    val container: Int,
+    val selectedContainer: Int,
+    val selectedContent: Int,
+    val unselectedContent: Int,
 )
 
 // The M3 Expressive default spatial spring. Snappier than Compose's own default, and shared by the
@@ -76,185 +76,185 @@ private val SpringSize = spring<IntSize>(dampingRatio = 0.9f, stiffness = 380f)
 @Suppress("ktlint:standard:function-naming")
 @Composable
 fun FloatingNavBar(
-	items: List<FloatingNavBarItem>,
-	selectedId: Int,
-	showLabels: Boolean,
-	colors: FloatingNavBarColors,
-	onItemSelected: (Int) -> Unit,
-	onItemReselected: (Int) -> Unit,
-	modifier: Modifier = Modifier,
-	showContinue: Boolean = false,
-	onContinueClick: () -> Unit = {},
+    items: List<FloatingNavBarItem>,
+    selectedId: Int,
+    showLabels: Boolean,
+    colors: FloatingNavBarColors,
+    onItemSelected: (Int) -> Unit,
+    onItemReselected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    showContinue: Boolean = false,
+    onContinueClick: () -> Unit = {},
 ) {
-	if (items.isEmpty()) return
-	val colorScheme = MaterialTheme.colorScheme
-	val barColor = Color(colors.container)
+    if (items.isEmpty()) return
+    val colorScheme = MaterialTheme.colorScheme
+    val barColor = Color(colors.container)
 
-	Row(
-		modifier = modifier.wrapContentWidth(),
-		horizontalArrangement = Arrangement.spacedBy(8.dp),
-		verticalAlignment = Alignment.CenterVertically,
-	) {
-		Surface(
-			modifier = Modifier
-				.shadow(8.dp, RoundedCornerShape(50))
-				.wrapContentWidth(),
-			shape = RoundedCornerShape(50),
-			color = barColor,
-			contentColor = colorScheme.onSurface,
-		) {
-			Row(
-				modifier = Modifier
-					.heightIn(min = 64.dp)
-					.padding(horizontal = 8.dp, vertical = 8.dp)
-					// Relayout the siblings smoothly as the selected pill grows or shrinks.
-					.animateContentSize(animationSpec = SpringSize),
-				horizontalArrangement = Arrangement.spacedBy(4.dp),
-				verticalAlignment = Alignment.CenterVertically,
-			) {
-				items.forEach { item ->
-					FloatingNavItem(
-						item = item,
-						selected = item.id == selectedId,
-						showLabel = showLabels,
-						colors = colors,
-						onClick = {
-							if (item.id == selectedId) {
-								onItemReselected(item.id)
-							} else {
-								onItemSelected(item.id)
-							}
-						},
-					)
-				}
-			}
-		}
-		// Standalone circular "continue reading" button living beside the bar. It slides along as the
-		// bar resizes so the two read as one floating toolbar.
-		AnimatedVisibility(
-			visible = showContinue,
-			enter = fadeIn(animationSpec = SpringFloat) +
-				expandHorizontally(animationSpec = SpringSize, expandFrom = Alignment.Start),
-			exit = fadeOut(animationSpec = SpringFloat) +
-				shrinkHorizontally(animationSpec = SpringSize, shrinkTowards = Alignment.Start),
-		) {
-			FloatingContinueButton(colors = colors, onClick = onContinueClick)
-		}
-	}
+    Row(
+        modifier = modifier.wrapContentWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            modifier = Modifier
+                .shadow(8.dp, RoundedCornerShape(50))
+                .wrapContentWidth(),
+            shape = RoundedCornerShape(50),
+            color = barColor,
+            contentColor = colorScheme.onSurface,
+        ) {
+            Row(
+                modifier = Modifier
+                    .heightIn(min = 64.dp)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    // Relayout the siblings smoothly as the selected pill grows or shrinks.
+                    .animateContentSize(animationSpec = SpringSize),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                items.forEach { item ->
+                    FloatingNavItem(
+                        item = item,
+                        selected = item.id == selectedId,
+                        showLabel = showLabels,
+                        colors = colors,
+                        onClick = {
+                            if (item.id == selectedId) {
+                                onItemReselected(item.id)
+                            } else {
+                                onItemSelected(item.id)
+                            }
+                        },
+                    )
+                }
+            }
+        }
+        // Standalone circular "continue reading" button living beside the bar. It slides along as the
+        // bar resizes so the two read as one floating toolbar.
+        AnimatedVisibility(
+            visible = showContinue,
+            enter = fadeIn(animationSpec = SpringFloat) +
+                expandHorizontally(animationSpec = SpringSize, expandFrom = Alignment.Start),
+            exit = fadeOut(animationSpec = SpringFloat) +
+                shrinkHorizontally(animationSpec = SpringSize, shrinkTowards = Alignment.Start),
+        ) {
+            FloatingContinueButton(colors = colors, onClick = onContinueClick)
+        }
+    }
 }
 
 @Composable
 private fun FloatingContinueButton(
-	colors: FloatingNavBarColors,
-	onClick: () -> Unit,
+    colors: FloatingNavBarColors,
+    onClick: () -> Unit,
 ) {
-	val container by animateColorAsState(
-		targetValue = Color(colors.selectedContainer),
-		animationSpec = SpringColor,
-		label = "continueContainer",
-	)
-	val content by animateColorAsState(
-		targetValue = Color(colors.selectedContent),
-		animationSpec = SpringColor,
-		label = "continueContent",
-	)
-	val label = stringResource(R.string._continue)
-	Surface(
-		onClick = onClick,
-		shape = CircleShape,
-		color = container,
-		contentColor = content,
-		shadowElevation = 8.dp,
-		modifier = Modifier
-			.size(56.dp)
-			.semantics { contentDescription = label },
-	) {
-		Box(contentAlignment = Alignment.Center) {
-			Icon(
-				painter = painterResource(R.drawable.ic_read),
-				contentDescription = null,
-				tint = content,
-				modifier = Modifier.size(24.dp),
-			)
-		}
-	}
+    val container by animateColorAsState(
+        targetValue = Color(colors.selectedContainer),
+        animationSpec = SpringColor,
+        label = "continueContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = Color(colors.selectedContent),
+        animationSpec = SpringColor,
+        label = "continueContent",
+    )
+    val label = stringResource(R.string._continue)
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = container,
+        contentColor = content,
+        shadowElevation = 8.dp,
+        modifier = Modifier
+            .size(56.dp)
+            .semantics { contentDescription = label },
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painter = painterResource(R.drawable.ic_read),
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+    }
 }
 
 @Composable
 private fun FloatingNavItem(
-	item: FloatingNavBarItem,
-	selected: Boolean,
-	showLabel: Boolean,
-	colors: FloatingNavBarColors,
-	onClick: () -> Unit,
+    item: FloatingNavBarItem,
+    selected: Boolean,
+    showLabel: Boolean,
+    colors: FloatingNavBarColors,
+    onClick: () -> Unit,
 ) {
-	val container by animateColorAsState(
-		targetValue = if (selected) Color(colors.selectedContainer) else Color.Transparent,
-		animationSpec = SpringColor,
-		label = "navItemContainer",
-	)
-	val content by animateColorAsState(
-		targetValue = if (selected) Color(colors.selectedContent) else Color(colors.unselectedContent),
-		animationSpec = SpringColor,
-		label = "navItemContent",
-	)
-	val title = stringResource(item.titleRes)
-	val interactionSource = remember { MutableInteractionSource() }
+    val container by animateColorAsState(
+        targetValue = if (selected) Color(colors.selectedContainer) else Color.Transparent,
+        animationSpec = SpringColor,
+        label = "navItemContainer",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) Color(colors.selectedContent) else Color(colors.unselectedContent),
+        animationSpec = SpringColor,
+        label = "navItemContent",
+    )
+    val title = stringResource(item.titleRes)
+    val interactionSource = remember { MutableInteractionSource() }
 
-	Box(
-		modifier = Modifier
-			.height(48.dp)
-			.background(color = container, shape = CircleShape)
-			.clickable(
-				interactionSource = interactionSource,
-				indication = null,
-				onClick = onClick,
-			)
-			.semantics {
-				this.selected = selected
-				role = Role.Tab
-				contentDescription = title
-			},
-		contentAlignment = Alignment.Center,
-	) {
-		Row(
-			modifier = Modifier.padding(horizontal = 14.dp),
-			verticalAlignment = Alignment.CenterVertically,
-			horizontalArrangement = Arrangement.Center,
-		) {
-			BadgedBox(
-				badge = {
-					if (item.badgeCount > 0) {
-						Badge { Text(text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString()) }
-					} else if (item.badgeCount < 0) {
-						Badge()
-					}
-				},
-			) {
-				NavIcon(
-					resId = item.icon,
-					selected = selected,
-					tint = content,
-					modifier = Modifier.size(24.dp),
-				)
-			}
-			AnimatedVisibility(
-				visible = selected && showLabel,
-				enter = expandHorizontally(animationSpec = SpringSize, expandFrom = Alignment.Start) +
-					fadeIn(animationSpec = SpringFloat),
-				exit = shrinkHorizontally(animationSpec = SpringSize, shrinkTowards = Alignment.Start) +
-					fadeOut(animationSpec = SpringFloat),
-			) {
-				Text(
-					text = title,
-					color = content,
-					style = MaterialTheme.typography.labelMedium,
-					maxLines = 1,
-					modifier = Modifier.padding(start = 8.dp),
-				)
-			}
-		}
-	}
+    Box(
+        modifier = Modifier
+            .height(48.dp)
+            .background(color = container, shape = CircleShape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .semantics {
+                this.selected = selected
+                role = Role.Tab
+                contentDescription = title
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            BadgedBox(
+                badge = {
+                    if (item.badgeCount > 0) {
+                        Badge { Text(text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString()) }
+                    } else if (item.badgeCount < 0) {
+                        Badge()
+                    }
+                },
+            ) {
+                NavIcon(
+                    resId = item.icon,
+                    selected = selected,
+                    tint = content,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            AnimatedVisibility(
+                visible = selected && showLabel,
+                enter = expandHorizontally(animationSpec = SpringSize, expandFrom = Alignment.Start) +
+                    fadeIn(animationSpec = SpringFloat),
+                exit = shrinkHorizontally(animationSpec = SpringSize, shrinkTowards = Alignment.Start) +
+                    fadeOut(animationSpec = SpringFloat),
+            ) {
+                Text(
+                    text = title,
+                    color = content,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+    }
 }
 
 private val StateChecked = intArrayOf(android.R.attr.state_checked)
@@ -268,42 +268,42 @@ private val StateUnchecked = intArrayOf(-android.R.attr.state_checked)
  */
 @Composable
 private fun NavIcon(
-	@DrawableRes resId: Int,
-	selected: Boolean,
-	tint: Color,
-	modifier: Modifier = Modifier,
+    @DrawableRes resId: Int,
+    selected: Boolean,
+    tint: Color,
+    modifier: Modifier = Modifier,
 ) {
-	AndroidView(
-		modifier = modifier,
-		factory = { ctx ->
-			ImageView(ctx).apply {
-				scaleType = ImageView.ScaleType.FIT_CENTER
-				setImageResource(resId)
-				// Prime the state without a transition, so the morph does not fire on first paint.
-				setImageState(IntArray(0), false)
-				jumpDrawablesToCurrentState()
-			}
-		},
-		update = { imageView ->
-			val targetResId = when {
-				resId == R.drawable.ic_explore_selector && selected -> R.drawable.ic_explore_checked
-				resId == R.drawable.ic_explore_selector -> R.drawable.ic_explore_normal
-				else -> resId
-			}
-			val resourceChanged = imageView.tag != targetResId
-			if (resourceChanged) {
-				imageView.setImageResource(targetResId)
-				imageView.tag = targetResId
-			}
-			if (resourceChanged || imageView.isSelected != selected) {
-				imageView.isSelected = selected
-				imageView.isActivated = selected
-				imageView.setImageState(if (selected) StateChecked else StateUnchecked, false)
-			}
-			val tintColor = tint.toArgb()
-			imageView.imageTintList = ColorStateList.valueOf(tintColor)
-			imageView.drawable?.mutate()?.setTint(tintColor)
-			imageView.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
-		},
-	)
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            ImageView(ctx).apply {
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setImageResource(resId)
+                // Prime the state without a transition, so the morph does not fire on first paint.
+                setImageState(IntArray(0), false)
+                jumpDrawablesToCurrentState()
+            }
+        },
+        update = { imageView ->
+            val targetResId = when {
+                resId == R.drawable.ic_explore_selector && selected -> R.drawable.ic_explore_checked
+                resId == R.drawable.ic_explore_selector -> R.drawable.ic_explore_normal
+                else -> resId
+            }
+            val resourceChanged = imageView.tag != targetResId
+            if (resourceChanged) {
+                imageView.setImageResource(targetResId)
+                imageView.tag = targetResId
+            }
+            if (resourceChanged || imageView.isSelected != selected) {
+                imageView.isSelected = selected
+                imageView.isActivated = selected
+                imageView.setImageState(if (selected) StateChecked else StateUnchecked, false)
+            }
+            val tintColor = tint.toArgb()
+            imageView.imageTintList = ColorStateList.valueOf(tintColor)
+            imageView.drawable?.mutate()?.setTint(tintColor)
+            imageView.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
+        },
+    )
 }
