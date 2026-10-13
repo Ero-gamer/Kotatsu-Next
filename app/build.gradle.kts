@@ -16,15 +16,15 @@ plugins {
 
 configurations.all {
     resolutionStrategy {
-        force("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
-        force("org.jetbrains.kotlin:kotlin-reflect:2.3.20")
-        force("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.3.20")
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.4.21")
+        force("org.jetbrains.kotlin:kotlin-reflect:2.4.21")
+        force("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.4.21")
 
         eachDependency {
             if (requested.group == "org.jetbrains.kotlin" &&
                 (requested.name == "kotlin-stdlib-jdk7" || requested.name == "kotlin-stdlib-jdk8")
             ) {
-                useTarget("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+                useTarget("org.jetbrains.kotlin:kotlin-stdlib:2.4.21")
             }
         }
     }
