@@ -17,29 +17,30 @@ coroutines = "1.11.0"
 # plugin ("This release adds support for AGP 9, which means AGP 9 is now a requirement").
 # 2.58 is the last release built specifically to avoid forcing that (its own release notes:
 # "AGP 9 support was held back from this release because it forces users onto AGP 9"), so it's
-# the safe ceiling while `gradle` above stays on 8.13.2. See also the `hilt` key's note.
+# the safe ceiling while `agp` above stays on 8.13.2. See also the `hilt` key's note.
 dagger = "2.58"
 decoroutinator = "2.6.4"
+# detekt: 1.23.8 is the latest STABLE; the dev.detekt 2.x line is still alpha (2.0.0-alpha.6).
+detekt = "1.23.8"
 desugar = "2.1.5"
 diskLruCache = "1.5"
 documentfile = "1.1.0"
 fragment = "1.8.9"
-# AGP 9.x is the current latest major, but requires migrating deprecated DSL (kotlinOptions,
-# defaultConfig.targetSdk) that this build still uses, and androidx.hilt 1.4.0 requires
-# AGP >= 9.2.0 for Compose — so bumping hilt would force an AGP 9 bump too. Staying on the
-# latest stable 8.x patch until that migration is done. See :library's build.gradle.kts for
-# the same reasoning applied to the SSIV module.
-gradle = "8.13.2"
+# AGP 9.x needs Gradle >= 9.5 and a DSL migration; androidx.hilt 1.4.0 and Dagger >= 2.59 require
+# AGP >= 9, so AGP stays on the latest 8.x patch (Kotlin 2.4.x supports AGP 8.5.2+). See :library.
+agp = "8.13.2"
 guava = "33.6.0-jre"
 # NOT bumped to 1.4.0: that release requires AGP >= 9.2.0 when using Compose (which this app
-# does). Bumping AGP that far is a separate, larger migration — see the `gradle` key above.
+# does). Bumping AGP that far is a separate, larger migration — see the `agp` key above.
 hilt = "1.3.0"
 json = "20260522"
 junit = "6.1.2"
 junitKtx = "1.3.0"
-kotlin = "2.2.21"
+kotlin = "2.4.21"
 kizzyRpc = "ad8f2e32eb"
-ksp = "2.2.21-2.0.5"
+ksp = "2.3.11"
+# ktlint engine used by Spotless (1.8.0 = latest stable).
+ktlint = "1.8.0"
 leakcanary = "3.0-alpha-8"
 lifecycle = "2.10.0"
 markwon = "4.6.2"
@@ -53,7 +54,8 @@ preference = "1.2.1"
 recyclerview = "1.4.0"
 room = "2.8.5"
 serialization = "1.9.0"
-ssiv = "7.20"
+spotless = "8.10.4"
+ssiv = "7.00"
 swiperefreshlayout = "1.2.0"
 testRules = "1.7.0"
 testRunner = "1.7.0"
@@ -139,12 +141,14 @@ workinspector = { module = "com.github.Koitharu:WorkInspector", version.ref = "w
 androidx-window = { module = "androidx.window:window", version.ref = "window" }
 
 [plugins]
-android-application = { id = "com.android.application", version.ref = "gradle" }
+android-application = { id = "com.android.application", version.ref = "agp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "dagger" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 # Tracks the Kotlin version, not DropSauce's: the Compose compiler plugin has to match the compiler.
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinx-serizliation = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 room = { id = "androidx.room", version.ref = "room" }
 decoroutinator = { id = "dev.reformator.stacktracedecoroutinator", version.ref = "decoroutinator" }

@@ -17,6 +17,46 @@
 		app:trimImage="true"
 		tools:src="@drawable/ic_placeholder" />
 
+	<LinearLayout
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="top|start"
+		android:layout_margin="@dimen/card_indicator_offset"
+		android:orientation="horizontal">
+
+		<TextView
+			android:id="@+id/textView_format"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:background="@drawable/bg_badge_format"
+			android:paddingHorizontal="5dp"
+			android:paddingVertical="1dp"
+			android:singleLine="true"
+			android:textColor="?attr/colorOnSecondaryContainer"
+			android:textSize="10sp"
+			android:textStyle="bold"
+			android:visibility="gone"
+			tools:text="WEBP"
+			tools:visibility="visible" />
+
+		<TextView
+			android:id="@+id/textView_animated"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="3dp"
+			android:background="@drawable/bg_badge_format"
+			android:paddingHorizontal="5dp"
+			android:paddingVertical="1dp"
+			android:singleLine="true"
+			android:text="@string/page_badge_animated_label"
+			android:textColor="?attr/colorOnSecondaryContainer"
+			android:textSize="10sp"
+			android:textStyle="bold"
+			android:visibility="gone"
+			tools:visibility="visible" />
+
+	</LinearLayout>
+
 	<TextView
 		android:id="@+id/textView_number"
 		android:layout_width="@dimen/card_indicator_size"

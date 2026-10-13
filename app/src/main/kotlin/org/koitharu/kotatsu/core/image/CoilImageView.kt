@@ -30,6 +30,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.os.NetworkState
+import org.koitharu.kotatsu.core.util.ext.allowAnimation
 import org.koitharu.kotatsu.core.util.ext.decodeRegion
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
 import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
@@ -55,6 +56,9 @@ constructor(
     lateinit var networkState: NetworkState
 
     var allowRgb565: Boolean = false
+
+    /** Only the full-screen reader views enable this; everything else shows the first frame. */
+    var allowAnimation: Boolean = false
     var useExistingDrawable: Boolean = false
     var decodeRegion: Boolean = false
     var exactImageSize: Size? = null
@@ -210,6 +214,7 @@ constructor(
         scale(scaleType.toCoilScale())
         listener(this@CoilImageView)
         allowRgb565(allowRgb565)
+        allowAnimation(allowAnimation)
         target(this@CoilImageView)
     }
 

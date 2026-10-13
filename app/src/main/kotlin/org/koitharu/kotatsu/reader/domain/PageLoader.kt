@@ -21,6 +21,7 @@ import com.davemorrissey.labs.subscaleview.ImageSource
 import dagger.hilt.android.ActivityRetainedLifecycle
 import dagger.hilt.android.scopes.ActivityRetainedScoped
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -55,7 +56,6 @@ import org.koitharu.kotatsu.core.util.ext.ensureRamAtLeast
 import org.koitharu.kotatsu.core.util.ext.ensureSuccess
 import org.koitharu.kotatsu.core.util.ext.getCompletionResultOrNull
 import org.koitharu.kotatsu.core.util.ext.isFileUri
-import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.isNotEmpty
 import org.koitharu.kotatsu.core.util.ext.isPowerSaveMode
 import org.koitharu.kotatsu.core.util.ext.isZipUri
@@ -109,7 +109,7 @@ constructor(
     // while still protecting against runaway parallel requests on slow connections.
     // Dynamic concurrency: fewer parallel transfers (each buffers and decodes) on small devices, and
     // background prefetch can never take every permit, so a page the user is waiting for always has one.
-    private val isConstrained = context.isMemoryConstrained()
+    private val isConstrained = settings.isMemorySaverEnabled
     private val semaphore = Semaphore(if (isConstrained) PERMITS_CONSTRAINED else PERMITS_DEFAULT)
     private val prefetchGate = Semaphore(if (isConstrained) PREFETCH_PERMITS_CONSTRAINED else PREFETCH_PERMITS_DEFAULT)
 
@@ -173,7 +173,7 @@ constructor(
     fun prefetch(pages: List<ReaderPage>) = loaderScope.launch {
         prefetchLock.withLock {
             for (page in pages.asReversed()) {
-                if (tasks.containsKey(page.id)) {
+                if (synchronized(tasks) { tasks.containsKey(page.id) }) {
                     continue
                 }
                 prefetchQueue.offerFirst(page.toMangaPage())
@@ -206,7 +206,7 @@ constructor(
         page: MangaPage,
         force: Boolean,
     ): ProgressDeferred<Uri, Float> {
-        var task = tasks[page.id]?.takeIf { it.isValid() }
+        var task = synchronized(tasks) { tasks[page.id] }?.takeIf { it.isValid() }
         if (force) {
             task?.cancel()
         } else if (task?.isCancelled == false) {
@@ -232,20 +232,16 @@ constructor(
         val key = uri.toString()
         // If an identical conversion is already in-flight (e.g., two holders requesting
         // the same page), reuse the existing Deferred instead of starting a second one.
-        val existing = conversionJobs[key]
-        if (existing != null && !existing.isCompleted && !existing.isCancelled) {
+        // The job is created lazily and published atomically (putIfAbsent), so concurrent callers can
+        // never start two conversions of the same file; the loser's job is never started.
+        val candidate = loaderScope.async(start = CoroutineStart.LAZY) { doConvertBitmap(uri) }
+        val existing = conversionJobs.putIfAbsent(key, candidate)
+        if (existing != null) {
+            candidate.cancel()
             return existing.await()
         }
-        val deferred =
-            loaderScope.async {
-                try {
-                    doConvertBitmap(uri)
-                } finally {
-                    conversionJobs.remove(key)
-                }
-            }
-        conversionJobs[key] = deferred
-        return deferred.await()
+        candidate.invokeOnCompletion { conversionJobs.remove(key, candidate) }
+        return candidate.await()
     }
 
     // BUG 1 FIX: kept the old name as a deprecated alias so that any callers using the
@@ -286,7 +282,8 @@ constructor(
     suspend fun getPageUrl(page: MangaPage): String = getRepository(page.source).getPageUrl(page)
 
     suspend fun invalidate(clearCache: Boolean) {
-        tasks.clear()
+        synchronized(tasks) { tasks.clear() }
+        prefetchLock.withLock { prefetchQueue.clear() }
         loaderScope.cancelChildrenAndJoin()
         if (clearCache) {
             cache.clear()
@@ -298,7 +295,10 @@ constructor(
             while (prefetchQueue.isNotEmpty()) {
                 val page = prefetchQueue.pollFirst() ?: return@launch
                 synchronized(tasks) {
-                    tasks[page.id] = loadPageAsyncImpl(page, skipCache = false, isPrefetch = true)
+                    // A task (user-initiated or already prefetched) must not be replaced and orphaned.
+                    if (tasks[page.id]?.isValid() != true) {
+                        tasks[page.id] = loadPageAsyncImpl(page, skipCache = false, isPrefetch = true)
+                    }
                 }
             }
         }

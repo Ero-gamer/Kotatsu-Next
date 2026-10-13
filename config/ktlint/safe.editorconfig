@@ -1,0 +1,19 @@
+# Layout-only ktlint rules used by the manual "safe fix" workflows. Everything else is disabled.
+# Rules that rewrite code shape (function-signature, expression bodies, wrapping, braces,
+# parentheses, naming ...) are intentionally NOT listed: they are style opinions, not safe fixes.
+root = true
+
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+ktlint_standard = disabled
+ktlint_standard_no-trailing-spaces = enabled
+ktlint_standard_no-consecutive-blank-lines = enabled
+ktlint_standard_no-blank-line-before-rbrace = enabled
+ktlint_standard_no-multi-spaces = enabled
+ktlint_standard_final-newline = enabled
+ktlint_standard_import-ordering = enabled
+ktlint_standard_no-unused-imports = enabled
+ktlint_standard_no-semi = enabled
+ktlint_standard_indent = enabled
+indent_style = space
+indent_size = 4

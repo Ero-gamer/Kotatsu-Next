@@ -22,7 +22,6 @@ import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.list.lifecycle.RecyclerViewLifecycleDispatcher
 import org.koitharu.kotatsu.core.util.ext.firstVisibleItemPosition
-import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.removeItemDecoration
 import org.koitharu.kotatsu.databinding.FragmentReaderWebtoonBinding
@@ -90,7 +89,7 @@ class WebtoonReaderFragment :
         viewModel.isWebtoonPullGestureEnabled.observe(viewLifecycleOwner) { enabled ->
             binding.recyclerView.isPullGestureEnabled = enabled
         }
-        appSettings.observe(AppSettings.KEY_WEBTOON_MEMORY_SAVER)
+        appSettings.observe(AppSettings.KEY_WEBTOON_MEMORY_SAVER, AppSettings.KEY_MEMORY_SAVER)
             .observe(viewLifecycleOwner) {
                 applyMemorySaverMode(binding.recyclerView, appSettings.isWebtoonMemorySaverEnabled)
             }
@@ -269,8 +268,8 @@ class WebtoonReaderFragment :
      * currently bound holders.
      */
     private fun applyMemorySaverMode(recyclerView: RecyclerView, enabled: Boolean) {
-        // Devices that are not flagged "low RAM" but only have ~2 GB get the saver automatically.
-        val saver = enabled || recyclerView.context.isMemoryConstrained()
+        // Either the webtoon-specific switch or the global opt-in Memory Saver.
+        val saver = enabled || appSettings.isMemorySaverEnabled
         val cacheSize = if (saver) 0 else 2
         val poolSize = if (saver) 1 else 5
         recyclerView.setItemViewCacheSize(cacheSize)

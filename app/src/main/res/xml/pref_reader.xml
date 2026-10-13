@@ -257,6 +257,28 @@
 		android:summary="@string/show_pages_numbers_summary"
 		android:title="@string/show_pages_numbers" />
 
+	<SwitchPreferenceCompat
+		android:defaultValue="false"
+		android:icon="@drawable/ic_storage"
+		android:key="memory_saver"
+		android:summary="@string/memory_saver_summary"
+		android:title="@string/memory_saver" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="true"
+		android:icon="@drawable/ic_play"
+		android:key="reader_animated"
+		android:summary="@string/animated_images_summary"
+		android:title="@string/animated_images" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="true"
+		android:dependency="reader_animated"
+		android:icon="@drawable/ic_play"
+		android:key="reader_animated_autoplay"
+		android:summary="@string/animated_autoplay_summary"
+		android:title="@string/animated_autoplay" />
+
 	<ListPreference
 		android:defaultValue="2"
 		android:entries="@array/network_policy"

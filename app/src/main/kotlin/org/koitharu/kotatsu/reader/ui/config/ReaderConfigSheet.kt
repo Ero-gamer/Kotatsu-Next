@@ -112,6 +112,7 @@ class ReaderConfigSheet :
         }
         binding.buttonScrollTimer.setOnClickListener(this)
         binding.buttonBookmark.setOnClickListener(this)
+        binding.buttonImageInfo.setOnClickListener(this)
         binding.switchDoubleReader.setOnCheckedChangeListener(this)
         binding.switchDoubleFoldable.setOnCheckedChangeListener(this)
         binding.switchDoubleCoverPage.setOnCheckedChangeListener(this)
@@ -167,6 +168,11 @@ class ReaderConfigSheet :
 
             R.id.button_bookmark -> {
                 viewModel.toggleBookmark()
+            }
+
+            R.id.button_image_info -> {
+                router.showImageInfoSheet()
+                dismissAllowingStateLoss()
             }
 
             R.id.button_color_filter -> {

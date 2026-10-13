@@ -35,6 +35,10 @@ class EdgeDetector(private val context: Context) {
             return if (rect.isEmpty) null else rect
         }
         return mutex.withLock {
+            // Another caller may have computed this source while we were waiting for the lock.
+            cache[imageSource]?.let { rect ->
+                return@withLock if (rect.isEmpty) null else rect
+            }
             withContext(Dispatchers.IO) {
                 val decoder = SkiaPooledImageRegionDecoder(Bitmap.Config.RGB_565)
                 try {
@@ -77,9 +81,9 @@ class EdgeDetector(private val context: Context) {
                 } finally {
                     decoder.recycle()
                 }
+            }.also {
+                cache.put(imageSource, it ?: EMPTY_RECT)
             }
-        }.also {
-            cache.put(imageSource, it ?: EMPTY_RECT)
         }
     }
 

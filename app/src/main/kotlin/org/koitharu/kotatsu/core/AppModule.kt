@@ -35,9 +35,12 @@ import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.backups.domain.BackupObserver
 import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.exceptions.resolve.CaptchaHandler
+import org.koitharu.kotatsu.core.image.AnimationGatedDecoderFactory
 import org.koitharu.kotatsu.core.image.AvifImageDecoder
 import org.koitharu.kotatsu.core.image.CbzFetcher
 import org.koitharu.kotatsu.core.image.MangaSourceHeaderInterceptor
+import org.koitharu.kotatsu.core.image.codecs.NativeAnimatedDecoder
+import org.koitharu.kotatsu.core.image.codecs.NativeStillDecoder
 import org.koitharu.kotatsu.core.network.MangaHttpClient
 import org.koitharu.kotatsu.core.network.imageproxy.ImageProxyInterceptor
 import org.koitharu.kotatsu.core.os.AppShortcutManager
@@ -113,6 +116,7 @@ interface AppModule {
             coverRestoreInterceptor: CoverRestoreInterceptor,
             networkStateProvider: Provider<NetworkState>,
             captchaHandler: CaptchaHandler,
+            settings: AppSettings,
         ): ImageLoader {
             val diskCacheFactory = {
                 val rootDir = context.externalCacheDir ?: context.cacheDir
@@ -144,10 +148,12 @@ interface AppModule {
                         ),
                     )
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        add(AnimatedImageDecoder.Factory())
+                        add(AnimationGatedDecoderFactory(AnimatedImageDecoder.Factory()))
                     } else {
-                        add(GifDecoder.Factory())
+                        add(AnimationGatedDecoderFactory(GifDecoder.Factory()))
                     }
+                    add(AnimationGatedDecoderFactory(NativeAnimatedDecoder.Factory { settings.isMemorySaverEnabled }))
+                    add(NativeStillDecoder.Factory())
                     add(SvgDecoder.Factory())
                     add(CbzFetcher.Factory())
                     add(AvifImageDecoder.Factory())

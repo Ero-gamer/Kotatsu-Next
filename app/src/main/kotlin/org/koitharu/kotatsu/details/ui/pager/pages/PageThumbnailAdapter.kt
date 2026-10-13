@@ -10,11 +10,12 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 
 class PageThumbnailAdapter(
     clickListener: OnListItemClickListener<PageThumbnail>,
+    badgeConfig: () -> PageBadgeConfig,
 ) : BaseListAdapter<ListModel>(),
     FastScroller.SectionIndexer {
 
     init {
-        addDelegate(ListItemType.PAGE_THUMB, pageThumbnailAD(clickListener))
+        addDelegate(ListItemType.PAGE_THUMB, pageThumbnailAD(clickListener, badgeConfig))
         addDelegate(ListItemType.HEADER, listHeaderAD(null))
     }
 

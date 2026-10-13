@@ -22,12 +22,9 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
 
-private const val MAX_SCALE = 3f
-
-// Double-tap zoom stages (100% -> stage 1 -> stage 2 -> 100%). MAX_SCALE must stay above stage 2.
-private const val DOUBLE_TAP_STAGE_1 = 2f
-private const val DOUBLE_TAP_STAGE_2 = 2.5f
-private const val STAGE_EPSILON = 0.05f
+// Same zoom model as webtoon mode: pinch ceiling 6x, double-tap toggles 100% <-> 2.8x.
+private const val MAX_SCALE = 6f
+private const val DOUBLE_TAP_SCALE = 2.8f
 private const val MIN_SCALE = 1f
 
 class DoublePageScalingFrame @JvmOverloads constructor(
@@ -239,12 +236,7 @@ class DoublePageScalingFrame @JvmOverloads constructor(
         }
 
         override fun onDoubleTap(e: MotionEvent): Boolean {
-            // 3-step zoom cycle: 100% → 200% → 250% → 100% → …
-            val newScale = when {
-                scale < 1f + STAGE_EPSILON -> DOUBLE_TAP_STAGE_1
-                scale < DOUBLE_TAP_STAGE_1 + STAGE_EPSILON -> DOUBLE_TAP_STAGE_2
-                else -> 1f // at max or beyond: reset to 100%
-            }
+            val newScale = if (scale != 1f) 1f else DOUBLE_TAP_SCALE
             animator?.cancel()
             animator = ValueAnimator.ofFloat(scale, newScale).apply {
                 interpolator = AccelerateDecelerateInterpolator()

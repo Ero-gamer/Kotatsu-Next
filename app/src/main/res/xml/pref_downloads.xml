@@ -62,4 +62,22 @@
 
 	</PreferenceCategory>
 
+	<PreferenceCategory android:title="@string/archive_maintenance">
+
+		<Preference
+			android:icon="@drawable/ic_storage"
+			android:key="cbz_repack_stored"
+			android:persistent="false"
+			android:summary="@string/repack_stored_summary"
+			android:title="@string/repack_stored" />
+
+		<Preference
+			android:icon="@drawable/ic_edit"
+			android:key="cbz_fix_extensions"
+			android:persistent="false"
+			android:summary="@string/fix_extensions_summary"
+			android:title="@string/fix_extensions" />
+
+	</PreferenceCategory>
+
 </PreferenceScreen>

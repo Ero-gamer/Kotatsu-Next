@@ -130,6 +130,7 @@ class ReaderActionsView @JvmOverloads constructor(
         binding.buttonTimer.initAction()
         binding.buttonBookmark.initAction()
         binding.buttonFilters.initAction()
+        binding.buttonImageInfo.initAction()
         binding.switchFilters.setOnCheckedChangeListener(filterSwitchListener)
         binding.switchFilters.isChecked = isColorFilterEnabled
         binding.slider.setLabelFormatter(PageLabelFormatter())
@@ -167,6 +168,7 @@ class ReaderActionsView @JvmOverloads constructor(
             R.id.button_options -> listener?.openMenu()
             R.id.button_bookmark -> listener?.onBookmarkClick()
             R.id.button_filters -> listener?.openColorFilterConfig()
+            R.id.button_image_info -> AppRouter.from(this)?.showImageInfoSheet()
         }
     }
 
@@ -240,6 +242,7 @@ class ReaderActionsView @JvmOverloads constructor(
         binding.buttonSave.isVisible = ReaderControl.SAVE_PAGE in controls
         binding.buttonTimer.isVisible = ReaderControl.TIMER in controls
         binding.buttonBookmark.isVisible = ReaderControl.BOOKMARK in controls
+        binding.buttonImageInfo.isVisible = ReaderControl.IMAGE_INFO in controls
         binding.switchFilters.isVisible = ReaderControl.COLOR_FILTER in controls
         binding.buttonFilters.isVisible = ReaderControl.COLOR_FILTER in controls
         binding.slider.isVisible = ReaderControl.SLIDER in controls && !isVerticalSliderActive

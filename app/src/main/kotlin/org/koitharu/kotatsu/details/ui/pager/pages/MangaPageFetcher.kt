@@ -12,11 +12,15 @@ import coil3.network.NetworkHeaders
 import coil3.network.NetworkResponse
 import coil3.network.NetworkResponseBody
 import coil3.request.Options
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
+import org.koitharu.kotatsu.core.image.ImageFormatProbe
+import org.koitharu.kotatsu.core.image.PageFormatRegistry
 import org.koitharu.kotatsu.core.network.MangaHttpClient
 import org.koitharu.kotatsu.core.network.imageproxy.ImageProxyInterceptor
 import org.koitharu.kotatsu.core.parser.MangaRepository
@@ -33,6 +37,8 @@ import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import javax.inject.Inject
 
+private const val THUMBNAIL_PERMITS = 4
+
 class MangaPageFetcher(
     private val okHttpClient: OkHttpClient,
     private val pagesCache: LocalStorageCache,
@@ -43,7 +49,9 @@ class MangaPageFetcher(
     private val imageLoader: ImageLoader,
 ) : Fetcher {
 
-    override suspend fun fetch(): FetchResult? {
+    override suspend fun fetch(): FetchResult? = gate.withPermit { fetchImpl()?.also(::noteFormat) }
+
+    private suspend fun fetchImpl(): FetchResult? {
         if (!page.preview.isNullOrEmpty()) {
             runCatchingCancellable {
                 imageLoader.fetch(checkNotNull(page.preview), options)
@@ -89,6 +97,23 @@ class MangaPageFetcher(
         }
     }
 
+    /** Records the real format of what was fetched (page grids show it as a badge). Never throws. */
+    private fun noteFormat(result: FetchResult) {
+        try {
+            val source = (result as? SourceFetchResult)?.source ?: return
+            val info = source.fileOrNull()?.let { ImageFormatProbe.probe(it.toFile()) }
+                ?: source.sourceOrNull()?.peek()?.let { peek ->
+                    val available = if (peek.request(PROBE_HEAD_BYTES)) PROBE_HEAD_BYTES else peek.buffer.size
+                    if (available <= 0L) return
+                    val head = peek.readByteArray(available)
+                    ImageFormatProbe.probe(head, head.size, truncated = true)
+                }
+            if (info != null) PageFormatRegistry.record(page.id, info)
+        } catch (_: Exception) {
+            // Badges are cosmetic: a failed probe must never affect loading.
+        }
+    }
+
     private fun Response.toNetworkResponse() = NetworkResponse(
         code = code,
         requestMillis = sentRequestAtMillis,
@@ -104,6 +129,14 @@ class MangaPageFetcher(
             headers.add(key, values)
         }
         return headers.build()
+    }
+
+    private companion object {
+
+        /** Bounds concurrent thumbnail fetches/decodes while a grid of pages is scrolled quickly. */
+        val gate = Semaphore(THUMBNAIL_PERMITS)
+
+        const val PROBE_HEAD_BYTES = 32L * 1024
     }
 
     class Factory @Inject constructor(

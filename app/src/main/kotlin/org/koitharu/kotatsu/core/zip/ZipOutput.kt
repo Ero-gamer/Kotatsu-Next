@@ -9,11 +9,17 @@ import org.koitharu.kotatsu.core.util.ext.withChildren
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.zip.CRC32
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
+/**
+ * Writes a zip. Image entries are STORED (no deflate): page images are already compressed, so deflating
+ * costs CPU on every write and extract on every read for ~0% gain, and STORED entries can be
+ * memory-mapped straight out of the archive. Text entries (index, metadata) stay deflated.
+ */
 class ZipOutput(
     val file: File,
     private val compressionLevel: Int = Deflater.DEFAULT_COMPRESSION,
@@ -52,8 +58,8 @@ class ZipOutput(
     }
 
     @Blocking
-    fun copyEntryFrom(other: ZipFile, entry: ZipEntry): Boolean = if (entryNames.add(entry.name)) {
-        val zipEntry = ZipEntry(entry.name)
+    fun copyEntryFrom(other: ZipFile, entry: ZipEntry, name: String = entry.name): Boolean = if (entryNames.add(name)) {
+        val zipEntry = copiedEntry(entry, name)
         withOutput { output ->
             output.putNextEntry(zipEntry)
             try {
@@ -103,7 +109,7 @@ class ZipOutput(
                 if (!entryNames.add(name)) {
                     return false
                 }
-                val zipEntry = ZipEntry(name)
+                val zipEntry = if (isStoredName(name)) storedEntry(name, fileToZip) else ZipEntry(name)
                 putNextEntry(zipEntry)
                 try {
                     fis.copyTo(this)
@@ -152,12 +158,52 @@ class ZipOutput(
         cachedOutput = it
     }
 
+    private fun copiedEntry(entry: ZipEntry, name: String): ZipEntry {
+        if (!isStoredName(name) || entry.crc < 0 || entry.size < 0) return ZipEntry(name)
+        return ZipEntry(name).apply {
+            method = ZipEntry.STORED
+            size = entry.size
+            compressedSize = entry.size
+            crc = entry.crc
+        }
+    }
+
     private fun Closeable.closeSafe() {
         try {
             close()
         } catch (e: NullPointerException) {
             // Don't throw the "Deflater has been closed" exception
             e.printStackTraceDebug()
+        }
+    }
+
+    private companion object {
+
+        private val TEXT_SUFFIXES = arrayOf(".json", ".txt", ".xml", ".html")
+
+        /** Everything that is not a known text entry is binary (images) and gets STORED. */
+        fun isStoredName(name: String): Boolean {
+            if (name.endsWith("/")) return false
+            return TEXT_SUFFIXES.none { name.endsWith(it, ignoreCase = true) } &&
+                true
+        }
+
+        fun storedEntry(name: String, source: File): ZipEntry {
+            val crc = CRC32()
+            val buffer = ByteArray(32 * 1024)
+            FileInputStream(source).use { input ->
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    crc.update(buffer, 0, n)
+                }
+            }
+            return ZipEntry(name).apply {
+                method = ZipEntry.STORED
+                size = source.length()
+                compressedSize = source.length()
+                this.crc = crc.value
+            }
         }
     }
 }

@@ -73,6 +73,7 @@ class PagesFragment :
     private var spanResolver: GridSpanResolver? = null
     private var scrollListener: ScrollListener? = null
     private var selectionController: ListSelectionController? = null
+    private var appliedBadgeConfig: PageBadgeConfig? = null
 
     private val spanSizeLookup = SpanSizeLookup()
 
@@ -109,6 +110,7 @@ class PagesFragment :
         )
         thumbnailsAdapter = PageThumbnailAdapter(
             clickListener = this@PagesFragment,
+            badgeConfig = ::currentBadgeConfig,
         )
         viewModel.gridScale.observe(viewLifecycleOwner, ::onGridScaleChanged) // before rv initialization
         with(binding.recyclerView) {
@@ -139,6 +141,18 @@ class PagesFragment :
         viewModel.isLoadingUp.observe(viewLifecycleOwner) { binding.progressBarTop.showOrHide(it) }
         viewModel.isLoadingDown.observe(viewLifecycleOwner) { binding.progressBarBottom.showOrHide(it) }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Badge switches live in Settings: refresh the visible previews after coming back from there.
+        val config = currentBadgeConfig()
+        if (config != appliedBadgeConfig) {
+            appliedBadgeConfig = config
+            thumbnailsAdapter?.notifyDataSetChanged()
+        }
+    }
+
+    private fun currentBadgeConfig() = PageBadgeConfig.from(settings).also { appliedBadgeConfig = it }
 
     override fun onDestroyView() {
         spanResolver = null

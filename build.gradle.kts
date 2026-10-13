@@ -9,9 +9,11 @@ plugins {
     // alias(libs.plugins.decoroutinator) apply false
 
     // Code Formatting & Static Analysis
-    id("com.diffplug.spotless") version "8.10.2" apply false
-    id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
+    alias(libs.plugins.spotless) apply false
+    alias(libs.plugins.detekt) apply false
 }
+
+val ktlintVersion = libs.versions.ktlint.get()
 
 subprojects {
     // ---- Spotless Formatting Configuration ----
@@ -22,7 +24,7 @@ subprojects {
             targetExclude("**/build/**/*.kt", "**/bin/**/*.kt")
 
             // Auto-fixes formatting, spacing, & removes unused imports
-            ktlint("1.8.0").editorConfigOverride(
+            ktlint(ktlintVersion).editorConfigOverride(
                 mapOf(
                     "indent_size" to "4",
                     "continuation_indent_size" to "4",
@@ -50,7 +52,7 @@ subprojects {
         }
         kotlinGradle {
             target("**/*.gradle.kts")
-            ktlint("1.8.0")
+            ktlint(ktlintVersion)
         }
     }
 

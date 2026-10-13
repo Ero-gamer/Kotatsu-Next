@@ -3,6 +3,7 @@ package org.koitharu.kotatsu.reader.ui.pager
 import android.content.ComponentCallbacks2
 import android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
 import android.content.res.Configuration
+import android.graphics.drawable.Animatable
 import android.view.View
 import androidx.annotation.CallSuper
 import androidx.core.view.isGone
@@ -10,22 +11,32 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.viewbinding.ViewBinding
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.davemorrissey.labs.subscaleview.DefaultOnImageEventListener
+import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.image.CoilImageView
+import org.koitharu.kotatsu.core.image.ImageFormatProbe
+import org.koitharu.kotatsu.core.image.codecs.NativeAnimatedDrawable
 import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.ui.list.lifecycle.LifecycleAwareViewHolder
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
-import org.koitharu.kotatsu.core.util.ext.isAnimatedImage
-import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
+import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
+import org.koitharu.kotatsu.core.util.ext.isFileUri
 import org.koitharu.kotatsu.core.util.ext.isSerializable
+import org.koitharu.kotatsu.core.util.ext.isZipUri
 import org.koitharu.kotatsu.core.util.ext.observe
+import org.koitharu.kotatsu.core.util.ext.toFileOrNull
 import org.koitharu.kotatsu.databinding.LayoutPageInfoBinding
 import org.koitharu.kotatsu.parsers.util.ifZero
 import org.koitharu.kotatsu.reader.domain.PageLoader
@@ -58,6 +69,15 @@ abstract class BasePageHolder<B : ViewBinding>(
     protected val animatedView: CoilImageView? by lazy {
         itemView.findViewById(R.id.animatedView)
     }
+    private val animToggle: MaterialButton? by lazy {
+        itemView.findViewById(R.id.button_anim_toggle)
+    }
+
+    // Animated-page state. [animChoice] is the user's explicit play/pause (null = follow the autoplay policy).
+    private var animatedJob: Job? = null
+    private var isAnimatedPage = false
+    private var animChoice: Boolean? = null
+    private var isUnloadedBySaver = false
 
     protected val settings: ReaderSettings
         get() = viewModel.settingsProducer.value
@@ -74,16 +94,7 @@ abstract class BasePageHolder<B : ViewBinding>(
     init {
         lifecycleScope.launch(Dispatchers.Main) {
             ssiv.bindToLifecycle(this@BasePageHolder)
-            val constrained = context.isMemoryConstrained()
-            ssiv.isEagerLoadingEnabled = !constrained
-            // Bound the memory of a single decode and of the always-resident base layer; on small
-            // devices also pick the tightest sample size that is still as sharp as the screen.
-            ssiv.maxTilePixels = if (constrained) TILE_PIXELS_CONSTRAINED else TILE_PIXELS_DEFAULT
-            ssiv.baseLayerMaxPixels = if (constrained) BASE_PIXELS_CONSTRAINED else BASE_PIXELS_DEFAULT
-            ssiv.isTightSampling = constrained
-            // Global cap on decoded tiles kept for off-screen areas (shared by all pages).
-            SubsamplingScaleImageView.tileBudgetBytes =
-                if (constrained) TILE_BUDGET_CONSTRAINED else TILE_BUDGET_DEFAULT
+            applyMemoryProfile()
             ssiv.addOnImageEventListener(viewModel)
             ssiv.addOnImageEventListener(this@BasePageHolder)
         }
@@ -99,10 +110,37 @@ abstract class BasePageHolder<B : ViewBinding>(
         }
         bindingInfo.buttonRetry.setOnClickListener(clickListener)
         bindingInfo.buttonErrorDetails.setOnClickListener(clickListener)
+        animatedView?.run {
+            allowAnimation = true
+            addImageRequestListener(
+                object : ImageRequest.Listener {
+                    override fun onSuccess(request: ImageRequest, result: SuccessResult) = applyPlayback()
+                },
+            )
+        }
+        animToggle?.setOnClickListener {
+            val running = (animatedView?.drawable as? Animatable)?.isRunning == true
+            animChoice = !running
+            applyPlayback()
+        }
+    }
+
+    /**
+     * Memory limits for decoding. Standard values unless the opt-in Memory Saver is on; with it on the
+     * decode windows and the global off-screen tile budget are tightened and eager loading is off.
+     */
+    private fun applyMemoryProfile() {
+        val saver = settings.isMemorySaver
+        ssiv.isEagerLoadingEnabled = !saver
+        ssiv.maxTilePixels = if (saver) TILE_PIXELS_CONSTRAINED else TILE_PIXELS_DEFAULT
+        ssiv.baseLayerMaxPixels = if (saver) BASE_PIXELS_CONSTRAINED else BASE_PIXELS_DEFAULT
+        ssiv.isTightSampling = saver
+        SubsamplingScaleImageView.tileBudgetBytes = if (saver) TILE_BUDGET_CONSTRAINED else TILE_BUDGET_DEFAULT
     }
 
     @CallSuper
     protected open fun onConfigChanged(settings: ReaderSettings) {
+        applyMemoryProfile()
         settings.applyBackground(itemView)
         val colorFilterChanged = lastColorFilter !== UNSET_SENTINEL && lastColorFilter != settings.effectiveColorFilter
         lastColorFilter = settings.effectiveColorFilter
@@ -128,10 +166,10 @@ abstract class BasePageHolder<B : ViewBinding>(
 
     fun bind(data: ReaderPage) {
         boundData = data
+        isUnloadedBySaver = false
         tileLoadErrorCount = 0
         ssiv.isVisible = true
-        animatedView?.isVisible = false
-        animatedView?.disposeImage()
+        resetAnimated()
         viewModel.onBind(data.toMangaPage())
         onBind(data)
     }
@@ -148,6 +186,12 @@ abstract class BasePageHolder<B : ViewBinding>(
 
     override fun onResume() {
         super.onResume()
+        applyPlayback()
+        // Memory Saver releases a page's decoded image when it is left; bring it back when it is current again.
+        if (isUnloadedBySaver) {
+            isUnloadedBySaver = false
+            if (viewModel.state.value is PageState.Shown) reloadImage()
+        }
         ssiv.applyDownSampling(isForeground = true)
         if (viewModel.state.value is PageState.Error && !viewModel.isLoading()) {
             boundData?.let { viewModel.retry(it.toMangaPage(), isFromUser = false) }
@@ -156,16 +200,24 @@ abstract class BasePageHolder<B : ViewBinding>(
 
     override fun onPause() {
         super.onPause()
+        stopAnimated()
+        if (settings.isMemorySaver && !isAnimatedPage && !isUnloadedBySaver &&
+            viewModel.state.value is PageState.Shown
+        ) {
+            ssiv.recycle()
+            isUnloadedBySaver = true
+        }
         ssiv.applyDownSampling(isForeground = false)
     }
 
     override fun onDestroy() {
+        stopAnimated()
         context.unregisterComponentCallbacks(this)
         super.onDestroy()
     }
 
     open fun onAttachedToWindow() = Unit
-    open fun onDetachedFromWindow() = Unit
+    open fun onDetachedFromWindow() = stopAnimated()
 
     @CallSuper
     open fun onRecycled() {
@@ -173,7 +225,7 @@ abstract class BasePageHolder<B : ViewBinding>(
         preparingStatusRunnable = null
         viewModel.onRecycle()
         ssiv.recycle()
-        animatedView?.disposeImage()
+        resetAnimated()
         lastColorFilter = UNSET_SENTINEL
         tileLoadErrorCount = 0
     }
@@ -214,7 +266,6 @@ abstract class BasePageHolder<B : ViewBinding>(
             bindingInfo.progressBar.isIndeterminate = true
             bindingInfo.textViewStatus.setText(R.string.loading_)
         }
-        val isAnimated = boundData?.url?.isAnimatedImage() == true
         when (state) {
             is PageState.Converting -> bindingInfo.textViewStatus.setText(R.string.processing_)
 
@@ -232,19 +283,7 @@ abstract class BasePageHolder<B : ViewBinding>(
             }
 
             is PageState.Loaded -> {
-                if (isAnimated) {
-                    showAnimated(boundData!!, state)
-                    bindingInfo.layoutProgress.isGone = true
-                } else {
-                    bindingInfo.textViewStatus.setText(R.string.loading_)
-                    ssiv.setImage(state.source)
-                    ssiv.removeCallbacks(preparingStatusRunnable)
-                    preparingStatusRunnable = Runnable {
-                        if (viewModel.state.value is PageState.Loaded) {
-                            bindingInfo.textViewStatus.setText(R.string.preparing_)
-                        }
-                    }.also { ssiv.postDelayed(it, PREPARING_STATUS_DELAY_MS) }
-                }
+                routeLoaded(state)
             }
 
             is PageState.Loading -> {
@@ -263,18 +302,127 @@ abstract class BasePageHolder<B : ViewBinding>(
     // ssiv.colorFilter carries only the CPU/Canvas ColorMatrix:
     //   brightness / contrast / saturation / grayscale / invert / book-tint.
 
+    private fun wantsPlayback(): Boolean {
+        if (!isAnimatedPage || !isResumed() || !settings.isAnimatedImagesEnabled) return false
+        return animChoice ?: (settings.isAnimatedAutoplay && !settings.isMemorySaver && context.isAnimationsEnabled)
+    }
+
+    /** Starts or stops the current animation according to focus, settings and the user's choice. */
+    private fun applyPlayback() {
+        val drawable = animatedView?.drawable as? Animatable
+        if (drawable != null) {
+            if (wantsPlayback()) {
+                AnimationGate.claim(this) {
+                    (animatedView?.drawable as? Animatable)?.takeIf { it.isRunning }?.stop()
+                    updateToggle()
+                }
+                if (!drawable.isRunning) drawable.start()
+            } else {
+                if (drawable.isRunning) drawable.stop()
+                AnimationGate.release(this)
+            }
+        }
+        updateToggle()
+    }
+
+    private fun stopAnimated() {
+        (animatedView?.drawable as? Animatable)?.takeIf { it.isRunning }?.stop()
+        AnimationGate.release(this)
+        updateToggle()
+    }
+
+    private fun resetAnimated() {
+        animatedJob?.cancel()
+        animatedJob = null
+        stopAnimated()
+        isAnimatedPage = false
+        animChoice = null
+        animatedView?.isVisible = false
+        (animatedView?.drawable as? NativeAnimatedDrawable)?.release()
+        animatedView?.disposeImage()
+        animToggle?.isVisible = false
+    }
+
+    private fun updateToggle() {
+        val button = animToggle ?: return
+        button.isVisible = isAnimatedPage
+        if (!isAnimatedPage) return
+        val running = (animatedView?.drawable as? Animatable)?.isRunning == true
+        button.setIconResource(if (running) R.drawable.ic_action_pause else R.drawable.ic_play)
+        button.contentDescription = context.getString(if (running) R.string.animation_pause else R.string.animation_play)
+    }
+
     protected fun applyColorFilter() {
         if (ssiv.isReady) {
             ssiv.colorFilter = settings.effectiveColorFilter?.toColorFilter()
         }
+        if (isAnimatedPage) {
+            // Only the cheap contrast/saturation matrix applies to animations; GPU filters never do.
+            animatedView?.colorFilter = settings.effectiveColorFilter?.toColorFilter()
+        }
+    }
+
+    private fun showStatic(state: PageState.Loaded) {
+        bindingInfo.textViewStatus.setText(R.string.loading_)
+        ssiv.setImage(state.source)
+        ssiv.removeCallbacks(preparingStatusRunnable)
+        preparingStatusRunnable = Runnable {
+            if (viewModel.state.value is PageState.Loaded) {
+                bindingInfo.textViewStatus.setText(R.string.preparing_)
+            }
+        }.also { ssiv.postDelayed(it, PREPARING_STATUS_DELAY_MS) }
+    }
+
+    /**
+     * Decides animated vs static from the file content (header sniff, cached), never from the name,
+     * so wrong extensions and animated WebP/AVIF/APNG/JXL are routed correctly.
+     */
+    private fun routeLoaded(state: PageState.Loaded) {
+        val uri = (state.source as? ImageSource.Uri)?.uri
+        val page = boundData
+        if (uri == null || page == null || !settings.isAnimatedImagesEnabled || animatedView == null) {
+            showStatic(state)
+            return
+        }
+        animatedJob?.cancel()
+        animatedJob = lifecycleScope.launch {
+            val animated = withContext(Dispatchers.IO) { isAnimatedContent(uri) }
+            if (viewModel.state.value !== state) return@launch
+            if (animated) {
+                showAnimated(page, state)
+                bindingInfo.layoutProgress.isGone = true
+            } else {
+                showStatic(state)
+            }
+        }
+    }
+
+    private fun isAnimatedContent(uri: android.net.Uri): Boolean = try {
+        when {
+            uri.isFileUri() -> uri.toFileOrNull()?.let { ImageFormatProbe.probe(it).animated } == true
+
+            uri.isZipUri() -> java.util.zip.ZipFile(uri.schemeSpecificPart).use { zip ->
+                val entry = zip.getEntry(uri.fragment ?: return false) ?: return false
+                val head = ByteArray(PROBE_HEAD_BYTES)
+                val n = zip.getInputStream(entry).use { it.read(head).coerceAtLeast(0) }
+                ImageFormatProbe.probe(head, n, truncated = entry.size > n).animated
+            }
+
+            else -> false
+        }
+    } catch (e: java.io.IOException) {
+        false
     }
 
     private fun showAnimated(page: ReaderPage, loadedState: PageState.Loaded) {
         ssiv.isVisible = false
+        isAnimatedPage = true
         animatedView?.let {
+            it.colorFilter = settings.effectiveColorFilter?.toColorFilter()
             it.isVisible = true
             it.setImageAsync(page)
         }
+        updateToggle()
         viewModel.state.update { currentState ->
             if (currentState is PageState.Loaded) {
                 PageState.Shown(loadedState.source, loadedState.isConverted)
@@ -296,7 +444,7 @@ abstract class BasePageHolder<B : ViewBinding>(
         downSampling = when {
             isForeground || !usesBackgroundDownSampling || !settings.isReaderOptimizationEnabled -> 1
             BuildConfig.DEBUG -> 32
-            context.isMemoryConstrained() -> 8
+            settings.isMemorySaver -> 8
             else -> 4
         }
     }

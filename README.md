@@ -66,6 +66,10 @@
 
 **°Implemented global setting for disabling auto CF captcha solver for all sources**
 
+**°Native image pipeline** libjpeg-turbo tiled JPEG decoding plus optional Rust JPEG XL / animated PNG decoders (with automatic Skia fallback), wide-gamut JXL converted to sRGB, and smarter tile prefetch that skips formats without cheap region decoding (WebP/PNG/AVIF/GIF) to save RAM on low-end phones.
+
+All other differences from upstream: [CHANGES.md](CHANGES.md). Docs: [docs/](docs/DOCUMENTATION.md) · Third-party licenses: [CREDITS.md](CREDITS.md)
+
 </details>
 
 <details>
@@ -195,6 +199,8 @@ The developers of this application have no affiliation with the content availabl
 ---
 
 ## 🙏 Acknowledgments
+
+Full list of open-source libraries (app and SSIV) with sources and licenses: [CREDITS.md](CREDITS.md).
 
 <div align="center">
 

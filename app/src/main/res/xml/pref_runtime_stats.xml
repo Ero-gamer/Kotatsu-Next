@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen
+	xmlns:android="http://schemas.android.com/apk/res/android">
+
+	<PreferenceCategory android:title="@string/stats_memory">
+
+		<Preference
+			android:key="stat_heap"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_heap" />
+
+		<Preference
+			android:key="stat_native"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_native" />
+
+		<Preference
+			android:key="stat_pss"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_pss" />
+
+		<Preference
+			android:key="stat_system"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_system" />
+
+	</PreferenceCategory>
+
+	<PreferenceCategory android:title="@string/stats_decoding">
+
+		<Preference
+			android:key="stat_jpeg_native"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_jpeg_native" />
+
+		<Preference
+			android:key="stat_skia"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_skia" />
+
+		<Preference
+			android:key="stat_extract"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_extract" />
+
+		<Preference
+			android:key="stat_coil"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_coil" />
+
+	</PreferenceCategory>
+
+	<PreferenceCategory android:title="@string/stats_device">
+
+		<Preference
+			android:key="stat_device"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_device_info" />
+
+		<Preference
+			android:key="stat_modes"
+			android:persistent="false"
+			android:selectable="false"
+			android:title="@string/stats_modes" />
+
+	</PreferenceCategory>
+
+	<PreferenceCategory android:title="@string/stats_actions">
+
+		<Preference
+			android:key="stat_copy"
+			android:persistent="false"
+			android:title="@string/stats_copy" />
+
+		<Preference
+			android:key="stat_reset"
+			android:persistent="false"
+			android:title="@string/stats_reset" />
+
+		<Preference
+			android:key="stat_clear_cache"
+			android:persistent="false"
+			android:title="@string/stats_clear_cache" />
+
+	</PreferenceCategory>
+
+</androidx.preference.PreferenceScreen>

@@ -54,11 +54,10 @@ open class PageHolder(
     }
 
     private companion object {
-        // Double-tap stages, as multiples of the page's fit scale (100% = how the page is first shown).
-        const val ZOOM_STAGE_1 = 2f
-        const val ZOOM_STAGE_2 = 2.5f
-        const val PINCH_FILL_FACTOR = 4f
-        const val MAX_ZOOM_SCALE = 7f
+        // Same zoom model as webtoon mode (WebtoonScalingFrame), as multiples of the fit scale:
+        // double-tap toggles fit <-> 2.8x (3.5 * 0.8) about the tapped point, pinch ceiling 6x.
+        const val DOUBLE_TAP_ZOOM = 2.8f
+        const val MAX_ZOOM_SCALE = 6f
         const val KEEP_START_MAX_SCALE = 6f
     }
 
@@ -90,8 +89,8 @@ open class PageHolder(
     }
 
     /**
-     * Installs the pinch ceiling and the deterministic double-tap stages (fit → 2× → 2.5× → fit),
-     * both relative to the final fit scale, so call it after the zoom mode has been applied.
+     * Applies the webtoon zoom model: pinch ceiling [MAX_ZOOM_SCALE] and a single double-tap stage
+     * ([DOUBLE_TAP_ZOOM]) relative to the final fit scale, so call it after the zoom mode is applied.
      * Shared by the standard and the reversed (manga) pager.
      */
     protected fun setupDoubleTapZoom(minCeiling: Float = 0f) {
@@ -99,10 +98,10 @@ open class PageHolder(
         if (!ssiv.isReady) return
         val fit = ssiv.minScale
         if (fit <= 0f) return
-        val fill = maxOf(ssiv.width / ssiv.sWidth.toFloat(), ssiv.height / ssiv.sHeight.toFloat())
-        val pinchCeiling = minOf(PINCH_FILL_FACTOR * fill, MAX_ZOOM_SCALE)
-        ssiv.maxScale = maxOf(ZOOM_STAGE_2 * fit, pinchCeiling, minCeiling)
-        ssiv.doubleTapZoomStages = floatArrayOf(ZOOM_STAGE_1 * fit, ZOOM_STAGE_2 * fit)
+        ssiv.maxScale = maxOf(MAX_ZOOM_SCALE * fit, minCeiling)
+        ssiv.doubleTapZoomStages = floatArrayOf(DOUBLE_TAP_ZOOM * fit)
+        ssiv.doubleTapZoomStyle = SubsamplingScaleImageView.ZOOM_FOCUS_FIXED
+        ssiv.doubleTapZoomDuration = ssiv.resources.getInteger(R.integer.config_defaultAnimTime)
     }
 
     override fun onReady() {
@@ -151,11 +150,11 @@ open class PageHolder(
     }
 
     override fun onZoomIn() {
-        scaleBy(1.2f)
+        scaleBy(1.1f)
     }
 
     override fun onZoomOut() {
-        scaleBy(0.8f)
+        scaleBy(0.9f)
     }
 
     @SuppressLint("RtlHardcoded")

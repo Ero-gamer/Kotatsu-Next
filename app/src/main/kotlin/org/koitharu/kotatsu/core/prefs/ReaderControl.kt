@@ -13,6 +13,7 @@ enum class ReaderControl {
     TIMER,
     BOOKMARK,
     COLOR_FILTER,
+    IMAGE_INFO,
     ;
 
     companion object {

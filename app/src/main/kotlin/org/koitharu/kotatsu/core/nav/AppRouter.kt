@@ -89,6 +89,7 @@ import org.koitharu.kotatsu.parsers.util.isNullOrEmpty
 import org.koitharu.kotatsu.parsers.util.mapToArray
 import org.koitharu.kotatsu.reader.ui.colorfilter.ColorFilterConfigActivity
 import org.koitharu.kotatsu.reader.ui.config.ReaderConfigSheet
+import org.koitharu.kotatsu.reader.ui.info.ImageInfoSheet
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblerService
 import org.koitharu.kotatsu.scrobbling.common.ui.config.ScrobblerConfigActivity
 import org.koitharu.kotatsu.scrobbling.common.ui.selector.ScrobblingSelectorSheet
@@ -567,6 +568,10 @@ class AppRouter private constructor(
             .withArgs(1) {
                 putInt(KEY_READER_MODE, mode.id)
             }.showDistinct()
+    }
+
+    fun showImageInfoSheet() {
+        ImageInfoSheet().showDistinct()
     }
 
     fun showWelcomeSheet() {

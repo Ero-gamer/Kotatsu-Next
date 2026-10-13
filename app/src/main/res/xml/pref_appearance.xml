@@ -100,6 +100,30 @@
             android:summary="@string/show_pages_thumbs_summary"
             android:title="@string/show_pages_thumbs" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:dependency="pages_tab"
+            android:icon="@drawable/ic_info_outline"
+            android:key="page_format_badge"
+            android:summary="@string/page_format_badge_summary"
+            android:title="@string/page_format_badge" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:dependency="pages_tab"
+            android:icon="@drawable/ic_info_outline"
+            android:key="page_animated_badge"
+            android:summary="@string/page_animated_badge_summary"
+            android:title="@string/page_animated_badge" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:dependency="page_format_badge"
+            android:icon="@drawable/ic_info_outline"
+            android:key="page_badge_hide_common"
+            android:summary="@string/page_badge_hide_common_summary"
+            android:title="@string/page_badge_hide_common" />
+
         <ListPreference
             android:defaultValue="-1"
             android:dependency="pages_tab"

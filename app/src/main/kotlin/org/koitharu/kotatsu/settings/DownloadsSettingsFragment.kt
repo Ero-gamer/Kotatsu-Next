@@ -8,9 +8,12 @@ import android.view.View
 import androidx.documentfile.provider.DocumentFile
 import androidx.preference.ListPreference
 import androidx.preference.Preference
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
@@ -27,6 +30,7 @@ import org.koitharu.kotatsu.core.util.ext.setDefaultValueCompat
 import org.koitharu.kotatsu.core.util.ext.tryLaunch
 import org.koitharu.kotatsu.core.util.ext.viewLifecycleScope
 import org.koitharu.kotatsu.download.ui.worker.DownloadWorker
+import org.koitharu.kotatsu.local.data.CbzMaintenance
 import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.parsers.util.names
 import org.koitharu.kotatsu.settings.utils.DozeHelper
@@ -106,6 +110,16 @@ class DownloadsSettingsFragment :
             true
         }
 
+        KEY_CBZ_REPACK -> {
+            confirmMaintenance(preference, repack = true)
+            true
+        }
+
+        KEY_CBZ_FIX_EXT -> {
+            confirmMaintenance(preference, repack = false)
+            true
+        }
+
         AppSettings.KEY_IGNORE_DOZE -> {
             dozeHelper.startIgnoreDoseActivity()
         }
@@ -122,6 +136,56 @@ class DownloadsSettingsFragment :
         }
 
         else -> super.onPreferenceTreeClick(preference)
+    }
+
+    private var maintenanceJob: Job? = null
+
+    private fun confirmMaintenance(preference: Preference, repack: Boolean) {
+        if (maintenanceJob?.isActive == true) return
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(preference.title)
+            .setMessage(R.string.archive_maintenance_confirm)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ -> runMaintenance(preference, repack) }
+            .show()
+    }
+
+    private fun runMaintenance(preference: Preference, repack: Boolean) {
+        val originalSummary = preference.summary
+        maintenanceJob = viewLifecycleScope.launch {
+            preference.isEnabled = false
+            var changed = 0
+            var failed = 0
+            var total = 0
+            try {
+                val files = withContext(Dispatchers.IO) {
+                    val dirs = storageManager.getReadableDirs()
+                    CbzMaintenance.cleanupTemp(dirs)
+                    CbzMaintenance.listArchives(dirs)
+                }
+                total = files.size
+                for ((i, file) in files.withIndex()) {
+                    preference.summary = getString(R.string.archive_maintenance_progress, i + 1, total)
+                    withContext(Dispatchers.IO) {
+                        ensureActive()
+                        try {
+                            if (if (repack) CbzMaintenance.repackStored(file) else CbzMaintenance.fixExtensions(file)) {
+                                changed++
+                            }
+                        } catch (e: java.io.IOException) {
+                            e.printStackTraceDebug()
+                            failed++
+                        }
+                    }
+                }
+                view?.let {
+                    Snackbar.make(it, getString(R.string.archive_maintenance_done, changed, failed, total), Snackbar.LENGTH_LONG).show()
+                }
+            } finally {
+                preference.summary = originalSummary
+                preference.isEnabled = true
+            }
+        }
     }
 
     private fun onDirectoryPicked(uri: Uri) {
@@ -182,4 +246,10 @@ class DownloadsSettingsFragment :
     }
 
     private fun DocumentFile.getDisplayPath(context: Context): String = uri.resolveFile(context)?.path ?: uri.toString()
+
+    private companion object {
+
+        const val KEY_CBZ_REPACK = "cbz_repack_stored"
+        const val KEY_CBZ_FIX_EXT = "cbz_fix_extensions"
+    }
 }

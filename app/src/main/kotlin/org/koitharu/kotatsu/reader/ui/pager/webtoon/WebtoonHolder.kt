@@ -4,7 +4,6 @@ import android.view.View
 import androidx.lifecycle.LifecycleOwner
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.os.NetworkState
-import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.databinding.ItemPageWebtoonBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
@@ -38,7 +37,7 @@ class WebtoonHolder(
     init {
         bindingInfo.progressBar.setVisibilityAfterHide(View.GONE)
         binding.ssiv.prefetchFraction =
-            if (itemView.context.isMemoryConstrained()) PREFETCH_CONSTRAINED else PREFETCH_DEFAULT
+            if (settings.isMemorySaver) PREFETCH_CONSTRAINED else PREFETCH_DEFAULT
     }
 
     override fun onReady() {

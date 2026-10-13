@@ -401,6 +401,15 @@ constructor(
     val isUnstableUpdatesAllowed: Boolean
         get() = prefs.getBoolean(KEY_UPDATES_UNSTABLE, false)
 
+    val isPageFormatBadgeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PAGE_FORMAT_BADGE, true)
+
+    val isPageAnimatedBadgeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PAGE_ANIMATED_BADGE, true)
+
+    val isPageBadgeHideCommon: Boolean
+        get() = prefs.getBoolean(KEY_PAGE_BADGE_HIDE_COMMON, false)
+
     val isPagesTabEnabled: Boolean
         get() = prefs.getBoolean(KEY_PAGES_TAB, true)
 
@@ -453,6 +462,12 @@ constructor(
 
     val isPagesNumbersEnabled: Boolean
         get() = prefs.getBoolean(KEY_PAGES_NUMBERS, false)
+
+    val isAnimatedImagesEnabled: Boolean
+        get() = prefs.getBoolean(KEY_ANIMATED_IMAGES, true)
+
+    val isAnimatedAutoplay: Boolean
+        get() = prefs.getBoolean(KEY_ANIMATED_AUTOPLAY, true)
 
     val screenshotsPolicy: ScreenshotsPolicy
         get() = prefs.getEnumValue(KEY_SCREENSHOTS_POLICY, ScreenshotsPolicy.ALLOW)
@@ -691,6 +706,14 @@ constructor(
     var isWebtoonPullGestureEnabled: Boolean
         get() = prefs.getBoolean(KEY_WEBTOON_PULL_GESTURE, false)
         set(value) = prefs.edit { putBoolean(KEY_WEBTOON_PULL_GESTURE, value) }
+
+    /**
+     * Global opt-in "Memory Saver" for low-end devices (2 GB RAM or less). Off by default; when off every
+     * reading mode keeps its standard memory behaviour. When on, pages are released as soon as they are
+     * left and prefetch / tile limits are tightened.
+     */
+    val isMemorySaverEnabled: Boolean
+        get() = prefs.getBoolean(KEY_MEMORY_SAVER, false)
 
     /**
      * When enabled, caps the number of fully-decoded webtoon pages kept in RAM during
@@ -1014,6 +1037,8 @@ constructor(
         const val KEY_GRID_VIEW_CHAPTERS = "grid_view_chapters"
         const val KEY_INCOGNITO_NSFW = "incognito_nsfw"
         const val KEY_PAGES_NUMBERS = "pages_numbers"
+        const val KEY_ANIMATED_IMAGES = "reader_animated"
+        const val KEY_ANIMATED_AUTOPLAY = "reader_animated_autoplay"
         const val KEY_SCREENSHOTS_POLICY = "screenshots_policy"
         const val KEY_PAGES_PRELOAD = "pages_preload"
         const val KEY_SUGGESTIONS = "suggestions"
@@ -1055,6 +1080,7 @@ constructor(
         const val KEY_WEBTOON_ZOOM_OUT = "webtoon_zoom_out"
         const val KEY_WEBTOON_PULL_GESTURE = "webtoon_pull_gesture"
         const val KEY_WEBTOON_MEMORY_SAVER = "webtoon_memory_saver"
+        const val KEY_MEMORY_SAVER = "memory_saver"
         const val KEY_PREFETCH_CONTENT = "prefetch_content"
         const val KEY_APP_LOCALE = "app_locale"
         const val KEY_SOURCES_GRID = "sources_grid"
@@ -1106,6 +1132,9 @@ constructor(
         const val KEY_CF_DEBAND = "cf_deband"
         const val KEY_CF_LINE_DARKEN = "cf_line_darken"
         const val KEY_PAGES_TAB = "pages_tab"
+        const val KEY_PAGE_FORMAT_BADGE = "page_format_badge"
+        const val KEY_PAGE_ANIMATED_BADGE = "page_animated_badge"
+        const val KEY_PAGE_BADGE_HIDE_COMMON = "page_badge_hide_common"
         const val KEY_DETAILS_TAB = "details_tab"
         const val KEY_DETAILS_LAST_TAB = "details_last_tab"
         const val KEY_READING_TIME = "reading_time"

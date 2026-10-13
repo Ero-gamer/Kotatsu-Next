@@ -28,13 +28,14 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import org.koitharu.kotatsu.core.image.codecs.NativeAwareImageDecoder
+import org.koitharu.kotatsu.core.image.codecs.NativeAwareRegionDecoder
 import org.koitharu.kotatsu.core.model.ZoomMode
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ReaderBackground
 import org.koitharu.kotatsu.core.prefs.ReaderMode
 import org.koitharu.kotatsu.core.util.MediatorStateFlow
-import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 
@@ -51,6 +52,10 @@ data class ReaderSettings(
     val bitmapConfig: Bitmap.Config,
     val is32BitEnabled: Boolean,
     val isPagesNumbersEnabled: Boolean,
+    val isAnimatedImagesEnabled: Boolean,
+    /** Opt-in low-RAM mode (see [AppSettings.isMemorySaverEnabled]). */
+    val isMemorySaver: Boolean,
+    val isAnimatedAutoplay: Boolean,
     val isPagesCropEnabledStandard: Boolean,
     val isPagesCropEnabledWebtoon: Boolean,
     /** Resampling used while zoomed in; applied to SSIV in [applyBitmapConfig]. */
@@ -78,6 +83,9 @@ data class ReaderSettings(
         },
         is32BitEnabled = settings.is32BitColorsEnabled,
         isPagesNumbersEnabled = settings.isPagesNumbersEnabled,
+        isAnimatedImagesEnabled = settings.isAnimatedImagesEnabled,
+        isMemorySaver = settings.isMemorySaverEnabled,
+        isAnimatedAutoplay = settings.isAnimatedAutoplay,
         isPagesCropEnabledStandard = settings.isPagesCropEnabled(ReaderMode.STANDARD),
         isPagesCropEnabledWebtoon = settings.isPagesCropEnabled(ReaderMode.WEBTOON),
         scaler = settings.readerScaler,
@@ -144,11 +152,11 @@ data class ReaderSettings(
         // ── GPU filter params — read directly, no cross-field inference ─────
         val gpu = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled)
 
-        // Small devices (2 GB class, not only Go builds) decode pages as RGB_565 (half the memory) unless the
-        // user turned "32-bit color mode" on, which is the opt-out. Not while a GPU filter is active: that
+        // With Memory Saver on, pages decode as RGB_565 (half the memory) unless the user turned
+        // "32-bit color mode" on, which always wins (dithered 32-bit output is kept). Not while a GPU filter is active: that
         // pass converts its input to ARGB_8888 and outputs ARGB_8888, so RGB_565 would save nothing and
         // only add an extra copy and lose precision for the filters.
-        val isAutoRgb565 = !is32BitEnabled && !gpu.isAnyActive && ssiv.context.isMemoryConstrained()
+        val isAutoRgb565 = isMemorySaver && !is32BitEnabled && !gpu.isAnyActive
         val config =
             if (bitmapConfig == Bitmap.Config.ARGB_8888 && isAutoRgb565) {
                 Bitmap.Config.RGB_565
@@ -170,8 +178,8 @@ data class ReaderSettings(
         val factoryChanged = configChanged || gpuToggled
 
         if (factoryChanged) {
-            val baseFactory = LiJpegTurboRegionDecoder.Factory(quality)
-            val baseImageFactory = SkiaImageDecoder.Factory(quality)
+            val baseFactory = NativeAwareRegionDecoder.Factory(LiJpegTurboRegionDecoder.Factory(quality))
+            val baseImageFactory = NativeAwareImageDecoder.Factory(SkiaImageDecoder.Factory(quality))
             var newImageFactory: DecoderFactory<out ImageDecoder> = baseImageFactory
             val newFactory: DecoderFactory<out ImageRegionDecoder> =
                 if (gpu.isAnyActive) {
@@ -295,6 +303,9 @@ data class ReaderSettings(
             scatterSetOf(
                 AppSettings.KEY_ZOOM_MODE,
                 AppSettings.KEY_PAGES_NUMBERS,
+                AppSettings.KEY_ANIMATED_IMAGES,
+                AppSettings.KEY_MEMORY_SAVER,
+                AppSettings.KEY_ANIMATED_AUTOPLAY,
                 AppSettings.KEY_READER_BACKGROUND,
                 AppSettings.KEY_32BIT_COLOR,
                 AppSettings.KEY_READER_OPTIMIZE,

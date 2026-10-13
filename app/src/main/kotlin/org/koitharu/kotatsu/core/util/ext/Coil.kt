@@ -48,6 +48,10 @@ fun ImageRequest.Builder.decodeRegion(
     extras[RegionBitmapDecoder.regionScrollKey] = scroll
 }
 
+fun ImageRequest.Builder.allowAnimation(enabled: Boolean = true): ImageRequest.Builder = apply {
+    extras[allowAnimationKey] = enabled
+}
+
 fun ImageRequest.Builder.mangaSourceExtra(source: MangaSource?): ImageRequest.Builder = apply {
     extras[mangaSourceKey] = source
 }
@@ -68,6 +72,8 @@ suspend fun ImageLoader.fetch(data: Any, options: Options): FetchResult? {
     return fetcher?.fetch()
 }
 
+/** Requests that may play animations (full-screen reading only); everything else decodes the first frame. */
+val allowAnimationKey = Extras.Key(false)
 val mangaKey = Extras.Key<Manga?>(null)
 val bookmarkKey = Extras.Key<Bookmark?>(null)
 val mangaSourceKey = Extras.Key<MangaSource?>(null)

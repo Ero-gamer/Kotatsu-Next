@@ -22,6 +22,18 @@
 		android:scaleType="fitCenter"
 		android:visibility="gone" />
 
+	<com.google.android.material.button.MaterialButton
+		android:id="@+id/button_anim_toggle"
+		style="?materialIconButtonFilledTonalStyle"
+		android:layout_width="40dp"
+		android:layout_height="40dp"
+		android:layout_gravity="start|bottom"
+		android:layout_margin="@dimen/margin_small"
+		android:contentDescription="@string/animation_pause"
+		android:visibility="gone"
+		app:icon="@drawable/ic_action_pause" />
+
+
 	<TextView
 		android:id="@+id/textView_number"
 		android:layout_width="wrap_content"
