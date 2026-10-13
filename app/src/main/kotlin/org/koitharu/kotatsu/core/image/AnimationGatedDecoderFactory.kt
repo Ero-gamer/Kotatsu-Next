@@ -13,5 +13,5 @@ import org.koitharu.kotatsu.core.util.ext.allowAnimationKey
  */
 class AnimationGatedDecoderFactory(private val delegate: Decoder.Factory) : Decoder.Factory {
 
-    override fun create(result: SourceFetchResult, options: Options, imageLoader: ImageLoader): Decoder? = if (options.extras[allowAnimationKey]) delegate.create(result, options, imageLoader) else null
+    override fun create(result: SourceFetchResult, options: Options, imageLoader: ImageLoader): Decoder? = if (options.extras[allowAnimationKey] == true) delegate.create(result, options, imageLoader) else null
 }

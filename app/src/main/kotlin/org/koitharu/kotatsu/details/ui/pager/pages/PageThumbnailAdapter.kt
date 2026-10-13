@@ -10,7 +10,7 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 
 class PageThumbnailAdapter(
     clickListener: OnListItemClickListener<PageThumbnail>,
-    badgeConfig: () -> PageBadgeConfig,
+    badgeConfig: () -> PageBadgeConfig = { NO_BADGES },
 ) : BaseListAdapter<ListModel>(),
     FastScroller.SectionIndexer {
 
@@ -20,4 +20,9 @@ class PageThumbnailAdapter(
     }
 
     override fun getSectionText(context: Context, position: Int): CharSequence? = findHeader(position)?.getText(context)
+
+    private companion object {
+
+        val NO_BADGES = PageBadgeConfig(showFormat = false, showAnimated = false, hideCommon = false)
+    }
 }

@@ -403,7 +403,7 @@ abstract class BasePageHolder<B : ViewBinding>(
 
             uri.isZipUri() -> java.util.zip.ZipFile(uri.schemeSpecificPart).use { zip ->
                 val entry = zip.getEntry(uri.fragment ?: return false) ?: return false
-                val head = ByteArray(PROBE_HEAD_BYTES)
+                val head = ByteArray(32 * 1024)
                 val n = zip.getInputStream(entry).use { it.read(head).coerceAtLeast(0) }
                 ImageFormatProbe.probe(head, n, truncated = entry.size > n).animated
             }

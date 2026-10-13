@@ -33,7 +33,7 @@ class Migration16To17(
             }
             db.execSQL(
                 "INSERT INTO `sources` (`source`, `enabled`, `sort_key`) VALUES (?, ?, ?)",
-                arrayOf(name, (!isHidden).toInt(), sortKey),
+                arrayOf<Any?>(name, (!isHidden).toInt(), sortKey),
             )
         }
     }

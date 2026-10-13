@@ -3,10 +3,13 @@ package org.koitharu.kotatsu.reader.ui.info
 import android.os.Bundle
 import android.text.format.Formatter
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
 import androidx.fragment.app.activityViewModels
 import com.google.android.material.tabs.TabLayout
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,6 +21,7 @@ import org.koitharu.kotatsu.core.image.ImageFormat
 import org.koitharu.kotatsu.core.image.ImageInspector
 import org.koitharu.kotatsu.core.image.RawImageDetails
 import org.koitharu.kotatsu.core.ui.sheet.BaseAdaptiveSheet
+import org.koitharu.kotatsu.core.util.ext.consume
 import org.koitharu.kotatsu.core.util.ext.viewLifecycleScope
 import org.koitharu.kotatsu.databinding.SheetImageInfoBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
@@ -53,6 +57,14 @@ class ImageInfoSheet :
         binding.tabs.addTab(binding.tabs.newTab().setText(R.string.image_info_tab_raw), false)
         binding.tabs.addOnTabSelectedListener(this)
         viewLifecycleScope.launch { load(binding) }
+    }
+
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val typeMask = WindowInsetsCompat.Type.systemBars()
+        viewBinding?.scrollView?.updatePadding(
+            bottom = resources.getDimensionPixelOffset(R.dimen.margin_normal) + insets.getInsets(typeMask).bottom,
+        )
+        return insets.consume(v, typeMask, bottom = true)
     }
 
     override fun onDestroyView() {
