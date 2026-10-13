@@ -23,6 +23,9 @@ configurations.matching { it.name != "detekt" }.configureEach {
         force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
         force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         force("org.jetbrains.kotlin:kotlin-parcelize-runtime:$kotlinVersion")
+        // Dagger/Hilt 2.58 ships kotlin-metadata-jvm 2.3.0, which cannot read Kotlin 2.4 class metadata
+        // ("Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0").
+        force("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
 
         eachDependency {
             if (requested.group == "org.jetbrains.kotlin" &&
@@ -289,100 +292,74 @@ dependencies {
 val rustCrateDir = file("src/main/rust/ssivcodecs")
 val rustOutDir = layout.buildDirectory.dir("rustJniLibs")
 val rustTargetDir = layout.buildDirectory.dir("rustTarget")
-val rustAbis =
-    mapOf(
-        "arm64-v8a" to ("aarch64-linux-android" to "aarch64-linux-android"),
-        "armeabi-v7a" to ("armv7-linux-androideabi" to "armv7a-linux-androideabi"),
-        "x86_64" to ("x86_64-linux-android" to "x86_64-linux-android"),
-    )
+val rustAbis = mapOf(
+    "arm64-v8a" to ("aarch64-linux-android" to "aarch64-linux-android"),
+    "armeabi-v7a" to ("armv7-linux-androideabi" to "armv7a-linux-androideabi"),
+    "x86_64" to ("x86_64-linux-android" to "x86_64-linux-android"),
+)
 val rustMinSdk = 23
 val rustEnabled = providers.gradleProperty("ssiv.rust").orNull != "false"
 val ndkFromSdk = androidComponents.sdkComponents.ndkDirectory
 
-val rustTasks =
-    rustAbis.map { (abi, triples) ->
-        val (rustTriple, clangTriple) = triples
-        tasks.register("buildRust${abi.replace("-", "").replaceFirstChar { it.uppercase() }}") {
-            group = "build"
-            description = "Builds libssivcodecs.so for $abi"
-            onlyIf { rustEnabled }
-            inputs.dir(rustCrateDir.resolve("src"))
-            inputs.file(rustCrateDir.resolve("Cargo.toml"))
-            inputs.file(rustCrateDir.resolve("build.rs"))
-            outputs.dir(rustOutDir.map { it.dir(abi) })
-            doLast {
-                fun skip(reason: String) = logger.warn("Rust codecs ($abi) skipped: $reason")
-                try {
-                    val home = System.getProperty("user.home")
-                    val cargo =
-                        sequenceOf(File(home, ".cargo/bin/cargo"), File("/usr/local/cargo/bin/cargo"))
-                            .firstOrNull { it.canExecute() }
-                            ?.absolutePath ?: "cargo"
-                    val ndk =
-                        (System.getenv("ANDROID_NDK_ROOT") ?: System.getenv("ANDROID_NDK_HOME"))
-                            ?.let(::File)
-                            ?.takeIf { it.isDirectory }
-                            ?: runCatching { ndkFromSdk.get().asFile }.getOrNull()?.takeIf { it.isDirectory }
-                    if (ndk == null) return@doLast skip("Android NDK not found")
-                    val bin =
-                        File(ndk, "toolchains/llvm/prebuilt")
-                            .listFiles()
-                            ?.firstOrNull { it.isDirectory }
-                            ?.resolve("bin")
-                    val linker = bin?.resolve("$clangTriple$rustMinSdk-clang")
-                    if (linker == null || !linker.canExecute()) return@doLast skip("NDK linker not found")
+val rustTasks = rustAbis.map { (abi, triples) ->
+    val (rustTriple, clangTriple) = triples
+    tasks.register("buildRust${abi.replace("-", "").replaceFirstChar { it.uppercase() }}") {
+        group = "build"
+        description = "Builds libssivcodecs.so for $abi"
+        onlyIf { rustEnabled }
+        inputs.dir(rustCrateDir.resolve("src"))
+        inputs.file(rustCrateDir.resolve("Cargo.toml"))
+        inputs.file(rustCrateDir.resolve("build.rs"))
+        outputs.dir(rustOutDir.map { it.dir(abi) })
+        doLast {
+            fun skip(reason: String) = logger.warn("Rust codecs ($abi) skipped: $reason")
+            try {
+                val home = System.getProperty("user.home")
+                val cargo = sequenceOf(File(home, ".cargo/bin/cargo"), File("/usr/local/cargo/bin/cargo"))
+                    .firstOrNull { it.canExecute() }?.absolutePath ?: "cargo"
+                val ndk = (System.getenv("ANDROID_NDK_ROOT") ?: System.getenv("ANDROID_NDK_HOME"))
+                    ?.let(::File)?.takeIf { it.isDirectory }
+                    ?: runCatching { ndkFromSdk.get().asFile }.getOrNull()?.takeIf { it.isDirectory }
+                if (ndk == null) return@doLast skip("Android NDK not found")
+                val bin = File(ndk, "toolchains/llvm/prebuilt").listFiles()?.firstOrNull { it.isDirectory }
+                    ?.resolve("bin")
+                val linker = bin?.resolve("$clangTriple$rustMinSdk-clang")
+                if (linker == null || !linker.canExecute()) return@doLast skip("NDK linker not found")
 
-                    fun run(
-                        vararg cmd: String,
-                        env: Map<String, String> = emptyMap(),
-                    ): Int {
-                        val pb = ProcessBuilder(*cmd).directory(rustCrateDir).redirectErrorStream(true)
-                        pb.environment().putAll(env)
-                        val proc = pb.start()
-                        val out = proc.inputStream.bufferedReader().readText()
-                        val code = proc.waitFor()
-                        if (code != 0) logger.warn(out.takeLast(4000))
-                        return code
-                    }
-                    // Idempotent and quick when the target is already installed.
-                    runCatching { run("rustup", "target", "add", rustTriple) }
-                    val envKey = rustTriple.uppercase().replace('-', '_')
-                    val code =
-                        run(
-                            cargo,
-                            "build",
-                            "--release",
-                            "--locked".takeIf { rustCrateDir.resolve("Cargo.lock").exists() } ?: "--quiet",
-                            "--target",
-                            rustTriple,
-                            env =
-                                mapOf(
-                                    "CARGO_TARGET_DIR" to rustTargetDir.get().asFile.absolutePath,
-                                    "CARGO_TARGET_${envKey}_LINKER" to linker.absolutePath,
-                                    // 16 KB page-size aligned segments (Android 15+).
-                                    "RUSTFLAGS" to "-C link-arg=-Wl,-z,max-page-size=16384",
-                                ),
-                        )
-                    val built = rustTargetDir.get().asFile.resolve("$rustTriple/release/libssivcodecs.so")
-                    if (code != 0 || !built.isFile) return@doLast skip("cargo build failed")
-                    val dest =
-                        rustOutDir
-                            .get()
-                            .asFile
-                            .resolve(abi)
-                            .also { it.mkdirs() }
-                    built.copyTo(dest.resolve("libssivcodecs.so"), overwrite = true)
-                } catch (e: Exception) {
-                    skip(e.toString())
+                fun run(vararg cmd: String, env: Map<String, String> = emptyMap()): Int {
+                    val pb = ProcessBuilder(*cmd).directory(rustCrateDir).redirectErrorStream(true)
+                    pb.environment().putAll(env)
+                    val proc = pb.start()
+                    val out = proc.inputStream.bufferedReader().readText()
+                    val code = proc.waitFor()
+                    if (code != 0) logger.warn(out.takeLast(4000))
+                    return code
                 }
+                // Idempotent and quick when the target is already installed.
+                runCatching { run("rustup", "target", "add", rustTriple) }
+                val envKey = rustTriple.uppercase().replace('-', '_')
+                val code = run(
+                    cargo, "build", "--release", "--locked".takeIf { rustCrateDir.resolve("Cargo.lock").exists() } ?: "--quiet",
+                    "--target", rustTriple,
+                    env = mapOf(
+                        "CARGO_TARGET_DIR" to rustTargetDir.get().asFile.absolutePath,
+                        "CARGO_TARGET_${envKey}_LINKER" to linker.absolutePath,
+                        // 16 KB page-size aligned segments (Android 15+).
+                        "RUSTFLAGS" to "-C link-arg=-Wl,-z,max-page-size=16384",
+                    ),
+                )
+                val built = rustTargetDir.get().asFile.resolve("$rustTriple/release/libssivcodecs.so")
+                if (code != 0 || !built.isFile) return@doLast skip("cargo build failed")
+                val dest = rustOutDir.get().asFile.resolve(abi).also { it.mkdirs() }
+                built.copyTo(dest.resolve("libssivcodecs.so"), overwrite = true)
+            } catch (e: Exception) {
+                skip(e.toString())
             }
         }
     }
+}
 
-android.sourceSets
-    .getByName("main")
-    .jniLibs
-    .srcDir(rustOutDir)
+android.sourceSets.getByName("main").jniLibs.srcDir(rustOutDir)
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }.configureEach {
     dependsOn(rustTasks)
 }
