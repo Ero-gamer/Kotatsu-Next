@@ -1,11 +1,20 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
-  - package-ecosystem: "gradle" "actions" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "gradle"
+    directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    ignore:
+      # AGP 9 migration pending: Dagger/Hilt >= 2.59 and androidx.hilt >= 1.4 require it.
+      - dependency-name: "com.google.dagger:*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "androidx.hilt:*"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+  - package-ecosystem: "cargo"
+    directory: "/app/src/main/rust/ssivcodecs"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
