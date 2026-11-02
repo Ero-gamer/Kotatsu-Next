@@ -9,7 +9,7 @@ composeBom = "2026.05.01"
 coil = "3.6.3"
 collections = "1.6.0"
 # https://github.com/google/conscrypt/issues/1268
-conscrypt = "2.5.3"
+conscrypt = "2.8.0"
 constraintlayout = "2.2.2"
 coreKtx = "1.18.0"
 coroutines = "1.11.0"
