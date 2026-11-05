@@ -28,7 +28,7 @@ documentfile = "1.1.0"
 fragment = "1.9.1"
 # AGP 9.x needs Gradle >= 9.5 and a DSL migration; androidx.hilt 1.4.0 and Dagger >= 2.59 require
 # AGP >= 9, so AGP stays on the latest 8.x patch (Kotlin 2.4.x supports AGP 8.5.2+). See :library.
-agp = "8.13.2"
+agp = "9.5.1"
 guava = "33.7.2-jre"
 # NOT bumped to 1.4.0: that release requires AGP >= 9.2.0 when using Compose (which this app
 # does). Bumping AGP that far is a separate, larger migration — see the `agp` key above.
