@@ -11,7 +11,7 @@ collections = "1.7.0"
 # https://github.com/google/conscrypt/issues/1268
 conscrypt = "2.8.0"
 constraintlayout = "2.2.2"
-coreKtx = "1.19.1"
+coreKtx = "1.18.0"
 coroutines = "1.11.0"
 # NOT bumped past 2.58: Dagger/Hilt 2.59+ made AGP 9 a hard requirement for the Hilt Gradle
 # plugin ("This release adds support for AGP 9, which means AGP 9 is now a requirement").
