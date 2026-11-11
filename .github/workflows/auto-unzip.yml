@@ -39,18 +39,51 @@ jobs:
           python3 -c '
           import os, subprocess, json, urllib.request
 
+          def save_msg(text):
+              with open(os.environ["GITHUB_ENV"], "a") as f:
+                  f.write("COMMIT_MSG<<EOF\n" + text + "\nEOF\n")
+
           api_key = os.environ.get("GEMINI_API_KEY", "")
           if not api_key:
-              print("COMMIT_MSG=Auto-extract: GEMINI_API_KEY secret is missing")
+              save_msg("Auto-extract: GEMINI_API_KEY secret is missing")
               exit(0)
 
-          # Get status and detailed diff while explicitly ignoring .zip archive deletions
-          diff_stat = subprocess.getoutput("git status --short -- . \":(exclude)*.zip\"")
-          diff_patch = subprocess.getoutput("git diff --cached --stat -p -- . \":(exclude)*.zip\" | head -n 150")
+          # Exclusions to keep the diff strictly focused on human-written source code
+          exclusions = [
+              ":(exclude)*.zip",
+              ":(exclude)*lock*",
+              ":(exclude)*.lock",
+              ":(exclude)*.min.*",
+              ":(exclude)*.map",
+              ":(exclude)*.svg",
+              ":(exclude)*.png",
+              ":(exclude)*.jpg",
+              ":(exclude)*.jpeg",
+              ":(exclude)*.gif",
+              ":(exclude)*.webp",
+              ":(exclude)*.ico",
+              ":(exclude)*.woff*",
+              ":(exclude)*.ttf",
+              ":(exclude)*.pdf",
+              ":(exclude)*.jar",
+              ":(exclude)*.bin"
+          ]
+          excl_args = " ".join(f"\"{e}\"" for e in exclusions)
+
+          diff_stat = subprocess.getoutput(f"git status --short -- . {excl_args}")
+          full_patch = subprocess.getoutput(f"git diff --cached --stat -p -- . {excl_args}")
 
           if not diff_stat.strip():
-              print("COMMIT_MSG=Auto-extract: Code files updated from zip archive")
+              save_msg("Auto-extract: Code files updated from zip archive")
               exit(0)
+
+          # Cap at ~100,000 chars (~25k-30k tokens) to maximize diff context
+          # without triggering free-tier Tokens-Per-Minute (TPM) 429 rate limits
+          max_chars = 100000
+          if len(full_patch) > max_chars:
+              diff_patch = full_patch[:max_chars] + "\n\n... [Diff truncated at 100,000 characters] ..."
+          else:
+              diff_patch = full_patch
 
           prompt = (
               "Analyze the following git changes extracted from a zip archive. "
@@ -60,24 +93,37 @@ jobs:
               "Do NOT mention, summarize, or note the removal or deletion of any .zip archive file. "
               "Do not use markdown code blocks.\n\n"
               f"Changed Files Summary:\n{diff_stat}\n\n"
-              f"Diff Snippet:\n{diff_patch}"
+              f"Full Source Diff:\n{diff_patch}"
           )
 
-          # Primary Flash models with fallback order
-          models = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"]
+          # Active free-tier models ordered from fastest to deepest
+          models = [
+              "gemini-3.7-flash",
+              "gemini-3.6-flash",
+              "gemini-3.5-flash-lite",
+              "gemini-3.8-flash",
+              "gemini-3.1-flash-lite"
+          ]
           msg = None
 
           for model in models:
-              url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-              payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+              url = f"https://googleapis.com{model}:generateContent?key={api_key}"
+              body = {
+                  "contents": [{"parts": [{"text": prompt}]}],
+                  "generationConfig": {
+                      "thinkingConfig": {"thinkingLevel": "MINIMAL"}
+                  }
+              }
+              payload = json.dumps(body).encode("utf-8")
               headers = {"Content-Type": "application/json"}
 
               try:
                   req = urllib.request.Request(url, data=payload, headers=headers)
-                  with urllib.request.urlopen(req) as response:
+                  with urllib.request.urlopen(req, timeout=20) as response:
                       res_data = json.loads(response.read().decode("utf-8"))
                       msg = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
                       if msg:
+                          print(f"Commit message generated using {model}")
                           break
               except Exception as e:
                   print(f"Model {model} failed ({e}), trying next fallback...")
@@ -86,15 +132,13 @@ jobs:
           if not msg:
               msg = "Auto-extract: Code files updated from archive (API Unavailable)"
 
-          # Save to multiline environment variable for GitHub Actions
-          with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write("COMMIT_MSG<<EOF\n" + msg + "\nEOF\n")
+          save_msg(msg)
           '
 
       - name: Commit and Push
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "github-actions[bot]@://github.com"
           
           if ! git diff --cached --quiet; then
             git commit -m "$COMMIT_MSG"
