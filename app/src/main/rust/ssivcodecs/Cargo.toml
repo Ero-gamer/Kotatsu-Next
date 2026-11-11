@@ -17,7 +17,7 @@ jxl = ["dep:jxl-oxide"]
 apng = ["dep:png"]
 
 [dependencies]
-jni = "0.21"
+jni = "0.22"
 jxl-oxide = { version = "0.12.6", default-features = false, features = ["rayon", "moxcms"], optional = true }
 png = { version = "0.18", optional = true }
 

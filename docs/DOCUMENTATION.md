@@ -34,5 +34,5 @@ Rust: `cargo test --locked` in `app/src/main/rust/ssivcodecs`.
 
 ## Version policy
 Latest stable versions only. Held back on purpose: AGP 8.13.2 (9.x needs Gradle >= 9.5 and a DSL
-migration), Dagger 2.58 and androidx.hilt 1.3.0 (need AGP 9), `jni` crate 0.21 (0.22 is an API break),
+migration), Dagger 2.58 and androidx.hilt 1.3.0 (need AGP 9),
 detekt 1.23.8 (2.x is alpha).

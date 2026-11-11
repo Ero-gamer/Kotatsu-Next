@@ -21,7 +21,7 @@ from this environment; check the linked repository before a release.
 | libjpeg-turbo 3.2.0 (SSIV JPEG decoder, built from source, SHA-256 pinned) | https://github.com/libjpeg-turbo/libjpeg-turbo | BSD-3-Clause, IJG, Zlib |
 | jxl-oxide 0.12.6 (JPEG XL) | https://github.com/tirr-c/jxl-oxide | MIT OR Apache-2.0 |
 | png 0.18 (APNG) | https://github.com/image-rs/image-png | MIT OR Apache-2.0 |
-| jni 0.21 | https://github.com/jni-rs/jni-rs | MIT OR Apache-2.0 |
+| jni 0.22 | https://github.com/jni-rs/jni-rs | MIT OR Apache-2.0 |
 | moxcms (ICC conversion) | https://github.com/awxkee/moxcms | BSD-3-Clause OR Apache-2.0 |
 | rayon | https://github.com/rayon-rs/rayon | MIT OR Apache-2.0 |
 | Other transitive Rust crates (see `Cargo.lock`) | crates.io | MIT / Apache-2.0 / BSD / Zlib / Unlicense / 0BSD / Unicode-3.0 |

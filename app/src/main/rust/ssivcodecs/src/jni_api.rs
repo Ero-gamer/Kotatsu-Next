@@ -4,9 +4,10 @@
 //! false) and never unwinds into the JVM; the Kotlin side then falls back to the system decoders.
 
 use crate::common::{sampled_len, Decoder, Error, FileRange, PixelFormat, Rect, Result, Sink};
-use jni::objects::{JClass, JObject};
+use jni::errors::LogErrorAndDefault;
+use jni::objects::{JClass, JIntArray, JObject};
 use jni::sys::{jboolean, jint, jintArray, jlong, JNI_FALSE, JNI_TRUE};
-use jni::JNIEnv;
+use jni::EnvUnowned;
 use std::fs::File;
 use std::io::Read;
 use std::os::fd::{BorrowedFd, OwnedFd};
@@ -70,7 +71,7 @@ unsafe fn handle<'a>(handle: jlong) -> Option<&'a Handle> {
 
 #[no_mangle]
 pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_nativeOpen(
-    _env: JNIEnv,
+    _env: EnvUnowned,
     _class: JClass,
     fd: jint,
     offset: jlong,
@@ -90,7 +91,7 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
 /// `{format, width, height, frameCount, hasAlpha, loopCount}` or null.
 #[no_mangle]
 pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_nativeInfo(
-    env: JNIEnv,
+    mut env: EnvUnowned,
     _class: JClass,
     h: jlong,
 ) -> jintArray {
@@ -111,19 +112,19 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
             i.has_alpha as jint,
             i.loop_count as jint,
         ];
-        let Ok(arr) = env.new_int_array(values.len() as i32) else {
-            return std::ptr::null_mut();
-        };
-        if env.set_int_array_region(&arr, 0, &values).is_err() {
-            return std::ptr::null_mut();
-        }
-        arr.into_raw()
+        env.with_env_no_catch(|env| -> jni::errors::Result<Option<JIntArray>> {
+            let arr = JIntArray::new(env, values.len())?;
+            arr.set_region(env, 0, &values)?;
+            Ok(Some(arr))
+        })
+        .resolve::<LogErrorAndDefault>()
+        .map_or(std::ptr::null_mut(), |arr| arr.into_raw())
     })
 }
 
 #[no_mangle]
 pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_nativeFrameDuration(
-    _env: JNIEnv,
+    _env: EnvUnowned,
     _class: JClass,
     h: jlong,
     frame: jint,
@@ -143,7 +144,7 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
 /// (ARGB_8888 or RGB_565, exactly the sampled size). Returns true on success.
 #[no_mangle]
 pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_nativeDecode(
-    env: JNIEnv,
+    env: EnvUnowned,
     _class: JClass,
     h: jlong,
     frame: jint,
@@ -154,6 +155,7 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
     sample: jint,
     bitmap: JObject,
 ) -> jboolean {
+    let raw_env = env.as_raw();
     let ok = guard(false, || {
         if frame < 0 || left < 0 || top < 0 || width <= 0 || height <= 0 || sample < 1 {
             return false;
@@ -166,7 +168,7 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
             return false;
         };
         let rect = Rect::new(left as u32, top as u32, width as u32, height as u32);
-        bitmap::with_pixels(&env, &bitmap, |data, stride, format, bw, bh| {
+        bitmap::with_pixels(raw_env, &bitmap, |data, stride, format, bw, bh| {
             let (sw, sh) = (
                 sampled_len(rect.width, sample as u32),
                 sampled_len(rect.height, sample as u32),
@@ -188,7 +190,7 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
 
 #[no_mangle]
 pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_nativeClose(
-    _env: JNIEnv,
+    _env: EnvUnowned,
     _class: JClass,
     h: jlong,
 ) {
@@ -236,11 +238,10 @@ mod bitmap {
 
     /// Locks the bitmap's pixels and hands them to `f` as `(data, stride, format, width, height)`.
     pub fn with_pixels(
-        env: &JNIEnv,
+        raw_env: *mut jni::sys::JNIEnv,
         bitmap: &JObject,
         f: impl FnOnce(&mut [u8], usize, PixelFormat, u32, u32) -> Result<()>,
     ) -> Result<()> {
-        let raw_env = env.get_raw();
         let raw_bmp = bitmap.as_raw();
         let mut info = BitmapInfo {
             width: 0,
@@ -280,7 +281,7 @@ mod bitmap {
     use super::*;
 
     pub fn with_pixels(
-        _env: &JNIEnv,
+        _env: *mut jni::sys::JNIEnv,
         _bitmap: &JObject,
         _f: impl FnOnce(&mut [u8], usize, PixelFormat, u32, u32) -> Result<()>,
     ) -> Result<()> {
