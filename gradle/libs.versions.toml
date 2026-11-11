@@ -29,7 +29,7 @@ fragment = "1.9.1"
 # AGP 9.x needs Gradle >= 9.5 and a DSL migration; androidx.hilt 1.4.0 and Dagger >= 2.59 require
 # AGP >= 9, so AGP stays on the latest 8.x patch (Kotlin 2.4.x supports AGP 8.5.2+). See :library.
 agp = "8.13.2"
-guava = "33.8.0-jre"
+guava = "33.7.2-jre"
 # NOT bumped to 1.4.0: that release requires AGP >= 9.2.0 when using Compose (which this app
 # does). Bumping AGP that far is a separate, larger migration — see the `agp` key above.
 hilt = "1.4.0"
@@ -42,7 +42,7 @@ ksp = "2.3.13"
 # ktlint engine used by Spotless (1.8.0 = latest stable).
 ktlint = "1.8.0"
 leakcanary = "3.0-alpha-9"
-lifecycle = "2.11.0"
+lifecycle = "2.10.0"
 markwon = "4.6.2"
 material = "1.14.0"
 mmkv = "1.3.17"
