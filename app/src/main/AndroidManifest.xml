@@ -3,6 +3,9 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:tools="http://schemas.android.com/tools">
 
+	<!-- KizzyRPC (minSdk 27) and biometric 1.4 (minSdk 24) declare higher minSdk than the app (23) -->
+	<uses-sdk tools:overrideLibrary="com.my.kizzyrpc,androidx.biometric" />
+
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 	<uses-permission
