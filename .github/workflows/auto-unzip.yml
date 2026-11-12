@@ -5,6 +5,10 @@ on:
     paths:
       - '**.zip' # Triggers only when a zip file is uploaded
 
+concurrency:
+  group: unzip-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   unzip:
     runs-on: ubuntu-latest
@@ -17,59 +21,80 @@ jobs:
 
       - name: Extract zip
         run: |
-          # Find the zip file
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
-          
-          if [ -n "$ZIP_FILE" ]; then
-            # Unzip, overwriting existing files
-            unzip -o "$ZIP_FILE" -d .
-            # Remove the zip file after extraction
-            rm "$ZIP_FILE"
-          fi
+          # Extract every root-level zip (overwriting existing files), then remove it
+          found=0
+          while IFS= read -r -d '' zip; do
+            unzip -o -q "$zip" -d .
+            rm -- "$zip"
+            found=1
+          done < <(find . -maxdepth 1 -name "*.zip" -print0)
+          [ "$found" = 1 ] || echo "No zip found."
 
       - name: Stage Changes
-        run: |
-          git add .
+        run: git add -A
 
       - name: Generate AI Commit Message
-        id: ai_summary
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python3 -c '
-          import os, subprocess, json, urllib.request, urllib.error
+          python3 - <<'PY'
+          import json, os, subprocess, urllib.request, uuid
 
-          def save_msg(text):
+          # (model, lowest supported thinking level), newest first; the next one is only tried on failure
+          MODELS = [
+              ("gemini-3.8-flash", "low"),  # has no "minimal" level
+              ("gemini-3.6-flash", "minimal"),
+              ("gemini-3.5-flash-lite", "minimal"),
+              ("gemini-3.1-flash-lite", "minimal"),
+          ]
+          MAX_DIFF_CHARS = 100_000
+          FALLBACK = "Auto-extract: Code files updated from zip archive"
+
+
+          def sh(cmd):
+              return subprocess.run(cmd, capture_output=True, text=True).stdout
+
+
+          def set_msg(msg):
+              # Random delimiter so the message can never terminate the block early
+              delim = f"EOF_{uuid.uuid4().hex}"
               with open(os.environ["GITHUB_ENV"], "a") as f:
-                  f.write("COMMIT_MSG<<EOF\n" + text + "\nEOF\n")
+                  f.write(f"COMMIT_MSG<<{delim}\n{msg}\n{delim}\n")
+
+
+          def ask(api_key, prompt):
+              for model, level in MODELS:
+                  payload = json.dumps({
+                      "contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"thinkingConfig": {"thinkingLevel": level}},
+                  }).encode()
+                  req = urllib.request.Request(
+                      f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                      data=payload,
+                      headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+                  )
+                  try:
+                      with urllib.request.urlopen(req, timeout=90) as r:
+                          text = json.load(r)["candidates"][0]["content"]["parts"][0]["text"].strip()
+                      if text:
+                          return text
+                  except Exception as e:
+                      print(f"Model {model} failed ({e}), trying next fallback...")
+              return None
+
 
           api_key = os.environ.get("GEMINI_API_KEY", "")
           if not api_key:
-              save_msg("Auto-extract: GEMINI_API_KEY secret is missing")
-              exit(0)
+              set_msg("Auto-extract: GEMINI_API_KEY secret is missing")
+              raise SystemExit
 
-          exclusions = [
-              ":(exclude)*.zip", ":(exclude)*lock*", ":(exclude)*.lock",
-              ":(exclude)*.min.*", ":(exclude)*.map", ":(exclude)*.svg",
-              ":(exclude)*.png", ":(exclude)*.jpg", ":(exclude)*.jpeg",
-              ":(exclude)*.gif", ":(exclude)*.webp", ":(exclude)*.ico",
-              ":(exclude)*.woff*", ":(exclude)*.ttf", ":(exclude)*.pdf",
-              ":(exclude)*.jar", ":(exclude)*.bin"
-          ]
-          excl_args = " ".join(f"\"{e}\"" for e in exclusions)
-
-          diff_stat = subprocess.getoutput(f"git status --short -- . {excl_args}")
-          full_patch = subprocess.getoutput(f"git diff --cached --stat -p -- . {excl_args}")
-
-          if not diff_stat.strip():
-              save_msg("Auto-extract: Code files updated from zip archive")
-              exit(0)
-
-          max_chars = 100000
-          diff_patch = (
-              full_patch[:max_chars] + "\n\n... [Diff truncated at 100,000 characters] ..."
-              if len(full_patch) > max_chars else full_patch
-          )
+          # Staged changes only, ignoring .zip archive deletions
+          exclude = ["--", ".", ":(exclude)*.zip"]
+          status = sh(["git", "diff", "--cached", "--name-status", *exclude]).strip()
+          if not status:
+              set_msg(FALLBACK)
+              raise SystemExit
+          patch = sh(["git", "diff", "--cached", "--stat", "-p", *exclude])[:MAX_DIFF_CHARS]
 
           prompt = (
               "Analyze the following git changes extracted from a zip archive. "
@@ -78,57 +103,21 @@ jobs:
               "Focus strictly on actual code changes and technical implementation details. "
               "Do NOT mention, summarize, or note the removal or deletion of any .zip archive file. "
               "Do not use markdown code blocks.\n\n"
-              f"Changed Files Summary:\n{diff_stat}\n\n"
-              f"Full Source Diff:\n{diff_patch}"
+              f"Changed Files Summary:\n{status}\n\n"
+              f"Diff:\n{patch}"
           )
-
-          models = [
-              "gemini-3.5-flash-lite",
-              "gemini-3.6-flash",
-              "gemini-3.8-flash",
-              "gemini-3.1-flash-lite"
-          ]
-          msg = None
-
-          for model in models:
-              url = f"https://googleapis.com{model}:generateContent?key={api_key}"
-              body = {"contents": [{"parts": [{"text": prompt}]}]}
-              
-              # Apply thinkingLevel only to 3.8-flash so Lite/3.6 models do not reject the payload
-              if model == "gemini-3.8-flash":
-                  body["generationConfig"] = {"thinkingConfig": {"thinkingLevel": "MINIMAL"}}
-
-              payload = json.dumps(body).encode("utf-8")
-              headers = {"Content-Type": "application/json"}
-
-              try:
-                  req = urllib.request.Request(url, data=payload, headers=headers)
-                  with urllib.request.urlopen(req, timeout=25) as response:
-                      res_data = json.loads(response.read().decode("utf-8"))
-                      msg = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                      if msg:
-                          print(f"Commit message generated using {model}")
-                          break
-              except urllib.error.HTTPError as e:
-                  err_body = e.read().decode("utf-8", errors="ignore")
-                  print(f"Model {model} failed with HTTP {e.code}: {err_body}")
-              except Exception as e:
-                  print(f"Model {model} failed with error: {e}")
-
-          if not msg:
-              msg = "Auto-extract: Code files updated from archive (API Unavailable)"
-
-          save_msg(msg)
-          '
+          set_msg(ask(api_key, prompt) or "Auto-extract: Code files updated from archive (API Unavailable)")
+          PY
 
       - name: Commit and Push
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
-          
-          if ! git diff --cached --quiet; then
-            git commit -m "$COMMIT_MSG"
-            git push
-          else
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --cached --quiet; then
             echo "No changes to commit."
+          else
+            git commit -m "$COMMIT_MSG"
+            git pull --rebase --autostash || true
+            git push
           fi
