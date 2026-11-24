@@ -1,0 +1,33 @@
+name: Deps versions report
+
+# Manual only: lists the latest STABLE version of every catalog entry (plus AGP, Gradle, Room 3...)
+# straight from Google Maven / Maven Central / the Gradle plugin portal. Read-only, changes nothing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Query repositories
+        run: python3 scripts/dep_versions.py --out dep-versions-report
+
+      - name: Upload report
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: dep-versions-report
+          path: |
+            dep-versions-report.md
+            dep-versions-report.json
