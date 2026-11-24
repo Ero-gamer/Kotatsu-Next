@@ -6,12 +6,13 @@ Compares every modified *.kt/*.kts file in the working tree with HEAD:
   2. every triple-quoted string literal is byte-identical.
 Exit code 1 (and a message) on the first violation, so the workflow never commits it.
 """
+
 import re
 import subprocess
 import sys
 
-RAW = re.compile(r'"""(.*?)"""', re.S)
-IMPORT = re.compile(r"^\s*import\s+.*$", re.M)
+RAW = re.compile(r'"""(.*?)"""', re.DOTALL)
+IMPORT = re.compile(r"^\s*import\s+.*$", re.MULTILINE)
 
 
 def sh(*args):

@@ -3,6 +3,7 @@
 
 Usage: python3 scripts/rust-licenses.py > rust-licenses.md   (needs cargo; uses Cargo.lock offline-safe)
 """
+
 import json
 import subprocess
 import sys
@@ -11,7 +12,9 @@ from pathlib import Path
 crate = Path(__file__).resolve().parent.parent / "app/src/main/rust/ssivcodecs"
 out = subprocess.run(
     ["cargo", "metadata", "--locked", "--format-version", "1", "--filter-platform", "aarch64-linux-android"],
-    cwd=crate, capture_output=True, text=True,
+    cwd=crate,
+    capture_output=True,
+    text=True,
 )
 if out.returncode != 0:
     sys.exit(out.stderr)
