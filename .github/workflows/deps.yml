@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7.1.0
         with:
-          python-version: '3.12'
+          python-version: '3.15.2'
 
       - name: Query repositories
         run: python3 scripts/dep_versions.py --out dep-versions-report
