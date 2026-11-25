@@ -1,9 +1,9 @@
 package org.koitharu.kotatsu.core.db.migrations
 
-import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
 import android.content.Context
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
 import org.koitharu.kotatsu.core.prefs.mmkv.MmkvPreferences
 
 class Migration16To17(

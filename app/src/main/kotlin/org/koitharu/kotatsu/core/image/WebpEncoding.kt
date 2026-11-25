@@ -60,6 +60,7 @@ object WebpEncoding {
      */
     fun estimateQuality(file: File, format: ImageFormat): SourceQuality = when (format) {
         ImageFormat.JPEG, ImageFormat.WEBP -> estimateQuality(file)
+
         ImageFormat.AVIF -> try {
             val head = ByteArray(AVIF_HEAD_BYTES)
             val n = file.inputStream().use { it.read(head).coerceAtLeast(0) }
@@ -67,6 +68,7 @@ object WebpEncoding {
         } catch (_: java.io.IOException) {
             SourceQuality.Unknown
         }
+
         else -> SourceQuality.Unknown
     }
 

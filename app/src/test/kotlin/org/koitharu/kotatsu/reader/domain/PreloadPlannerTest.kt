@@ -33,8 +33,14 @@ class PreloadPlannerTest {
         val t = ReadingSpeedTracker()
         var now = 0L
         t.onPage(0, now)
-        repeat(3) { i -> now += 10_000; t.onPage(i + 1L, now) } // three slow gaps
-        repeat(5) { i -> now += 1_000; t.onPage(10L + i, now) } // five fast ones push them out
+        repeat(3) { i ->
+            now += 10_000
+            t.onPage(i + 1L, now)
+        } // three slow gaps
+        repeat(5) { i ->
+            now += 1_000
+            t.onPage(10L + i, now)
+        } // five fast ones push them out
         assertEquals(1_000L, t.averageGapMs())
     }
 

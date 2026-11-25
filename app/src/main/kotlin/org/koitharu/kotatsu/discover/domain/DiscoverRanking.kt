@@ -143,8 +143,7 @@ object DiscoverRanking {
     }
 
     /** The order that shows what a source has only just got, if it can show that at all. */
-    fun newestOrder(available: Set<SortOrder>): SortOrder? =
-        listOf(SortOrder.NEWEST, SortOrder.ADDED).firstOrNull { it in available }
+    fun newestOrder(available: Set<SortOrder>): SortOrder? = listOf(SortOrder.NEWEST, SortOrder.ADDED).firstOrNull { it in available }
 
     /** The same work on two sources is one entry, whatever punctuation each gives its title. */
     fun titleKey(title: String): String {
@@ -210,8 +209,7 @@ object DiscoverRanking {
     }
 
     /** Whether a manga is one the reader already has, under its own name or any other it goes by. */
-    fun isKnown(manga: Manga, known: Set<String>): Boolean =
-        titleKey(manga.title) in known || manga.altTitles.any { titleKey(it) in known }
+    fun isKnown(manga: Manga, known: Set<String>): Boolean = titleKey(manga.title) in known || manga.altTitles.any { titleKey(it) in known }
 
     /** What a manga is about, one way of spelling each. */
     fun tagsOf(manga: Manga): Set<String> = manga.tags.mapNotNullTo(HashSet()) { canonicalTag(it.title) }
@@ -267,8 +265,7 @@ object DiscoverRanking {
      * root of the tag count: as a plain sum, titles never opened (13 tags on average) beat titles read (6 tags)
      * in 82% of pairs, only because their source lists more tags.
      */
-    fun affinity(manga: Manga, taste: Map<String, Double>): Double =
-        echoOf(manga.tags.mapNotNullTo(HashSet()) { canonicalTag(it.title) }, taste)
+    fun affinity(manga: Manga, taste: Map<String, Double>): Double = echoOf(manga.tags.mapNotNullTo(HashSet()) { canonicalTag(it.title) }, taste)
 
     private fun echoOf(tags: Set<String>, taste: Map<String, Double>): Double {
         if (tags.isEmpty() || taste.isEmpty()) {
@@ -484,8 +481,7 @@ object DiscoverRanking {
      * with it when that is at least half the time. A genre already part of a row does not get another: romance
      * with comedy says it, and a row of plain comedy after it would mostly repeat it.
      */
-    fun categoriesOf(library: List<LibraryEntry>, limit: Int): List<ReaderCategory> =
-        summarize(library, limit).categories
+    fun categoriesOf(library: List<LibraryEntry>, limit: Int): List<ReaderCategory> = summarize(library, limit).categories
 
     /** [tasteOf] and [categoriesOf] at once, which between them only have to read the tags one time. */
     fun summarize(library: List<LibraryEntry>, limit: Int): LibrarySummary {
@@ -527,11 +523,9 @@ object DiscoverRanking {
      * Whether a manga is adult, as far as it can be told from the manga. Many sources leave the rating
      * empty and only say so in the tags.
      */
-    fun isAdult(manga: Manga): Boolean =
-        manga.contentRating == ContentRating.ADULT || manga.tags.any { isAdultTag(it.title) }
+    fun isAdult(manga: Manga): Boolean = manga.contentRating == ContentRating.ADULT || manga.tags.any { isAdultTag(it.title) }
 
-    fun isAdultTag(tag: String): Boolean =
-        titleKey(tag) in ADULT_TAGS || titleKey(tag.substringBefore('(')) in ADULT_TAGS
+    fun isAdultTag(tag: String): Boolean = titleKey(tag) in ADULT_TAGS || titleKey(tag.substringBefore('(')) in ADULT_TAGS
 
     /** Whether a manga fits a type, as far as anything can tell without the source filtering for it. */
     fun matchesType(manga: Manga, type: ContentType?, sourceType: ContentType?): Boolean {

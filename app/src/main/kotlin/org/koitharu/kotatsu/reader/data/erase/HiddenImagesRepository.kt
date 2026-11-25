@@ -37,16 +37,13 @@ class HiddenImagesRepository @Inject constructor(
     val rules: Flow<List<HiddenImageRule>> = entities.filterNotNull().map { list -> parse(list) }
 
     /** What the reader erased. The rest of a cut off image found next door is part of that, not an entry. */
-    fun observeAll(): Flow<List<HiddenImageEntity>> =
-        entities.filterNotNull().map { list -> list.filter { it.parentId == null } }
+    fun observeAll(): Flow<List<HiddenImageEntity>> = entities.filterNotNull().map { list -> list.filter { it.parentId == null } }
 
     suspend fun hasRemainder(parentId: Long, pageId: Long): Boolean = dao.countRemainders(parentId, pageId) > 0
 
     fun observeHiddenPages(): Flow<Set<Long>> = dao.observeHiddenPages().map { it.toHashSet() }
 
-    suspend fun getRules(): List<HiddenImageRule> {
-        return parse(entities.filterNotNull().first())
-    }
+    suspend fun getRules(): List<HiddenImageRule> = parse(entities.filterNotNull().first())
 
     /**
      * One parse per emitted list, shared by [rules] and [getRules]: parsing makes new rule objects, which
@@ -117,7 +114,9 @@ class HiddenImagesRepository @Inject constructor(
         val ids = ruleIds.split(',').filter { it.isNotEmpty() }.mapTo(HashSet()) { it.toLong() }
         val resolution = when {
             isHidden -> PageResolution.Hidden(ids)
+
             ids.isEmpty() -> PageResolution.Visible
+
             else -> PageResolution.Masked(
                 ids,
                 PageMask(sourceWidth, sourceHeight, PageMask.decode(bands), PageMask.decode(patches)),

@@ -34,10 +34,10 @@ import org.koitharu.kotatsu.parsers.model.ContentRating
 import org.koitharu.kotatsu.parsers.model.ContentType
 import org.koitharu.kotatsu.parsers.model.Demographic
 import org.koitharu.kotatsu.parsers.model.MangaListFilter
-import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.model.MangaState
 import org.koitharu.kotatsu.parsers.model.MangaTag
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.SortOrder
 import org.koitharu.kotatsu.parsers.model.YEAR_MIN
 import org.koitharu.kotatsu.parsers.util.ifZero

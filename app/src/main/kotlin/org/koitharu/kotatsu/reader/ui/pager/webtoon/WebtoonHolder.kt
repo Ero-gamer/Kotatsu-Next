@@ -2,9 +2,9 @@ package org.koitharu.kotatsu.reader.ui.pager.webtoon
 
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.OneShotPreDrawListener
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
-import androidx.core.view.OneShotPreDrawListener
 import androidx.lifecycle.LifecycleOwner
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.os.NetworkState
@@ -234,13 +234,16 @@ class WebtoonHolder(
         when {
             // Deferred until after the layout pass triggered by adjustScale() -> requestLayout()
             restore != 0 -> binding.ssiv.scrollToAfterLayout(restore)
+
             rowToKeep != null && recyclerView != null -> itemView.post {
                 // After the layout it is about to have, as the view's height is part of how far it can scroll
                 putRowAtTop(rowToKeep, recyclerView)
                 recyclerView.onPageReady(itemView as WebtoonFrameLayout)
             }
+
             // Also reached on every settings change, so this must leave an already placed page alone
             recyclerView != null -> recyclerView.onPageReady(itemView as WebtoonFrameLayout)
+
             else -> binding.ssiv.scrollTo(binding.ssiv.getScroll())
         }
     }

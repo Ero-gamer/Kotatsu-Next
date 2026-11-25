@@ -8,8 +8,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
-import org.koitharu.kotatsu.core.db.entity.MangaWithTags
 import org.koitharu.kotatsu.core.db.entity.MangaPrefsEntity
+import org.koitharu.kotatsu.core.db.entity.MangaWithTags
 
 @Dao
 abstract class PreferencesDao {

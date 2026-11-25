@@ -170,7 +170,9 @@ class ImageInfoSheet :
         headerQuality?.let { q ->
             val text = when (q.kind) {
                 LossyQuality.Kind.LOSSLESS -> context.getString(R.string.image_info_quality_lossless)
+
                 LossyQuality.Kind.EXACT -> context.getString(R.string.image_info_quality_value, q.quality)
+
                 LossyQuality.Kind.ESTIMATE -> {
                     hints[qualityLabel] = context.getString(R.string.image_info_quality_estimate_hint, q.detail ?: "-")
                     context.getString(R.string.image_info_quality_estimate, q.quality)
@@ -312,16 +314,22 @@ class ImageInfoSheet :
         if (result == null) return context.getString(R.string.image_info_pixels_unavailable)
         return when (result.status) {
             PixelQuality.Status.INCONCLUSIVE -> context.getString(R.string.image_info_pixels_inconclusive)
+
             PixelQuality.Status.NOT_FOUND -> context.getString(R.string.image_info_pixels_none)
+
             PixelQuality.Status.FOUND -> {
                 val value = context.getString(R.string.image_info_quality_estimate, result.quality)
                 val header = headerQuality
                 val note = when {
                     header == null -> R.string.image_info_pixels_note_earlier
+
                     header.kind == LossyQuality.Kind.LOSSLESS -> R.string.image_info_pixels_note_lossless
+
                     imageFormat != ImageFormat.JPEG -> R.string.image_info_pixels_note_earlier
+
                     header.kind == LossyQuality.Kind.EXACT && kotlin.math.abs(header.quality - result.quality) > 5 ->
                         R.string.image_info_pixels_note_reencoded
+
                     else -> null
                 }
                 if (note == null) value else value + "\n" + context.getString(note)

@@ -69,8 +69,8 @@ import org.koitharu.kotatsu.databinding.ActivityMainBinding
 import org.koitharu.kotatsu.details.service.MangaPrefetchService
 import org.koitharu.kotatsu.favourites.ui.container.FavouritesContainerFragment
 import org.koitharu.kotatsu.history.ui.HistoryListFragment
-import org.koitharu.kotatsu.local.ui.LocalIndexUpdateService
 import org.koitharu.kotatsu.local.ui.CbzRepackWorker
+import org.koitharu.kotatsu.local.ui.LocalIndexUpdateService
 import org.koitharu.kotatsu.local.ui.LocalStorageCleanupWorker
 import org.koitharu.kotatsu.main.ui.owners.AppBarOwner
 import org.koitharu.kotatsu.main.ui.owners.BottomNavOwner

@@ -17,12 +17,13 @@ object WebpPolicy {
     const val PNG_QUALITY = 98
     const val MIN_REASONABLE_QUALITY = 40
 
-    fun target(auto: Boolean, format: ImageFormat, source: SourceQuality, fixedFallback: Int): WebpTarget =
-        if (auto) autoTarget(format, source) else fixedTarget(format, source, fixedFallback)
+    fun target(auto: Boolean, format: ImageFormat, source: SourceQuality, fixedFallback: Int): WebpTarget = if (auto) autoTarget(format, source) else fixedTarget(format, source, fixedFallback)
 
     fun autoTarget(format: ImageFormat, source: SourceQuality): WebpTarget = when (format) {
         ImageFormat.PNG -> WebpTarget.Lossy(PNG_QUALITY)
+
         ImageFormat.BMP, ImageFormat.GIF -> WebpTarget.Lossy(FALLBACK_QUALITY)
+
         else -> when (source) {
             SourceQuality.Lossless -> WebpTarget.Lossy(FALLBACK_QUALITY)
             is SourceQuality.Lossy -> WebpTarget.Lossy(reasonable(source.quality))

@@ -119,6 +119,7 @@ class MangaPageFetcher(
                 }
 
                 uri.isFileUri() -> uri.path?.let { ImageFormatProbe.probe(File(it)) }
+
                 else -> pagesCache[page.url]?.let { ImageFormatProbe.probe(it) }
             }
             if (info != null) PageFormatRegistry.record(page.id, info)

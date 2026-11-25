@@ -36,8 +36,7 @@ class ReaderProfile(
     fun knows(manga: Manga): Boolean = DiscoverRanking.isKnown(manga, knownTitles)
 
     /** Whether a work the server named is already in the library, under its title or any address it has. */
-    fun knows(title: String, entries: List<Pair<String, String>>): Boolean =
-        DiscoverRanking.titleKey(title) in knownTitles || entries.any { it in knownEntries }
+    fun knows(title: String, entries: List<Pair<String, String>>): Boolean = DiscoverRanking.titleKey(title) in knownTitles || entries.any { it in knownEntries }
 }
 
 /**

@@ -19,8 +19,8 @@ import org.koitharu.kotatsu.core.network.MangaHttpClient
 import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
 import org.koitharu.kotatsu.core.network.webview.WebViewExecutor
 import org.koitharu.kotatsu.core.network.webview.WebViewRequestInterceptorExecutor
-import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
+import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.util.ext.toList
 import org.koitharu.kotatsu.core.util.ext.toMimeType
 import org.koitharu.kotatsu.core.util.ext.use

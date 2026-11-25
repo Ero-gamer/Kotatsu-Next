@@ -123,6 +123,7 @@ constructor(
     // Dynamic concurrency: fewer parallel transfers (each buffers and decodes) on small devices, and
     // background prefetch can never take every permit, so a page the user is waiting for always has one.
     private val isConstrained = settings.isMemorySaverEnabled
+
     // The page on screen goes first; what is only ahead never takes every slot (and fewer while one is waited for).
     private val slots = DownloadSlots(
         maxOnScreen = if (isConstrained) PERMITS_CONSTRAINED else PERMITS_DEFAULT,
@@ -417,8 +418,7 @@ constructor(
     }
 
     /** Pixels * 4 from the header when known, else twice the compressed size. */
-    private fun decodedBytes(info: ImageInfo, compressedSize: Long): Long =
-        if (info.width > 0 && info.height > 0) info.width.toLong() * info.height * 4 else compressedSize * 2
+    private fun decodedBytes(info: ImageInfo, compressedSize: Long): Long = if (info.width > 0 && info.height > 0) info.width.toLong() * info.height * 4 else compressedSize * 2
 
     suspend fun getTrimmedBounds(uri: Uri): Rect? = runCatchingCancellable {
         edgeDetector.getBounds(ImageSource.uri(uri))

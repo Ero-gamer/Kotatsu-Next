@@ -152,8 +152,7 @@ open class DoubleReaderFragment : BaseReaderFragment<FragmentReaderDoubleBinding
         lm.scrollToPositionWithOffset(targetPosition, 0)
     }
 
-    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? =
-        with(viewBinding?.recyclerView) { this?.findPageHolderAt(rawX, rawY) }
+    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? = with(viewBinding?.recyclerView) { this?.findPageHolderAt(rawX, rawY) }
 
     override fun getCurrentState(): ReaderState? = viewBinding?.run {
         val adapter = recyclerView.adapter as? BaseReaderAdapter<*>

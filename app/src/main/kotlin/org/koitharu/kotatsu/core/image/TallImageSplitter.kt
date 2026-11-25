@@ -53,8 +53,7 @@ object TallImageSplitter {
      * Output encoding for [source] per [WebpPolicy]: with [auto] lossless sources become lossy, lossy
      * ones keep the quality the file was saved with (header estimate), [fallbackQuality] is the fixed-mode fallback.
      */
-    fun targetFor(source: File, info: ImageInfo, fallbackQuality: Int, auto: Boolean = false): WebpTarget =
-        WebpPolicy.target(auto, info.format, PageConverter.sourceQuality(source, info), fallbackQuality)
+    fun targetFor(source: File, info: ImageInfo, fallbackQuality: Int, auto: Boolean = false): WebpTarget = WebpPolicy.target(auto, info.format, PageConverter.sourceQuality(source, info), fallbackQuality)
 
     /**
      * Cuts [source] into WebP part files created with [newFile] (the caller owns and deletes them).

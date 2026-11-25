@@ -652,16 +652,28 @@ class ColorFilterConfigActivity :
     private fun applyAutoStates(loading: Boolean = viewModel.isLoading.value) {
         with(viewBinding) {
             applyAutoSliderState(
-                switchAutoContrast.isChecked, loading,
-                sliderContrast, buttonContrastMinus, buttonContrastPlus, textViewContrast,
+                switchAutoContrast.isChecked,
+                loading,
+                sliderContrast,
+                buttonContrastMinus,
+                buttonContrastPlus,
+                textViewContrast,
             )
             applyAutoSliderState(
-                switchAutoBrightness.isChecked, loading,
-                sliderBrightness, buttonBrightnessMinus, buttonBrightnessPlus, textViewBrightness,
+                switchAutoBrightness.isChecked,
+                loading,
+                sliderBrightness,
+                buttonBrightnessMinus,
+                buttonBrightnessPlus,
+                textViewBrightness,
             )
             applyAutoSliderState(
-                switchAutoSaturation.isChecked, loading,
-                sliderSaturation, buttonSaturationMinus, buttonSaturationPlus, textViewSaturation,
+                switchAutoSaturation.isChecked,
+                loading,
+                sliderSaturation,
+                buttonSaturationMinus,
+                buttonSaturationPlus,
+                textViewSaturation,
             )
         }
     }

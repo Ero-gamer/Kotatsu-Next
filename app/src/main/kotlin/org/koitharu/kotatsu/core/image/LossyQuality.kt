@@ -142,9 +142,8 @@ object LossyQuality {
         return true
     }
 
-    private fun le32(b: ByteArray, p: Int): Long =
-        (b[p].toLong() and 0xFF) or ((b[p + 1].toLong() and 0xFF) shl 8) or
-            ((b[p + 2].toLong() and 0xFF) shl 16) or ((b[p + 3].toLong() and 0xFF) shl 24)
+    private fun le32(b: ByteArray, p: Int): Long = (b[p].toLong() and 0xFF) or ((b[p + 1].toLong() and 0xFF) shl 8) or
+        ((b[p + 2].toLong() and 0xFF) shl 16) or ((b[p + 3].toLong() and 0xFF) shl 24)
 
     private fun webp(b: ByteArray, len: Int): Result? {
         if (len < 20 || !fourCc(b, 0, "RIFF") || !fourCc(b, 8, "WEBP")) return null
@@ -153,8 +152,12 @@ object LossyQuality {
             val size = le32(b, p + 4)
             when {
                 fourCc(b, p, "VP8L") -> return LOSSLESS
+
                 fourCc(b, p, "VP8 ") -> return vp8(b, p + 8, len)
-                fourCc(b, p, "ANMF") -> p += 8 + 16 // descend into the first frame
+
+                fourCc(b, p, "ANMF") -> p += 8 + 16
+
+                // descend into the first frame
                 else -> {
                     val next = p.toLong() + 8 + size + (size and 1L)
                     if (next > len) return null
@@ -399,8 +402,11 @@ object LossyQuality {
                     seq = avSeq(b, s, e) ?: seq
                     null
                 }
+
                 3, 6 -> seq?.let { avFrameQIdx(b, s, e, it) } ?: -1
+
                 2 -> null
+
                 else -> -1
             }
         } ?: return null

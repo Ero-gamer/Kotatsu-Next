@@ -185,8 +185,7 @@ class WebtoonReaderFragment :
         }
     }
 
-    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? =
-        with(viewBinding?.recyclerView) { this?.findPageHolderAt(rawX, rawY) }
+    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? = with(viewBinding?.recyclerView) { this?.findPageHolderAt(rawX, rawY) }
 
     override fun getCurrentState(): ReaderState? = viewBinding?.run {
         val currentItem = recyclerView.findCurrentPagePosition()

@@ -182,8 +182,7 @@ object PageStatsEngine {
         urlKeys.put(uri.toString(), hash(url))
     }
 
-    private suspend fun ownersUnder(root: File): Set<Long> =
-        withContext(dispatcher) { root.walkTopDown().filter { it.isFile }.map { hash(it.path) }.toSet() }
+    private suspend fun ownersUnder(root: File): Set<Long> = withContext(dispatcher) { root.walkTopDown().filter { it.isFile }.map { hash(it.path) }.toSet() }
 
     private suspend fun forget(owners: Collection<Long>) {
         val dao = databaseProvider?.get()?.getPageStatsDao() ?: return

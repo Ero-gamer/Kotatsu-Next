@@ -25,106 +25,106 @@ import java.util.concurrent.TimeUnit
  */
 object ActiveParsers {
 
-	/** What is waited for the parsers kept from the last run, by whoever needs the sources before they are loaded. */
-	private const val STARTUP_TIMEOUT_MS = 1_000L
+    /** What is waited for the parsers kept from the last run, by whoever needs the sources before they are loaded. */
+    private const val STARTUP_TIMEOUT_MS = 1_000L
 
-	/** The parsers this app was built with: what it starts from, and goes back to if newer ones turn out bad. */
-	@OptIn(DirectParsersAccess::class)
-	val builtIn: ParsersBundle = ParsersBundleImpl
+    /** The parsers this app was built with: what it starts from, and goes back to if newer ones turn out bad. */
+    @OptIn(DirectParsersAccess::class)
+    val builtIn: ParsersBundle = ParsersBundleImpl
 
-	private val generations = MutableStateFlow(Generation(builtIn, number = 0))
+    private val generations = MutableStateFlow(Generation(builtIn, number = 0))
 
-	@Volatile
-	private var startup: Startup? = null
+    @Volatile
+    private var startup: Startup? = null
 
-	val bundle: ParsersBundle
-		get() = current().bundle
+    val bundle: ParsersBundle
+        get() = current().bundle
 
-	/** Goes up by one every time other parsers are put in use. */
-	val generation: Int
-		get() = current().number
+    /** Goes up by one every time other parsers are put in use. */
+    val generation: Int
+        get() = current().number
 
-	val isBuiltIn: Boolean
-		get() = current().bundle === builtIn
+    val isBuiltIn: Boolean
+        get() = current().bundle === builtIn
 
-	/** Every source there is, the broken ones included, always in the same order. */
-	val sources: List<ParserMangaSource>
-		get() = current().bundle.sources
+    /** Every source there is, the broken ones included, always in the same order. */
+    val sources: List<ParserMangaSource>
+        get() = current().bundle.sources
 
-	/** The sources to offer, in that same order. */
-	val workingSources: Set<ParserMangaSource>
-		get() = current().working
+    /** The sources to offer, in that same order. */
+    val workingSources: Set<ParserMangaSource>
+        get() = current().working
 
-	fun findSource(name: String): ParserMangaSource? = current().bundle.findSource(name)
+    fun findSource(name: String): ParserMangaSource? = current().bundle.findSource(name)
 
-	/** The current [generation], then every later one. */
-	fun observe(): Flow<Int> = generations.map { it.number }.distinctUntilChanged()
+    /** The current [generation], then every later one. */
+    fun observe(): Flow<Int> = generations.map { it.number }.distinctUntilChanged()
 
-	/**
-	 * Says that parsers kept from the last run are about to be loaded.
-	 *
-	 * Until [Startup.finish] is called, whoever asks for the sources waits, for a short time at most: a source that
-	 * only the newer parsers have would otherwise be an unknown one for the first moments of every launch.
-	 */
-	internal fun beginStartup(): Startup {
-		val result = Startup()
-		startup = result
-		return result
-	}
+    /**
+     * Says that parsers kept from the last run are about to be loaded.
+     *
+     * Until [Startup.finish] is called, whoever asks for the sources waits, for a short time at most: a source that
+     * only the newer parsers have would otherwise be an unknown one for the first moments of every launch.
+     */
+    internal fun beginStartup(): Startup {
+        val result = Startup()
+        startup = result
+        return result
+    }
 
-	internal fun activate(bundle: ParsersBundle) {
-		generations.update { previous ->
-			if (previous.bundle === bundle) previous else Generation(bundle, previous.number + 1)
-		}
-	}
+    internal fun activate(bundle: ParsersBundle) {
+        generations.update { previous ->
+            if (previous.bundle === bundle) previous else Generation(bundle, previous.number + 1)
+        }
+    }
 
-	/** Puts the parsers the app was built with back in use, if [bundle] is what is in use. */
-	internal fun deactivate(bundle: ParsersBundle) {
-		generations.update { previous ->
-			if (previous.bundle === bundle && bundle !== builtIn) Generation(builtIn, previous.number + 1) else previous
-		}
-	}
+    /** Puts the parsers the app was built with back in use, if [bundle] is what is in use. */
+    internal fun deactivate(bundle: ParsersBundle) {
+        generations.update { previous ->
+            if (previous.bundle === bundle && bundle !== builtIn) Generation(builtIn, previous.number + 1) else previous
+        }
+    }
 
-	/** The parsers in use and their [generation], as of one same moment. */
-	internal fun snapshot(): Generation = current()
+    /** The parsers in use and their [generation], as of one same moment. */
+    internal fun snapshot(): Generation = current()
 
-	private fun current(): Generation {
-		val pending = startup
-		if (pending != null && Thread.currentThread() !== pending.loader) {
-			if (!pending.await(STARTUP_TIMEOUT_MS)) {
-				// Taking too long. Nobody else is to wait for it: the parsers come into use when they are ready
-				startup = null
-			}
-		}
-		return generations.value
-	}
+    private fun current(): Generation {
+        val pending = startup
+        if (pending != null && Thread.currentThread() !== pending.loader) {
+            if (!pending.await(STARTUP_TIMEOUT_MS)) {
+                // Taking too long. Nobody else is to wait for it: the parsers come into use when they are ready
+                startup = null
+            }
+        }
+        return generations.value
+    }
 
-	internal class Startup {
+    internal class Startup {
 
-		private val latch = CountDownLatch(1)
+        private val latch = CountDownLatch(1)
 
-		/** The thread doing the loading, which is not to wait for itself. */
-		@Volatile
-		var loader: Thread? = null
+        /** The thread doing the loading, which is not to wait for itself. */
+        @Volatile
+        var loader: Thread? = null
 
-		/** @return `false` if the loading was still going on after [timeoutMs] */
-		fun await(timeoutMs: Long): Boolean = latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        /** @return `false` if the loading was still going on after [timeoutMs] */
+        fun await(timeoutMs: Long): Boolean = latch.await(timeoutMs, TimeUnit.MILLISECONDS)
 
-		fun finish() {
-			if (startup === this) {
-				startup = null
-			}
-			latch.countDown()
-		}
-	}
+        fun finish() {
+            if (startup === this) {
+                startup = null
+            }
+            latch.countDown()
+        }
+    }
 
-	internal class Generation(
-		val bundle: ParsersBundle,
-		val number: Int,
-	) {
+    internal class Generation(
+        val bundle: ParsersBundle,
+        val number: Int,
+    ) {
 
-		val working: Set<ParserMangaSource> by lazy(LazyThreadSafetyMode.PUBLICATION) {
-			Collections.unmodifiableSet(bundle.sources.filterNotTo(LinkedHashSet()) { it.isBroken })
-		}
-	}
+        val working: Set<ParserMangaSource> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            Collections.unmodifiableSet(bundle.sources.filterNotTo(LinkedHashSet()) { it.isBroken })
+        }
+    }
 }

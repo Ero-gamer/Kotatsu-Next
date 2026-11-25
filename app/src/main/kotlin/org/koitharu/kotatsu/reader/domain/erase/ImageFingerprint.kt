@@ -15,8 +15,7 @@ data class ImageFingerprint(
     val mean: Int,
 ) {
 
-    fun distanceTo(other: ImageFingerprint): Int =
-        java.lang.Long.bitCount(horizontal xor other.horizontal) + java.lang.Long.bitCount(vertical xor other.vertical)
+    fun distanceTo(other: ImageFingerprint): Int = java.lang.Long.bitCount(horizontal xor other.horizontal) + java.lang.Long.bitCount(vertical xor other.vertical)
 
     /**
      * Whether enough brightness steps were found to recognise this image again. Nearly flat images hash
@@ -112,7 +111,6 @@ data class ImageFingerprint(
         private const val MAX_TOLERANCE = 12
         private const val MIN_SEARCH_TOLERANCE = 2
         private const val MAX_SEARCH_TOLERANCE = 18
-
 
         private const val GRID = 9
 

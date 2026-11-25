@@ -14,11 +14,11 @@ import okio.IOException
  */
 class UnexpectedErrorInterceptor : Interceptor {
 
-	override fun intercept(chain: Interceptor.Chain): Response = try {
-		chain.proceed(chain.request())
-	} catch (e: IOException) {
-		throw e
-	} catch (e: RuntimeException) {
-		throw IOException(e.message ?: e.javaClass.simpleName, e)
-	}
+    override fun intercept(chain: Interceptor.Chain): Response = try {
+        chain.proceed(chain.request())
+    } catch (e: IOException) {
+        throw e
+    } catch (e: RuntimeException) {
+        throw IOException(e.message ?: e.javaClass.simpleName, e)
+    }
 }
