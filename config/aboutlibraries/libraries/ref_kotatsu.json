@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:kotatsu",
+  "name": "Kotatsu",
+  "description": "Upstream manga reader this project is derived from",
+  "website": "https://github.com/KotatsuApp/Kotatsu",
+  "developers": [
+    {
+      "name": "Kotatsu developers",
+      "organisationUrl": "https://github.com/KotatsuApp"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/KotatsuApp/Kotatsu"
+  },
+  "licenses": [
+    "GPL-3.0-only"
+  ],
+  "tag": "upstream"
+}

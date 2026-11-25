@@ -1,7 +1,9 @@
 package org.koitharu.kotatsu.reader.ui.pager.webtoon
 
 import android.animation.ValueAnimator
+import android.app.UiModeManager
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Matrix
 import android.graphics.Point
 import android.graphics.Rect
@@ -13,16 +15,15 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
-import android.view.ViewConfiguration
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.OverScroller
 import androidx.core.animation.doOnEnd
-import androidx.core.view.ViewConfigurationCompat
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
+import kotlin.math.pow
 
 private const val MAX_SCALE = 3.5f // double-tap zoom ceiling
 private const val MAX_PINCH_SCALE = 6.0f // manual pinch/keyboard zoom ceiling (matches manga mode)
@@ -50,6 +51,10 @@ class WebtoonScalingFrame @JvmOverloads constructor(
         get() = halfWidth * (scale - 1f) + matrixValues[Matrix.MTRANS_X]
     private val transY
         get() = halfHeight * (scale - 1f) + matrixValues[Matrix.MTRANS_Y]
+    private val isTelevision: Boolean by lazy(LazyThreadSafetyMode.NONE) {
+        (context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+    }
     private var halfWidth = 0f
     private var halfHeight = 0f
     private val translateBounds = RectF()
@@ -110,13 +115,12 @@ class WebtoonScalingFrame @JvmOverloads constructor(
             if (event.actionMasked == MotionEvent.ACTION_SCROLL) {
                 val withCtrl = event.metaState and KeyEvent.META_CTRL_MASK != 0
                 if (withCtrl) {
-                    val axisValue =
-                        event.getAxisValue(MotionEvent.AXIS_VSCROLL) * ViewConfigurationCompat.getScaledVerticalScrollFactor(
-                            ViewConfiguration.get(context),
-                            context,
-                        )
-                    val newScale = (scale + axisValue).coerceIn(MIN_SCALE, MAX_PINCH_SCALE)
+                    val notches = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+                    if (notches == 0f) return super.onGenericMotionEvent(event)
+                    // 10 % per wheel notch (the old additive step of ~50 jumped to the min/max scale at once)
+                    val newScale = (scale * 1.1f.pow(notches)).coerceIn(MIN_SCALE, MAX_PINCH_SCALE)
                     scaleChild(newScale, event.x, event.y)
+                    onPostScale(invalidateLayout = false)
                     return true
                 }
             }
@@ -237,7 +241,9 @@ class WebtoonScalingFrame @JvmOverloads constructor(
         // scale gestures. This prevents the GPU from caching intermediate states
         // that cause the ghost-image artifact on ATV14.
         // The layer is removed in onScaleEnd / smoothScaleTo's doOnEnd.
-        if (scaleDetector.isInProgress) {
+        // Phones keep the hardware path: a software layer rasterises the whole visible strip (tiles included)
+        // on the CPU at the start of every pinch. The ghosting this works around is Android TV specific.
+        if (isTelevision && scaleDetector.isInProgress) {
             if (targetChild.layerType != View.LAYER_TYPE_SOFTWARE) {
                 targetChild.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
             }
@@ -304,6 +310,12 @@ class WebtoonScalingFrame @JvmOverloads constructor(
     override fun onScale(detector: ScaleGestureDetector): Boolean {
         val newScale = (scale * detector.scaleFactor).coerceIn(MIN_SCALE, MAX_PINCH_SCALE)
         return scaleChild(newScale, detector.focusX, detector.focusY)
+    }
+
+    override fun onDetachedFromWindow() {
+        animator?.cancel()
+        animator = null
+        super.onDetachedFromWindow()
     }
 
     override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
@@ -393,7 +405,8 @@ class WebtoonScalingFrame @JvmOverloads constructor(
 
         override fun onDoubleTap(e: MotionEvent): Boolean {
             val newScale = if (scale != 1f) 1f else MAX_SCALE * 0.8f
-            ValueAnimator.ofFloat(scale, newScale).run {
+            animator?.cancel() // one zoom animation at a time (pinch / buttons cancel this one too)
+            animator = ValueAnimator.ofFloat(scale, newScale).apply {
                 interpolator = AccelerateDecelerateInterpolator()
                 duration = context.getAnimationDuration(R.integer.config_defaultAnimTime)
                 addUpdateListener {

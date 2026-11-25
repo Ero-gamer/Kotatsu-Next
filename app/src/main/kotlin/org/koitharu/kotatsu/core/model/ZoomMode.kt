@@ -6,4 +6,6 @@ enum class ZoomMode {
     FIT_HEIGHT,
     FIT_WIDTH,
     KEEP_START,
+    STRETCH,
+    ORIGINAL,
 }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareActivity
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareHiddenActivity
@@ -84,14 +85,12 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
             ?.complete(success)
     }
 
-    // NOTE: ignores `source` on purpose today (kept for call-site symmetry with notifyResolveResult);
-    // flagged for review, see chat notes.
-    @Suppress("UnusedParameter")
-    fun isResolveActive(source: MangaSource): Boolean = activeSession != null
+    /** True while a verification session for exactly [source] is running (another source's session does not count). */
+    fun isResolveActive(source: MangaSource): Boolean = activeSession?.source == source
 
-    /** Waits for whichever global session is active. This method never starts verification. */
-    @Suppress("UnusedParameter")
-    suspend fun awaitActiveResolve(source: MangaSource): Boolean? = activeSession?.result?.await()
+    /** Waits for the active session of [source], or returns null when there is none. Never starts verification. */
+    suspend fun awaitActiveResolve(source: MangaSource): Boolean? =
+        activeSession?.takeIf { it.source == source }?.result?.await()
 
     /**
      * Runs an operation in sync with the global solver. Background and prefetch callers pass
@@ -175,7 +174,8 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
         var success = false
         try {
             launch(session)
-            success = session.activityResult.await()
+            // A challenge that never completes must not keep every request for this source waiting until app restart.
+            success = withTimeoutOrNull(SESSION_TIMEOUT_MS) { session.activityResult.await() } ?: false
         } catch (e: Throwable) {
             e.printStackTraceDebug()
         } finally {
@@ -271,5 +271,6 @@ class CaptchaAutoResolveCoordinator @Inject constructor(
         const val RECENT_SUCCESS_COOLDOWN_MS = 30_000L
         const val RECENT_FAILURE_COOLDOWN_MS = 3 * 60_000L
         const val MAX_REQUEST_RETRIES = 2
+        const val SESSION_TIMEOUT_MS = 90_000L
     }
 }

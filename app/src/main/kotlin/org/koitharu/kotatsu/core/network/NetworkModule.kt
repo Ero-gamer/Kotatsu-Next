@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.CookieJar
 import okhttp3.OkHttpClient
 import org.koitharu.kotatsu.BuildConfig
@@ -35,6 +36,10 @@ interface NetworkModule {
     fun bindImageProxyInterceptor(impl: RealImageProxyInterceptor): ImageProxyInterceptor
 
     companion object {
+        private const val MAX_IDLE_CONNECTIONS = 5
+        private const val IDLE_KEEP_ALIVE_SECONDS = 30L
+        private const val PING_INTERVAL_SECONDS = 30L
+
         @Provides
         @Singleton
         fun provideCookieJar(
@@ -67,6 +72,11 @@ interface NetworkModule {
                 connectTimeout(20, TimeUnit.SECONDS)
                 readTimeout(60, TimeUnit.SECONDS)
                 writeTimeout(20, TimeUnit.SECONDS)
+                // Sockets that sat idle through a sleep / network switch are dead more often than not: drop idle
+                // ones after 30 s (default 5 min) and ping HTTP/2 connections so a dead one is noticed in ~30 s
+                // instead of after the full read timeout (the retry interceptor then reconnects).
+                connectionPool(ConnectionPool(MAX_IDLE_CONNECTIONS, IDLE_KEEP_ALIVE_SECONDS, TimeUnit.SECONDS))
+                pingInterval(PING_INTERVAL_SECONDS, TimeUnit.SECONDS)
                 cookieJar(cookieJar)
                 proxySelector(proxyProvider.selector)
                 proxyAuthenticator(proxyProvider.authenticator)
@@ -78,6 +88,8 @@ interface NetworkModule {
                 }
                 cache(cache)
                 // addInterceptor(GZipInterceptor())
+                addInterceptor(UnexpectedErrorInterceptor())
+                addInterceptor(proxyProvider.configInterceptor)
                 addInterceptor(CloudFlareInterceptor())
                 addInterceptor(RateLimitInterceptor())
                 if (BuildConfig.DEBUG) {

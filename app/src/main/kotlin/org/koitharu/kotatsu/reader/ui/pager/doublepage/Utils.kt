@@ -20,7 +20,7 @@ fun List<ReaderPage>.padForDoublePage(coverPage: Boolean): List<ReaderPage> {
         val first = first()
         result.add(
             ReaderPage(
-                id = Long.MIN_VALUE,
+                id = spacerId(first.chapterId, SPACER_COVER),
                 url = "",
                 preview = null,
                 chapterId = first.chapterId,
@@ -35,12 +35,12 @@ fun List<ReaderPage>.padForDoublePage(coverPage: Boolean): List<ReaderPage> {
             // Pad previous chapter to even count
             if (result.size % 2 != 0) {
                 val last = result.last()
-                result.addSpacer(last.chapterId, last.source)
+                result.addSpacer(last.chapterId, last.source, SPACER_TAIL)
             }
             currentChapterId = page.chapterId
             if (coverPage) {
                 // Insert spacer before chapter's first page so it displays solo as a cover
-                result.addSpacer(page.chapterId, page.source)
+                result.addSpacer(page.chapterId, page.source, SPACER_COVER)
             }
         }
         result.add(page)
@@ -51,10 +51,11 @@ fun List<ReaderPage>.padForDoublePage(coverPage: Boolean): List<ReaderPage> {
 private fun MutableList<ReaderPage>.addSpacer(
     chapterId: Long,
     source: MangaSource,
+    kind: Int,
 ) {
     add(
         ReaderPage(
-            id = Long.MIN_VALUE + size,
+            id = spacerId(chapterId, kind),
             url = "",
             preview = null,
             chapterId = chapterId,
@@ -63,3 +64,9 @@ private fun MutableList<ReaderPage>.addSpacer(
         ),
     )
 }
+
+private const val SPACER_COVER = 0
+private const val SPACER_TAIL = 1
+
+/** Stable per (chapter, kind), so DiffUtil keeps a spacer as the same item when chapters are added around it. */
+private fun spacerId(chapterId: Long, kind: Int): Long = Long.MIN_VALUE + chapterId * 2 + kind

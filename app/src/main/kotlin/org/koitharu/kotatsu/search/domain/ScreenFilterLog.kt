@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.search.domain
 
 import android.util.Log
+import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.search.ui.suggestion.SearchSuggestionScope
 
 /**
@@ -21,16 +22,19 @@ object ScreenFilterLog {
 
     /** What the user's tap turned into, and where it came from. */
     fun applied(scope: SearchSuggestionScope, value: String, origin: String) {
-        Log.i(TAG, "APPLY scope=$scope origin=$origin text=\"$value\"")
+        Log.i(TAG, "APPLY scope=$scope origin=$origin text=${redact(value)}")
     }
 
     /** The predicate the text produced. */
     fun condition(table: String, sql: String) {
-        Log.i(TAG, "SQL   $table -> $sql")
+        Log.i(TAG, "SQL   $table -> ${if (BuildConfig.DEBUG) sql else "(hidden)"}")
     }
 
     /** How many rows came back for it. */
     fun result(scope: SearchSuggestionScope, query: String, count: Int) {
-        Log.i(TAG, "RESULT scope=$scope text=\"$query\" rows=$count")
+        Log.i(TAG, "RESULT scope=$scope text=${redact(query)} rows=$count")
     }
+
+    // What a person searched for does not belong in a release logcat: only its length is kept there.
+    private fun redact(text: String): String = if (BuildConfig.DEBUG) "\"$text\"" else "<${text.length} chars>"
 }

@@ -119,14 +119,14 @@ constructor(
                 if (isEnabled) {
                     when (newState) {
                         RecyclerView.SCROLL_STATE_DRAGGING -> {
-                            handler.removeCallbacks(scrollbarHider)
+                            removeCallbacks(scrollbarHider)
                             showScrollbar()
                             if (showBubbleAlways && sectionIndexer != null) showBubble()
                         }
 
                         RecyclerView.SCROLL_STATE_IDLE -> {
                             if (hideScrollbar && !binding.thumb.isSelected) {
-                                handler.postDelayed(scrollbarHider, SCROLLBAR_HIDE_DELAY)
+                                postDelayed(scrollbarHider, SCROLLBAR_HIDE_DELAY)
                             }
                         }
                     }
@@ -209,7 +209,7 @@ constructor(
                 requestDisallowInterceptTouchEvent(true)
                 setHandleSelected(true)
 
-                handler.removeCallbacks(scrollbarHider)
+                removeCallbacks(scrollbarHider)
                 showScrollbar()
                 if (showBubble && sectionIndexer != null) showBubble()
 
@@ -228,7 +228,7 @@ constructor(
                 requestDisallowInterceptTouchEvent(false)
                 setHandleSelected(false)
 
-                if (hideScrollbar) handler.postDelayed(scrollbarHider, SCROLLBAR_HIDE_DELAY)
+                if (hideScrollbar) postDelayed(scrollbarHider, SCROLLBAR_HIDE_DELAY)
                 if (!showBubbleAlways) hideBubble()
 
                 fastScrollListener?.onFastScrollStop(this)
@@ -378,6 +378,7 @@ constructor(
      * @see attachRecyclerView
      */
     fun detachRecyclerView() {
+        removeCallbacks(scrollbarHider)
         recyclerView?.removeOnScrollListener(scrollListener)
         recyclerView = null
     }

@@ -1,15 +1,11 @@
 package org.koitharu.kotatsu.alternatives.domain
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.lastOrNull
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.runningFold
-import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.withIndex
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.koitharu.kotatsu.core.model.chaptersCount
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableManga
@@ -19,7 +15,6 @@ import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-import kotlin.coroutines.cancellation.CancellationException
 
 class AutoFixUseCase @Inject constructor(
     private val mangaRepositoryFactory: MangaRepository.Factory,
@@ -66,33 +61,21 @@ class AutoFixUseCase @Inject constructor(
 
     private operator fun Manga.compareTo(other: Manga) = chaptersCount().compareTo(other.chaptersCount())
 
-    @Suppress("UNCHECKED_CAST", "OPT_IN_USAGE")
+    /** The last value seen once [minCount] + 1 values arrived, or after [timeout] with whatever arrived by then. */
     private suspend fun <T> Flow<T>.selectLastWithTimeout(
         minCount: Int,
         timeout: Long,
         timeUnit: TimeUnit,
-    ): T? = channelFlow<T?> {
-        var lastValue: T? = null
-        launch {
-            delay(timeUnit.toMillis(timeout))
-            close(InternalTimeoutException(lastValue))
+    ): T? {
+        var last: T? = null
+        withTimeoutOrNull(timeUnit.toMillis(timeout)) {
+            withIndex().firstOrNull { (index, value) ->
+                last = value
+                index >= minCount
+            }
         }
-        withIndex().transformWhile { (index, value) ->
-            lastValue = value
-            emit(value)
-            index < minCount && !isClosedForSend
-        }.collect {
-            send(it)
-        }
-    }.catch { e ->
-        if (e is InternalTimeoutException) {
-            emit(e.value as T?)
-        } else {
-            throw e
-        }
-    }.lastOrNull()
+        return last
+    }
 
     class NoAlternativesException(val seed: ParcelableManga) : NoSuchElementException()
-
-    private class InternalTimeoutException(val value: Any?) : CancellationException()
 }

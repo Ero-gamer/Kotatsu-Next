@@ -38,22 +38,7 @@ class AppBackupAgent : BackupAgent() {
 
     override fun onFullBackup(data: FullBackupDataOutput) {
         super.onFullBackup(data)
-        val file = createBackupFile(
-            this,
-            BackupRepository(
-                database = MangaDatabase(context = applicationContext),
-                settings = AppSettings(applicationContext),
-                tapGridSettings = TapGridSettings(applicationContext),
-                mangaSourcesRepository = MangaSourcesRepository(
-                    context = applicationContext,
-                    db = MangaDatabase(context = applicationContext),
-                    settings = AppSettings(applicationContext),
-                ),
-                savedFiltersRepository = SavedFiltersRepository(
-                    context = applicationContext,
-                ),
-            ),
-        )
+        val file = createBackupFile(this, buildRepository())
         try {
             fullBackupFile(file, data)
         } finally {
@@ -70,27 +55,31 @@ class AppBackupAgent : BackupAgent() {
         mtime: Long,
     ) {
         if (destination?.name?.endsWith(".bk.zip") == true) {
-            restoreBackupFile(
-                data.fileDescriptor,
-                size,
-                BackupRepository(
-                    database = MangaDatabase(applicationContext),
-                    settings = AppSettings(applicationContext),
-                    tapGridSettings = TapGridSettings(applicationContext),
-                    mangaSourcesRepository = MangaSourcesRepository(
-                        context = applicationContext,
-                        db = MangaDatabase(context = applicationContext),
-                        settings = AppSettings(applicationContext),
-                    ),
-                    savedFiltersRepository = SavedFiltersRepository(
-                        context = applicationContext,
-                    ),
-                ),
-            )
+            restoreBackupFile(data.fileDescriptor, size, buildRepository())
             destination.delete()
         } else {
             super.onRestoreFile(data, size, destination, type, mode, mtime)
         }
+    }
+
+    /** One database and one settings instance per call (each used to be created two or three times). */
+    private fun buildRepository(): BackupRepository {
+        val db = MangaDatabase(context = applicationContext)
+        val settings = AppSettings(applicationContext)
+        return BackupRepository(
+            context = applicationContext,
+            database = db,
+            settings = settings,
+            tapGridSettings = TapGridSettings(applicationContext),
+            mangaSourcesRepository = MangaSourcesRepository(
+                context = applicationContext,
+                db = db,
+                settings = settings,
+            ),
+            savedFiltersRepository = SavedFiltersRepository(
+                context = applicationContext,
+            ),
+        )
     }
 
     @VisibleForTesting

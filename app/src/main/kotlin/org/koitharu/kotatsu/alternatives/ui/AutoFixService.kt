@@ -60,8 +60,10 @@ class AutoFixService : CoroutineIntentService() {
                     autoFixUseCase.invoke(mangaId)
                 }
                 if (checkNotificationPermission(CHANNEL_ID)) {
-                    val notification = buildNotification(startId, result)
-                    notificationManager.notify(TAG, startId, notification)
+                    // One notification per manga: a shared id made each result overwrite the previous one.
+                    val notificationId = startId * 31 + mangaId.hashCode()
+                    val notification = buildNotification(notificationId, result)
+                    notificationManager.notify(TAG, notificationId, notification)
                 }
             }
         }

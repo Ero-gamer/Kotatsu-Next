@@ -28,6 +28,7 @@ import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.toFileNameSafe
 import org.koitharu.kotatsu.core.util.ext.toListSorted
 import org.koitharu.kotatsu.local.data.MangaIndex
+import org.koitharu.kotatsu.local.data.OptimizedState
 import org.koitharu.kotatsu.local.data.hasZipExtension
 import org.koitharu.kotatsu.local.data.isZipArchive
 import org.koitharu.kotatsu.local.data.output.LocalMangaOutput.Companion.ENTRY_NAME_INDEX
@@ -59,6 +60,7 @@ class LocalMangaParser(private val uri: Uri) {
     suspend fun getManga(withDetails: Boolean): LocalManga = runInterruptible(Dispatchers.IO) {
         (uri.resolveFsAndPath()).use { (fileSystem, rootPath) ->
             val index = MangaIndex.read(fileSystem, rootPath / ENTRY_NAME_INDEX)
+            if (index != null) OptimizedState.put(rootFile, index.isOptimized())
             val mangaInfo = index?.getMangaInfo()
             if (mangaInfo != null) {
                 val coverEntry: Path? = index.getCoverEntry()?.let { rootPath / it }?.takeIf {

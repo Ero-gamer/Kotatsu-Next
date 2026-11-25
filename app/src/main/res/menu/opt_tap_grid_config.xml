@@ -4,6 +4,11 @@
 	xmlns:app="http://schemas.android.com/apk/res-auto">
 
 	<item
+		android:id="@+id/action_presets"
+		android:title="@string/tap_presets"
+		app:showAsAction="never" />
+
+	<item
 		android:id="@+id/action_reset"
 		android:title="@string/reset"
 		app:showAsAction="never" />

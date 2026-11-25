@@ -57,5 +57,9 @@ fun chapterListItemAD(
         }
         binding.imageViewBookmarked.isVisible = item.isBookmarked
         binding.imageViewDownloaded.isVisible = item.isDownloaded
+        if (item.isDownloaded) {
+            binding.imageViewDownloaded.setImageResource(if (item.isOptimized) R.drawable.ic_images else R.drawable.ic_storage)
+            binding.imageViewDownloaded.contentDescription = context.getString(if (item.isOptimized) R.string.chapter_optimized else R.string.downloaded)
+        }
     }
 }

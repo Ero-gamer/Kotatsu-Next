@@ -1,0 +1,21 @@
+{
+  "uniqueId": "native:jxl-oxide",
+  "name": "jxl-oxide",
+  "description": "JPEG XL decoder (Rust). MIT or Apache-2.0",
+  "website": "https://github.com/tirr-c/jxl-oxide",
+  "developers": [
+    {
+      "name": "Wonwoo Choi",
+      "organisationUrl": "https://github.com/tirr-c"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/tirr-c/jxl-oxide"
+  },
+  "licenses": [
+    "MIT",
+    "Apache-2.0"
+  ],
+  "artifactVersion": "0.12.6",
+  "tag": "native"
+}

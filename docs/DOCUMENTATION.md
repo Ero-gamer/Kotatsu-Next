@@ -10,7 +10,7 @@
 ## Build
 `./gradlew assembleDebug`. The Rust task runs only when cargo and the NDK are found; otherwise it logs
 a skip and the app uses Skia decoders. `cargo build --locked` is used when `Cargo.lock` exists.
-Requirements: JDK 17+ (CI uses 21), Gradle 9.0.0 wrapper, AGP 8.13.2.
+Requirements: JDK 17+ (CI uses 21), Gradle 9.9.2 wrapper, AGP 9.5.2 (built-in Kotlin).
 
 ## Image pipeline
 1. `PageLoader` fetches a page (network, cache or CBZ) and detects the format (`ImageFormatProbe`).
@@ -33,6 +33,12 @@ Rust licenses: `python3 scripts/rust-licenses.py` (generated table, 59 crates, n
 Rust: `cargo test --locked` in `app/src/main/rust/ssivcodecs`.
 
 ## Version policy
-Latest stable versions only. Held back on purpose: AGP 8.13.2 (9.x needs Gradle >= 9.5 and a DSL
-migration), Dagger 2.58 and androidx.hilt 1.3.0 (need AGP 9),
-detekt 1.23.8 (2.x is alpha).
+Latest stable versions only. Run the manual "Dependency versions report" workflow
+(`scripts/dep_versions.py`) to see what is newer. Held back on purpose: detekt 1.23.8 (2.x is alpha),
+MMKV 1.3.17 (2.x is a major: needs API check + 16 KB check), Conscrypt 2.8.0 (upstream issue 1268),
+LeakCanary 3.0-alpha-9 (no 3.x stable), biometric 1.4.0-alpha05 (newer is rc only).
+Planned: Room 2.8.5 modernization, then Room 3 (`androidx.room3` 3.0.3).
+
+## CI
+`ci.yml` (spotless auto-fix, detekt, `build`: cargo test + assembleDebug), `native-lint.yml` (SSIV C++/GLSL/
+Rust/Python lint), `dep-versions.yml` (manual report).

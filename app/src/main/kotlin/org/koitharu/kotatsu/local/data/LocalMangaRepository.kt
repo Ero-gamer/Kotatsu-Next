@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.toCollection
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.koitharu.kotatsu.core.model.LocalMangaSource
 import org.koitharu.kotatsu.core.model.isLocal
 import org.koitharu.kotatsu.core.model.isNsfw
@@ -40,6 +42,7 @@ import org.koitharu.kotatsu.parsers.model.SortOrder
 import org.koitharu.kotatsu.parsers.util.levenshteinDistance
 import org.koitharu.kotatsu.parsers.util.mapToSet
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
+import org.koitharu.kotatsu.reader.domain.PageStatsEngine
 import java.io.File
 import java.util.EnumSet
 import javax.inject.Inject
@@ -144,7 +147,7 @@ class LocalMangaRepository @Inject constructor(
 
     suspend fun delete(manga: Manga): Boolean {
         val file = manga.url.toUri().toFile()
-        val result = file.deleteAwait()
+        val result = PageStatsEngine.trackDeletion(file) { file.deleteAwait() }
         if (result) {
             localMangaIndex.delete(manga.id)
             localStorageChanges.emit(null)
@@ -160,7 +163,7 @@ class LocalMangaRepository @Inject constructor(
                 "Manga is not stored on local storage"
             }.manga
         }
-        LocalMangaUtil(subject).deleteChapters(ids)
+        PageStatsEngine.trackDeletion(subject.url.toUri().toFile()) { LocalMangaUtil(subject).deleteChapters(ids) }
         val updated = getDetails(subject)
         localStorageChanges.emit(LocalManga(updated))
     }
@@ -182,17 +185,20 @@ class LocalMangaRepository @Inject constructor(
         }
         // slow path
         val files = getAllFiles()
+        val limiter = Semaphore(MAX_PARALLELISM)
         return channelFlow {
             for (file in files) {
                 launch {
-                    val mangaInput = LocalMangaParser.getOrNull(file)
-                    runCatchingCancellable {
-                        val mangaInfo = mangaInput?.getMangaInfo()
-                        if (mangaInfo != null && mangaInfo.id == remoteManga.id) {
-                            send(mangaInput)
+                    limiter.withPermit {
+                        val mangaInput = LocalMangaParser.getOrNull(file)
+                        runCatchingCancellable {
+                            val mangaInfo = mangaInput?.getMangaInfo()
+                            if (mangaInfo != null && mangaInfo.id == remoteManga.id) {
+                                send(mangaInput)
+                            }
+                        }.onFailure {
+                            it.printStackTraceDebug()
                         }
-                    }.onFailure {
-                        it.printStackTraceDebug()
                     }
                 }
             }
@@ -219,6 +225,9 @@ class LocalMangaRepository @Inject constructor(
                 LocalMangaOutput.get(it, manga) != null
             } ?: defaultDir
     }
+
+    /** Drops page stats of archives that are gone (e.g. deleted outside the app). */
+    suspend fun sweepPageStats() = PageStatsEngine.sweep(storageManager.getReadableDirs())
 
     suspend fun cleanup(): Boolean {
         if (lock.isNotEmpty()) {

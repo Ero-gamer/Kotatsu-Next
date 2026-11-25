@@ -19,11 +19,11 @@ import org.koitharu.kotatsu.core.db.MangaQueryBuilder
 import org.koitharu.kotatsu.core.db.TABLE_FAVOURITES
 import org.koitharu.kotatsu.core.db.entity.MangaWithTags
 import org.koitharu.kotatsu.core.db.sourceCondition
+import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
 import org.koitharu.kotatsu.favourites.domain.model.Cover
 import org.koitharu.kotatsu.list.domain.ListFilterOption
 import org.koitharu.kotatsu.list.domain.ListSortOrder
 import org.koitharu.kotatsu.list.domain.ReadingProgress.Companion.PROGRESS_COMPLETED
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
 import org.koitharu.kotatsu.search.domain.ScreenFilterLog
 
 @Dao
@@ -37,6 +37,19 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
     @Transaction
     @Query("SELECT * FROM favourites WHERE deleted_at = 0 GROUP BY manga_id ORDER BY created_at DESC LIMIT :limit")
     abstract suspend fun findLast(limit: Int): List<FavouriteManga>
+
+    /** Changes whenever anything is added or removed. */
+    @Query("SELECT count(*) || ':' || ifnull(max(created_at), 0) FROM favourites WHERE deleted_at = 0")
+    abstract suspend fun getLibraryVersion(): String
+
+    /** See [org.koitharu.kotatsu.history.data.LibraryRow]. */
+    @Query(
+        """SELECT m.manga_id AS id, m.title AS title, m.alt_title AS altTitles, m.source AS source, m.url AS url,
+        NULL AS percent, NULL AS updatedAt, NULL AS chapters,
+        (SELECT group_concat(t.title, '|') FROM manga_tags mt JOIN tags t ON t.tag_id = mt.tag_id WHERE mt.manga_id = m.manga_id) AS tags
+        FROM manga m WHERE m.manga_id IN (SELECT manga_id FROM favourites WHERE deleted_at = 0)""",
+    )
+    abstract suspend fun findLibraryRows(): List<org.koitharu.kotatsu.history.data.LibraryRow>
 
     @Transaction
     @Query(
@@ -203,23 +216,23 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
 
     @Query(
         """SELECT tags.title FROM tags
-		LEFT JOIN manga_tags ON tags.tag_id = manga_tags.tag_id
-		INNER JOIN favourites ON favourites.manga_id = manga_tags.manga_id
-		WHERE favourites.deleted_at = 0
-		GROUP BY tags.title
-		ORDER BY COUNT(manga_tags.manga_id) DESC
-		LIMIT :limit""",
+        LEFT JOIN manga_tags ON tags.tag_id = manga_tags.tag_id
+        INNER JOIN favourites ON favourites.manga_id = manga_tags.manga_id
+        WHERE favourites.deleted_at = 0
+        GROUP BY tags.title
+        ORDER BY COUNT(manga_tags.manga_id) DESC
+        LIMIT :limit""",
     )
     abstract suspend fun findPopularTagTitles(limit: Int): List<String>
 
     @Query(
         """SELECT tags.title FROM tags
-		LEFT JOIN manga_tags ON tags.tag_id = manga_tags.tag_id
-		INNER JOIN favourites ON favourites.manga_id = manga_tags.manga_id
-		WHERE favourites.category_id = :categoryId AND favourites.deleted_at = 0
-		GROUP BY tags.title
-		ORDER BY COUNT(manga_tags.manga_id) DESC
-		LIMIT :limit""",
+        LEFT JOIN manga_tags ON tags.tag_id = manga_tags.tag_id
+        INNER JOIN favourites ON favourites.manga_id = manga_tags.manga_id
+        WHERE favourites.category_id = :categoryId AND favourites.deleted_at = 0
+        GROUP BY tags.title
+        ORDER BY COUNT(manga_tags.manga_id) DESC
+        LIMIT :limit""",
     )
     abstract suspend fun findPopularTagTitles(
         categoryId: Long,
@@ -265,18 +278,24 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
         deletedAt = System.currentTimeMillis(),
     )
 
-    suspend fun recover(mangaId: Long) = setDeletedAt(
+    /**
+     * Puts back what was removed. A removal that a sync may already have sent is put back as added just now: with its
+     * old date the removal would be the later of the two wherever they meet, and the manga would go again.
+     *
+     * @param syncedUntil removals up to this time may have been sent, zero if none can have been
+     */
+    suspend fun recover(mangaId: Long, syncedUntil: Long) = recoverImpl(
         mangaId = mangaId,
-        deletedAt = 0L,
+        syncedUntil = syncedUntil,
+        now = System.currentTimeMillis(),
     )
 
-    suspend fun recover(
-        categoryId: Long,
-        mangaId: Long,
-    ) = setDeletedAt(
+    /** See [recover]. */
+    suspend fun recover(categoryId: Long, mangaId: Long, syncedUntil: Long) = recoverImpl(
         categoryId = categoryId,
         mangaId = mangaId,
-        deletedAt = 0L,
+        syncedUntil = syncedUntil,
+        now = System.currentTimeMillis(),
     )
 
     @Query("DELETE FROM favourites WHERE deleted_at != 0 AND deleted_at < :maxDeletionTime")
@@ -314,13 +333,21 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
     )
 
     @Query(
-        "UPDATE favourites SET pinned = :isPinned WHERE manga_id = :mangaId AND category_id = :categoryId AND deleted_at = 0",
+        "UPDATE favourites SET " +
+            "created_at = CASE WHEN deleted_at != 0 AND deleted_at <= :syncedUntil THEN :now ELSE created_at END, " +
+            "deleted_at = 0 WHERE manga_id = :mangaId",
     )
-    abstract suspend fun setPinned(
-        mangaId: Long,
-        categoryId: Long,
-        isPinned: Boolean,
+    protected abstract suspend fun recoverImpl(mangaId: Long, syncedUntil: Long, now: Long)
+
+    @Query(
+        "UPDATE favourites SET " +
+            "created_at = CASE WHEN deleted_at != 0 AND deleted_at <= :syncedUntil THEN :now ELSE created_at END, " +
+            "deleted_at = 0 WHERE manga_id = :mangaId AND category_id = :categoryId",
     )
+    protected abstract suspend fun recoverImpl(categoryId: Long, mangaId: Long, syncedUntil: Long, now: Long)
+
+    @Query("UPDATE favourites SET pinned = :isPinned WHERE manga_id = :mangaId AND category_id = :categoryId AND deleted_at = 0")
+    abstract suspend fun setPinned(mangaId: Long, categoryId: Long, isPinned: Boolean)
 
     @Query("UPDATE favourites SET pinned = :isPinned WHERE manga_id = :mangaId AND deleted_at = 0")
     abstract suspend fun setPinned(
@@ -374,7 +401,7 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
 
     private fun contentTypeCondition(option: ListFilterOption.ContentType): String {
         val sources =
-            MangaParserSource.entries
+            ActiveParsers.sources
                 .asSequence()
                 .filter { it.contentType == option.contentType }
                 .joinToString(

@@ -4,8 +4,10 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 import org.koitharu.kotatsu.core.db.TABLE_PREFERENCES
 
+@Serializable // backup: MANGA_PREFS
 @Entity(
     tableName = TABLE_PREFERENCES,
     foreignKeys = [
@@ -56,6 +58,22 @@ data class MangaPrefsEntity(
     @ColumnInfo(name = "cf_line_darken", defaultValue = "0") val cfLineDarken: Boolean,
     /** Per-manga master switch: filters stay saved but are not applied while true. */
     @ColumnInfo(name = "cf_disabled", defaultValue = "0") val cfDisabled: Boolean,
+    /** Auto contrast: per-page levels stretch instead of the manual contrast slider. */
+    @ColumnInfo(name = "cf_auto_contrast", defaultValue = "0") val cfAutoContrast: Boolean = false,
+    /** Auto brightness: per-page exposure gain instead of the manual brightness slider. */
+    @ColumnInfo(name = "cf_auto_brightness", defaultValue = "0") val cfAutoBrightness: Boolean = false,
+    /** Auto saturation: per-page saturation boost (never below 1) instead of the manual saturation slider. */
+    @ColumnInfo(name = "cf_auto_saturation", defaultValue = "0") val cfAutoSaturation: Boolean = false,
+    /** Color overlay (red, green, blue 0..1 and its opacity); inactive while [cfOverlayA] is 0. */
+    @ColumnInfo(name = "cf_overlay_r", defaultValue = "0") val cfOverlayR: Float = 0f,
+    @ColumnInfo(name = "cf_overlay_g", defaultValue = "0") val cfOverlayG: Float = 0f,
+    @ColumnInfo(name = "cf_overlay_b", defaultValue = "0") val cfOverlayB: Float = 0f,
+    @ColumnInfo(name = "cf_overlay_a", defaultValue = "0") val cfOverlayA: Float = 0f,
+    /** Binarize (local-threshold black & white) strength. */
+    @ColumnInfo(name = "cf_binarize", defaultValue = "0") val cfBinarize: Float = 0f,
+    /** Per-manga border crop for paged readers / webtoon: 0 = follow the global setting, 1 = on, 2 = off. */
+    @ColumnInfo(name = "crop_pages", defaultValue = "0") val cropPages: Int = 0,
+    @ColumnInfo(name = "crop_webtoon", defaultValue = "0") val cropWebtoon: Int = 0,
     @ColumnInfo(name = "title_override") val titleOverride: String?,
     @ColumnInfo(name = "cover_override") val coverUrlOverride: String?,
     @ColumnInfo(name = "content_rating_override") val contentRatingOverride: String?,

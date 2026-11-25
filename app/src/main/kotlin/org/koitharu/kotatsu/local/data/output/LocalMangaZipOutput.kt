@@ -7,10 +7,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.internal.closeQuietly
 import org.koitharu.kotatsu.core.model.isLocal
+import org.koitharu.kotatsu.core.image.ImageFormatProbe
 import org.koitharu.kotatsu.core.util.MimeTypes
 import org.koitharu.kotatsu.core.util.ext.MimeType
 import org.koitharu.kotatsu.core.util.ext.deleteAwait
 import org.koitharu.kotatsu.core.util.ext.readText
+import org.koitharu.kotatsu.core.util.ext.renameReplacing
 import org.koitharu.kotatsu.core.zip.ZipOutput
 import org.koitharu.kotatsu.local.data.MangaIndex
 import org.koitharu.kotatsu.parsers.model.Manga
@@ -44,7 +46,7 @@ class LocalMangaZipOutput(
     override suspend fun addCover(file: File, type: MimeType?) = mutex.withLock {
         val name = buildString {
             append(FILENAME_PATTERN.format(0, 0, 0))
-            MimeTypes.getExtension(type)?.let { ext ->
+            (MimeTypes.getExtension(type) ?: ImageFormatProbe.probe(file).format.extension)?.let { ext ->
                 append('.')
                 append(ext)
             }
@@ -55,10 +57,11 @@ class LocalMangaZipOutput(
         index.setCoverEntry(name)
     }
 
-    override suspend fun addPage(chapter: IndexedValue<MangaChapter>, file: File, pageNumber: Int, type: MimeType?) = mutex.withLock {
+    override suspend fun addPage(chapter: IndexedValue<MangaChapter>, file: File, pageNumber: Int, type: MimeType?, part: Int) = mutex.withLock {
         val name = buildString {
             append(FILENAME_PATTERN.format(chapter.value.branch.hashCode(), chapter.index + 1, pageNumber))
-            MimeTypes.getExtension(type)?.let { ext ->
+            if (part > 0) append("_%02d".format(part))
+            (MimeTypes.getExtension(type) ?: ImageFormatProbe.probe(file).format.extension)?.let { ext ->
                 append('.')
                 append(ext)
             }
@@ -78,8 +81,7 @@ class LocalMangaZipOutput(
                 output.finish()
             }
         }
-        rootFile.deleteAwait()
-        output.file.renameTo(rootFile)
+        output.file.renameReplacing(rootFile)
         Unit
     }
 
@@ -153,8 +155,7 @@ class LocalMangaZipOutput(
                     }
                     subject.output.finish()
                     subject.output.close()
-                    subject.rootFile.delete()
-                    subject.output.file.renameTo(subject.rootFile)
+                    subject.output.file.renameReplacing(subject.rootFile)
                 }
             } catch (e: Throwable) {
                 subject.closeQuietly()

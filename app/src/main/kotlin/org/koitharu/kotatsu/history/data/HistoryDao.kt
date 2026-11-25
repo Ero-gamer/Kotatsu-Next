@@ -31,6 +31,19 @@ abstract class HistoryDao : MangaQueryBuilder.ConditionCallback {
         limit: Int,
     ): List<HistoryWithManga>
 
+    /** Changes whenever anything is read, added or removed. */
+    @Query("SELECT count(*) || ':' || ifnull(max(updated_at), 0) FROM history WHERE deleted_at = 0")
+    abstract suspend fun getLibraryVersion(): String
+
+    /** Most recent first. See [LibraryRow]. */
+    @Query(
+        """SELECT m.manga_id AS id, m.title AS title, m.alt_title AS altTitles, m.source AS source, m.url AS url,
+        h.percent AS percent, h.updated_at AS updatedAt, h.chapters AS chapters,
+        (SELECT group_concat(t.title, '|') FROM manga_tags mt JOIN tags t ON t.tag_id = mt.tag_id WHERE mt.manga_id = m.manga_id) AS tags
+        FROM history h JOIN manga m ON m.manga_id = h.manga_id WHERE h.deleted_at = 0 ORDER BY h.updated_at DESC""",
+    )
+    abstract suspend fun findLibraryRows(): List<LibraryRow>
+
     /**
      * Free-text match over everything that identifies an entry on the History screen: its title, the
      * source it came from, and the favourites list it belongs to. Lets one search box narrow the screen

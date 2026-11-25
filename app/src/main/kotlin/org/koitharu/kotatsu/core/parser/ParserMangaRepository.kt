@@ -12,6 +12,7 @@ import org.koitharu.kotatsu.parsers.MangaParser
 import org.koitharu.kotatsu.parsers.MangaParserAuthProvider
 import org.koitharu.kotatsu.parsers.config.ConfigKey
 import org.koitharu.kotatsu.parsers.exception.AuthRequiredException
+import org.koitharu.kotatsu.parsers.exception.TooManyRequestExceptions
 import org.koitharu.kotatsu.parsers.model.Favicons
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaChapter
@@ -19,7 +20,7 @@ import org.koitharu.kotatsu.parsers.model.MangaListFilter
 import org.koitharu.kotatsu.parsers.model.MangaListFilterCapabilities
 import org.koitharu.kotatsu.parsers.model.MangaListFilterOptions
 import org.koitharu.kotatsu.parsers.model.MangaPage
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.SortOrder
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.parsers.util.suspendlazy.suspendLazy
@@ -37,7 +38,7 @@ class ParserMangaRepository(
             }
         }
 
-    override val source: MangaParserSource
+    override val source: ParserMangaSource
         get() = parser.source
 
     override val sortOrders: Set<SortOrder>
@@ -117,23 +118,22 @@ class ParserMangaRepository(
         return newResult ?: initialResult.getOrThrow()
     }
 
+    /**
+     * A result that does not call for a mirror hunt. Any successful answer counts, an empty list included (last
+     * page, no search match): hunting mirrors for it multiplied requests on every such answer. A failure that
+     * the mirror cannot cure (challenge, login, proxy, rate limit) does not count either; the wrapped cause is
+     * checked too, as parsers rethrow these inside their own exception.
+     */
     private fun Result<Any>.isValidResult() = fold(
-        onSuccess = {
-            when (it) {
-                is Collection<*> -> it.isNotEmpty()
-                else -> true
-            }
-        },
-        onFailure = {
-            when (it.cause) {
-                is CloudFlareProtectedException,
-                is AuthRequiredException,
-                is InteractiveActionRequiredException,
-                is ProxyConfigException,
-                -> true
-
-                else -> false
-            }
+        onSuccess = { true },
+        onFailure = { e ->
+            e.isMirrorIndependent() || e.cause?.isMirrorIndependent() == true
         },
     )
+
+    private fun Throwable.isMirrorIndependent() = this is CloudFlareProtectedException ||
+        this is AuthRequiredException ||
+        this is InteractiveActionRequiredException ||
+        this is ProxyConfigException ||
+        this is TooManyRequestExceptions
 }

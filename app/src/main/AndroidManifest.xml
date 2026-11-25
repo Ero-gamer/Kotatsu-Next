@@ -141,6 +141,9 @@
 			android:name="org.koitharu.kotatsu.history.ui.HistoryActivity"
 			android:label="@string/history" />
 		<activity
+			android:name="org.koitharu.kotatsu.explore.ui.SourcesActivity"
+			android:label="@string/by_source" />
+		<activity
 			android:name="org.koitharu.kotatsu.tracker.ui.updates.UpdatesActivity"
 			android:label="@string/updates" />
 		<activity
@@ -229,6 +232,10 @@
 			android:name="org.koitharu.kotatsu.download.ui.list.DownloadsActivity"
 			android:label="@string/downloads"
 			android:launchMode="singleTop" />
+		<activity
+			android:name="org.koitharu.kotatsu.local.ui.optimize.OptimizeActivity"
+			android:label="@string/optimize_screen_title"
+			android:launchMode="singleTop" />
 		<activity android:name="org.koitharu.kotatsu.image.ui.ImageActivity" />
 		<activity android:name="org.koitharu.kotatsu.favourites.ui.categories.edit.FavouritesCategoryEditActivity" />
 		<activity android:name="org.koitharu.kotatsu.explore.ui.preset.SourcePresetEditActivity" />
@@ -310,6 +317,9 @@
 		<activity
 			android:name="org.koitharu.kotatsu.settings.about.AppUpdateActivity"
 			android:label="@string/app_update_available" />
+		<activity
+			android:name="org.koitharu.kotatsu.settings.about.LicensesActivity"
+			android:label="@string/open_source_licenses" />
 		<activity
 			android:name="org.koitharu.kotatsu.tracker.ui.debug.TrackerDebugActivity"
 			android:label="@string/tracker_debug_info" />

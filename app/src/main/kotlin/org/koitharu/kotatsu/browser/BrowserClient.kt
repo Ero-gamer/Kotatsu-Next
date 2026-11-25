@@ -1,16 +1,11 @@
 package org.koitharu.kotatsu.browser
 
-import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.os.Looper
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.annotation.AnyThread
 import androidx.annotation.WorkerThread
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import org.koitharu.kotatsu.core.network.webview.adblock.AdBlock
 import java.io.ByteArrayInputStream
 
@@ -18,6 +13,11 @@ open class BrowserClient(
     private val callback: BrowserCallback,
     private val adBlock: AdBlock?,
 ) : WebViewClient() {
+
+    // Read from the WebView IO thread on every request; asking the main thread for it each time costs latency
+    // and can deadlock, so it is tracked from the callbacks instead.
+    @Volatile
+    private var currentUrl: String? = null
 
     /**
      * https://stackoverflow.com/questions/57414530/illegalstateexception-reasonphrase-cant-be-empty-with-android-webview
@@ -30,6 +30,7 @@ open class BrowserClient(
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
+        currentUrl = url
         callback.onLoadingStateChanged(isLoading = true)
     }
 
@@ -40,6 +41,7 @@ open class BrowserClient(
 
     override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
         super.doUpdateVisitedHistory(view, url, isReload)
+        if (url != null) currentUrl = url
         callback.onHistoryChanged()
     }
 
@@ -48,7 +50,7 @@ open class BrowserClient(
     override fun shouldInterceptRequest(
         view: WebView?,
         url: String?,
-    ): WebResourceResponse? = if (url.isNullOrEmpty() || adBlock?.shouldLoadUrl(url, view?.getUrlSafe()) ?: true) {
+    ): WebResourceResponse? = if (url.isNullOrEmpty() || adBlock?.shouldLoadUrl(url, currentUrl) ?: true) {
         super.shouldInterceptRequest(view, url)
     } else {
         emptyResponse()
@@ -58,21 +60,11 @@ open class BrowserClient(
     override fun shouldInterceptRequest(
         view: WebView?,
         request: WebResourceRequest?,
-    ): WebResourceResponse? = if (request == null || adBlock?.shouldLoadUrl(request.url.toString(), view?.getUrlSafe()) ?: true) {
+    ): WebResourceResponse? = if (request == null || adBlock?.shouldLoadUrl(request.url.toString(), currentUrl) ?: true) {
         super.shouldInterceptRequest(view, request)
     } else {
         emptyResponse()
     }
 
     private fun emptyResponse(): WebResourceResponse = WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(byteArrayOf()))
-
-    @SuppressLint("WrongThread")
-    @AnyThread
-    private fun WebView.getUrlSafe(): String? = if (Looper.myLooper() == Looper.getMainLooper()) {
-        url
-    } else {
-        runBlocking(Dispatchers.Main.immediate) {
-            url
-        }
-    }
 }

@@ -8,6 +8,8 @@ import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 /**
  * Innermost application interceptor: retries idempotent GET/HEAD requests on transient
@@ -56,5 +58,14 @@ class RetryInterceptor(
         }
     }
 
-    private fun IOException.isTransient() = this is SocketTimeoutException || this is SocketException || this is EOFException
+    /**
+     * Timeouts, resets, EOF and a connection that went away (HTTP/2 stream reset, ping timeout, shutdown of a stale
+     * pooled socket) are transient. DNS, TLS and cancellation are deterministic: no retry.
+     */
+    private fun IOException.isTransient(): Boolean = when (this) {
+        is SocketTimeoutException, is SocketException, is EOFException -> true
+        is UnknownHostException, is SSLException -> false
+        is InterruptedIOException -> false
+        else -> javaClass.simpleName.let { it == "StreamResetException" || it == "ConnectionShutdownException" }
+    }
 }

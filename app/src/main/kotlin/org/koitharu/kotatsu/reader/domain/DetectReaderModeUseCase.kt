@@ -55,16 +55,34 @@ class DetectReaderModeUseCase @Inject constructor(
     }
 
     /**
-     * Automatic determine type of manga by page size
-     * @return ReaderMode.WEBTOON if page is wide
+     * Automatic determine type of manga by page size: samples pages at 30/50/70 % and takes the
+     * majority (stops as soon as it is decided, so usually two requests). Pages that fail to load are
+     * skipped; it fails only when none could be measured.
+     * @return true if most sampled pages are tall (webtoon)
      */
     private suspend fun guessMangaIsWebtoon(repository: MangaRepository, pages: List<MangaPage>): Boolean {
-        val pageIndex = (pages.size * 0.3).roundToInt()
-        val page = requireNotNull(pages.getOrNull(pageIndex)) { "No pages" }
+        require(pages.isNotEmpty()) { "No pages" }
+        val indices = SAMPLE_POSITIONS.map { (pages.size * it).roundToInt().coerceIn(0, pages.lastIndex) }.distinct()
+        var tall = 0
+        var total = 0
+        for (index in indices) {
+            val isTall = runCatchingCancellable {
+                val size = measurePage(repository, pages[index])
+                size.width * MIN_WEBTOON_RATIO < size.height
+            }.getOrNull() ?: continue
+            total++
+            if (isTall) tall++
+            if (tall * 2 > indices.size || (total - tall) * 2 >= indices.size) break
+        }
+        check(total > 0) { "No page could be measured" }
+        return tall * 2 > total
+    }
+
+    private suspend fun measurePage(repository: MangaRepository, page: MangaPage): Size {
         val url = repository.getPageUrl(page)
         val uri = url.toUri()
 
-        val size = when {
+        return when {
             uri.isZipUri() -> runInterruptible(Dispatchers.IO) {
                 ZipFile(uri.schemeSpecificPart).use { zip ->
                     val entry = zip.getEntry(uri.fragment)
@@ -89,12 +107,12 @@ class DetectReaderModeUseCase @Inject constructor(
                 }
             }
         }
-        return size.width * MIN_WEBTOON_RATIO < size.height
     }
 
     companion object {
 
         private const val MIN_WEBTOON_RATIO = 1.8
+        private val SAMPLE_POSITIONS = doubleArrayOf(0.3, 0.5, 0.7)
 
         private fun getBitmapSize(input: InputStream?): Size {
             val options = BitmapFactory.Options().apply {

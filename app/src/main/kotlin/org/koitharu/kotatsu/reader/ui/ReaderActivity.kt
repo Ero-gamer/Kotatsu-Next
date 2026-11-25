@@ -4,6 +4,9 @@ import android.app.assist.AssistContent
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.KeyEvent
@@ -11,6 +14,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.graphics.Insets
@@ -21,6 +25,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.withResumed
 import androidx.transition.Fade
 import androidx.transition.Slide
 import androidx.transition.TransitionManager
@@ -31,9 +36,11 @@ import com.google.android.material.slider.Slider
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -43,6 +50,7 @@ import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.DialogErrorObserver
 import org.koitharu.kotatsu.core.exceptions.resolve.SnackbarErrorObserver
+import org.koitharu.kotatsu.core.model.ReaderTint
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.prefs.AppSettings
@@ -59,6 +67,7 @@ import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.postDelayed
+import org.koitharu.kotatsu.core.util.ext.resolveDp
 import org.koitharu.kotatsu.core.util.ext.setThumbVisible
 import org.koitharu.kotatsu.core.util.ext.setValueRounded
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
@@ -68,11 +77,19 @@ import org.koitharu.kotatsu.details.ui.pager.pages.PagesSavedObserver
 import org.koitharu.kotatsu.parsers.model.MangaChapter
 import org.koitharu.kotatsu.reader.data.TapGridSettings
 import org.koitharu.kotatsu.reader.domain.TapGridArea
+import org.koitharu.kotatsu.reader.domain.erase.ImageHider
+import org.koitharu.kotatsu.reader.domain.indexOfPosition
+import org.koitharu.kotatsu.reader.domain.formatChapterNumber
+import org.koitharu.kotatsu.reader.domain.missingChaptersBetween
+import org.koitharu.kotatsu.reader.ui.config.CropMenu
 import org.koitharu.kotatsu.reader.ui.config.ReaderConfigSheet
+import org.koitharu.kotatsu.reader.ui.erase.EraseController
+import org.koitharu.kotatsu.reader.ui.erase.ErasePageTarget
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 import org.koitharu.kotatsu.reader.ui.pager.ReaderUiState
 import org.koitharu.kotatsu.reader.ui.tapgrid.TapGridDispatcher
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 import javax.inject.Inject
 import androidx.appcompat.R as appcompatR
 
@@ -87,6 +104,9 @@ class ReaderActivity :
     ZoomControl.ZoomControlListener,
     View.OnClickListener,
     ScrollTimerControlView.OnVisibilityChangeListener {
+
+    @Inject
+    lateinit var imageHider: ImageHider
 
     @Inject
     lateinit var settings: AppSettings
@@ -113,12 +133,17 @@ class ReaderActivity :
     private lateinit var scrollTimer: ScrollTimer
     private lateinit var pageSaveHelper: PageSaveHelper
     private lateinit var touchHelper: TapGridDispatcher
+    private var isTouchSuppressed = false
+    private var isSuppressCancelSent = false
+    private lateinit var eraseController: EraseController
     private var isVerticalSliderTracking = false
     private var isVerticalSliderChanged = false
     private lateinit var controlDelegate: ReaderControlDelegate
     private var gestureInsets: Insets = Insets.NONE
     private lateinit var readerManager: ReaderManager
     private val hideUiRunnable = Runnable { setUiIsVisible(false) }
+    private var scrolledSinceUiShown = 0
+    private var hideThresholdPx = 0 // refreshed in onResume: the setting changes only on the settings screen
     private val hideEInkFlashRunnable = Runnable { einkFlashView.isVisible = false }
     private lateinit var einkFlashView: View
     private var eInkFlashCounter = 0
@@ -136,6 +161,13 @@ class ReaderActivity :
         scrollTimer = scrollTimerFactory.create(resources, this, this)
         pageSaveHelper = pageSaveHelperFactory.create(this)
         controlDelegate = ReaderControlDelegate(resources, settings, tapGridSettings, this)
+        eraseController = EraseController(viewBinding.eraseOverlay, imageHider, lifecycleScope, EraseHost())
+        val eraseBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() = eraseController.onBackPressed()
+        }
+        onBackPressedDispatcher.addCallback(this, eraseBackCallback)
+        viewBinding.eraseOverlay.onActiveChanged = { eraseBackCallback.isEnabled = it }
+        offerEraseTutorial()
         viewBinding.zoomControl.listener = this
         viewBinding.actionsView.listener = this
         viewBinding.actionsView.isVerticalSliderActive = isVerticalSliderUsable()
@@ -244,7 +276,7 @@ class ReaderActivity :
         viewModel.isZoomControlsEnabled.observe(this) {
             viewBinding.zoomControl.isVisible = it
         }
-        addMenuProvider(ReaderMenuProvider(viewModel))
+        addMenuProvider(ReaderMenuProvider(viewModel) { router.openHiddenImages() })
 
         observeWindowLayout()
 
@@ -263,6 +295,12 @@ class ReaderActivity :
             scrollTimer.onUserInteraction()
         }
         idlingDetector.onUserInteraction()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyScreenOverlay()
+        hideThresholdPx = resources.resolveDp(settings.readerHideThreshold.dp)
     }
 
     override fun onPause() {
@@ -305,9 +343,39 @@ class ReaderActivity :
         }
     }
 
+    /** Once, the first time a chapter is on screen in webtoon mode. Leaving halfway offers it again next time. */
+    private fun offerEraseTutorial() {
+        if (!settings.isReaderEraseGestureEnabled || !settings.isTipEnabled(AppSettings.TIP_ERASE_TUTORIAL)) {
+            return
+        }
+        lifecycleScope.launch {
+            combine(viewModel.readerMode, viewModel.content) { mode, content ->
+                mode == ReaderMode.WEBTOON && content.pages.isNotEmpty()
+            }.first { it }
+            // The first page needs a moment to be there to practise on
+            delay(ERASE_TUTORIAL_DELAY_MS)
+            withResumed { startEraseTutorial() }
+        }
+    }
+
+    private fun startEraseTutorial() {
+        val tutorial = viewBinding.eraseTutorial
+        tutorial.onFinished = {
+            eraseController.practice = null
+            viewBinding.eraseOverlay.cancel()
+            settings.closeTip(AppSettings.TIP_ERASE_TUTORIAL)
+        }
+        eraseController.practice = tutorial
+        tutorial.start()
+    }
+
     private fun onInitReader(mode: ReaderMode?) {
         if (mode == null) {
             return
+        }
+        if (mode != ReaderMode.WEBTOON && eraseController.practice != null) {
+            eraseController.practice = null
+            viewBinding.eraseTutorial.stop()
         }
         if (readerManager.currentMode != mode) {
             readerManager.replace(mode)
@@ -338,8 +406,10 @@ class ReaderActivity :
     override fun onGridTouch(area: TapGridArea): Boolean = isReaderResumed() && controlDelegate.onGridTouch(area)
 
     override fun onGridLongTouch(area: TapGridArea) {
-        if (isReaderResumed()) {
-            controlDelegate.onGridLongTouch(area)
+        if (isReaderResumed() && controlDelegate.onGridLongTouch(area)) {
+            // DS-6: the finger is still down; the rest of this touch must not drift the pages
+            isTouchSuppressed = true
+            isSuppressCancelSent = false
         }
     }
 
@@ -358,6 +428,31 @@ class ReaderActivity :
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (isTouchSuppressed) {
+            val action = ev.actionMasked
+            if (action == MotionEvent.ACTION_DOWN) {
+                isTouchSuppressed = false
+            } else {
+                touchHelper.dispatchTouchEvent(ev) // keeps the detector's state clean
+                // Children get one ACTION_CANCEL, the rest of the gesture is swallowed until the finger is up
+                if (!isSuppressCancelSent) {
+                    isSuppressCancelSent = true
+                    val cancel = MotionEvent.obtain(ev)
+                    cancel.action = MotionEvent.ACTION_CANCEL
+                    super.dispatchTouchEvent(cancel)
+                    cancel.recycle()
+                }
+                if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    isTouchSuppressed = false
+                }
+                return true
+            }
+        }
+        when (eraseController.onTouchEvent(ev)) {
+            EraseController.TouchResult.NOT_CLAIMED -> Unit
+            EraseController.TouchResult.CONSUMED -> return true
+            EraseController.TouchResult.TO_OVERLAY -> return super.dispatchTouchEvent(ev)
+        }
         touchHelper.dispatchTouchEvent(ev)
         if (!viewBinding.timerControl.hasGlobalPoint(ev.rawX.toInt(), ev.rawY.toInt())) {
             scrollTimer.onTouchEvent(ev)
@@ -377,7 +472,11 @@ class ReaderActivity :
     override fun onPageSelected(page: ReaderPage): Boolean {
         lifecycleScope.launch(Dispatchers.Default) {
             val pages = viewModel.content.value.pages
-            val index = pages.indexOfFirst { it.chapterId == page.chapterId && it.id == page.id }
+            var index = pages.indexOfFirst { it.chapterId == page.chapterId && it.id == page.id }
+            if (index == -1) {
+                // The page slider counts every page of the chapter, including those since hidden
+                index = pages.indexOfPosition(page.chapterId, page.index) ?: -1
+            }
             if (index != -1) {
                 withContext(Dispatchers.Main) {
                     readerManager.currentReader?.switchPageTo(index, true)
@@ -393,6 +492,18 @@ class ReaderActivity :
         viewModel.saveCurrentState(readerManager.currentReader?.getCurrentState())
         viewModel.switchMode(mode)
         viewBinding.timerControl.onReaderModeChanged(mode)
+        viewBinding.toastView.showTemporary(
+            getString(
+                when (mode) {
+                    ReaderMode.STANDARD -> R.string.standard
+                    ReaderMode.REVERSED -> R.string.right_to_left
+                    ReaderMode.VERTICAL -> R.string.vertical
+                    ReaderMode.BOTTOM_TO_TOP -> R.string.bottom_to_top
+                    ReaderMode.WEBTOON -> R.string.webtoon
+                },
+            ),
+            TOAST_DURATION,
+        )
     }
 
     override fun onDoubleModeChanged(isEnabled: Boolean) {
@@ -422,11 +533,95 @@ class ReaderActivity :
         readerManager.setDoubleReaderMode(autoEnabled)
     }
 
+    /** Window brightness, color overlay and dim layer from the reader settings (re-read on every resume). */
+    // Last applied values: onResume repeats this, and a window-attributes write is an IPC + relayout.
+    private var appliedBrightness = Int.MIN_VALUE
+    private var appliedDim = Int.MIN_VALUE
+    private var appliedTint: ReaderTint? = null
+    private var appliedTintStrength = Int.MIN_VALUE
+
+    private fun applyScreenOverlay() {
+        val brightness = settings.readerBrightness
+        if (brightness != appliedBrightness) {
+            appliedBrightness = brightness
+            window.attributes = window.attributes.also {
+                it.screenBrightness = if (brightness > 0) {
+                    (brightness / 100f).coerceAtLeast(MIN_WINDOW_BRIGHTNESS)
+                } else {
+                    WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                }
+            }
+        }
+        val dim = settings.readerDim
+        if (dim != appliedDim) {
+            appliedDim = dim
+            viewBinding.overlayDim.isVisible = dim > 0
+            viewBinding.overlayDim.setBackgroundColor(Color.argb(dim * 255 / 100, 0, 0, 0))
+        }
+        val tint = settings.readerTint
+        val strength = settings.readerTintStrength
+        if (tint != appliedTint || strength != appliedTintStrength) {
+            appliedTint = tint
+            appliedTintStrength = strength
+            viewBinding.overlayTint.isVisible = tint != ReaderTint.OFF && strength > 0
+            viewBinding.overlayTint.setBackgroundColor((strength * 255 / 100 shl 24) or tint.rgb)
+        }
+    }
+
     private fun setKeepScreenOn(isKeep: Boolean) {
         if (isKeep) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    private inner class EraseHost : EraseController.Host {
+
+        override val isEraseGestureEnabled: Boolean
+            get() = settings.isReaderEraseGestureEnabled
+
+        override val mangaTitle: String?
+            get() = viewModel.getMangaOrNull()?.title
+
+        override val pageBackgroundColor: Int
+            get() = if (viewModel.readerSettingsProducer.value.background.isLight(this@ReaderActivity)) {
+                Color.WHITE
+            } else {
+                Color.BLACK
+            }
+
+        override fun canStartEraseAt(rawX: Int, rawY: Int): Boolean = onProcessTouch(rawX, rawY)
+
+        override fun findEraseTarget(rawX: Float, rawY: Float): ErasePageTarget? =
+            readerManager.currentReader?.findPageHolderAt(rawX.toInt(), rawY.toInt())?.createEraseTarget()
+
+        override suspend fun findNeighbourImages(page: ReaderPage): List<Uri> = viewModel.loadNeighbourImages(page)
+
+        override fun cancelTouchFor(event: MotionEvent) {
+            val cancel = MotionEvent.obtain(event)
+            cancel.action = MotionEvent.ACTION_CANCEL
+            touchHelper.dispatchTouchEvent(cancel)
+            scrollTimer.onTouchEvent(cancel)
+            super@ReaderActivity.dispatchTouchEvent(cancel)
+            cancel.recycle()
+        }
+
+        override fun onEraseGestureRecognized() = setUiIsVisible(false)
+
+        override fun onImageErased(ruleIds: List<Long>) {
+            Snackbar.make(viewBinding.container, R.string.erase_done, Snackbar.LENGTH_LONG)
+                .setAnchorView(viewBinding.toolbarDocked)
+                .setAction(R.string.undo) {
+                    lifecycleScope.launch { ruleIds.forEach { imageHider.forget(it) } }
+                }
+                .show()
+        }
+
+        override fun showEraseMessage(message: Int) {
+            Snackbar.make(viewBinding.container, message, Snackbar.LENGTH_SHORT)
+                .setAnchorView(viewBinding.toolbarDocked)
+                .show()
         }
     }
 
@@ -508,6 +703,19 @@ class ReaderActivity :
         setUiIsVisible(!viewBinding.appbarTop.isVisible)
     }
 
+    override fun onReaderScrolled(dy: Int) {
+        val threshold = hideThresholdPx
+        if (threshold == 0 || !viewBinding.appbarTop.isVisible) {
+            scrolledSinceUiShown = 0
+            return
+        }
+        scrolledSinceUiShown += abs(dy)
+        if (scrolledSinceUiShown >= threshold) {
+            scrolledSinceUiShown = 0
+            setUiIsVisible(false)
+        }
+    }
+
     override fun isReaderResumed(): Boolean {
         val reader = readerManager.currentReader ?: return false
         return reader.isResumed && supportFragmentManager.fragments.lastOrNull() === reader
@@ -521,6 +729,10 @@ class ReaderActivity :
         viewModel.setColorFilterEnabled(isEnabled)
     }
 
+    override fun onCropClick(anchor: View) {
+        CropMenu.show(anchor, viewModel)
+    }
+
     override fun openColorFilterConfig() {
         val manga = viewModel.getMangaOrNull() ?: return
         val page = viewModel.getCurrentPage() ?: return
@@ -529,6 +741,10 @@ class ReaderActivity :
 
     override fun onSavePageClick() {
         viewModel.saveCurrentPage(pageSaveHelper)
+    }
+
+    override fun onSaveFrameClick(frame: Bitmap) {
+        viewModel.saveCurrentFrame(pageSaveHelper, frame)
     }
 
     override fun onScrollTimerClick(isLongClick: Boolean) {
@@ -587,7 +803,15 @@ class ReaderActivity :
             chapterTitle != previous?.getChapterTitle(resources) &&
             chapterTitle.isNotEmpty()
         ) {
-            viewBinding.toastView.showTemporary(chapterTitle, TOAST_DURATION)
+            val missing = missingChaptersNotice(previous, uiState)
+            viewBinding.toastView.showTemporary(
+                if (missing == null) chapterTitle else chapterTitle + "\n" + missing,
+                if (missing == null) TOAST_DURATION else TOAST_DURATION * 2,
+            )
+        } else if (settings.isMissingChapterWarningEnabled) {
+            missingChaptersNotice(previous, uiState)?.let {
+                viewBinding.toastView.showTemporary(it, TOAST_DURATION * 2)
+            }
         }
         flashOnPageChanged(previous, uiState)
         if (uiState.isSliderAvailable()) {
@@ -614,6 +838,20 @@ class ReaderActivity :
         viewBinding.buttonPrevVertical?.isEnabled = uiState.hasPreviousChapter()
         viewBinding.buttonNextVertical?.isEnabled = uiState.hasNextChapter()
         setVerticalSliderVisible(viewBinding.appbarTop.isVisible && useVertical && uiState.isSliderAvailable())
+    }
+
+    /** Notice for a numbering gap when the reader moved to the neighbouring chapter; null otherwise. */
+    private fun missingChaptersNotice(previous: ReaderUiState?, current: ReaderUiState): String? {
+        if (previous == null || !settings.isMissingChapterWarningEnabled) return null
+        if (previous.chapter.id == current.chapter.id || abs(previous.chapterIndex - current.chapterIndex) != 1) return null
+        val gap = missingChaptersBetween(previous.chapter, current.chapter)
+        if (gap <= 0) return null
+        return getString(
+            R.string.missing_chapters_between,
+            gap,
+            formatChapterNumber(minOf(previous.chapter.number, current.chapter.number)),
+            formatChapterNumber(maxOf(previous.chapter.number, current.chapter.number)),
+        )
     }
 
     private fun setVerticalSliderVisible(visible: Boolean) {
@@ -741,5 +979,10 @@ class ReaderActivity :
     companion object {
 
         private const val TOAST_DURATION = 2000L
+
+        private const val ERASE_TUTORIAL_DELAY_MS = 1_200L
+
+        /** 0 would switch the panel off on some devices; the lowest usable window brightness instead. */
+        private const val MIN_WINDOW_BRIGHTNESS = 0.01f
     }
 }

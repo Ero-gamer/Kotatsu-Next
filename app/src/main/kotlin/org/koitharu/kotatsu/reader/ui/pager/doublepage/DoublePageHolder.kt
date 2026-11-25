@@ -7,6 +7,7 @@ import android.widget.FrameLayout
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
+import androidx.recyclerview.widget.RecyclerView
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.os.NetworkState
@@ -32,14 +33,15 @@ class DoublePageHolder(
     exceptionResolver = exceptionResolver,
 ) {
 
-    private val isEven: Boolean
-        get() = bindingAdapterPosition and 1 == 0
+    // Captured in onBind: onReady runs asynchronously and bindingAdapterPosition is NO_POSITION once recycled.
+    private var isEven = true
 
     init {
         binding.ssiv.panLimit = SubsamplingScaleImageView.PAN_LIMIT_INSIDE
     }
 
     override fun onBind(data: ReaderPage) {
+        bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }?.let { isEven = it and 1 == 0 }
         super.onBind(data)
         // Reset transforms from recycled wide-image or spacer views
         binding.ssiv.isVisible = true
@@ -50,6 +52,18 @@ class DoublePageHolder(
         itemView.translationZ = 0f
         (binding.textViewNumber.layoutParams as FrameLayout.LayoutParams)
             .gravity = (if (isEven) Gravity.START else Gravity.END) or Gravity.BOTTOM
+        applyCentreGap()
+    }
+
+    /** Half of the configured gap on the inner side of each page (the left page of a pair is the even one). */
+    private fun applyCentreGap() {
+        val half = (itemView.resources.displayMetrics.widthPixels * settings.doublePageGap / 200f).toInt()
+        itemView.setPaddingRelative(
+            if (isEven) 0 else half,
+            0,
+            if (isEven) half else 0,
+            0,
+        )
     }
 
     /**

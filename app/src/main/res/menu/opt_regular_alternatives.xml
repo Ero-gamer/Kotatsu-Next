@@ -23,20 +23,7 @@
 				android:id="@+id/action_alternatives_sources"
 				android:title="@string/remote_sources">
 
-				<menu>
-					<group
-						android:id="@+id/group_alternatives_sources"
-						android:checkableBehavior="single">
-
-						<item
-							android:id="@+id/action_alternatives_sources_preset"
-							android:title="@string/source_presets" />
-
-						<item
-							android:id="@+id/action_alternatives_sources_enabled"
-							android:title="@string/enabled_sources" />
-					</group>
-				</menu>
+				<menu />
 			</item>
 
 			<item

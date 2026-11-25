@@ -1,5 +1,6 @@
 package org.koitharu.kotatsu.core.ui.list
 
+import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.AdapterDataObserver
@@ -14,6 +15,13 @@ class RecyclerScrollKeeper(
 
     fun attach() {
         rv.adapter?.registerAdapterDataObserver(this)
+        rv.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) = Unit
+
+            override fun onViewDetachedFromWindow(v: View) {
+                rv.removeCallbacks(scrollUpRunnable)
+            }
+        })
     }
 
     override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {

@@ -26,12 +26,14 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.os.AppValidator
 import org.koitharu.kotatsu.core.os.RomCompat
+import org.koitharu.kotatsu.core.parser.bundle.ParsersUpdater
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.data.index.LocalMangaIndex
 import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.util.suspendlazy.getOrNull
+import org.koitharu.kotatsu.reader.domain.PageStatsEngine
 import org.koitharu.kotatsu.settings.work.WorkScheduleManager
 import java.security.Security
 import javax.inject.Inject
@@ -64,6 +66,9 @@ open class BaseApp :
     lateinit var workScheduleManager: WorkScheduleManager
 
     @Inject
+    lateinit var parsersUpdater: ParsersUpdater
+
+    @Inject
     lateinit var localMangaIndexProvider: Provider<LocalMangaIndex>
 
     @Inject
@@ -81,6 +86,8 @@ open class BaseApp :
         if (ACRA.isACRASenderServiceProcess()) {
             return
         }
+        // Before anything gets to ask which sources there are: the answer is in the parsers kept from the last run
+        parsersUpdater.start(this)
         AppCompatDelegate.setDefaultNightMode(settings.theme)
         // TLS 1.3 support for Android < 10
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -95,6 +102,7 @@ open class BaseApp :
             setupDatabaseObservers()
             localStorageChanges.collect(localMangaIndexProvider.get())
         }
+        PageStatsEngine.attach(database)
         workScheduleManager.init()
     }
 

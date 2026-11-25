@@ -24,6 +24,7 @@ import org.koitharu.kotatsu.core.util.ext.getThemeDrawable
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.systemBarsInsets
 import org.koitharu.kotatsu.databinding.ActivityReaderTapActionsBinding
+import org.koitharu.kotatsu.reader.data.TapGridSettings
 import org.koitharu.kotatsu.reader.domain.TapGridArea
 import org.koitharu.kotatsu.reader.ui.tapgrid.TapAction
 import java.util.EnumMap
@@ -80,6 +81,11 @@ class ReaderTapGridConfigActivity :
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_reset -> {
             confirmReset()
+            true
+        }
+
+        R.id.action_presets -> {
+            showPresets()
             true
         }
 
@@ -142,6 +148,17 @@ class ReaderTapGridConfigActivity :
             .setSingleChoiceItems(names, selectedItem + 1, listener)
             .setTitle(if (isLongTap) R.string.long_tap_action else R.string.tap_action)
             .setIcon(R.drawable.ic_tap)
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showPresets() {
+        val presets = TapGridSettings.Preset.entries
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.tap_presets)
+            .setItems(Array(presets.size) { getString(presets[it].nameResId) }) { _, which ->
+                viewModel.applyPreset(presets[which])
+            }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }

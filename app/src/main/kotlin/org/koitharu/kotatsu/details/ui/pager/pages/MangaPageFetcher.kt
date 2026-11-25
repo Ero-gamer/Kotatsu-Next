@@ -12,6 +12,7 @@ import coil3.network.NetworkHeaders
 import coil3.network.NetworkResponse
 import coil3.network.NetworkResponseBody
 import coil3.request.Options
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import okhttp3.Headers
@@ -26,7 +27,9 @@ import org.koitharu.kotatsu.core.network.imageproxy.ImageProxyInterceptor
 import org.koitharu.kotatsu.core.parser.MangaRepository
 import org.koitharu.kotatsu.core.util.MimeTypes
 import org.koitharu.kotatsu.core.util.ext.fetch
+import org.koitharu.kotatsu.core.util.ext.isFileUri
 import org.koitharu.kotatsu.core.util.ext.isNetworkUri
+import org.koitharu.kotatsu.core.util.ext.isZipUri
 import org.koitharu.kotatsu.core.util.ext.toMimeTypeOrNull
 import org.koitharu.kotatsu.local.data.LocalStorageCache
 import org.koitharu.kotatsu.local.data.PageCache
@@ -35,6 +38,8 @@ import org.koitharu.kotatsu.parsers.util.mimeType
 import org.koitharu.kotatsu.parsers.util.requireBody
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.reader.domain.PageLoader
+import java.io.File
+import java.util.zip.ZipFile
 import javax.inject.Inject
 
 private const val THUMBNAIL_PERMITS = 4
@@ -49,13 +54,14 @@ class MangaPageFetcher(
     private val imageLoader: ImageLoader,
 ) : Fetcher {
 
-    override suspend fun fetch(): FetchResult? = gate.withPermit { fetchImpl()?.also(::noteFormat) }
+    override suspend fun fetch(): FetchResult? = gate.withPermit { fetchImpl() }
 
     private suspend fun fetchImpl(): FetchResult? {
         if (!page.preview.isNullOrEmpty()) {
             runCatchingCancellable {
                 imageLoader.fetch(checkNotNull(page.preview), options)
             }.onSuccess {
+                noteCachedFormat()
                 return it
             }
         }
@@ -67,10 +73,10 @@ class MangaPageFetcher(
                     source = ImageSource(file.toOkioPath(), options.fileSystem),
                     mimeType = MimeTypes.getMimeTypeFromExtension(file.name)?.toString(),
                     dataSource = DataSource.DISK,
-                )
+                ).also(::noteFormat)
             }
         }
-        return loadPage(pageUrl)
+        return loadPage(pageUrl)?.also(::noteFormat)
     }
 
     private suspend fun loadPage(pageUrl: String): FetchResult? = if (pageUrl.toUri().isNetworkUri()) {
@@ -94,6 +100,32 @@ class MangaPageFetcher(
                 mimeType = mimeType?.toString(),
                 dataSource = DataSource.NETWORK,
             )
+        }
+    }
+
+    /**
+     * A preview is only the thumbnail, so its format says nothing about the page. When the page itself is already
+     * on disk (a local file or archive entry, or a cached download) its header is probed instead. Never fetches.
+     */
+    private suspend fun noteCachedFormat() {
+        try {
+            val uri = page.url.toUri()
+            val info = when {
+                uri.isZipUri() -> ZipFile(uri.schemeSpecificPart).use { zip ->
+                    val entry = zip.getEntry(uri.fragment ?: return) ?: return
+                    val head = ByteArray(PROBE_HEAD_BYTES.toInt())
+                    val n = zip.getInputStream(entry).use { it.read(head).coerceAtLeast(0) }
+                    ImageFormatProbe.probe(head, n, truncated = entry.size > n)
+                }
+
+                uri.isFileUri() -> uri.path?.let { ImageFormatProbe.probe(File(it)) }
+                else -> pagesCache[page.url]?.let { ImageFormatProbe.probe(it) }
+            }
+            if (info != null) PageFormatRegistry.record(page.id, info)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Badges are cosmetic: a failed probe must never affect loading.
         }
     }
 

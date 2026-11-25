@@ -26,10 +26,13 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.ElementsIntoSet
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.backups.domain.BackupObserver
@@ -125,7 +128,16 @@ interface AppModule {
                     .build()
             }
             val okHttpClientLazy = lazy {
-                okHttpClientProvider.get().newBuilder().cache(null).build()
+                // Covers and thumbnails: a whole-call limit, so a stalled host leaves a placeholder (retried on
+                // the next bind) rather than an empty slot for the full 60 s read timeout.
+                okHttpClientProvider.get().newBuilder()
+                    .cache(null)
+                    .callTimeout(30, TimeUnit.SECONDS)
+                    // Own dispatcher and pool: a screen full of covers must not queue behind (or be queued
+                    // ahead of) source requests, and a stale cover connection must not poison the parsers.
+                    .dispatcher(Dispatcher().apply { maxRequests = 48; maxRequestsPerHost = 8 })
+                    .connectionPool(ConnectionPool(5, 30, TimeUnit.SECONDS))
+                    .build()
             }
             return ImageLoader.Builder(context)
                 .interceptorCoroutineContext(Dispatchers.Default)
@@ -147,12 +159,13 @@ interface AppModule {
                             connectivityChecker = { networkStateProvider.get() },
                         ),
                     )
+                    // First, so seekable native playback wins for GIF / APNG / JXL; other formats fall through.
+                    add(AnimationGatedDecoderFactory(NativeAnimatedDecoder.Factory { settings.isMemorySaverEnabled }))
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         add(AnimationGatedDecoderFactory(AnimatedImageDecoder.Factory()))
                     } else {
                         add(AnimationGatedDecoderFactory(GifDecoder.Factory()))
                     }
-                    add(AnimationGatedDecoderFactory(NativeAnimatedDecoder.Factory { settings.isMemorySaverEnabled }))
                     add(NativeStillDecoder.Factory())
                     add(SvgDecoder.Factory())
                     add(CbzFetcher.Factory())

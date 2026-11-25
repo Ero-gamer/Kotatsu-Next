@@ -23,11 +23,13 @@ import org.koitharu.kotatsu.core.prefs.ReaderAnimation
 import org.koitharu.kotatsu.core.ui.list.lifecycle.PagerLifecycleDispatcher
 import org.koitharu.kotatsu.core.util.ext.doOnPageChanged
 import org.koitharu.kotatsu.core.util.ext.findCurrentViewHolder
+import org.koitharu.kotatsu.core.util.ext.isMemoryConstrained
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.recyclerView
 import org.koitharu.kotatsu.core.util.ext.resetTransformations
 import org.koitharu.kotatsu.databinding.FragmentReaderPagerBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
+import org.koitharu.kotatsu.reader.domain.indexOfPosition
 import org.koitharu.kotatsu.reader.ui.ReaderState
 import org.koitharu.kotatsu.reader.ui.pager.standard.NoAnimPageTransformer
 import org.koitharu.kotatsu.reader.ui.pager.standard.PageAnimTransformer
@@ -128,9 +130,7 @@ abstract class BasePagerReaderFragment :
             pagerLifecycleDispatcher?.postInvalidate()
         }
         if (pendingState != null) {
-            val position = pages.indexOfFirst {
-                it.chapterId == pendingState.chapterId && it.index == pendingState.page
-            }
+            val position = pages.indexOfPosition(pendingState.chapterId, pendingState.page) ?: -1
             items.join()
             if (position != -1) {
                 requireViewBinding().pager.setCurrentItem(position, false)
@@ -152,8 +152,16 @@ abstract class BasePagerReaderFragment :
         exceptionResolver = exceptionResolver,
     )
 
+    /** True when [switchPageBy] receives the negated delta (right-to-left pager). */
+    protected open val isPagingReversed: Boolean
+        get() = false
+
     override fun switchPageBy(delta: Int) {
         with(requireViewBinding().pager) {
+            val holder = recyclerView?.findViewHolderForAdapterPosition(currentItem) as? PageHolder
+            val forward = if (isPagingReversed) delta < 0 else delta > 0
+            val rows = orientation == ViewPager2.ORIENTATION_HORIZONTAL
+            if (holder?.panByPage(delta, forward, rows) == true) return
             setCurrentItem(currentItem + delta, isAnimationEnabled())
         }
     }
@@ -166,6 +174,9 @@ abstract class BasePagerReaderFragment :
             )
         }
     }
+
+    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? =
+        viewBinding?.pager?.findCurrentViewHolder() as? BasePageHolder<*>
 
     override fun getCurrentState(): ReaderState? = viewBinding?.run {
         val adapter = pager.adapter as? BaseReaderAdapter<*>
@@ -184,12 +195,11 @@ abstract class BasePagerReaderFragment :
     protected open fun onCreateAdvancedTransformer(): PageTransformer = PageAnimTransformer()
 
     protected open fun onInitPager(pager: ViewPager2) {
-        // Keep 2 offscreen pages on normal devices for smooth swiping.
-        // On constrained devices (≤2GB RAM) reduce to 1 — keeps only the immediate
-        // neighbour page alive, halving the number of SSIV instances holding tile
-        // bitmaps in memory simultaneously. ViewPager2 recycles the rest via
-        // onRecycled() → ssiv.recycle() which frees all tile bitmaps immediately.
-        pager.offscreenPageLimit = if (memorySettings.isMemorySaverEnabled) 1 else 2
+        // 1 offscreen page (3 bound holders) is enough for smooth swipes: the adjacent page is already
+        // decoded. 2 only helps very fast flips, so it is kept for devices with plenty of RAM only; every
+        // extra holder owns full-resolution tile bitmaps and, with GPU filters, its own GL context.
+        val limit = if (memorySettings.isMemorySaverEnabled || pager.context.isMemoryConstrained()) 1 else 2
+        pager.offscreenPageLimit = limit
     }
 
     protected open fun notifyPageChanged(page: Int) {

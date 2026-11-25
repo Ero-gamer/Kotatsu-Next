@@ -39,6 +39,12 @@ class ZipOutput(
         output.appendText(content, name)
     }
 
+    /** Adds an in-memory binary entry (STORED, like page images). */
+    @Blocking
+    fun put(name: String, content: ByteArray): Boolean = withOutput { output ->
+        output.appendBytes(content, name)
+    }
+
     @Blocking
     fun addDirectory(name: String): Boolean {
         val entry = if (name.endsWith("/")) {
@@ -117,6 +123,30 @@ class ZipOutput(
                     closeEntry()
                 }
             }
+        }
+        return true
+    }
+
+    @WorkerThread
+    private fun ZipOutputStream.appendBytes(content: ByteArray, name: String): Boolean {
+        if (!entryNames.add(name)) {
+            return false
+        }
+        val zipEntry = if (isStoredName(name)) {
+            ZipEntry(name).apply {
+                method = ZipEntry.STORED
+                size = content.size.toLong()
+                compressedSize = content.size.toLong()
+                crc = CRC32().also { it.update(content) }.value
+            }
+        } else {
+            ZipEntry(name)
+        }
+        putNextEntry(zipEntry)
+        try {
+            write(content)
+        } finally {
+            closeEntry()
         }
         return true
     }

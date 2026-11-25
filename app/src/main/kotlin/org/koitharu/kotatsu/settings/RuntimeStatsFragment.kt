@@ -125,7 +125,7 @@ class RuntimeStatsFragment : BasePreferenceFragment(R.string.runtime_stats) {
                 "${Build.SUPPORTED_ABIS.joinToString()}, page size ${pageSize / KIB} KB, " +
                 "${Runtime.getRuntime().availableProcessors()} cores",
             "stat_modes" to "Memory Saver ${onOff(settings.isMemorySaverEnabled)}, " +
-                "32-bit colours ${onOff(settings.is32BitColorsEnabled)}, " +
+                "32-bit colors ${onOff(settings.is32BitColorsEnabled)}, " +
                 "animated images ${onOff(settings.isAnimatedImagesEnabled)}",
         )
     }

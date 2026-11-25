@@ -10,9 +10,8 @@ import android.os.Bundle
 import androidx.room.InvalidationTracker
 import androidx.room.withTransaction
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -25,6 +24,7 @@ import org.koitharu.kotatsu.core.db.TABLE_HISTORY
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -42,6 +42,9 @@ constructor(
     private val am = AccountManager.get(context)
     private val accountType = context.getString(R.string.account_type_sync)
     private val mutex = Mutex()
+    private val pendingFavourites = AtomicBoolean(false)
+    private val pendingHistory = AtomicBoolean(false)
+    private val syncScheduled = AtomicBoolean(false)
     private val defaultGcPeriod = TimeUnit.DAYS.toMillis(2) // gc period if sync disabled
 
     override fun onInvalidated(tables: Set<String>) {
@@ -75,10 +78,7 @@ constructor(
 
         if (account != null) {
             setEnabled(account, syncFavorites = true, syncHistory = true)
-            val job = SupervisorJob()
-            val dispatcher = Dispatchers.IO
-            val scope = CoroutineScope(job + dispatcher)
-            scope.launch {
+            processLifecycleScope.launch(Dispatchers.IO) {
                 requestFullSync()
             }
         }
@@ -162,11 +162,27 @@ constructor(
         requestSyncImpl(favourites = true, history = true)
     }
 
+    /**
+     * Every history write (each page turn) invalidates the tables: requests are merged and sent once, after
+     * a quiet [SYNC_DEBOUNCE_MS], instead of waking the sync adapter each time.
+     */
     private fun requestSync(
         favourites: Boolean,
         history: Boolean,
-    ) = processLifecycleScope.launch(Dispatchers.Default) {
-        requestSyncImpl(favourites = favourites, history = history)
+    ) {
+        if (favourites) pendingFavourites.set(true)
+        if (history) pendingHistory.set(true)
+        if (syncScheduled.compareAndSet(false, true)) {
+            processLifecycleScope.launch(Dispatchers.Default) {
+                delay(SYNC_DEBOUNCE_MS)
+                // Clear before reading the flags: a request arriving now schedules the next run.
+                syncScheduled.set(false)
+                requestSyncImpl(
+                    favourites = pendingFavourites.getAndSet(false),
+                    history = pendingHistory.getAndSet(false),
+                )
+            }
+        }
     }
 
     private suspend fun requestSyncImpl(
@@ -176,30 +192,36 @@ constructor(
         if (!favourites && !history) {
             return
         }
-        val db = dbProvider.get()
         val account = peekAccount()
-        if (account == null || !ContentResolver.getMasterSyncAutomatically()) {
-            db.gc(favourites, history)
+        if (account == null) {
+            dbProvider.get().gc(favourites, history)
             return
         }
-        var gcHistory = false
-        var gcFavourites = false
-        if (favourites) {
-            if (ContentResolver.getSyncAutomatically(account, authorityFavourites)) {
-                ContentResolver.requestSync(account, authorityFavourites, Bundle.EMPTY)
-            } else {
-                gcFavourites = true
-            }
+        // With an account, what was removed is only cleared out by the sync that has sent it. A removal is a mark on
+        // the row until then, and clearing marked rows out while syncing was switched off, for the phone or for this
+        // account, left the server with the manga still on it: the next sync that did run brought it back, two days
+        // after it was removed.
+        if (!ContentResolver.getMasterSyncAutomatically()) {
+            return
         }
-        if (history) {
-            if (ContentResolver.getSyncAutomatically(account, authorityHistory)) {
-                ContentResolver.requestSync(account, authorityHistory, Bundle.EMPTY)
-            } else {
-                gcHistory = true
-            }
+        if (favourites && ContentResolver.getSyncAutomatically(account, authorityFavourites)) {
+            ContentResolver.requestSync(account, authorityFavourites, Bundle.EMPTY)
         }
-        if (gcHistory || gcFavourites) {
-            db.gc(gcFavourites, gcHistory)
+        if (history && ContentResolver.getSyncAutomatically(account, authorityHistory)) {
+            ContentResolver.requestSync(account, authorityHistory, Bundle.EMPTY)
+        }
+    }
+
+    /**
+     * Up to when a removal from favourites may already have reached the server: the time of the last sync, or any
+     * time at all while one is under way or waiting. Zero with no account, as nothing has gone anywhere.
+     */
+    fun getFavouritesSyncedUntil(): Long {
+        val account = peekAccount() ?: return 0L
+        return if (isSyncActiveOrPending(authorityFavourites)) {
+            Long.MAX_VALUE
+        } else {
+            getLastSync(account, authorityFavourites)
         }
     }
 
@@ -225,6 +247,8 @@ constructor(
     }
 
     companion object {
+        private const val SYNC_DEBOUNCE_MS = 30_000L
+
         @JvmStatic
         fun setLastSync(
             context: Context,

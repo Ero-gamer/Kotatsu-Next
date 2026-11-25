@@ -12,6 +12,7 @@ import org.koitharu.kotatsu.core.db.entity.MangaEntity
 import org.koitharu.kotatsu.core.db.entity.MangaTagsEntity
 import org.koitharu.kotatsu.core.db.entity.MangaWithTags
 import org.koitharu.kotatsu.core.db.entity.TagEntity
+import org.koitharu.kotatsu.core.model.UnknownMangaSource
 
 @Dao
 abstract class MangaDao {
@@ -52,8 +53,20 @@ abstract class MangaDao {
     @Upsert
     protected abstract suspend fun upsert(manga: MangaEntity)
 
+    @Query("SELECT source FROM manga WHERE manga_id = :id")
+    protected abstract suspend fun findSourceName(id: Long): String?
+
     @Update(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun update(manga: MangaEntity): Int
+
+    /** Touches nothing if they are the same already, so nothing watching the table reloads for no reason. */
+    @Query(
+        """
+        UPDATE manga SET cover_url = :coverUrl, large_cover_url = :largeCoverUrl
+        WHERE manga_id = :id AND (cover_url != :coverUrl OR large_cover_url IS NOT :largeCoverUrl)
+        """,
+    )
+    abstract suspend fun updateCover(id: Long, coverUrl: String, largeCoverUrl: String?)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertTagRelation(tag: MangaTagsEntity): Long
@@ -67,21 +80,23 @@ abstract class MangaDao {
 
     @Query(
         """
-		DELETE FROM manga WHERE NOT EXISTS(SELECT * FROM history WHERE history.manga_id == manga.manga_id)
-			AND NOT EXISTS(SELECT * FROM favourites WHERE favourites.manga_id == manga.manga_id)
-			AND NOT EXISTS(SELECT * FROM bookmarks WHERE bookmarks.manga_id == manga.manga_id)
-			AND NOT EXISTS(SELECT * FROM suggestions WHERE suggestions.manga_id == manga.manga_id)
-			AND NOT EXISTS(SELECT * FROM scrobblings WHERE scrobblings.manga_id == manga.manga_id)
-			AND NOT EXISTS(SELECT * FROM local_index WHERE local_index.manga_id == manga.manga_id)
-			AND manga.manga_id NOT IN (:idsToKeep)
-		""",
+        DELETE FROM manga WHERE NOT EXISTS(SELECT * FROM history WHERE history.manga_id == manga.manga_id)
+            AND NOT EXISTS(SELECT * FROM favourites WHERE favourites.manga_id == manga.manga_id)
+            AND NOT EXISTS(SELECT * FROM bookmarks WHERE bookmarks.manga_id == manga.manga_id)
+            AND NOT EXISTS(SELECT * FROM suggestions WHERE suggestions.manga_id == manga.manga_id)
+            AND NOT EXISTS(SELECT * FROM scrobblings WHERE scrobblings.manga_id == manga.manga_id)
+            AND NOT EXISTS(SELECT * FROM local_index WHERE local_index.manga_id == manga.manga_id)
+            AND manga.manga_id NOT IN (:idsToKeep)
+        """,
     )
     abstract suspend fun cleanup(idsToKeep: Set<Long>)
 
     @Transaction
     open suspend fun upsert(manga: MangaEntity, tags: Iterable<TagEntity>? = null) {
-        upsert(manga)
-        if (tags != null) {
+        val stored = manga.keepingItsSource()
+        upsert(stored)
+        // Tags that came with a manga of no source are tags of no source: the ones it has are left as they are
+        if (tags != null && stored === manga) {
             clearTagRelation(manga.id)
             tags.map {
                 MangaTagsEntity(manga.id, it.id)
@@ -89,5 +104,18 @@ abstract class MangaDao {
                 insertTagRelation(it)
             }
         }
+    }
+
+    /**
+     * A manga read while the app did not know its source comes back with no source at all, and written as such it
+     * would lose for good which source it is of. Sources come and go while the app runs now: one that only
+     * downloaded parsers have is unknown for as long as those are not loaded.
+     */
+    private suspend fun MangaEntity.keepingItsSource(): MangaEntity {
+        if (source != UnknownMangaSource.name) {
+            return this
+        }
+        val known = findSourceName(id)
+        return if (known == null || known == source) this else copy(source = known)
     }
 }

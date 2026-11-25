@@ -66,7 +66,7 @@ private fun navTypography(family: FontFamily): Typography {
 
 /**
  * MaterialTheme wrapper for Compose subtrees hosted inside the existing View hierarchy, so they
- * inherit the colours of whichever theme the user picked.
+ * inherit the colors of whichever theme the user picked.
  */
 @Suppress("ktlint:standard:function-naming")
 @Composable

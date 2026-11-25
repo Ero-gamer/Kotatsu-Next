@@ -3,6 +3,7 @@ package org.koitharu.kotatsu.local.data
 import org.koitharu.kotatsu.core.image.ImageFormat
 import org.koitharu.kotatsu.core.image.ImageFormatProbe
 import org.koitharu.kotatsu.core.zip.ZipOutput
+import org.koitharu.kotatsu.local.data.optimize.ImageOptimizer
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipEntry
@@ -44,7 +45,7 @@ object CbzMaintenance {
             dir.listFiles()?.forEach {
                 if (it.isDirectory && depth < MAX_DEPTH) {
                     walk(it, depth + 1)
-                } else if (it.name.endsWith(TMP_SUFFIX)) {
+                } else if (it.name.endsWith(TMP_SUFFIX) || it.name.endsWith(ImageOptimizer.TMP_SUFFIX)) {
                     it.delete()
                 }
             }
@@ -62,6 +63,9 @@ object CbzMaintenance {
         val tmp = File(parent, file.name + TMP_SUFFIX)
         tmp.delete()
         var replace = false
+        // A download or another writer may swap the archive while it is being copied: never overwrite a newer one.
+        val sourceLength = file.length()
+        val sourceModified = file.lastModified()
         try {
             ZipFile(file).use { zip ->
                 val entries = zip.entries().toList()
@@ -98,7 +102,12 @@ object CbzMaintenance {
                 }
                 replace = true
             }
-            if (replace && !tmp.renameTo(file)) throw IOException("Cannot replace ${file.name}")
+            if (replace) {
+                if (file.length() != sourceLength || file.lastModified() != sourceModified) {
+                    throw IOException("${file.name} changed while rewriting")
+                }
+                if (!tmp.renameTo(file)) throw IOException("Cannot replace ${file.name}")
+            }
             return replace
         } finally {
             if (tmp.exists()) tmp.delete()

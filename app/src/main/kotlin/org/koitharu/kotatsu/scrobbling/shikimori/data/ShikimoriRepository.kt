@@ -187,7 +187,7 @@ class ShikimoriRepository @Inject constructor(
             targetId = json.getLong("target_id"),
             status = json.getString("status"),
             chapter = json.getInt("chapters"),
-            comment = json.getString("text"),
+            comment = json.getStringOrNull("text"),
             rating = (json.getDouble("score").toFloat() / 10f).coerceIn(0f, 1f),
         )
         db.getScrobblingDao().upsert(entity)

@@ -12,6 +12,21 @@
 		android:layout_height="match_parent"
 		tools:background="@color/grey" />
 
+	<!-- Reader color overlay and dim layers: draw only, never take touches. -->
+	<View
+		android:id="@+id/overlay_tint"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:importantForAccessibility="no"
+		android:visibility="gone" />
+
+	<View
+		android:id="@+id/overlay_dim"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:importantForAccessibility="no"
+		android:visibility="gone" />
+
 	<!-- Vertical page-switch slider on the right side, ported from Tsukimi -->
 	<LinearLayout
 		android:id="@+id/container_slider_vertical"
@@ -220,5 +235,19 @@
 			android:textAppearance="?attr/textAppearanceTitleMedium" />
 
 	</LinearLayout>
+
+	<org.koitharu.kotatsu.reader.ui.erase.EraseOverlayView
+		android:id="@+id/eraseOverlay"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:elevation="1001dp"
+		android:visibility="gone" />
+
+	<org.koitharu.kotatsu.reader.ui.erase.EraseTutorialView
+		android:id="@+id/eraseTutorial"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:elevation="1002dp"
+		android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -22,11 +22,14 @@ import androidx.work.await
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.local.data.LocalMangaRepository
 import org.koitharu.kotatsu.local.domain.DeleteReadChaptersUseCase
+import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
+import org.koitharu.kotatsu.reader.domain.PageStatsEngine
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -37,11 +40,16 @@ class LocalStorageCleanupWorker @AssistedInject constructor(
     private val localMangaRepository: LocalMangaRepository,
     private val dataRepository: MangaDataRepository,
     private val deleteReadChaptersUseCase: DeleteReadChaptersUseCase,
+    private val database: MangaDatabase,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         if (settings.isAutoLocalChaptersCleanupEnabled) {
             deleteReadChaptersUseCase.invoke()
+        }
+        runCatchingCancellable {
+            PageStatsEngine.cleanup(database.getPageStatsDao())
+            localMangaRepository.sweepPageStats()
         }
         return if (localMangaRepository.cleanup()) {
             dataRepository.cleanupLocalManga()

@@ -29,6 +29,7 @@ data class BackupSectionModel(
             BackupSection.SETTINGS_READER_GRID -> R.string.reader_actions
 
             BackupSection.BOOKMARKS -> R.string.bookmarks
+            BackupSection.HIDDEN_IMAGES -> R.string.hidden_images
 
             BackupSection.SOURCES -> R.string.remote_sources
 
@@ -37,6 +38,13 @@ data class BackupSectionModel(
             BackupSection.STATS -> R.string.statistics
 
             BackupSection.SAVED_FILTERS -> R.string.saved_filters
+            BackupSection.DISMISSED -> R.string.dismissed_titles
+
+            BackupSection.MANGA_PREFS -> R.string.backup_section_manga_prefs
+
+            BackupSection.SOURCE_SETTINGS -> R.string.backup_section_source_settings
+
+            BackupSection.FEED -> R.string.feed
         }
 
     override fun areItemsTheSame(other: ListModel): Boolean = other is BackupSectionModel && other.section == section

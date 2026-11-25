@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:mangayomi",
+  "name": "Mangayomi",
+  "description": "Reader behaviour studied (prefetch, crop vote)",
+  "website": "https://github.com/kodjodevf/mangayomi",
+  "developers": [
+    {
+      "name": "kodjodevf",
+      "organisationUrl": "https://github.com/kodjodevf"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/kodjodevf/mangayomi"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "tag": "ideas"
+}

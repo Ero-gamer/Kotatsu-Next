@@ -244,7 +244,9 @@ class DetailsActivity :
                 router.openImage(
                     url = viewModel.coverUrl.value ?: return,
                     source = manga.source,
-                    preview = CoilMemoryCacheKey.from(viewBinding.imageViewCover),
+                    // An animated cover's cache entry is not a still bitmap the viewer's preview can use.
+                    preview = CoilMemoryCacheKey.from(viewBinding.imageViewCover)
+                        .takeUnless { viewBinding.imageViewCover.allowAnimation },
                     anchor = v,
                 )
             }
@@ -535,7 +537,13 @@ class DetailsActivity :
     }
 
     private fun loadCover(imageUrl: String?) {
-        viewBinding.imageViewCover.setImageAsync(imageUrl, viewModel.getMangaOrNull())
+        with(viewBinding.imageViewCover) {
+            // Only this big cover may play; trimming would turn an animation into its first frame.
+            allowAnimation = settings.isDetailsCoverAnimated && settings.isAnimatedImagesEnabled &&
+                !settings.isMemorySaverEnabled && context.isAnimationsEnabled
+            if (allowAnimation) trimImage = false
+            setImageAsync(imageUrl, viewModel.getMangaOrNull())
+        }
         loadCoverBackground(imageUrl)
     }
 

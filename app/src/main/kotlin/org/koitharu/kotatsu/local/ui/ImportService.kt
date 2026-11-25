@@ -44,6 +44,8 @@ class ImportService : CoroutineIntentService() {
     lateinit var coil: ImageLoader
 
     private lateinit var notificationManager: NotificationManagerCompat
+    private var foregroundBuilder: NotificationCompat.Builder? = null
+    private var lastProgressAt = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -55,7 +57,7 @@ class ImportService : CoroutineIntentService() {
         startForeground(this)
         powerManager.withPartialWakeLock(TAG) {
             val result = runCatchingCancellable {
-                importer.import(uri).manga
+                importer.import(uri) { done, total -> showProgress(done, total) }.manga
             }
             if (applicationContext.checkNotificationPermission(CHANNEL_ID)) {
                 val notification = buildNotification(startId, result)
@@ -83,7 +85,7 @@ class ImportService : CoroutineIntentService() {
             .build()
         notificationManager.createNotificationChannel(channel)
 
-        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setContentTitle(title)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setDefaults(0)
@@ -93,13 +95,28 @@ class ImportService : CoroutineIntentService() {
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-            .build()
+        foregroundBuilder = builder
+        val notification = builder.build()
 
         jobContext.setForeground(
             FOREGROUND_NOTIFICATION_ID,
             notification,
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
         )
+    }
+
+    /** Pages of a PDF take a while: at most one update per second. */
+    private fun showProgress(done: Int, total: Int) {
+        val builder = foregroundBuilder ?: return
+        val now = System.currentTimeMillis()
+        if (done < total && now - lastProgressAt < PROGRESS_INTERVAL) {
+            return
+        }
+        lastProgressAt = now
+        if (applicationContext.checkNotificationPermission(CHANNEL_ID)) {
+            builder.setProgress(total, done, false)
+            notificationManager.notify(FOREGROUND_NOTIFICATION_ID, builder.build())
+        }
     }
 
     private suspend fun buildNotification(startId: Int, result: Result<Manga>): Notification {
@@ -157,6 +174,7 @@ class ImportService : CoroutineIntentService() {
         private const val TAG = "import"
         private const val CHANNEL_ID = "importing"
         private const val FOREGROUND_NOTIFICATION_ID = 37
+        private const val PROGRESS_INTERVAL = 1000L
 
         fun start(context: Context, uris: Collection<Uri>): Boolean = try {
             require(uris.isNotEmpty())

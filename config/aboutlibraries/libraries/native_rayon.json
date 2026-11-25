@@ -1,0 +1,21 @@
+{
+  "uniqueId": "native:rayon",
+  "name": "rayon",
+  "description": "Data parallelism (Rust). MIT or Apache-2.0",
+  "website": "https://github.com/rayon-rs/rayon",
+  "developers": [
+    {
+      "name": "rayon-rs",
+      "organisationUrl": "https://github.com/rayon-rs"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/rayon-rs/rayon"
+  },
+  "licenses": [
+    "MIT",
+    "Apache-2.0"
+  ],
+  "artifactVersion": "1.12.0",
+  "tag": "native"
+}

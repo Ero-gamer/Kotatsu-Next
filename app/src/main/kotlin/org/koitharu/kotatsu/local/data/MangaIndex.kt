@@ -112,6 +112,17 @@ class MangaIndex(
 
     fun getCoverEntry(): String? = json.getStringOrNull(KEY_COVER_ENTRY)
 
+    /** True when an optimize run (split / WebP conversion) has rewritten this archive. Old indexes: false. */
+    fun isOptimized(): Boolean = json.optInt(KEY_OPTIMIZED, 0) != 0
+
+    /** Records that an optimize run rewrote the archive; flags of earlier runs are kept. */
+    fun markOptimized(split: Boolean, webp: Boolean) {
+        var bits = json.optInt(KEY_OPTIMIZED, 0)
+        if (split) bits = bits or OPTIMIZED_SPLIT
+        if (webp) bits = bits or OPTIMIZED_WEBP
+        json.put(KEY_OPTIMIZED, bits)
+    }
+
     fun addChapter(
         chapter: IndexedValue<MangaChapter>,
         filename: String?,
@@ -126,7 +137,7 @@ class MangaIndex(
             jo.put(KEY_UPLOAD_DATE, chapter.value.uploadDate)
             jo.put(KEY_SCANLATOR, chapter.value.scanlator)
             jo.put(KEY_BRANCH, chapter.value.branch)
-            jo.put(KEY_ENTRIES, "%08d_%04d\\d{4}".format(chapter.value.branch.hashCode(), chapter.index + 1))
+            jo.put(KEY_ENTRIES, ("%08d_%04d\\d{4}" + SPLIT_SUFFIX_PATTERN).format(chapter.value.branch.hashCode(), chapter.index + 1))
             jo.put(KEY_FILE, filename)
             chapters.put(chapter.value.id.toString(), jo)
         }
@@ -140,12 +151,17 @@ class MangaIndex(
         json.put(KEY_COVER_ENTRY, name)
     }
 
-    fun getChapterNamesPattern(chapter: MangaChapter) = Regex(
-        json
+    /**
+     * Entry-name pattern of [chapter]. Split pages (`<name>_01`, `<name>_02`, ...) are matched too, so
+     * indexes written before tall-image splitting existed keep working.
+     */
+    fun getChapterNamesPattern(chapter: MangaChapter): Regex {
+        val raw = json
             .getJSONObject(KEY_CHAPTERS)
             .getJSONObject(chapter.id.toString())
-            .getString(KEY_ENTRIES),
-    )
+            .getString(KEY_ENTRIES)
+        return Regex(if (raw.endsWith(SPLIT_SUFFIX_PATTERN)) raw else raw + SPLIT_SUFFIX_PATTERN)
+    }
 
     fun clear() {
         val keys = json.keys()
@@ -192,6 +208,7 @@ class MangaIndex(
     }
 
     companion object {
+        private const val SPLIT_SUFFIX_PATTERN = "(_\\d{2})?"
         private const val KEY_ID = "id"
         private const val KEY_TITLE = "title"
         private const val KEY_TITLE_ALT = "title_alt"
@@ -222,6 +239,9 @@ class MangaIndex(
         private const val KEY_KEY = "key"
         private const val KEY_APP_ID = "app_id"
         private const val KEY_APP_VERSION = "app_version"
+        private const val KEY_OPTIMIZED = "optimized"
+        private const val OPTIMIZED_SPLIT = 1
+        private const val OPTIMIZED_WEBP = 2
 
         @Blocking
         @WorkerThread

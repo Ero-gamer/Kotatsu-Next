@@ -18,6 +18,12 @@
 		android:title="@string/allow_unstable_updates" />
 
 	<Preference
+		android:icon="@drawable/ic_manga_source"
+		android:key="parsers_version"
+		android:persistent="false"
+		android:title="@string/sources_version" />
+
+	<Preference
 		android:fragment="org.koitharu.kotatsu.settings.about.changelog.ChangelogFragment"
 		android:icon="@drawable/ic_new"
 		android:key="changelog"
@@ -54,6 +60,13 @@
 		android:summary="@string/url_discord"
 		android:title="@string/telegram_group" />
 
+
+	<Preference
+		android:icon="@drawable/ic_script"
+		android:key="about_licenses"
+		android:persistent="false"
+		android:summary="@string/open_source_licenses_summary"
+		android:title="@string/open_source_licenses" />
 
 	<Preference
 		android:icon="@drawable/ic_heart"

@@ -18,6 +18,10 @@ class CaptchaContinuationClient(
     continuation: Continuation<Unit>,
 ) : ContinuationResumeWebViewClient(continuation) {
 
+    // One client for all intercepted requests (a client per request leaked a pool and threads each time). Plain on
+    // purpose: no interceptors, so the challenge page itself reaches the WebView instead of being turned into an error.
+    private val client = sharedClient
+
     private val oldClearance = CloudFlareHelper.getClearanceCookie(cookieJar, targetUrl)
 
     override fun onPageFinished(view: WebView?, url: String?) = Unit
@@ -35,11 +39,6 @@ class CaptchaContinuationClient(
             if (request.method == "POST") {
                 return super.shouldInterceptRequest(view, request)
             }
-
-            val client = OkHttpClient.Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
 
             val requestBuilder = Request.Builder()
                 .url(request.url.toString())
@@ -59,12 +58,16 @@ class CaptchaContinuationClient(
             }
 
             val response = client.newCall(requestBuilder.build()).execute()
-
             val contentType = response.header("Content-Type", "text/html")
             val mimeType = contentType?.split(";")?.get(0)?.trim() ?: "text/html"
             val charset = contentType?.substringAfter("charset=", "UTF-8")?.trim() ?: "UTF-8"
 
-            return WebResourceResponse(mimeType, charset, response.body?.byteStream()).apply {
+            val body = response.body ?: run {
+                response.close()
+                return null
+            }
+            // The WebView reads and closes the stream.
+            return WebResourceResponse(mimeType, charset, body.byteStream()).apply {
                 val headers = mutableMapOf<String, String>()
                 response.headers.forEach { headers[it.first] = it.second }
                 setResponseHeaders(headers)
@@ -73,10 +76,21 @@ class CaptchaContinuationClient(
             return null
         }
     }
+
     private fun checkClearance(view: WebView?) {
         val clearance = CloudFlareHelper.getClearanceCookie(cookieJar, targetUrl)
         if (clearance != null && clearance != oldClearance) {
             resumeContinuation(view)
+        }
+    }
+
+    private companion object {
+
+        val sharedClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
+                .build()
         }
     }
 }

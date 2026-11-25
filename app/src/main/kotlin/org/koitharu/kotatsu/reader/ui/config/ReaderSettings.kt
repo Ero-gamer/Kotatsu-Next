@@ -1,5 +1,6 @@
 package org.koitharu.kotatsu.reader.ui.config
 
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.view.View
 import androidx.annotation.CheckResult
@@ -28,19 +29,31 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.image.codecs.AvifAwareImageDecoder
+import org.koitharu.kotatsu.core.image.codecs.AvifAwareRegionDecoder
 import org.koitharu.kotatsu.core.image.codecs.NativeAwareImageDecoder
 import org.koitharu.kotatsu.core.image.codecs.NativeAwareRegionDecoder
+import org.koitharu.kotatsu.core.image.codecs.NativePngMode
 import org.koitharu.kotatsu.core.model.ZoomMode
+import org.koitharu.kotatsu.core.model.ZoomStart
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ReaderBackground
 import org.koitharu.kotatsu.core.prefs.ReaderMode
 import org.koitharu.kotatsu.core.util.MediatorStateFlow
 import org.koitharu.kotatsu.core.util.ext.processLifecycleScope
+import org.koitharu.kotatsu.reader.domain.CropOverrides
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
+import org.koitharu.kotatsu.reader.ui.erase.MaskedRegionDecoder
 
 data class ReaderSettings(
     val zoomMode: ZoomMode,
+    val zoomStart: ZoomStart,
+    val isTapToPan: Boolean,
+    val isDoubleTapZoom: Boolean,
+    val doubleTapZoomDuration: Int,
+    val isLandscapeAutoZoom: Boolean,
     val background: ReaderBackground,
     val colorFilter: ReaderColorFilter?,
     /**
@@ -56,6 +69,11 @@ data class ReaderSettings(
     /** Opt-in low-RAM mode (see [AppSettings.isMemorySaverEnabled]). */
     val isMemorySaver: Boolean,
     val isAnimatedAutoplay: Boolean,
+    val isAnimatedControls: Boolean,
+    val isAnimatedAdvance: Boolean,
+    val animatedSpeed: Float,
+    val animatedLoops: Int,
+    val pngDecoderMode: Int,
     val isPagesCropEnabledStandard: Boolean,
     val isPagesCropEnabledWebtoon: Boolean,
     /** Resampling used while zoomed in; applied to SSIV in [applyBitmapConfig]. */
@@ -64,13 +82,27 @@ data class ReaderSettings(
     val downscaler: ImageDownscaler,
     /** Screentone-aware sharpen capping (see GpuFilteringDecoder). */
     val isSmartSharpenEnabled: Boolean,
+    /** SSIV's minimum tile DPI (180/240/320); lower values use fewer, blurrier tiles. */
+    val tileDpi: Int,
+    /** Empty space left and right of a webtoon page, percentage of display width per side. */
+    val webtoonSidePadding: Int,
+    /** Empty space between the two pages of a double-page spread, percentage of display width. */
+    val doublePageGap: Int,
+    /** Per-manga border crop; wins over the global setting for the reading style it is set for. */
+    val cropOverrides: CropOverrides,
 ) {
     private constructor(
         settings: AppSettings,
         colorFilterOverride: ReaderColorFilter?,
         isColorFilterDisabled: Boolean,
+        cropOverrides: CropOverrides,
     ) : this(
         zoomMode = settings.zoomMode,
+        zoomStart = settings.zoomStart,
+        isTapToPan = settings.isTapToPan,
+        isDoubleTapZoom = settings.isDoubleTapZoomEnabled,
+        doubleTapZoomDuration = settings.doubleTapZoomDuration,
+        isLandscapeAutoZoom = settings.isLandscapeAutoZoom,
         background = settings.readerBackground,
         colorFilter = colorFilterOverride?.takeUnless { it.isEmpty } ?: settings.readerColorFilter,
         isColorFilterDisabled = isColorFilterDisabled,
@@ -86,11 +118,20 @@ data class ReaderSettings(
         isAnimatedImagesEnabled = settings.isAnimatedImagesEnabled,
         isMemorySaver = settings.isMemorySaverEnabled,
         isAnimatedAutoplay = settings.isAnimatedAutoplay,
-        isPagesCropEnabledStandard = settings.isPagesCropEnabled(ReaderMode.STANDARD),
-        isPagesCropEnabledWebtoon = settings.isPagesCropEnabled(ReaderMode.WEBTOON),
+        isAnimatedControls = settings.isAnimatedControls,
+        isAnimatedAdvance = settings.isAnimatedAdvance,
+        animatedSpeed = settings.animatedSpeed,
+        animatedLoops = settings.animatedLoops,
+        pngDecoderMode = settings.pngDecoderMode,
+        isPagesCropEnabledStandard = cropOverrides.pages ?: settings.isPagesCropEnabled(ReaderMode.STANDARD),
+        isPagesCropEnabledWebtoon = cropOverrides.webtoon ?: settings.isPagesCropEnabled(ReaderMode.WEBTOON),
         scaler = settings.readerScaler,
         downscaler = settings.readerDownscaler,
         isSmartSharpenEnabled = settings.isSmartSharpenEnabled,
+        tileDpi = settings.readerTileDpi,
+        webtoonSidePadding = settings.webtoonSidePadding,
+        doublePageGap = settings.doublePageGap,
+        cropOverrides = cropOverrides,
     )
 
     /** The filter that is actually applied: `null` while filters are switched off. */
@@ -98,13 +139,14 @@ data class ReaderSettings(
         get() = if (isColorFilterDisabled) null else colorFilter
 
     fun applyBackground(view: View) {
+        val tint = if (background.isLight(view.context)) effectiveColorFilter?.getBackgroundTint()?.defaultColor else null
+        // Every settings emission (colour slider drags included) reaches every holder: rebuild the drawable only on a
+        // real change. AUTO is repainted per page by the holder, so it is always re-applied.
+        val key = Pair(background, tint)
+        if (background != ReaderBackground.AUTO && view.getTag(R.id.tag_background) == key) return
         view.background = background.resolve(view.context)
-        view.backgroundTintList =
-            if (background.isLight(view.context)) {
-                effectiveColorFilter?.getBackgroundTint()
-            } else {
-                null
-            }
+        view.backgroundTintList = tint?.let { ColorStateList.valueOf(it) }
+        view.setTag(R.id.tag_background, key)
     }
 
     fun isPagesCropEnabled(isWebtoon: Boolean) = if (isWebtoon) {
@@ -145,18 +187,28 @@ data class ReaderSettings(
      *
      * No CPU pixel-loop filters are installed. [FilteringRegionDecoder] is deprecated.
      */
+    /** Whether any GPU shader filter runs on the decoded tiles (see [applyBitmapConfig]). */
+    val isGpuFilterActive: Boolean
+        get() = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled).isAnyActive
+
     @CheckResult
     fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
+        NativePngMode.mode = pngDecoderMode
         ssiv.scaler = scaler
         ssiv.downscaler = downscaler
+        // setMinimumTileDpi() resets the view and re-decodes every tile, so only call it on a real change.
+        if (ssiv.getTag(R.id.tag_tile_dpi) != tileDpi) {
+            ssiv.setMinimumTileDpi(tileDpi)
+            ssiv.setTag(R.id.tag_tile_dpi, tileDpi)
+        }
         // ── GPU filter params — read directly, no cross-field inference ─────
         val gpu = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled)
 
         // With Memory Saver on, pages decode as RGB_565 (half the memory) unless the user turned
-        // "32-bit color mode" on, which always wins (dithered 32-bit output is kept). Not while a GPU filter is active: that
-        // pass converts its input to ARGB_8888 and outputs ARGB_8888, so RGB_565 would save nothing and
-        // only add an extra copy and lose precision for the filters.
-        val isAutoRgb565 = isMemorySaver && !is32BitEnabled && !gpu.isAnyActive
+        // "32-bit color mode" on, which always wins (dithered 32-bit output is kept). The GPU pass uploads
+        // RGB_565 as it is and hands the result back as RGB_565, so the saving holds under filters too;
+        // only deband is excluded, because its fine grain would be re-quantised to 5-6 bits.
+        val isAutoRgb565 = isMemorySaver && !is32BitEnabled && !gpu.isDebandActive
         val config =
             if (bitmapConfig == Bitmap.Config.ARGB_8888 && isAutoRgb565) {
                 Bitmap.Config.RGB_565
@@ -171,22 +223,24 @@ data class ReaderSettings(
             }
 
         // ── Factory change detection ───────────────────────────────────────
-        val current = ssiv.regionDecoderFactory
+        // A page with something hidden wraps the factory (see BasePageHolder.applyMask); it is put back before the next image
+        val current = ssiv.regionDecoderFactory.let { (it as? MaskedRegionDecoder.Factory)?.delegate ?: it }
         val configChanged = current.bitmapConfig != config
         val gpuWasActive = current is GpuFilteringDecoder.Factory
         val gpuToggled = gpuWasActive != gpu.isAnyActive
         val factoryChanged = configChanged || gpuToggled
 
         if (factoryChanged) {
-            val baseFactory = NativeAwareRegionDecoder.Factory(LiJpegTurboRegionDecoder.Factory(quality))
-            val baseImageFactory = NativeAwareImageDecoder.Factory(SkiaImageDecoder.Factory(quality))
+            // JPEG XL natively, still AVIF through libavif in memory (below Android 12), the rest as before
+            val baseFactory = NativeAwareRegionDecoder.Factory(AvifAwareRegionDecoder.Factory(LiJpegTurboRegionDecoder.Factory(quality)))
+            val baseImageFactory = NativeAwareImageDecoder.Factory(AvifAwareImageDecoder.Factory(SkiaImageDecoder.Factory(quality)))
             var newImageFactory: DecoderFactory<out ImageDecoder> = baseImageFactory
             val newFactory: DecoderFactory<out ImageRegionDecoder> =
                 if (gpu.isAnyActive) {
                     // Reuse existing renderer to avoid re-creating the EGL context.
                     val renderer =
                         (current as? GpuFilteringDecoder.Factory)?.renderer
-                            ?: GpuTileRenderer(ssiv.context)
+                            ?: GpuTileRenderer(ssiv.context.applicationContext)
                     // Same renderer on the whole-bitmap path, so single-tile images are filtered too.
                     newImageFactory = GpuFilteringImageDecoder.Factory(baseImageFactory, renderer)
                     gpu.toFactory(baseFactory, renderer)
@@ -217,12 +271,16 @@ data class ReaderSettings(
         val rcas: Float,
         val adaptiveSharpen: Float,
         val deband: Float,
+        val binarize: Float,
         val smartSharpen: Boolean,
     ) {
+        val isDebandActive: Boolean
+            get() = deband.isOn()
+
         val isAnyActive: Boolean
             get() =
                 denoise.isOn() || vibrance.isOn() || isLineDarken || rcas.isOn() ||
-                    adaptiveSharpen.isOn() || deband.isOn()
+                    adaptiveSharpen.isOn() || deband.isOn() || binarize.isOn()
 
         fun toFactory(
             innerFactory: DecoderFactory<out ImageRegionDecoder>,
@@ -241,6 +299,8 @@ data class ReaderSettings(
             enableAdaptiveSharpen = adaptiveSharpen.isOn(),
             adaptiveSharpenIntensity = adaptiveSharpen,
             enableScreentoneCap = smartSharpen,
+            enableBinarize = binarize.isOn(),
+            binarizeStrength = binarize,
             renderer = renderer,
         )
 
@@ -258,6 +318,8 @@ data class ReaderSettings(
                 enableAdaptiveSharpen = adaptiveSharpen.isOn()
                 adaptiveSharpenIntensity = adaptiveSharpen
                 enableScreentoneCap = smartSharpen
+                enableBinarize = binarize.isOn()
+                binarizeStrength = binarize
             }
         }
 
@@ -269,7 +331,8 @@ data class ReaderSettings(
             renderer.enableRcas == rcas.isOn() && renderer.rcasIntensity == rcas &&
             renderer.enableAdaptiveSharpen == adaptiveSharpen.isOn() &&
             renderer.adaptiveSharpenIntensity == adaptiveSharpen &&
-            renderer.enableScreentoneCap == smartSharpen
+            renderer.enableScreentoneCap == smartSharpen &&
+            renderer.enableBinarize == binarize.isOn() && renderer.binarizeStrength == binarize
 
         companion object {
             /** A filter counts as enabled above this intensity (same threshold as before the split). */
@@ -287,6 +350,7 @@ data class ReaderSettings(
                 rcas = (cf?.rcas ?: 0f).coerceIn(0f, 1f),
                 adaptiveSharpen = (cf?.adaptiveSharpen ?: 0f).coerceIn(0f, 1f),
                 deband = (cf?.deband ?: 0f).coerceIn(0f, 1f),
+                binarize = (cf?.binarize ?: 0f).coerceIn(0f, 1f),
                 smartSharpen = smartSharpen,
             )
         }
@@ -298,7 +362,7 @@ data class ReaderSettings(
         @Assisted private val mangaId: Flow<Long>,
         private val settings: AppSettings,
         private val mangaDataRepository: MangaDataRepository,
-    ) : MediatorStateFlow<ReaderSettings>(ReaderSettings(settings, null, false)) {
+    ) : MediatorStateFlow<ReaderSettings>(ReaderSettings(settings, null, false, CropOverrides.NONE)) {
         private val settingsKeys =
             scatterSetOf(
                 AppSettings.KEY_ZOOM_MODE,
@@ -306,6 +370,11 @@ data class ReaderSettings(
                 AppSettings.KEY_ANIMATED_IMAGES,
                 AppSettings.KEY_MEMORY_SAVER,
                 AppSettings.KEY_ANIMATED_AUTOPLAY,
+                AppSettings.KEY_ANIMATED_CONTROLS,
+                AppSettings.KEY_ANIMATED_ADVANCE,
+                AppSettings.KEY_ANIMATED_SPEED,
+                AppSettings.KEY_ANIMATED_LOOPS,
+                AppSettings.KEY_PNG_DECODER,
                 AppSettings.KEY_READER_BACKGROUND,
                 AppSettings.KEY_32BIT_COLOR,
                 AppSettings.KEY_READER_OPTIMIZE,
@@ -320,18 +389,34 @@ data class ReaderSettings(
                 AppSettings.KEY_CF_RCAS,
                 AppSettings.KEY_CF_ADAPTIVE_SHARPEN,
                 AppSettings.KEY_CF_DEBAND,
+                AppSettings.KEY_CF_BINARIZE,
                 AppSettings.KEY_READER_SCALER,
                 AppSettings.KEY_READER_DOWNSCALER,
                 AppSettings.KEY_READER_SMART_SHARPEN,
                 AppSettings.KEY_CF_LINE_DARKEN,
+                AppSettings.KEY_CF_AUTO_CONTRAST,
+                AppSettings.KEY_CF_AUTO_BRIGHTNESS,
+                AppSettings.KEY_CF_AUTO_SATURATION,
+                AppSettings.KEY_CF_OVERLAY_R,
+                AppSettings.KEY_CF_OVERLAY_G,
+                AppSettings.KEY_CF_OVERLAY_B,
+                AppSettings.KEY_CF_OVERLAY_A,
                 AppSettings.KEY_READER_CROP,
+                AppSettings.KEY_DOUBLE_TAP_ZOOM,
+                AppSettings.KEY_DOUBLE_TAP_SPEED,
+                AppSettings.KEY_DOUBLE_PAGE_GAP,
+                AppSettings.KEY_LANDSCAPE_ZOOM,
+                AppSettings.KEY_TAP_TO_PAN,
+                AppSettings.KEY_ZOOM_START,
+                AppSettings.KEY_READER_TILE_DPI,
+                AppSettings.KEY_WEBTOON_SIDE_PADDING,
             )
         private var job: Job? = null
 
         override fun onActive() {
             assert(job?.isActive != true)
             job?.cancel()
-            publishValue(ReaderSettings(settings, value.colorFilter, value.isColorFilterDisabled))
+            publishValue(ReaderSettings(settings, value.colorFilter, value.isColorFilterDisabled, value.cropOverrides))
             job =
                 processLifecycleScope.launch(Dispatchers.Default) {
                     observeImpl()
@@ -351,13 +436,16 @@ data class ReaderSettings(
                 mangaId
                     .flatMapLatest { mangaDataRepository.observeColorFilterDisabled(it) }
                     .onStart { emit(value.isColorFilterDisabled) },
+                mangaId
+                    .flatMapLatest { mangaDataRepository.observeCropOverrides(it) }
+                    .onStart { emit(value.cropOverrides) },
                 settings
                     .observeChanges()
                     .filter { x -> x == null || x in settingsKeys }
                     .conflate()
                     .onStart { emit(null) },
-            ) { mangaCf, isDisabled, _ ->
-                ReaderSettings(settings, mangaCf, isDisabled)
+            ) { mangaCf, isDisabled, crop, _ ->
+                ReaderSettings(settings, mangaCf, isDisabled, crop)
             }.collect {
                 publishValue(it)
             }

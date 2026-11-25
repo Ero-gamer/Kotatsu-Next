@@ -7,7 +7,7 @@
 <br>
 
 <div align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=28&pause=1000&color=C792EA&center=true&vCenter=true&width=600&lines=Kotatsu+Next;Your+manga+universe%2C+FOSS+%26+free;11200%2B+sources+%7C+No+ads+%7C+Material+You" alt="Typing SVG" />
+  <img src="docs/assets/typing.svg" alt="Kotatsu Next - Your manga universe, FOSS &amp; free - 11200+ sources, no ads, Material You" width="640" height="64" />
 </div>
 
 <br>
@@ -62,13 +62,21 @@
 
 **°Replaced default jpeg image decoder with JPEG Turbo lib** Best optimized jpeg image decoder for errors-free decoding even for large long strip images (bigger than 10000x5000 res Images that get decoded with visible bad tints in default jpeg decoder) and 2x to 6x faster than other jpeg decoders while using same resources overhead and even lower in certain cases.
 
-**°Optimized Backup & Restore feature**
+**°Optimized Backup & Restore feature** now also saves per-manga reader settings, per-source settings and the updates feed, keeps this device's storage paths / app lock / proxy on restore, and restores every section independently.
+
+**°PDF to CBZ import** pick a PDF in the local import screen: pages are rendered and stored as WebP, with the WebP quality taken from the JPEGs embedded in the PDF (q90 when unknown).
+
+**°Open source licenses screen** (Settings > About) generated at build time with AboutLibraries: every dependency, native codec and upstream project with its license.
+
+**°Crop borders per manga** (use global / on / off) and **tap inversion** (left-right / top-bottom / both).
+
+**°Smarter suggestions, related rows and history** (diversified suggestions, local related fallback, history survives a source renumbering its chapters, source scope choice when looking for alternatives).
 
 **°Implemented global setting for disabling auto CF captcha solver for all sources**
 
 **°Native image pipeline** libjpeg-turbo tiled JPEG decoding plus optional Rust JPEG XL / animated PNG decoders (with automatic Skia fallback), wide-gamut JXL converted to sRGB, and smarter tile prefetch that skips formats without cheap region decoding (WebP/PNG/AVIF/GIF) to save RAM on low-end phones.
 
-All other differences from upstream: [CHANGES.md](CHANGES.md). Docs: [docs/](docs/DOCUMENTATION.md) · Third-party licenses: [CREDITS.md](CREDITS.md)
+Release notes: [CHANGELOG.md](CHANGELOG.md). All other differences from upstream: [CHANGES.md](CHANGES.md). Docs: [docs/](docs/DOCUMENTATION.md) · Third-party licenses: [CREDITS.md](CREDITS.md)
 
 </details>
 
@@ -215,7 +223,14 @@ Kotatsu Next is built upon the exceptional work of the [Kotatsu](https://github.
 | [Kotatsu developers](https://github.com/KotatsuApp/Kotatsu) | For the outstanding open-source manga reader foundation |
 | Kotatsu community | Contributions, testing and ongoing support |
 | [Weblate translators](https://hosted.weblate.org/engage/kotatsu/) | Localizing Kotatsu for the world |
-| [Kotatsu-Redo](https://github.com/Kotatsu-Redo/kotatsu-parsers-redo) | Continued parser development and maintenance |
+| [Kotatsu-Redo](https://github.com/Kotatsu-Redo/kotatsu-parsers-redo) | Continued parser development and maintenance; suggestions, history and alternatives logic ported from Kotatsu Redo (GPL-3.0) |
+| [DropSauce](https://github.com/HuzaifaKhalid1311/DropSauce) (GPL-3.0) | Backup/restore hardening ideas, per-manga/source/feed backup sections, PDF import idea |
+| [TachiyomiSY](https://github.com/jobobby04/TachiyomiSY) (Apache-2.0), [Mihon](https://github.com/mihonapp/mihon) (Apache-2.0) | Reader design ideas |
+| [AboutLibraries](https://github.com/mikepenz/AboutLibraries) (Apache-2.0) | Open source licenses screen |
+| [Telephoto](https://github.com/saket/telephoto) (Apache-2.0) | Zoomable-image design ideas |
+| [APNG4Android](https://github.com/penfeizhou/APNG4Android) (Apache-2.0) | Animated WebP frame-by-frame decoding pattern |
+| [Mangayomi](https://github.com/kodjodevf/mangayomi) | Reader behaviour studied (prefetch behind, black-border crop vote) |
+| [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo), [libwebp](https://github.com/webmproject/libwebp), [jxl-oxide](https://github.com/tirr-c/jxl-oxide), [libavif](https://github.com/AOMediaCodec/libavif) | Native image codecs (licenses in [CREDITS.md](CREDITS.md)) |
 
 <br>
 

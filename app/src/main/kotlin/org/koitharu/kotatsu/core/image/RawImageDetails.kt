@@ -34,6 +34,22 @@ object RawImageDetails {
         return out.toString().trimEnd()
     }
 
+    /** Whether the head carries an embedded ICC profile; null when the format cannot be checked this way. */
+    fun hasIccProfile(head: ByteArray, length: Int, format: ImageFormat): Boolean? {
+        val markers = when (format) {
+            ImageFormat.JPEG -> listOf("ICC_PROFILE")
+            ImageFormat.PNG -> listOf("iCCP")
+            ImageFormat.WEBP -> listOf("ICCP")
+            ImageFormat.AVIF -> listOf("colrprof", "colrrICC")
+            else -> return null
+        }
+        val n = minOf(length, head.size)
+        return markers.any { marker ->
+            val m = marker.toByteArray(Charsets.ISO_8859_1)
+            (0..n - m.size).any { start -> m.indices.all { head[start + it] == m[it] } }
+        }
+    }
+
     private fun hexDump(b: ByteArray, n: Int, out: StringBuilder) {
         var i = 0
         while (i < n) {

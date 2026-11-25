@@ -142,8 +142,8 @@ class ImageFiltersTransformation(
         }
 
         /**
-         * Per-pixel vibrance factor: boosts muted colours (low saturation) more than vivid ones.
-         * Returns 1.0 when colour is perfectly neutral (no-op branch in the hot loop). Same shape
+         * Per-pixel vibrance factor: boosts muted colors (low saturation) more than vivid ones.
+         * Returns 1.0 when color is perfectly neutral (no-op branch in the hot loop). Same shape
          * as the real SweetFX/CeeJay.dk formula used by the GPU shader — `1 + coeff*(1-sat)` for
          * coeff >= 0, which is the only range this UI's slider allows (0..1).
          */

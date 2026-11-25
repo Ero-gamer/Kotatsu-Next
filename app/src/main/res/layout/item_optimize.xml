@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	style="?materialCardViewFilledStyle"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_marginBottom="@dimen/list_spacing_normal">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:padding="12dp">
+
+		<TextView
+			android:id="@+id/textView_title"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:ellipsize="end"
+			android:singleLine="true"
+			android:textAppearance="?attr/textAppearanceTitleSmall"
+			tools:text="@tools:sample/lorem" />
+
+		<TextView
+			android:id="@+id/textView_options"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="2dp"
+			android:ellipsize="end"
+			android:singleLine="true"
+			android:textAppearance="?attr/textAppearanceBodySmall"
+			tools:text="@string/optimize_opt_both" />
+
+		<TextView
+			android:id="@+id/textView_status"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="4dp"
+			android:textAppearance="?attr/textAppearanceBodyMedium"
+			tools:text="@string/optimize_paused" />
+
+		<com.google.android.material.progressindicator.LinearProgressIndicator
+			android:id="@+id/progressBar"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:visibility="gone"
+			app:trackColor="?android:colorBackground"
+			tools:progress="25"
+			tools:visibility="visible" />
+
+		<TextView
+			android:id="@+id/textView_stats"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="4dp"
+			android:textAppearance="?attr/textAppearanceBodySmall"
+			android:visibility="gone"
+			tools:text="@string/optimize_item_stats" />
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:gravity="end"
+			android:orientation="horizontal">
+
+			<Button
+				android:id="@+id/button_primary"
+				style="?materialButtonOutlinedStyle"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginEnd="8dp"
+				android:text="@string/pause" />
+
+			<Button
+				android:id="@+id/button_secondary"
+				style="?materialButtonOutlinedStyle"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="@android:string/cancel" />
+
+		</LinearLayout>
+
+	</LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

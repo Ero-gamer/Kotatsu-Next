@@ -218,7 +218,7 @@ class ExternalPluginContentSource(
         return contentResolver.query(uri, null, null, null, null)
             .safe()
             .use { cursor ->
-                cursor.moveToFirst()
+                if (!cursor.moveToFirst()) throw IncompatiblePluginException(source.name, null)
                 cursor.getManga()
             }
     }

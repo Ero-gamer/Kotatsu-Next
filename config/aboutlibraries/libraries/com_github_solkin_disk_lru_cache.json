@@ -1,0 +1,18 @@
+{
+  "uniqueId": "com.github.solkin:disk-lru-cache",
+  "name": "disk-lru-cache",
+  "description": "Disk LRU cache",
+  "website": "https://github.com/solkin/disk-lru-cache",
+  "developers": [
+    {
+      "name": "Igor Solkin",
+      "organisationUrl": "https://github.com/solkin"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/solkin/disk-lru-cache"
+  },
+  "licenses": [
+    "MIT"
+  ]
+}

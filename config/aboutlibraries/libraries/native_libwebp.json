@@ -1,0 +1,20 @@
+{
+  "uniqueId": "native:libwebp",
+  "name": "libwebp",
+  "description": "WebP encoder and SharpYUV, vendored unmodified",
+  "website": "https://github.com/webmproject/libwebp",
+  "developers": [
+    {
+      "name": "Google / WebM Project",
+      "organisationUrl": "https://developers.google.com/speed/webp"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/webmproject/libwebp"
+  },
+  "licenses": [
+    "BSD-3-Clause"
+  ],
+  "artifactVersion": "1.6.0",
+  "tag": "native"
+}

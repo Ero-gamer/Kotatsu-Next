@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.StatFs
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.hilt.work.HiltWorker
@@ -25,8 +26,15 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -44,7 +52,16 @@ import okio.buffer
 import okio.sink
 import okio.use
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.exceptions.NotEnoughSpaceException
 import org.koitharu.kotatsu.core.image.BitmapDecoderCompat
+import org.koitharu.kotatsu.core.image.ImageFormat
+import org.koitharu.kotatsu.core.image.ImageFormatProbe
+import org.koitharu.kotatsu.core.image.ImageInfo
+import org.koitharu.kotatsu.core.image.PageConverter
+import org.koitharu.kotatsu.core.image.TallImageSplitter
+import org.koitharu.kotatsu.core.image.WebpEncoding
+import org.koitharu.kotatsu.core.image.WebpPolicy
+import org.koitharu.kotatsu.core.image.WideImageSplitter
 import org.koitharu.kotatsu.core.model.ids
 import org.koitharu.kotatsu.core.model.isLocal
 import org.koitharu.kotatsu.core.network.MangaHttpClient
@@ -73,6 +90,7 @@ import org.koitharu.kotatsu.core.util.ext.toMimeTypeOrNull
 import org.koitharu.kotatsu.core.util.ext.withTicker
 import org.koitharu.kotatsu.core.util.ext.writeAllCancellable
 import org.koitharu.kotatsu.core.util.progress.RealtimeEtaEstimator
+import org.koitharu.kotatsu.download.domain.DiskSpaceGuard
 import org.koitharu.kotatsu.download.domain.DownloadProgress
 import org.koitharu.kotatsu.download.domain.DownloadState
 import org.koitharu.kotatsu.local.data.LocalMangaRepository
@@ -86,6 +104,7 @@ import org.koitharu.kotatsu.local.domain.model.LocalManga
 import org.koitharu.kotatsu.parsers.exception.TooManyRequestExceptions
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaChapter
+import org.koitharu.kotatsu.parsers.model.MangaPage
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.ifNullOrEmpty
 import org.koitharu.kotatsu.parsers.util.mapToSet
@@ -98,6 +117,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltWorker
 class DownloadWorker @AssistedInject constructor(
@@ -126,6 +146,11 @@ class DownloadWorker @AssistedInject constructor(
         get() = checkNotNull(lastPublishedState)
 
     private val etaEstimator = RealtimeEtaEstimator()
+
+    // pages in flight <= readyGate (bounds temp files); network <= pageGate; splitting/encoding <= processGate
+    private val pageGate = AdaptiveGate(MAX_PAGES_PARALLELISM)
+    private val readyGate = Semaphore(MAX_PAGES_IN_FLIGHT)
+    private val processGate = Semaphore(MAX_PAGES_PROCESSING)
     private val notificationThrottler = Throttler(400)
 
     override suspend fun doWork(): Result {
@@ -139,7 +164,10 @@ class DownloadWorker @AssistedInject constructor(
                 pausingHandle.pause()
             }
             withContext(pausingHandle) {
-                downloadMangaImpl(manga, task, downloadedIds)
+                // Process-wide cap: different manga would otherwise all download at once (RAM, sockets, CPU).
+                downloadGate.withPermit {
+                    downloadMangaImpl(manga, task, downloadedIds)
+                }
             }
             Result.success(currentState.toWorkData())
         } catch (_: CancellationException) {
@@ -196,6 +224,13 @@ class DownloadWorker @AssistedInject constructor(
             val destination = localMangaRepository.getOutputDir(manga, task.destination)
             checkNotNull(destination) { applicationContext.getString(R.string.cannot_find_available_storage) }
             val tempFiles = ConcurrentLinkedQueue<File>()
+            val prefetchScope = CoroutineScope(currentCoroutineContext() + SupervisorJob(currentCoroutineContext()[Job]))
+            val prefetchedPages = HashMap<Long, Deferred<List<MangaPage>?>>()
+            val splitTall = settings.isTallSplitEnabled
+            val splitQuality = settings.tallSplitQuality
+            val webpAuto = settings.isWebpQualityAuto
+            val convertWebp = settings.isConvertToWebpOnDownload && WebpEncoding.isNativeAvailable
+            val dualSplit = settings.dualPageSplit
             var output: LocalMangaOutput? = null
             try {
                 if (manga.isLocal) {
@@ -211,7 +246,7 @@ class DownloadWorker @AssistedInject constructor(
                 )
                 val coverUrl = mangaDetails.largeCoverUrl.ifNullOrEmpty { mangaDetails.coverUrl }
                 if (!coverUrl.isNullOrEmpty()) {
-                    downloadFile(coverUrl, destination, repo.source, tempFiles).let { file ->
+                    downloadFile(coverUrl, destination, repo.source, tempFiles, validate = false).let { file ->
                         output.addCover(file, getMediaType(coverUrl, file))
                         file.deleteAwait()
                     }
@@ -223,30 +258,88 @@ class DownloadWorker @AssistedInject constructor(
                         publishState(currentState.copy(downloadedChapters = currentState.downloadedChapters + 1))
                         continue
                     }
-                    val pages = runFailsafe {
-                        repo.getPages(chapter.value)
-                    } ?: continue
+                    // Before any page is fetched: a full disk pauses here (resume after freeing space) instead of
+                    // leaving a truncated archive behind.
+                    runFailsafe { DiskSpaceGuard.check(freeBytesOf(destination)) } ?: continue
+                    // the page list of this chapter was requested while the previous one downloaded (null = failed)
+                    val pages = prefetchedPages.remove(chapter.value.id)?.await()
+                        ?: runFailsafe { repo.getPages(chapter.value) }
+                        ?: continue
+                    chapters.getOrNull(chapterIndex + 1)?.value?.takeIf { it.id !in chaptersToSkip }?.let { next ->
+                        prefetchedPages[next.id] = prefetchScope.async {
+                            runCatchingCancellable { repo.getPages(next) }.getOrNull()
+                        }
+                    }
                     val pageCounter = AtomicInteger(0)
                     channelFlow {
-                        val semaphore = Semaphore(MAX_PAGES_PARALLELISM)
                         for ((pageIndex, page) in pages.withIndex()) {
                             checkIsPaused()
                             launch {
-                                semaphore.withPermit {
-                                    runFailsafe {
-                                        val url = repo.getPageUrl(page)
-                                        val file = cache[url]
-                                            ?: downloadFile(url, destination, repo.source, tempFiles)
-                                        output.addPage(
-                                            chapter = chapter,
-                                            file = file,
-                                            pageNumber = pageIndex,
-                                            type = getMediaType(url, file),
-                                        )
-                                        if (file.extension == "tmp") {
-                                            file.deleteAwait()
+                                readyGate.withPermit {
+                                    val stored = runFailsafe {
+                                        // network stage: limited by the adaptive gate (shrinks on 429)
+                                        val (url, file) = pageGate.withPermit {
+                                            val pageUrl = repo.getPageUrl(page)
+                                            val cached = cache[pageUrl]
+                                            pageUrl to (cached ?: downloadFile(pageUrl, destination, repo.source, tempFiles))
+                                        }
+                                        // CPU/disk stage: does not hold a network permit
+                                        processGate.withPermit {
+                                            val parts = if (splitTall || dualSplit != AppSettings.DUAL_SPLIT_OFF || convertWebp) {
+                                                withContext(Dispatchers.IO) {
+                                                    val info = ImageFormatProbe.probe(file)
+                                                    if (splitTall && TallImageSplitter.needsSplit(info)) {
+                                                        TallImageSplitter.split(
+                                                            source = file,
+                                                            target = TallImageSplitter.targetFor(file, info, splitQuality, webpAuto),
+                                                        ) {
+                                                            destination.createTempFile("webp").also { tempFiles += it }
+                                                        }?.let { PageParts(it, isSingle = false) }
+                                                    } else if (dualSplit != AppSettings.DUAL_SPLIT_OFF && WideImageSplitter.needsSplit(info)) {
+                                                        WideImageSplitter.split(
+                                                            source = file,
+                                                            target = TallImageSplitter.targetFor(file, info, splitQuality, webpAuto),
+                                                            rightToLeft = dualSplit == AppSettings.DUAL_SPLIT_RTL,
+                                                        ) {
+                                                            destination.createTempFile("webp").also { tempFiles += it }
+                                                        }?.let { PageParts(it, isSingle = false) }
+                                                    } else if (convertWebp && info.format != ImageFormat.WEBP && PageConverter.isConvertible(info)) {
+                                                        convertPage(file, info, splitQuality, webpAuto, destination, tempFiles)
+                                                    } else {
+                                                        null
+                                                    }
+                                                }
+                                            } else {
+                                                null
+                                            }
+                                            if (parts != null) {
+                                                try {
+                                                    for ((i, part) in parts.files.withIndex()) {
+                                                        output.addPage(
+                                                            chapter = chapter,
+                                                            file = part,
+                                                            pageNumber = pageIndex,
+                                                            type = MimeType("image/webp"),
+                                                            part = if (parts.isSingle) 0 else i + 1,
+                                                        )
+                                                    }
+                                                } finally {
+                                                    parts.files.forEach { it.deleteAwait() }
+                                                }
+                                            } else {
+                                                output.addPage(
+                                                    chapter = chapter,
+                                                    file = file,
+                                                    pageNumber = pageIndex,
+                                                    type = getMediaType(url, file),
+                                                )
+                                            }
+                                            if (file.extension == "tmp") {
+                                                file.deleteAwait()
+                                            }
                                         }
                                     }
+                                    if (stored != null) pageGate.onSuccess()
                                     send(pageIndex)
                                 }
                             }
@@ -296,6 +389,7 @@ class DownloadWorker @AssistedInject constructor(
                 throw e
             } finally {
                 withContext(NonCancellable) {
+                    prefetchScope.cancel()
                     applicationContext.unregisterReceiver(pausingReceiver)
                     output?.closeQuietly()
                     output?.cleanup()
@@ -314,12 +408,13 @@ class DownloadWorker @AssistedInject constructor(
             try {
                 return block()
             } catch (e: IOException) {
-                val retryDelay = if (e is TooManyRequestExceptions) {
-                    e.getRetryDelay()
-                } else {
-                    DOWNLOAD_ERROR_DELAY
-                }
-                if (countDown <= 0 || retryDelay < 0 || retryDelay > MAX_RETRY_DELAY) {
+                if (e is TooManyRequestExceptions) pageGate.onRateLimited()
+                val attempt = MAX_FAILSAFE_ATTEMPTS - countDown
+                val retryDelay = retryDelayFor(
+                    serverDelay = if (e is TooManyRequestExceptions) e.getRetryDelay() else null,
+                    attempt = attempt,
+                ).let { if (it in 0..MAX_RETRY_DELAY) it + Random.nextLong(JITTER_MS) else it }
+                if (countDown <= 0 || e is NotEnoughSpaceException || retryDelay < 0 || retryDelay > MAX_RETRY_DELAY) {
                     val pausingHandle = PausingHandle.current()
                     if (pausingHandle.skipAllErrors()) {
                         return null
@@ -351,6 +446,15 @@ class DownloadWorker @AssistedInject constructor(
         }
     }
 
+    /** Free bytes of the volume holding [dir], or -1 when it cannot be read (the check is then skipped). */
+    private suspend fun freeBytesOf(dir: File): Long = runInterruptible(Dispatchers.IO) {
+        try {
+            StatFs(dir.path).availableBytes
+        } catch (_: IllegalArgumentException) {
+            -1L
+        }
+    }
+
     private suspend fun checkIsPaused() {
         val pausingHandle = PausingHandle.current()
         if (pausingHandle.isPaused) {
@@ -370,11 +474,39 @@ class DownloadWorker @AssistedInject constructor(
         MimeTypes.getMimeTypeFromUrl(url)
     }
 
+    /** Pages produced from one downloaded page: split parts (numbered `_01`...) or one converted page. */
+    private class PageParts(val files: List<File>, val isSingle: Boolean)
+
+    /** One WebP page of the same size, or null to keep the page as downloaded (cannot encode, or not smaller). */
+    private fun convertPage(
+        file: File,
+        info: ImageInfo,
+        fallbackQuality: Int,
+        auto: Boolean,
+        destination: File,
+        tempFiles: MutableCollection<File>,
+    ): PageParts? {
+        val target = WebpPolicy.target(auto, info.format, PageConverter.sourceQuality(file, info), fallbackQuality)
+        val bytes = PageConverter.convert(file, info, target) ?: return null
+        // AVIF / JXL are smaller than WebP, but WebP decodes faster and in regions: accepted even when bigger.
+        val mayGrow = info.format == ImageFormat.AVIF || info.format == ImageFormat.JXL
+        if (!mayGrow && bytes.size.toLong() >= file.length()) return null
+        val out = destination.createTempFile("webp").also { tempFiles += it }
+        return try {
+            out.writeBytes(bytes)
+            PageParts(listOf(out), isSingle = true)
+        } catch (ignored: IOException) {
+            out.delete()
+            null
+        }
+    }
+
     private suspend fun downloadFile(
         url: String,
         destination: File,
         source: MangaSource,
         tempFiles: MutableCollection<File>,
+        validate: Boolean = true,
     ): File {
         if (url.startsWith("content:", ignoreCase = true) || url.startsWith("file:", ignoreCase = true)) {
             val uri = url.toUri()
@@ -409,6 +541,13 @@ class DownloadWorker @AssistedInject constructor(
                         ).also { tempFiles += it }
                         file.sink(append = false).buffer().use {
                             it.writeAllCancellable(body.source())
+                        }
+                        if (validate) {
+                            // anti-bot / error pages come back as 200: retry instead of storing them as a page
+                            if (file.length() == 0L) throw IOException("Empty response body")
+                            if (body.contentType()?.subtype.equals("html", ignoreCase = true)) {
+                                throw IOException("Unexpected HTML response")
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -585,9 +724,25 @@ class DownloadWorker @AssistedInject constructor(
     private companion object {
 
         const val MAX_FAILSAFE_ATTEMPTS = 2
+        const val MAX_CONCURRENT_DOWNLOADS = 2
         const val MAX_PAGES_PARALLELISM = 4
-        const val DOWNLOAD_ERROR_DELAY = 2_000L
+        const val MAX_PAGES_IN_FLIGHT = 8
+        const val MAX_PAGES_PROCESSING = 2
+        const val JITTER_MS = 500L
         const val MAX_RETRY_DELAY = 7_200_000L // 2 hours
         const val TAG = "download"
+        val downloadGate = Semaphore(MAX_CONCURRENT_DOWNLOADS)
     }
+}
+
+private const val DOWNLOAD_ERROR_DELAY = 2_000L
+private const val MAX_BACKOFF_DELAY = 16_000L
+
+/**
+ * Delay before the next attempt. A delay given by the server (Retry-After) wins, even when it is 0.
+ * Without one (null, or negative = unknown) it backs off exponentially: 2s, 4s, 8s ... capped at 16s.
+ */
+internal fun retryDelayFor(serverDelay: Long?, attempt: Int): Long {
+    if (serverDelay != null && serverDelay >= 0L) return serverDelay
+    return (DOWNLOAD_ERROR_DELAY shl attempt.coerceIn(0, 3)).coerceAtMost(MAX_BACKOFF_DELAY)
 }

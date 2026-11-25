@@ -18,6 +18,7 @@ import java.util.Collections
 import java.util.LinkedList
 import java.util.WeakHashMap
 import kotlin.math.abs
+import kotlin.math.sign
 
 class WebtoonRecyclerView
 @JvmOverloads
@@ -30,6 +31,9 @@ constructor(
     private val scrollDispatcher = WebtoonScrollDispatcher()
     private val detachedViews = Collections.newSetFromMap(WeakHashMap<View, Boolean>())
     private var isFixingScroll = false
+
+    /** Sign of the last scroll the reader made (drag, fling or tap-scroll), and not of [repinPage]'s. */
+    private var scrollDirection = 0
 
     private val pullGestureTracker = PullGestureTracker()
 
@@ -127,6 +131,9 @@ constructor(
         offsetInWindow: IntArray?,
         type: Int,
     ): Boolean {
+        if (dy != 0) {
+            scrollDirection = dy.sign
+        }
         val consumedY = consumeVerticalScroll(dy)
         if (consumed != null) {
             consumed[0] = 0
@@ -142,6 +149,12 @@ constructor(
             return
         }
         val now = SystemClock.uptimeMillis()
+        if (now == lastScrollTime) {
+            // onScrolled + dispatchNestedPreScroll for the same drag step: count it once.
+            removeCallbacks(settleRunnable)
+            postDelayed(settleRunnable, SETTLE_DELAY_MS)
+            return
+        }
         val dt = (now - lastScrollTime).coerceIn(1L, SPEED_WINDOW_MS)
         lastScrollTime = now
         scrollSpeed = scrollSpeed * SPEED_KEEP + abs(dy) * 1000f / dt * (1f - SPEED_KEEP)
@@ -163,44 +176,40 @@ constructor(
         }
     }
 
+    /**
+     * Splits a scroll between the list and the pages' own scrolling.
+     *
+     * A page taller than the viewport is laid out viewport-sized and scrolls its image inside itself, so pages only
+     * join up while each one's inner scroll matches where it sits: at its start while its top edge is on screen, at
+     * its end while its bottom edge is, and free only while it fills the viewport. A page therefore scrolls inside
+     * itself only while pinned to the edge the content moves away from (its top when scrolling down, its bottom when
+     * scrolling up), and every page the scroll reaches is walked, not just the first two, so a fast fling over short
+     * pages cannot carry a tall one past the edge with its image unscrolled (which cuts a page off mid-panel).
+     *
+     * @return the part of [dy] taken up inside pages; the list scrolls by the rest
+     */
     private fun consumeVerticalScroll(dy: Int): Int {
-        if (isEmpty()) {
+        if (dy == 0 || isEmpty()) {
             return 0
         }
-        when {
-            dy > 0 -> {
-                val child = getChildAt(0) as WebtoonFrameLayout
-                var consumedByChild = child.dispatchVerticalScroll(dy)
-                if (consumedByChild < dy) {
-                    if (childCount > 1) {
-                        val nextChild = getChildAt(1) as WebtoonFrameLayout
-                        val unconsumed =
-                            dy - consumedByChild - nextChild.top // will be consumed by scroll
-                        if (unconsumed > 0) {
-                            consumedByChild += nextChild.dispatchVerticalScroll(unconsumed)
-                        }
-                    }
-                }
-                return consumedByChild
+        val distance = abs(dy)
+        var consumed = 0
+        var listScroll = 0
+        for (i in 0 until childCount) {
+            val child = getChildAt(if (dy > 0) i else childCount - 1 - i) as? WebtoonFrameLayout ?: continue
+            // How far the list must still move before this page is pinned to the leading edge
+            val toPin = (if (dy > 0) child.top else height - child.bottom) - listScroll
+            if (toPin < 0) {
+                continue // already past that edge, so it is at its end and has nothing left to scroll
             }
-
-            dy < 0 -> {
-                val child = getChildAt(childCount - 1) as WebtoonFrameLayout
-                var consumedByChild = child.dispatchVerticalScroll(dy)
-                if (consumedByChild > dy) {
-                    if (childCount > 1) {
-                        val nextChild = getChildAt(childCount - 2) as WebtoonFrameLayout
-                        val unconsumed =
-                            dy - consumedByChild + (height - nextChild.bottom) // will be consumed by scroll
-                        if (unconsumed < 0) {
-                            consumedByChild += nextChild.dispatchVerticalScroll(unconsumed)
-                        }
-                    }
-                }
-                return consumedByChild
+            if (toPin > distance - consumed - listScroll) {
+                break // this scroll ends before the page gets there, and so do the ones after it
             }
+            listScroll += toPin
+            val remaining = distance - consumed - listScroll
+            consumed += abs(child.dispatchVerticalScroll(if (dy > 0) remaining else -remaining))
         }
-        return 0
+        return if (dy > 0) consumed else -consumed
     }
 
     fun addOnPageScrollListener(listener: OnWebtoonScrollListener) {
@@ -224,39 +233,84 @@ constructor(
         }
     }
 
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        // Re-measuring moves pages and resizes them (a decoded image, zoom, rotation) without scrolling
+        updateChildrenScroll()
+    }
+
+    /**
+     * Brings every page's inner scroll back in line with where the page sits: at its start when its top edge is on
+     * screen, at its end when its bottom edge is. See [consumeVerticalScroll].
+     *
+     * Snapping can move an image, but leaving a page out of line shows its middle against the next page.
+     */
     fun updateChildrenScroll() {
         if (isFixingScroll) {
             return
         }
         isFixingScroll = true
-        for (child in this) {
-            val ssiv = (child as WebtoonFrameLayout).target
-            if (adjustScroll(child, ssiv)) {
-                break
+        try {
+            for (child in this) {
+                val frame = child as? WebtoonFrameLayout ?: continue
+                if (frame.isRepinPending) {
+                    continue // repinPage() is about to place it without moving what is on screen
+                }
+                val ssiv = frame.target
+                val range = ssiv.getScrollRange()
+                val target = when {
+                    child.top > 0 -> 0
+                    child.bottom < height -> range
+                    else -> ssiv.getScroll().coerceIn(0, range)
+                }
+                if (ssiv.getScroll() != target) {
+                    ssiv.scrollTo(target)
+                }
             }
+        } finally {
+            isFixingScroll = false
         }
-        isFixingScroll = false
     }
 
-    private fun adjustScroll(
-        child: View,
-        ssiv: WebtoonImageView,
-    ): Boolean = when {
-        child.bottom < height && ssiv.getScroll() < ssiv.getScrollRange() -> {
-            val distance = minOf(height - child.bottom, ssiv.getScrollRange() - ssiv.getScroll())
-            ssiv.scrollBy(distance)
-            true
-        }
+    /**
+     * Called when a page's image has been decoded.
+     *
+     * Until then the page is a viewport-sized placeholder with nothing to scroll, so the list may have scrolled it
+     * partly out of view. Deciding the inner scroll from position alone (end of the image if the page is above the
+     * top) jumps the reader to the end of a page they have barely started, or shows its middle against the next
+     * page. Posted because SSIV reports readiness from `onDraw`.
+     */
+    fun onPageReady(child: WebtoonFrameLayout) {
+        child.isRepinPending = true
+        post { repinPage(child) }
+    }
 
-        child.top > 0 && ssiv.getScroll() > 0 -> {
-            val distance = minOf(child.top, ssiv.getScroll())
-            ssiv.scrollBy(-distance)
-            true
+    /**
+     * Puts a just-decoded page in line.
+     *
+     * Only one case moves the list: reading downwards into a page the list carried past the viewport top while it
+     * was a placeholder. The reader is part-way down it, so the row at the viewport top stays put and the page is
+     * pinned under it (whatever its inner scroll cannot take up, the list does). Everything else is squared up by
+     * position alone: a page decoded off screen must not be pulled into view, and one arriving from above while
+     * scrolling up has its end against the page below, which is where position puts it.
+     */
+    private fun repinPage(child: WebtoonFrameLayout) {
+        child.isRepinPending = false
+        if (child.parent !== this) {
+            return
         }
-
-        else -> {
-            false
+        val ssiv = child.target
+        val range = ssiv.getScrollRange()
+        val scroll = ssiv.getScroll().coerceIn(0, range)
+        val isOnScreen = child.top < height && child.bottom > 0
+        if (isOnScreen && scrollDirection >= 0 && child.top < 0 && scroll < range) {
+            val target = minOf(scroll - child.top, range)
+            ssiv.scrollTo(target)
+            // RecyclerView.scrollBy moves only the list: it does not route through consumeVerticalScroll
+            scrollBy(0, scroll - target)
         }
+        // Squares up this page by position, and anything the list moving less than asked left out of line
+        updateChildrenScroll()
     }
 
     private class WebtoonScrollDispatcher {

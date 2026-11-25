@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.settings.about
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.format.DateUtils
 import android.view.View
 import androidx.annotation.StringRes
 import androidx.fragment.app.viewModels
@@ -18,6 +19,7 @@ import org.koitharu.kotatsu.core.github.isStable
 import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.ui.BasePreferenceFragment
+import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 
@@ -43,8 +45,11 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
             .observe(viewLifecycleOwner) { (isUpdateSupported, isLoading) ->
                 findPreference<Preference>(AppSettings.KEY_UPDATES_UNSTABLE)?.isVisible = isUpdateSupported
                 findPreference<Preference>(AppSettings.KEY_APP_VERSION)?.isEnabled = isUpdateSupported && !isLoading
+                findPreference<Preference>(KEY_PARSERS_VERSION)?.isEnabled = !isLoading
             }
         viewModel.onUpdateAvailable.observeEvent(viewLifecycleOwner, ::onUpdateAvailable)
+        viewModel.parsers.observe(viewLifecycleOwner, ::onParsersChanged)
+        viewModel.onParsersChecked.observeEvent(viewLifecycleOwner, ::onParsersChecked)
     }
 
     override fun onPreferenceTreeClick(preference: Preference): Boolean = when (preference.key) {
@@ -73,6 +78,18 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
             true
         }
 
+            KEY_PARSERS_VERSION -> {
+                if (viewModel.isParsersUpdateSupported) {
+                    viewModel.checkParsers()
+                }
+                true
+            }
+
+        KEY_LICENSES -> {
+            startActivity(Intent(requireContext(), LicensesActivity::class.java))
+            true
+        }
+
         KEY_DONATE -> {
             DonateDialogFragment.newInstance()
                 .show(childFragmentManager, DonateDialogFragment.TAG)
@@ -90,6 +107,36 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
         }
     }
 
+    private fun onParsersChanged(info: AboutSettingsViewModel.ParsersInfo?) {
+        val preference = findPreference<Preference>(KEY_PARSERS_VERSION) ?: return
+        if (info == null) {
+            preference.summary = null
+            return
+        }
+        val version = if (info.timestamp > 0L) {
+            val date = DateUtils.formatDateTime(
+                preference.context,
+                info.timestamp,
+                DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR or DateUtils.FORMAT_ABBREV_MONTH,
+            )
+            "$date (${info.revision})"
+        } else {
+            info.revision
+        }
+        preference.summary = getString(
+            if (info.isBuiltIn) R.string.sources_version_built_in else R.string.sources_version_downloaded,
+            version,
+        )
+    }
+
+    private fun onParsersChecked(result: Result<Boolean>) {
+        val message = result.fold(
+            onSuccess = { getString(if (it) R.string.sources_updated else R.string.sources_up_to_date) },
+            onFailure = { it.getDisplayMessage(resources) },
+        )
+        Snackbar.make(listView, message, Snackbar.LENGTH_SHORT).show()
+    }
+
     private fun openLink(
         @StringRes url: Int,
         title: CharSequence?,
@@ -102,5 +149,7 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
 
     companion object {
         private const val KEY_DONATE = "about_donate"
+        private const val KEY_LICENSES = "about_licenses"
+        const val KEY_PARSERS_VERSION = "parsers_version"
     }
 }

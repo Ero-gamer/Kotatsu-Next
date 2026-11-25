@@ -8,9 +8,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.internal.closeQuietly
 import org.koitharu.kotatsu.core.model.isLocal
+import org.koitharu.kotatsu.core.image.ImageFormatProbe
 import org.koitharu.kotatsu.core.util.MimeTypes
 import org.koitharu.kotatsu.core.util.ext.MimeType
 import org.koitharu.kotatsu.core.util.ext.deleteAwait
+import org.koitharu.kotatsu.core.util.ext.renameReplacing
 import org.koitharu.kotatsu.core.util.ext.takeIfReadable
 import org.koitharu.kotatsu.core.util.ext.toFileNameSafe
 import org.koitharu.kotatsu.core.zip.ZipOutput
@@ -44,7 +46,7 @@ class LocalMangaDirOutput(
         val name =
             buildString {
                 append("cover")
-                MimeTypes.getExtension(type)?.let { ext ->
+                (MimeTypes.getExtension(type) ?: ImageFormatProbe.probe(file).format.extension)?.let { ext ->
                     append('.')
                     append(ext)
                 }
@@ -61,6 +63,7 @@ class LocalMangaDirOutput(
         file: File,
         pageNumber: Int,
         type: MimeType?,
+        part: Int,
     ) = mutex.withLock {
         val output =
             chaptersOutput.getOrPut(chapter.value) {
@@ -69,7 +72,8 @@ class LocalMangaDirOutput(
         val name =
             buildString {
                 append(FILENAME_PATTERN.format(chapter.value.branch.hashCode(), chapter.index + 1, pageNumber))
-                MimeTypes.getExtension(type)?.let { ext ->
+                if (part > 0) append("_%02d".format(part))
+                (MimeTypes.getExtension(type) ?: ImageFormatProbe.probe(file).format.extension)?.let { ext ->
                     append('.')
                     append(ext)
                 }
@@ -145,7 +149,7 @@ class LocalMangaDirOutput(
             }
         if (e == null) {
             val resFile = File(file.absolutePath.removeSuffix(SUFFIX_TMP))
-            file.renameTo(resFile)
+            file.renameReplacing(resFile)
         } else {
             file.delete()
             throw e

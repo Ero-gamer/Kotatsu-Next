@@ -1,0 +1,22 @@
+{
+  "uniqueId": "native:libjpeg-turbo",
+  "name": "libjpeg-turbo",
+  "description": "JPEG codec (tiled region decoding in the reader), built from source",
+  "website": "https://github.com/libjpeg-turbo/libjpeg-turbo",
+  "developers": [
+    {
+      "name": "libjpeg-turbo project",
+      "organisationUrl": "https://libjpeg-turbo.org"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/libjpeg-turbo/libjpeg-turbo"
+  },
+  "licenses": [
+    "BSD-3-Clause",
+    "IJG",
+    "Zlib"
+  ],
+  "artifactVersion": "3.2.1",
+  "tag": "native"
+}

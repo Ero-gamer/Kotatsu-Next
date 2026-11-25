@@ -19,7 +19,7 @@ import org.koitharu.kotatsu.explore.data.SourcePreset
 import org.koitharu.kotatsu.explore.data.SourcePresetsRepository
 import org.koitharu.kotatsu.parsers.config.ConfigKey
 import org.koitharu.kotatsu.parsers.model.Manga
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.search.domain.SearchKind
@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 private const val MAX_PARALLELISM = 8
+private const val MAX_DETAILS_PER_SOURCE = 5
 private const val MAX_PER_SOURCE_PARALLELISM = 2
 private const val SOURCE_REPLACEMENT_TAG = "SourceReplacement"
 
@@ -89,16 +90,18 @@ class AlternativesUseCase @Inject constructor(
                             // Finish this source's candidate details before this worker starts another
                             // source, so chapter requests are not starved behind every source search.
                             coroutineScope {
+                                var detailed = 0 // details only for the best hits of a source: one request each
                                 search(
                                     manga = manga,
                                     sources = listOf(source),
                                     query = query,
                                     loadDetails = false,
                                 ).collect { candidate ->
+                                    val withDetails = loadDetails && detailed++ < MAX_DETAILS_PER_SOURCE
                                     launch {
                                         send(
                                             AlternativeSearchEvent.Result(
-                                                if (loadDetails) loadDetails(candidate) else candidate,
+                                                if (withDetails) loadDetails(candidate) else candidate,
                                             ),
                                         )
                                     }
@@ -125,8 +128,12 @@ class AlternativesUseCase @Inject constructor(
         sameContentTypeOnly: Boolean = false,
     ): List<MangaSource> {
         val sources = when (sourceScope) {
-            AlternativeSourceScope.CURRENT_PRESET -> getActivePreset()?.let(::getPresetSources).orEmpty()
-            AlternativeSourceScope.ENABLED -> sourcesRepository.getEnabledSources()
+            is AlternativeSourceScope.Preset -> presetsRepository.getById(sourceScope.id)
+                ?.let(::getPresetSources)
+                .orEmpty()
+
+            AlternativeSourceScope.Enabled -> sourcesRepository.getEnabledSources()
+            AlternativeSourceScope.Disabled -> sourcesRepository.getDisabledSources().toList()
         }
         return sources.asSequence()
             .distinctBy(MangaSource::name)
@@ -142,19 +149,24 @@ class AlternativesUseCase @Inject constructor(
         ref: MangaSource,
         sameLanguageOnly: Boolean = false,
     ): AlternativeSourceScopeOptions {
-        val preset = getActivePreset()
-        val hasPresetCandidates = preset != null && getPresetSources(preset).any { source ->
-            source.name != ref.name &&
-                (!settings.isNsfwContentDisabled || !source.isNsfw()) &&
-                (!sameLanguageOnly || source.hasSameLanguageAs(ref))
-        }
+        fun MangaSource.isCandidate() = name != ref.name &&
+            (!settings.isNsfwContentDisabled || !isNsfw()) &&
+            (!sameLanguageOnly || hasSameLanguageAs(ref))
+
+        // A preset with nothing searchable for this manga would only ever produce an empty screen.
+        val presets = presetsRepository.getAll()
+            .filter { preset -> getPresetSources(preset).any { it.isCandidate() } }
+            .map { AlternativeSourceScopeOptions.PresetChoice(it.id, it.title) }
+        val activePresetId = settings.activeSourcePresetId
         return AlternativeSourceScopeOptions(
-            defaultScope = if (hasPresetCandidates) {
-                AlternativeSourceScope.CURRENT_PRESET
+            // Unchanged default: the active preset when it has candidates, otherwise enabled sources.
+            defaultScope = if (presets.any { it.id == activePresetId }) {
+                AlternativeSourceScope.Preset(activePresetId)
             } else {
-                AlternativeSourceScope.ENABLED
+                AlternativeSourceScope.Enabled
             },
-            presetTitle = preset?.title?.takeIf { hasPresetCandidates },
+            presets = presets,
+            hasDisabledSources = sourcesRepository.getDisabledSources().any { it.isCandidate() },
         )
     }
 
@@ -204,9 +216,10 @@ class AlternativesUseCase @Inject constructor(
                         onSourceFailure(source)
                     }
                     val list = searchResult.getOrNull()
+                    var detailed = 0
                     list?.forEach { m ->
                         if (m.id != manga.id) {
-                            if (loadDetails) {
+                            if (loadDetails && detailed++ < MAX_DETAILS_PER_SOURCE) {
                                 launch {
                                     send(loadDetails(m))
                                 }
@@ -254,22 +267,16 @@ class AlternativesUseCase @Inject constructor(
         }
     }
 
-    private fun MangaSource.usesWebView(): Boolean = synchronized(webViewSources) {
-        webViewSources.getOrPut(name) {
-            val repository = mangaRepositoryFactory.create(this)
-            (
-                (repository as? ParserMangaRepository)
-                    ?.getConfigKeys()
-                    ?.filterIsInstance<ConfigKey.DisableUpdateChecking>()
-                    ?.any { it.defaultValue }
-                    == true
-                )
-        }
+    private fun MangaSource.usesWebView(): Boolean {
+        synchronized(webViewSources) { webViewSources[name] }?.let { return it }
+        // Repository creation can be slow: done outside the lock (a racing duplicate just computes the same value).
+        val repository = mangaRepositoryFactory.create(this)
+        val value = (repository as? ParserMangaRepository)
+            ?.getConfigKeys()
+            ?.filterIsInstance<ConfigKey.DisableUpdateChecking>()
+            ?.any { it.defaultValue } == true
+        return synchronized(webViewSources) { webViewSources.getOrPut(name) { value } }
     }
-
-    private suspend fun getActivePreset(): SourcePreset? = settings.activeSourcePresetId
-        .takeIf { it != 0L }
-        ?.let { presetsRepository.getById(it) }
 
     private fun getPresetSources(preset: SourcePreset): List<MangaSource> {
         if (preset.sources.isEmpty()) return emptyList()
@@ -281,11 +288,11 @@ class AlternativesUseCase @Inject constructor(
         return getLocale()?.language?.takeIf(String::isNotBlank) == refLanguage
     }
 
-    private fun MangaSource.hasSameContentTypeAs(ref: MangaSource): Boolean = this is MangaParserSource && ref is MangaParserSource && contentType == ref.contentType
+    private fun MangaSource.hasSameContentTypeAs(ref: MangaSource): Boolean = this is ParserMangaSource && ref is ParserMangaSource && contentType == ref.contentType
 
     private fun MangaSource.priority(ref: MangaSource): Int {
         var res = 0
-        if (this is MangaParserSource && ref is MangaParserSource) {
+        if (this is ParserMangaSource && ref is ParserMangaSource) {
             if (locale == ref.locale) {
                 res += 4
             } else if (locale.toLocale() == Locale.getDefault()) {

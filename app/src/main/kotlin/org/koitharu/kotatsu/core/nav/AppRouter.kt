@@ -76,6 +76,7 @@ import org.koitharu.kotatsu.list.ui.config.ListConfigBottomSheet
 import org.koitharu.kotatsu.list.ui.config.ListConfigSection
 import org.koitharu.kotatsu.local.ui.ImportDialogFragment
 import org.koitharu.kotatsu.local.ui.info.LocalInfoDialog
+import org.koitharu.kotatsu.local.ui.optimize.OptimizeActivity
 import org.koitharu.kotatsu.main.ui.MainActivity
 import org.koitharu.kotatsu.main.ui.welcome.WelcomeSheet
 import org.koitharu.kotatsu.parsers.model.Manga
@@ -246,6 +247,8 @@ class AppRouter private constructor(
 
     fun openDownloads() = startActivity(DownloadsActivity::class.java)
 
+    fun openOptimizer() = startActivity(OptimizeActivity::class.java)
+
     fun openDirectoriesSettings() = startActivity(MangaDirectoriesActivity::class.java)
 
     fun openBrowser(
@@ -307,6 +310,12 @@ class AppRouter private constructor(
 
     fun openReaderSettings() {
         startActivity(readerSettingsIntent(contextOrNull() ?: return))
+    }
+
+    fun openHiddenImages() {
+        startActivity(
+            Intent(contextOrNull() ?: return, SettingsActivity::class.java).setAction(ACTION_HIDDEN_IMAGES),
+        )
     }
 
     fun openProxySettings() {
@@ -945,6 +954,7 @@ class AppRouter private constructor(
         const val ACTION_MANGA_EXPLORE = "${BuildConfig.APPLICATION_ID}.action.EXPLORE_MANGA"
         const val ACTION_PROXY = "${BuildConfig.APPLICATION_ID}.action.MANAGE_PROXY"
         const val ACTION_READER = "${BuildConfig.APPLICATION_ID}.action.MANAGE_READER_SETTINGS"
+        const val ACTION_HIDDEN_IMAGES = "${BuildConfig.APPLICATION_ID}.action.MANAGE_HIDDEN_IMAGES"
         const val ACTION_SOURCE = "${BuildConfig.APPLICATION_ID}.action.MANAGE_SOURCE_SETTINGS"
         const val ACTION_SOURCES = "${BuildConfig.APPLICATION_ID}.action.MANAGE_SOURCES"
         const val ACTION_MANAGE_DISCORD = "${BuildConfig.APPLICATION_ID}.action.MANAGE_DISCORD"

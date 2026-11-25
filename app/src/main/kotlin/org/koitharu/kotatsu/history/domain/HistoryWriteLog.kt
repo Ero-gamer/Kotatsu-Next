@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.history.domain
 
 import android.util.Log
+import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.parsers.model.Manga
 
 /**
@@ -70,7 +71,7 @@ object HistoryWriteLog {
      * outside the app - coroutine machinery, Room, the framework - is noise here, and this class's
      * own frames would only ever say "HistoryWriteLog".
      */
-    private fun caller(): String = Throwable("stack capture")
+    private fun caller(): String = if (!BuildConfig.DEBUG) "n/a" else Throwable("stack capture")
         .stackTrace
         .asSequence()
         .filter { it.className.startsWith("org.koitharu.kotatsu") }

@@ -5,14 +5,21 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin)
     alias(libs.plugins.ksp)
-    id("kotlin-parcelize")
+    alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.hilt)
     alias(libs.plugins.room)
     alias(libs.plugins.kotlinx.serizliation)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.aboutlibraries)
 }
+
+// The public half of the key that parsers downloaded by the official builds have to be signed with. Its other half is
+// the PARSERS_SIGNING_KEY secret of the parsers repository. Left empty until that pair exists: then no parsers are
+// taken from anywhere and the app keeps the ones it was built with. Whoever holds the private half can run code in
+// every installed copy of the app, so generate it with `./gradlew generateParsersSigningKey -PkeyFile=...` in the
+// parsers repository and keep the private file offline.
+val parsersBundlePublicKey = ""
 
 // Keep every Kotlin runtime artifact on the plugin's Kotlin version (single source: the catalog).
 // The "detekt" tool configuration is skipped: detekt resolves its own embedded Kotlin compiler and
@@ -23,7 +30,7 @@ configurations.matching { it.name != "detekt" }.configureEach {
         force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
         force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         force("org.jetbrains.kotlin:kotlin-parcelize-runtime:$kotlinVersion")
-        // Dagger/Hilt 2.58 ships kotlin-metadata-jvm 2.3.0, which cannot read Kotlin 2.4 class metadata
+        // Dagger/Hilt can ship an older kotlin-metadata-jvm that cannot read newer Kotlin class metadata
         // ("Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0").
         force("org.jetbrains.kotlin:kotlin-metadata-jvm:$kotlinVersion")
 
@@ -38,6 +45,10 @@ configurations.matching { it.name != "detekt" }.configureEach {
     exclude(group = "org.jetbrains.kotlin", module = "kotlin-android-extensions-runtime")
 }
 
+// Only 32-bit and 64-bit ARM are built and packaged (no x86 / x86_64).
+val appAbis = listOf("armeabi-v7a", "arm64-v8a")
+// -Pssiv.legacyJni=false stores native libs uncompressed (smaller install, larger APK; default true).
+
 android {
     compileSdk = 37
     namespace = "org.koitharu.kotatsu"
@@ -51,18 +62,11 @@ android {
         applicationId = "io.github.kotatsu.next"
         minSdk = 23
         targetSdk = 37
+        ndk { abiFilters += appAbis }
         versionCode = 2046
         versionName = "9.10"
 
         testInstrumentationRunner = "org.koitharu.kotatsu.HiltTestRunner"
-
-        ksp {
-            arg("room.generateKotlin", "true")
-        }
-
-        androidResources {
-            generateLocaleConfig = false
-        }
 
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
@@ -70,6 +74,21 @@ android {
             localProperties.load(FileInputStream(localPropertiesFile))
         }
         resValue("string", "tg_backup_bot_token", localProperties.getProperty("tg_backup_bot_token", ""))
+
+        // Where parsers newer than the built-in ones are published, and the public half of the key they are signed
+        // with. Override with `parsers_bundle_url` / `parsers_bundle_key` in local.properties or PARSERS_BUNDLE_URL /
+        // PARSERS_BUNDLE_KEY in the environment; the key `none` takes no parsers from anywhere.
+        fun parsersSetting(property: String, env: String): String? =
+            localProperties.getProperty(property)?.takeIf { it.isNotBlank() }
+                ?: System.getenv(env)?.takeIf { it.isNotBlank() }
+        val parsersBundleUrl = parsersSetting("parsers_bundle_url", "PARSERS_BUNDLE_URL")
+            ?: "https://github.com/Ero-gamer/kotatsu-next-parsers/releases/download/parsers-bundle"
+        var parsersBundleKey = parsersSetting("parsers_bundle_key", "PARSERS_BUNDLE_KEY") ?: parsersBundlePublicKey
+        if (parsersBundleKey == "none") {
+            parsersBundleKey = ""
+        }
+        buildConfigField("String", "PARSERS_BUNDLE_URL", "\"$parsersBundleUrl\"")
+        buildConfigField("String", "PARSERS_BUNDLE_KEY", "\"$parsersBundleKey\"")
     }
 
     buildTypes {
@@ -87,15 +106,20 @@ android {
         }
     }
 
+    androidResources {
+        generateLocaleConfig = false
+    }
+
     buildFeatures {
         viewBinding = true
         buildConfig = true
         compose = true
+        resValues = true
     }
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = providers.gradleProperty("ssiv.legacyJni").orNull != "false"
         }
         resources {
             excludes +=
@@ -107,38 +131,13 @@ android {
     }
 
     sourceSets {
-        getByName("androidTest").assets.srcDirs(files("$projectDir/schemas"))
-        getByName("main").java.srcDirs("src/main/kotlin/")
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-            freeCompilerArgs.addAll(
-                "-opt-in=kotlin.ExperimentalStdlibApi",
-                "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-                "-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi",
-                "-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi",
-                "-opt-in=kotlinx.coroutines.FlowPreview",
-                "-opt-in=kotlin.contracts.ExperimentalContracts",
-                "-opt-in=coil3.annotation.ExperimentalCoilApi",
-                "-opt-in=coil3.annotation.InternalCoilApi",
-                "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
-                "-Xjspecify-annotations=strict",
-                "-Xannotation-default-target=first-only",
-                "-Xtype-enhancement-improvements-strict-mode",
-            )
-        }
-    }
-
-    room {
-        schemaDirectory("$projectDir/schemas")
     }
 
     lint {
@@ -150,15 +149,55 @@ android {
         unitTests.isIncludeAndroidResources = true
         unitTests.isReturnDefaultValues = false
     }
+}
 
-    applicationVariants.configureEach {
-        if (name == "nightly") {
-            outputs.configureEach {
-                val output = this as? com.android.build.gradle.internal.api.ApkVariantOutputImpl
-                val now = LocalDateTime.now()
-                output?.versionCodeOverride = now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInt()
-                output?.versionNameOverride = "N" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-            }
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        freeCompilerArgs.addAll(
+            "-Xno-param-assertions",
+            "-Xno-call-assertions",
+            "-Xno-receiver-assertions",
+            "-opt-in=kotlin.ExperimentalStdlibApi",
+            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            "-opt-in=kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi",
+            "-opt-in=kotlinx.coroutines.InternalForInheritanceCoroutinesApi",
+            "-opt-in=kotlinx.coroutines.FlowPreview",
+            "-opt-in=kotlin.contracts.ExperimentalContracts",
+            "-opt-in=coil3.annotation.ExperimentalCoilApi",
+            "-opt-in=coil3.annotation.InternalCoilApi",
+            "-opt-in=kotlinx.serialization.ExperimentalSerializationApi",
+            "-Xjspecify-annotations=strict",
+            "-Xannotation-default-target=first-only",
+            "-Xtype-enhancement-improvements-strict-mode",
+        )
+    }
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
+ksp {
+    arg("room.generateKotlin", "true")
+}
+
+// Open source licenses screen (Settings > About). The plugin writes res/raw/aboutlibraries from the resolved
+// dependency graph; config/aboutlibraries adds licences POMs lack (JitPack) and the native/Rust libraries and
+// upstream projects that are not Gradle dependencies.
+aboutLibraries {
+    collect {
+        configPath = rootProject.file("config/aboutlibraries")
+    }
+}
+
+// Nightly builds get a date based version (variant API; applicationVariants is gone in AGP 9).
+androidComponents {
+    onVariants(selector().withBuildType("nightly")) { variant ->
+        val now = LocalDateTime.now()
+        variant.outputs.forEach { output ->
+            output.versionCode.set(now.format(DateTimeFormatter.ofPattern("yyMMdd")).toInt())
+            output.versionName.set("N" + now.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
         }
     }
 }
@@ -185,28 +224,11 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.activity)
-
-    // The Compose BOM transitively pulls in androidx.lifecycle:lifecycle-runtime-compose(-android),
-    // an artifact this app never calls directly (no collectAsStateWithLifecycle usage etc).
-    // Versions >= 2.11.0 declare an AAR-metadata requirement of AGP >= 9.1.0, which fails the
-    // build outright, and no BOM version was found that avoids pulling >= 2.11.0 in (stepping
-    // the BOM back to 2026.05.01 was tried and still resolved 2.11.0). Capping the transitive
-    // version directly via a constraint is deterministic regardless of what any BOM requests -
-    // "strictly" is required here because a plain version request would lose to the BOM's
-    // preferred version under Gradle's default highest-wins conflict resolution.
-    constraints {
-        implementation("androidx.lifecycle:lifecycle-runtime-compose-android") {
-            version { strictly("2.10.0") }
-            because("2.11.0+ requires AGP >= 9.1.0; this build is pinned to AGP 8.13.0")
-        }
-        implementation("androidx.lifecycle:lifecycle-runtime-compose") {
-            version { strictly("2.10.0") }
-            because("2.11.0+ requires AGP >= 9.1.0; this build is pinned to AGP 8.13.0")
-        }
-    }
+    implementation(libs.aboutlibraries.compose.m3)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core)
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.fragment)
     implementation(libs.androidx.transition)
@@ -292,29 +314,32 @@ dependencies {
 val rustCrateDir = file("src/main/rust/ssivcodecs")
 val rustOutDir = layout.buildDirectory.dir("rustJniLibs")
 val rustTargetDir = layout.buildDirectory.dir("rustTarget")
+// (ABI, Rust triple, NDK clang triple, library name). armeabi-v7a is built twice: the plain target has
+// NEON disabled (safe everywhere); thumbv7neon enables it and is loaded only on CPUs that report NEON
+// (see NativeCodecs). arm64-v8a has NEON in the baseline, so one library.
 val rustAbis =
-    mapOf(
-        "arm64-v8a" to ("aarch64-linux-android" to "aarch64-linux-android"),
-        "armeabi-v7a" to ("armv7-linux-androideabi" to "armv7a-linux-androideabi"),
-        "x86_64" to ("x86_64-linux-android" to "x86_64-linux-android"),
+    listOf(
+        listOf("arm64-v8a", "aarch64-linux-android", "aarch64-linux-android", "ssivcodecs"),
+        listOf("armeabi-v7a", "armv7-linux-androideabi", "armv7a-linux-androideabi", "ssivcodecs"),
+        listOf("armeabi-v7a", "thumbv7neon-linux-androideabi", "armv7a-linux-androideabi", "ssivcodecs_neon"),
     )
 val rustMinSdk = 23
 val rustEnabled = providers.gradleProperty("ssiv.rust").orNull != "false"
 val ndkFromSdk = androidComponents.sdkComponents.ndkDirectory
 
 val rustTasks =
-    rustAbis.map { (abi, triples) ->
-        val (rustTriple, clangTriple) = triples
-        tasks.register("buildRust${abi.replace("-", "").replaceFirstChar { it.uppercase() }}") {
+    rustAbis.map { (abi, rustTriple, clangTriple, libName) ->
+        tasks.register("buildRust${abi.replace("-", "").replaceFirstChar { it.uppercase() }}${if (libName.endsWith("_neon")) "Neon" else ""}") {
             group = "build"
-            description = "Builds libssivcodecs.so for $abi"
+            description = "Builds lib$libName.so for $abi ($rustTriple)"
             onlyIf { rustEnabled }
             inputs.dir(rustCrateDir.resolve("src"))
             inputs.file(rustCrateDir.resolve("Cargo.toml"))
             inputs.file(rustCrateDir.resolve("build.rs"))
-            outputs.dir(rustOutDir.map { it.dir(abi) })
+            inputs.dir(rustCrateDir.resolve("vendor"))
+            outputs.file(rustOutDir.map { it.dir(abi).file("lib$libName.so") })
             doLast {
-                fun skip(reason: String) = logger.warn("Rust codecs ($abi) skipped: $reason")
+                fun skip(reason: String) = logger.warn("Rust codecs ($abi/$rustTriple) skipped: $reason")
                 try {
                     val home = System.getProperty("user.home")
                     val cargo =
@@ -350,6 +375,7 @@ val rustTasks =
                     // Idempotent and quick when the target is already installed.
                     runCatching { run("rustup", "target", "add", rustTriple) }
                     val envKey = rustTriple.uppercase().replace('-', '_')
+                    val ccKey = rustTriple.replace('-', '_')
                     val code =
                         run(
                             cargo,
@@ -362,8 +388,11 @@ val rustTasks =
                                 mapOf(
                                     "CARGO_TARGET_DIR" to rustTargetDir.get().asFile.absolutePath,
                                     "CARGO_TARGET_${envKey}_LINKER" to linker.absolutePath,
+                                    // The `cc` crate compiles the vendored libwebp with the NDK clang for this target.
+                                    "CC_$ccKey" to linker.absolutePath,
+                                    "AR_$ccKey" to (bin?.resolve("llvm-ar")?.absolutePath ?: "llvm-ar"),
                                     // 16 KB page-size aligned segments (Android 15+).
-                                    "RUSTFLAGS" to "-C link-arg=-Wl,-z,max-page-size=16384",
+                                    "RUSTFLAGS" to "-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,--gc-sections -C link-arg=-Wl,--icf=safe",
                                 ),
                         )
                     val built = rustTargetDir.get().asFile.resolve("$rustTriple/release/libssivcodecs.so")
@@ -374,7 +403,7 @@ val rustTasks =
                             .asFile
                             .resolve(abi)
                             .also { it.mkdirs() }
-                    built.copyTo(dest.resolve("libssivcodecs.so"), overwrite = true)
+                    built.copyTo(dest.resolve("lib$libName.so"), overwrite = true)
                 } catch (e: Exception) {
                     skip(e.toString())
                 }

@@ -31,6 +31,12 @@ class ReaderTapGridConfigViewModel @Inject constructor(
         }
     }
 
+    fun applyPreset(preset: TapGridSettings.Preset) {
+        launchJob(Dispatchers.Default) {
+            tapGridSettings.applyPreset(preset)
+        }
+    }
+
     fun disableAll() {
         launchJob(Dispatchers.Default) {
             tapGridSettings.disableAll()

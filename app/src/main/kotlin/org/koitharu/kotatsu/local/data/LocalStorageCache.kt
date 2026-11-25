@@ -57,7 +57,7 @@ class LocalStorageCache(
     suspend operator fun get(url: String): File? = withContext(Dispatchers.IO) {
         val cache = lruCache.get()
         runInterruptible {
-            cache.get(url)?.takeIfReadable()
+            cache.get(stableKey(url))?.takeIfReadable()
         }
     }
 
@@ -72,7 +72,7 @@ class LocalStorageCache(
             }
             val cache = lruCache.get()
             runInterruptible {
-                cache.put(url, file)
+                cache.put(stableKey(url), file)
             }
         } finally {
             file.delete()
@@ -85,7 +85,7 @@ class LocalStorageCache(
             bitmap.compressToPNG(file)
             val cache = lruCache.get()
             runInterruptible {
-                cache.put(url, file)
+                cache.put(stableKey(url), file)
             }
         } finally {
             file.delete()
@@ -116,4 +116,28 @@ class LocalStorageCache(
         val name = UUID.randomUUID().toString() + "." + ext
         return File(rootDir, name)
     }
+}
+
+/** Query parameters that only sign or time-limit a link; the same image comes back whatever their value. */
+private val VOLATILE_QUERY_PARAMS = setOf(
+    "expires", "signature", "sig", "key-pair-id", "policy",
+    "x-amz-signature", "x-amz-credential", "x-amz-date", "x-amz-expires", "x-amz-security-token",
+    "x-amz-signedheaders", "x-goog-signature", "x-goog-credential", "x-goog-date", "x-goog-expires",
+)
+
+/**
+ * The cache key of [url] without its signing parameters, so a signed link (new signature on every
+ * request) still finds the file saved from an earlier one. Links without a query are returned as they are.
+ */
+internal fun stableKey(url: String): String {
+    val q = url.indexOf('?')
+    if (q < 0) return url
+    val hash = url.indexOf('#', q).let { if (it < 0) url.length else it }
+    val kept = url.substring(q + 1, hash).split('&').filter { part ->
+        part.isNotEmpty() && part.substringBefore('=').lowercase() !in VOLATILE_QUERY_PARAMS
+    }
+    if (kept.size == url.substring(q + 1, hash).count { it == '&' } + 1) return url // nothing removed
+    val base = url.substring(0, q)
+    val tail = url.substring(hash)
+    return if (kept.isEmpty()) base + tail else base + '?' + kept.joinToString("&") + tail
 }

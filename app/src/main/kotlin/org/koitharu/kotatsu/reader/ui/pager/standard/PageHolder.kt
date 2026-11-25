@@ -21,8 +21,10 @@ import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.model.ZoomMode
+import org.koitharu.kotatsu.core.model.ZoomStart
 import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
+import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
 import org.koitharu.kotatsu.databinding.ItemPageBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
@@ -49,6 +51,12 @@ open class PageHolder(
 
     override val ssiv = binding.ssiv
 
+    /** Where [ZoomStart.AUTO] starts: the right edge for right-to-left readers. */
+    protected open val startsAtRight: Boolean
+        get() = false
+
+    private var landscapeZoom: Runnable? = null
+
     init {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root, this)
     }
@@ -59,6 +67,8 @@ open class PageHolder(
         const val DOUBLE_TAP_ZOOM = 2.8f
         const val MAX_ZOOM_SCALE = 6f
         const val KEEP_START_MAX_SCALE = 6f
+        const val LANDSCAPE_ZOOM_DELAY_MS = 500L
+        const val MIN_PAN_PX = 4f
     }
 
     override fun onApplyWindowInsets(
@@ -84,6 +94,7 @@ open class PageHolder(
     }
 
     override fun onRecycled() {
+        cancelLandscapeZoom()
         binding.ssiv.doubleTapZoomStages = null
         super.onRecycled()
     }
@@ -101,7 +112,17 @@ open class PageHolder(
         ssiv.maxScale = maxOf(MAX_ZOOM_SCALE * fit, minCeiling)
         ssiv.doubleTapZoomStages = floatArrayOf(DOUBLE_TAP_ZOOM * fit)
         ssiv.doubleTapZoomStyle = SubsamplingScaleImageView.ZOOM_FOCUS_FIXED
-        ssiv.doubleTapZoomDuration = ssiv.resources.getInteger(R.integer.config_defaultAnimTime)
+        ssiv.doubleTapZoomDuration = settings.doubleTapZoomDuration.takeIf { it > 0 }
+            ?: ssiv.resources.getInteger(R.integer.config_defaultAnimTime)
+        ssiv.isDoubleTapZoomEnabled = settings.isDoubleTapZoom
+    }
+
+    /** Horizontal start position in image pixels; [rtl] is what [ZoomStart.AUTO] resolves to. */
+    protected fun startX(imageWidth: Int, rtl: Boolean): Float = when (settings.zoomStart) {
+        ZoomStart.AUTO -> if (rtl) imageWidth.toFloat() else 0f
+        ZoomStart.LEFT -> 0f
+        ZoomStart.RIGHT -> imageWidth.toFloat()
+        ZoomStart.CENTER -> imageWidth / 2f
     }
 
     override fun onReady() {
@@ -124,7 +145,7 @@ open class PageHolder(
                 binding.ssiv.minScale = binding.ssiv.height / binding.ssiv.sHeight.toFloat()
                 binding.ssiv.setScaleAndCenter(
                     binding.ssiv.minScale,
-                    PointF(0f, binding.ssiv.sHeight / 2f),
+                    PointF(startX(binding.ssiv.sWidth, rtl = false), binding.ssiv.sHeight / 2f),
                 )
             }
 
@@ -142,11 +163,98 @@ open class PageHolder(
                 binding.ssiv.minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
                 binding.ssiv.setScaleAndCenter(
                     keepStartScale,
-                    PointF(0f, 0f),
+                    PointF(startX(binding.ssiv.sWidth, rtl = false), 0f),
+                )
+            }
+
+            ZoomMode.STRETCH -> {
+                binding.ssiv.minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_CROP
+                binding.ssiv.resetScaleAndCenter()
+            }
+
+            ZoomMode.ORIGINAL -> {
+                binding.ssiv.minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CUSTOM
+                binding.ssiv.minScale = 1f
+                binding.ssiv.setScaleAndCenter(
+                    1f,
+                    PointF(binding.ssiv.sWidth / 2f, binding.ssiv.sHeight / 2f),
                 )
             }
         }
         setupDoubleTapZoom(if (settings.zoomMode == ZoomMode.KEEP_START) keepStartScale else 0f)
+        scheduleLandscapeZoom()
+    }
+
+    /**
+     * Tap-to-pan: moves a zoomed page one view width in the visual direction of [delta].
+     * With [rows] (horizontal pagers) a page whose row is finished moves on to the next row instead: one view
+     * height down when [forward] (up otherwise), restarting at the row's start edge, so a page taller than the
+     * screen is read row by row. Returns false (so the caller turns the page) when disabled or nothing is left.
+     */
+    fun panByPage(delta: Int, forward: Boolean = delta > 0, rows: Boolean = false): Boolean {
+        val ssiv = binding.ssiv
+        if (!settings.isTapToPan || !ssiv.isReady || ssiv.scale <= 0f) return false
+        val center = ssiv.getCenter() ?: return false
+        // [delta] is already the ViewPager's visual direction (the reversed fragment negates it).
+        val direction = delta
+        val viewWidth = ssiv.width / ssiv.scale
+        val half = viewWidth / 2f
+        val remaining = if (direction > 0) ssiv.sWidth - (center.x + half) else center.x - half
+        if (remaining * ssiv.scale >= MIN_PAN_PX) {
+            val step = minOf(viewWidth, remaining)
+            animatePanTo(if (direction > 0) center.x + step else center.x - step, center.y)
+            return true
+        }
+        if (!rows) return false
+        val viewHeight = ssiv.height / ssiv.scale
+        val remainingY = if (forward) ssiv.sHeight - (center.y + viewHeight / 2f) else center.y - viewHeight / 2f
+        if (remainingY * ssiv.scale < MIN_PAN_PX) return false
+        val newY = if (forward) center.y + minOf(viewHeight, remainingY) else center.y - minOf(viewHeight, remainingY)
+        // The new row starts at the edge opposite to the reading direction; a page no wider than the view keeps its x.
+        val newX = when {
+            ssiv.sWidth <= viewWidth -> center.x
+            direction > 0 -> half
+            else -> ssiv.sWidth - half
+        }
+        animatePanTo(newX, newY)
+        return true
+    }
+
+    private fun animatePanTo(x: Float, y: Float) {
+        val ssiv = binding.ssiv
+        ssiv.animateScaleAndCenter(ssiv.scale, PointF(x, y))?.apply {
+            withDuration(ssiv.context.getAnimationDuration(R.integer.config_shortAnimTime))
+            withInterpolator(DecelerateInterpolator())
+            start()
+        }
+    }
+
+    protected fun cancelLandscapeZoom() {
+        landscapeZoom?.let { binding.ssiv.removeCallbacks(it) }
+        landscapeZoom = null
+    }
+
+    /**
+     * A wide page shown fitted in a portrait view is small: after a short pause animate to fit its height.
+     * Skipped once the user has zoomed; the animation itself is interrupted by any touch.
+     */
+    protected fun scheduleLandscapeZoom() {
+        cancelLandscapeZoom()
+        val ssiv = binding.ssiv
+        if (!settings.isLandscapeAutoZoom || settings.zoomMode != ZoomMode.FIT_CENTER) return
+        if (ssiv.sWidth <= ssiv.sHeight || ssiv.width >= ssiv.height) return
+        val task = Runnable {
+            landscapeZoom = null
+            val target = ssiv.height / ssiv.sHeight.toFloat()
+            if (!ssiv.isReady || ssiv.scale > ssiv.minScale * 1.01f || target <= ssiv.minScale * 1.01f) return@Runnable
+            ssiv.animateScaleAndCenter(target, PointF(startX(ssiv.sWidth, startsAtRight), ssiv.sHeight / 2f))?.apply {
+                withDuration(ssiv.context.getAnimationDuration(R.integer.config_defaultAnimTime))
+                withInterpolator(DecelerateInterpolator())
+                start()
+            }
+        }
+        landscapeZoom = task
+        ssiv.postDelayed(task, LANDSCAPE_ZOOM_DELAY_MS)
     }
 
     override fun onZoomIn() {

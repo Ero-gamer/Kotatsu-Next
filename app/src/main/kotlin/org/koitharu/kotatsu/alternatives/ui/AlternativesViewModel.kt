@@ -19,6 +19,7 @@ import org.koitharu.kotatsu.alternatives.domain.AlternativeSearchEvent
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSearchStatus
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSortOrder
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScope
+import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScopeOptions
 import org.koitharu.kotatsu.alternatives.domain.AlternativesSearchOptions
 import org.koitharu.kotatsu.alternatives.domain.AlternativesUseCase
 import org.koitharu.kotatsu.alternatives.domain.MigrateUseCase
@@ -39,7 +40,7 @@ import org.koitharu.kotatsu.list.ui.model.LoadingFooter
 import org.koitharu.kotatsu.list.ui.model.LoadingState
 import org.koitharu.kotatsu.list.ui.model.MangaGridModel
 import org.koitharu.kotatsu.parsers.model.Manga
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.suspendlazy.getOrDefault
 import org.koitharu.kotatsu.parsers.util.suspendlazy.suspendLazy
@@ -62,9 +63,9 @@ class AlternativesViewModel @Inject constructor(
     private val sourceSearchStatus = MutableStateFlow(AlternativeSearchStatus())
     val options = MutableStateFlow(AlternativesSearchOptions(query = manga.title))
     val referenceManga = MutableStateFlow(MangaAlternativeReference(manga))
-    private val _activePresetTitle = MutableStateFlow<String?>(null)
-    val activePresetTitle = _activePresetTitle.asStateFlow()
-    private var defaultSourceScope = AlternativeSourceScope.ENABLED
+    private val _scopeOptions = MutableStateFlow<AlternativeSourceScopeOptions?>(null)
+    val scopeOptions = _scopeOptions.asStateFlow()
+    private var defaultSourceScope: AlternativeSourceScope = AlternativeSourceScope.Enabled
     private var sourceScopeInitialized = false
 
     private var migrationJob: Job? = null
@@ -126,9 +127,7 @@ class AlternativesViewModel @Inject constructor(
     }
 
     fun setSourceScope(scope: AlternativeSourceScope) {
-        if (scope == options.value.sourceScope ||
-            (scope == AlternativeSourceScope.CURRENT_PRESET && activePresetTitle.value == null)
-        ) {
+        if (scope == options.value.sourceScope || scopeOptions.value?.isAvailable(scope) != true) {
             return
         }
         updateSearchOptions { copy(sourceScope = scope) }
@@ -196,7 +195,7 @@ class AlternativesViewModel @Inject constructor(
                 if (!sourceScopeInitialized) {
                     val scopeOptions = alternativesUseCase.getSourceScopeOptions(reference.source)
                     defaultSourceScope = scopeOptions.defaultScope
-                    _activePresetTitle.value = scopeOptions.presetTitle
+                    _scopeOptions.value = scopeOptions
                     options.update { it.copy(sourceScope = defaultSourceScope) }
                     sourceScopeInitialized = true
                 }
@@ -298,7 +297,7 @@ class AlternativesViewModel @Inject constructor(
         .replace(MULTIPLE_SPACES, " ")
 
     private fun MangaSource.priority(ref: MangaSource): Int {
-        if (this !is MangaParserSource || ref !is MangaParserSource) return 0
+        if (this !is ParserMangaSource || ref !is ParserMangaSource) return 0
         var result = 0
         if (locale == ref.locale) {
             result += 4

@@ -11,12 +11,15 @@ import androidx.activity.viewModels
 import androidx.appcompat.view.ActionMode
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.Insets
 import androidx.core.view.MenuProvider
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
@@ -67,6 +70,7 @@ import org.koitharu.kotatsu.details.service.MangaPrefetchService
 import org.koitharu.kotatsu.favourites.ui.container.FavouritesContainerFragment
 import org.koitharu.kotatsu.history.ui.HistoryListFragment
 import org.koitharu.kotatsu.local.ui.LocalIndexUpdateService
+import org.koitharu.kotatsu.local.ui.CbzRepackWorker
 import org.koitharu.kotatsu.local.ui.LocalStorageCleanupWorker
 import org.koitharu.kotatsu.main.ui.owners.AppBarOwner
 import org.koitharu.kotatsu.main.ui.owners.BottomNavOwner
@@ -112,6 +116,9 @@ class MainActivity :
     private lateinit var navigationDelegate: MainNavigationDelegate
     private lateinit var fadingAppbarMediator: FadingAppbarMediator
 
+    /** How far up from the bottom the floating bar reaches, for the lists to keep clear of. */
+    private var floatingNavCover = 0
+
     override val appBar: AppBarLayout
         get() = viewBinding.appbar
 
@@ -122,6 +129,8 @@ class MainActivity :
         super.onCreate(savedInstanceState)
         setContentView(ActivityMainBinding.inflate(layoutInflater))
         setSupportActionBar(viewBinding.searchBar)
+        // What the floating bar covers reaches the lists as part of the bottom inset. See updateContainerBottomMargin
+        ViewCompat.setOnApplyWindowInsetsListener(viewBinding.container) { _, insets -> insets.withFloatingNavCover() }
 
         viewBinding.fab?.setOnClickListener(this)
         viewBinding.navRail
@@ -358,6 +367,7 @@ class MainActivity :
             // not a default `Main.immediate` dispatcher
             withContext(Dispatchers.Default) {
                 LocalStorageCleanupWorker.enqueue(applicationContext)
+                CbzRepackWorker.schedule(applicationContext, settings.isCbzAutoRepackEnabled)
             }
             withResumed {
                 MangaPrefetchService.prefetchLast(this@MainActivity)
@@ -508,9 +518,17 @@ class MainActivity :
         updateContainerBottomMargin()
     }
 
+    /**
+     * Keeps what is under a bar that stays up within reach. The old full-width bar takes its own strip, and the content stops
+     * above it. The floating one is over the content instead: the content moves up when the search bar scrolls away, and a
+     * margin would then open a blank strip right where the old bar used to be. There the room the bar covers goes to the
+     * lists as part of the bottom inset, so they go on under it and still stop above it at the end.
+     */
     private fun updateContainerBottomMargin() {
         val bottomNavBar = viewBinding.bottomNav ?: return
-        val newMargin = if (bottomNavBar.isPinned && bottomNavBar.isShownOrShowing) bottomNavBar.height else 0
+        val isFloating = settings.isFloatingNavBar
+        val isUp = bottomNavBar.isPinned && bottomNavBar.isShownOrShowing
+        val newMargin = if (isUp && !isFloating) bottomNavBar.height else 0
         with(viewBinding.container) {
             val params = layoutParams as MarginLayoutParams
             if (params.bottomMargin != newMargin) {
@@ -518,6 +536,26 @@ class MainActivity :
                 layoutParams = params
             }
         }
+        val cover = if (isUp && isFloating) bottomNavBar.height + bottomNavBar.marginBottom else 0
+        if (cover != floatingNavCover) {
+            floatingNavCover = cover
+            viewBinding.container.requestApplyInsets()
+        }
+    }
+
+    /** See [updateContainerBottomMargin]. */
+    private fun WindowInsetsCompat.withFloatingNavCover(): WindowInsetsCompat {
+        val cover = floatingNavCover
+        val navigationBars = getInsets(WindowInsetsCompat.Type.navigationBars())
+        if (navigationBars.bottom >= cover) {
+            return this
+        }
+        return WindowInsetsCompat.Builder(this)
+            .setInsets(
+                WindowInsetsCompat.Type.navigationBars(),
+                Insets.of(navigationBars.left, navigationBars.top, navigationBars.right, cover),
+            )
+            .build()
     }
 
     private fun SearchView.observeState() = callbackFlow {

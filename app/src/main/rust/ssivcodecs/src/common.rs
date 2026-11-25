@@ -32,6 +32,13 @@ impl From<std::io::Error> for Error {
 
 /// 2^28 pixels: past any real page, stops absurd headers early.
 pub const MAX_IMAGE_PIXELS: u64 = 1 << 28;
+/// 2^26 pixels (256 MB of RGBA): the most an animation canvas may have, whichever codec composites it.
+pub const MAX_ANIM_CANVAS_PIXELS: u64 = 1 << 26;
+/// 2^24 pixels (64 MB of RGBA): the cap for the GIF / APNG canvas, which is held for the whole playback
+/// next to the decoder's own frame buffer. Bigger files fall back to the platform decoder.
+pub const MAX_STREAM_CANVAS_PIXELS: u64 = 1 << 24;
+/// Largest input file the codecs open (jxl-oxide buffers the whole codestream, so this bounds its memory).
+pub const MAX_INPUT_BYTES: u64 = 128 * 1024 * 1024;
 /// Frames of one animation.
 pub const MAX_FRAMES: u32 = 10_000;
 /// Frames x canvas pixels: every frame re-composites the canvas.
@@ -47,16 +54,50 @@ pub fn check_limits(width: u32, height: u32, frames: u32) -> Result<()> {
             "image size {width}x{height} not supported"
         )));
     }
+    if frames > 1 && pixels > MAX_ANIM_CANVAS_PIXELS {
+        return Err(Error::new(format!(
+            "animation canvas {width}x{height} too large"
+        )));
+    }
     if frames > MAX_FRAMES || pixels * frames.max(1) as u64 > MAX_ANIMATION_PIXELS {
         return Err(Error::new(format!("animation too large: {frames} frames")));
     }
     Ok(())
 }
 
+/// A zero-filled buffer that reports an allocation failure as an `Err` instead of aborting the process
+/// (a failed `vec![0; n]` aborts, and `catch_unwind` cannot stop that). The pages stay lazily mapped, as
+/// with `vec!`: nothing is touched until it is written.
+pub fn zeroed_vec(len: usize) -> Result<Vec<u8>> {
+    if len == 0 {
+        return Ok(Vec::new());
+    }
+    let layout =
+        std::alloc::Layout::array::<u8>(len).map_err(|_| Error::new("buffer too large"))?;
+    // SAFETY: `layout` has a non-zero size. `alloc_zeroed` returns `len` zeroed bytes or null; a Vec<u8>
+    // may adopt memory from the global allocator with align 1 and capacity == len == layout size.
+    unsafe {
+        let ptr = std::alloc::alloc_zeroed(layout);
+        if ptr.is_null() {
+            return Err(Error::new("out of memory"));
+        }
+        Ok(Vec::from_raw_parts(ptr, len, len))
+    }
+}
+
+/// `Vec::reserve_exact` that fails with an `Err` instead of aborting.
+pub fn reserve_vec(v: &mut Vec<u8>, extra: usize) -> Result<()> {
+    v.try_reserve_exact(extra)
+        .map_err(|_| Error::new("out of memory"))
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Format {
     Jxl = 1,
     Apng = 2,
+    Gif = 3,
+    /// Still, non-interlaced PNG.
+    Png = 4,
 }
 
 /// Static properties of an opened image.
@@ -96,11 +137,11 @@ impl Rect {
     }
 
     pub fn right(&self) -> u32 {
-        self.left + self.width
+        self.left.saturating_add(self.width)
     }
 
     pub fn bottom(&self) -> u32 {
-        self.top + self.height
+        self.top.saturating_add(self.height)
     }
 
     /// Intersection with `0..width x 0..height`, `None` when empty.
@@ -183,7 +224,7 @@ const BAYER4: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15,
 
 #[inline]
 fn pack565(r: u8, g: u8, b: u8, a: u8, x: u32, y: u32) -> u16 {
-    // Premultiplied colour over a white background, then ordered dither before truncation.
+    // Premultiplied color over a white background, then ordered dither before truncation.
     let inv = 255 - a as u32;
     let r = (r as u32 + inv).min(255);
     let g = (g as u32 + inv).min(255);
@@ -205,6 +246,8 @@ pub struct Resampler<'s, 'a> {
     src_h: u32,
     next_row: u32,
     acc: Vec<u32>,
+    /// Reused output-row buffer, so `flush` never allocates.
+    out_row: Vec<u8>,
     acc_rows: u32,
     cur_out: u32,
 }
@@ -222,6 +265,11 @@ impl<'s, 'a> Resampler<'s, 'a> {
         } else {
             Vec::new()
         };
+        let out_row = if sample > 1 {
+            vec![0u8; sink.width as usize * 4]
+        } else {
+            Vec::new()
+        };
         Ok(Resampler {
             sink,
             sample,
@@ -229,6 +277,7 @@ impl<'s, 'a> Resampler<'s, 'a> {
             src_h,
             next_row: 0,
             acc,
+            out_row,
             acc_rows: 0,
             cur_out: 0,
         })
@@ -278,7 +327,7 @@ impl<'s, 'a> Resampler<'s, 'a> {
         }
         let s = self.sample;
         let out_w = self.sink.width as usize;
-        let mut tmp = vec![0u8; out_w * 4];
+        let mut tmp = std::mem::take(&mut self.out_row);
         for ox in 0..out_w {
             let cols = s.min(self.src_w - ox as u32 * s);
             let n = cols * self.acc_rows;
@@ -291,6 +340,7 @@ impl<'s, 'a> Resampler<'s, 'a> {
         self.acc_rows = 0;
         let y = self.cur_out;
         self.write_row(y, &tmp);
+        self.out_row = tmp;
     }
 
     fn write_row(&mut self, y: u32, rgba: &[u8]) {
@@ -351,7 +401,13 @@ impl Read for FileRange {
             return Ok(0);
         }
         let want = buf.len().min((self.len - self.pos) as usize);
-        let n = read_at(&self.file, &mut buf[..want], self.offset + self.pos)?;
+        let n = loop {
+            match read_at(&self.file, &mut buf[..want], self.offset + self.pos) {
+                // A signal arriving mid-read is not an error: try again
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                other => break other?,
+            }
+        };
         self.pos += n as u64;
         Ok(n)
     }
@@ -389,6 +445,43 @@ fn read_at(_file: &File, _buf: &mut [u8], _offset: u64) -> std::io::Result<usize
     ))
 }
 
+/// Premultiplies one 8-bit color channel by `a` (rounded).
+#[inline]
+pub fn premultiply(c: u8, a: u8) -> u8 {
+    let v = c as u32 * a as u32 + 128;
+    ((v + (v >> 8)) >> 8) as u8
+}
+
+/// Streams `rect` of a straight-alpha RGBA `canvas` (`width` pixels per row) into `sink`,
+/// premultiplied and box-downsampled by `sample`.
+pub fn emit_canvas(
+    canvas: &[u8],
+    width: u32,
+    rect: Rect,
+    sample: u32,
+    sink: &mut Sink<'_>,
+) -> Result<()> {
+    let mut resampler = Resampler::new(sink, rect.width, rect.height, sample)?;
+    let mut row = vec![0u8; rect.width as usize * 4];
+    for y in rect.top..rect.bottom() {
+        let start = (y as usize * width as usize + rect.left as usize) * 4;
+        for (s, d) in canvas[start..start + rect.width as usize * 4]
+            .chunks_exact(4)
+            .zip(row.chunks_exact_mut(4))
+        {
+            let a = s[3];
+            d.copy_from_slice(&[
+                premultiply(s[0], a),
+                premultiply(s[1], a),
+                premultiply(s[2], a),
+                a,
+            ]);
+        }
+        resampler.push_row(&row);
+    }
+    Ok(())
+}
+
 /// A decoder for one opened image file.
 pub trait Decoder: Send {
     fn info(&self) -> &Info;
@@ -403,6 +496,27 @@ pub trait Decoder: Send {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn zeroed_vec_is_zero_and_sized() {
+        let v = super::zeroed_vec(1 << 20).unwrap();
+        assert_eq!(v.len(), 1 << 20);
+        assert!(v.iter().all(|&b| b == 0));
+        assert!(super::zeroed_vec(0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn zeroed_vec_reports_an_impossible_size() {
+        assert!(super::zeroed_vec(usize::MAX).is_err());
+    }
+
+    #[test]
+    fn animation_canvas_is_capped() {
+        // A still keeps the high cap; an animation canvas past 2^26 pixels is refused.
+        assert!(super::check_limits(10_000, 10_000, 1).is_ok());
+        assert!(super::check_limits(10_000, 10_000, 2).is_err());
+        assert!(super::check_limits(4_000, 4_000, 2).is_ok());
+    }
+
     use super::*;
 
     #[test]

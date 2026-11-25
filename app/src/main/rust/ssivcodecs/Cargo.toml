@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
 license = "GPL-3.0-or-later"
-description = "JPEG XL and APNG decoders (region, downsample, animation) for Kotatsu / SubsamplingScaleImageView"
+description = "JPEG XL, APNG and GIF decoders plus a libwebp encoder for Kotatsu / SubsamplingScaleImageView"
 publish = false
 
 [lib]
@@ -12,14 +12,20 @@ name = "ssivcodecs"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["jxl", "apng"]
+default = ["jxl", "apng", "gif", "webp"]
 jxl = ["dep:jxl-oxide"]
 apng = ["dep:png"]
+gif = ["dep:gif"]
+webp = []
+
+[build-dependencies]
+cc = "1"
 
 [dependencies]
 jni = "0.22"
 jxl-oxide = { version = "0.12.6", default-features = false, features = ["rayon", "moxcms"], optional = true }
 png = { version = "0.18", optional = true }
+gif = { version = "=0.14.2", default-features = false, features = ["std"], optional = true }
 
 [profile.release]
 opt-level = 3
@@ -27,6 +33,9 @@ lto = "fat"
 codegen-units = 1
 strip = true
 panic = "unwind"
+# An arithmetic overflow becomes a (caught) panic, i.e. a decode failure and Skia fallback, instead of
+# silently wrapping into a bad index or size. JXL duration and APNG chunk lengths are widened first.
+overflow-checks = true
 
 [profile.dev]
 opt-level = 1

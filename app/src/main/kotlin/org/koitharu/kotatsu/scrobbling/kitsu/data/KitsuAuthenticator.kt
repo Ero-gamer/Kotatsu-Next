@@ -19,6 +19,8 @@ class KitsuAuthenticator @Inject constructor(
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {
+        // Already retried once with a refreshed token: give up instead of looping on a persistent 401.
+        if (response.priorResponse != null) return null
         val accessToken = storage.accessToken ?: return null
         if (!isRequestWithAccessToken(response)) {
             return null

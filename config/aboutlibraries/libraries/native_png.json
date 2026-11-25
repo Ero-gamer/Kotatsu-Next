@@ -1,0 +1,21 @@
+{
+  "uniqueId": "native:png",
+  "name": "png (image-png)",
+  "description": "PNG / APNG decoder (Rust). MIT or Apache-2.0",
+  "website": "https://github.com/image-rs/image-png",
+  "developers": [
+    {
+      "name": "image-rs",
+      "organisationUrl": "https://github.com/image-rs"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/image-rs/image-png"
+  },
+  "licenses": [
+    "MIT",
+    "Apache-2.0"
+  ],
+  "artifactVersion": "0.18.1",
+  "tag": "native"
+}

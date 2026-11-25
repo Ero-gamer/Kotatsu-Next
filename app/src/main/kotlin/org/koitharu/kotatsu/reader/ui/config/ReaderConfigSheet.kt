@@ -87,6 +87,7 @@ class ReaderConfigSheet :
         binding.buttonReversed.isChecked = mode == ReaderMode.REVERSED
         binding.buttonWebtoon.isChecked = mode == ReaderMode.WEBTOON
         binding.buttonVertical.isChecked = mode == ReaderMode.VERTICAL
+        binding.buttonBottomToTop.isChecked = mode == ReaderMode.BOTTOM_TO_TOP
         binding.switchDoubleReader.isChecked = settings.isReaderDoubleOnLandscape
         binding.switchDoubleReader.isEnabled = mode == ReaderMode.STANDARD || mode == ReaderMode.REVERSED
         binding.switchDoubleFoldable.isChecked = settings.isReaderDoubleOnFoldable
@@ -105,6 +106,7 @@ class ReaderConfigSheet :
         binding.buttonSettings.setOnClickListener(this)
         binding.buttonImageServer.setOnClickListener(this)
         binding.buttonColorFilter.setOnClickListener(this)
+        binding.buttonCrop.setOnClickListener(this)
         viewModel.isColorFilterDisabled.observe(viewLifecycleOwner) { isDisabled ->
             binding.switchColorFilterEnabled.setOnCheckedChangeListener(null)
             binding.switchColorFilterEnabled.isChecked = !isDisabled
@@ -175,6 +177,8 @@ class ReaderConfigSheet :
                 dismissAllowingStateLoss()
             }
 
+            R.id.button_crop -> CropMenu.show(v, viewModel)
+
             R.id.button_color_filter -> {
                 val page = viewModel.getCurrentPage() ?: return
                 val manga = viewModel.getMangaOrNull() ?: return
@@ -240,6 +244,7 @@ class ReaderConfigSheet :
             R.id.button_webtoon -> ReaderMode.WEBTOON
             R.id.button_reversed -> ReaderMode.REVERSED
             R.id.button_vertical -> ReaderMode.VERTICAL
+            R.id.button_bottom_to_top -> ReaderMode.BOTTOM_TO_TOP
             else -> return
         }
         viewBinding?.run {

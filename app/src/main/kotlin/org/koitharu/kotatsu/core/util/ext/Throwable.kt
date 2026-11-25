@@ -28,6 +28,7 @@ import org.koitharu.kotatsu.core.exceptions.IncompatiblePluginException
 import org.koitharu.kotatsu.core.exceptions.InteractiveActionRequiredException
 import org.koitharu.kotatsu.core.exceptions.NoDataReceivedException
 import org.koitharu.kotatsu.core.exceptions.NonFileUriException
+import org.koitharu.kotatsu.core.exceptions.NotEnoughSpaceException
 import org.koitharu.kotatsu.core.exceptions.ProxyConfigException
 import org.koitharu.kotatsu.core.exceptions.SyncApiException
 import org.koitharu.kotatsu.core.exceptions.UnsupportedFileException
@@ -126,7 +127,9 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
         resources.getString(R.string.error_corrupted_zip, this.message.orEmpty())
     }
 
-    is SQLiteFullException -> {
+    is NotEnoughSpaceException,
+    is SQLiteFullException,
+    -> {
         resources.getString(R.string.error_no_space_left)
     }
 
@@ -135,7 +138,9 @@ private fun Throwable.getDisplayMessageOrNull(resources: Resources): String? = w
     }
 
     is BadBackupFormatException -> {
-        resources.getString(R.string.unsupported_backup_message)
+        resources.getString(
+            if (cause is java.io.EOFException) R.string.backup_file_incomplete else R.string.unsupported_backup_message,
+        )
     }
 
     is FileNotFoundException -> {

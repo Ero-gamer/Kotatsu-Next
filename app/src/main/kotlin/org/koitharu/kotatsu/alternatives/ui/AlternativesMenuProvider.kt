@@ -7,7 +7,6 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.view.MenuProvider
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSortOrder
-import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScope
 
 class AlternativesMenuProvider(
     private val activity: AlternativesActivity,
@@ -28,16 +27,10 @@ class AlternativesMenuProvider(
 
     override fun onPrepareMenu(menu: Menu) {
         val options = viewModel.options.value
-        menu.findItem(R.id.action_alternatives_sources_preset)?.apply {
-            isVisible = viewModel.activePresetTitle.value != null
-            title = viewModel.activePresetTitle.value ?: activity.getString(R.string.source_presets)
+        menu.findItem(R.id.action_alternatives_sources)?.subMenu?.let { sourcesMenu ->
+            sourcesMenu.clear()
+            SourceScopeMenu.populate(sourcesMenu, SOURCES_GROUP, viewModel.scopeOptions.value, options.sourceScope)
         }
-        menu.findItem(
-            when (options.sourceScope) {
-                AlternativeSourceScope.CURRENT_PRESET -> R.id.action_alternatives_sources_preset
-                AlternativeSourceScope.ENABLED -> R.id.action_alternatives_sources_enabled
-            },
-        )?.isChecked = true
         menu.findItem(R.id.action_alternatives_reset)?.isVisible = viewModel.hasCustomOptions()
         menu.findItem(R.id.action_alternatives_same_language)?.isChecked = options.sameLanguageOnly
         menu.findItem(R.id.action_alternatives_same_content_type)?.isChecked = options.sameContentTypeOnly
@@ -55,12 +48,6 @@ class AlternativesMenuProvider(
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
         val options = viewModel.options.value
         when (menuItem.itemId) {
-            R.id.action_alternatives_sources_preset ->
-                viewModel.setSourceScope(AlternativeSourceScope.CURRENT_PRESET)
-
-            R.id.action_alternatives_sources_enabled ->
-                viewModel.setSourceScope(AlternativeSourceScope.ENABLED)
-
             R.id.action_alternatives_same_language -> viewModel.setSameLanguageOnly(!options.sameLanguageOnly)
 
             R.id.action_alternatives_same_content_type -> viewModel.setSameContentTypeOnly(!options.sameContentTypeOnly)
@@ -78,7 +65,11 @@ class AlternativesMenuProvider(
 
             R.id.action_alternatives_reset -> viewModel.resetOptions()
 
-            else -> return false
+            else -> {
+                val scope = SourceScopeMenu.scopeFor(menuItem.itemId, viewModel.scopeOptions.value)
+                    ?: return false
+                viewModel.setSourceScope(scope)
+            }
         }
         activity.invalidateMenu()
         return true
@@ -99,4 +90,8 @@ class AlternativesMenuProvider(
     }
 
     override fun onMenuItemActionCollapse(item: MenuItem): Boolean = true
+
+    private companion object {
+        const val SOURCES_GROUP = Menu.FIRST + 4000
+    }
 }

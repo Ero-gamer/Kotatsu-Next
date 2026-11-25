@@ -21,9 +21,17 @@ import org.koitharu.kotatsu.list.ui.model.MangaListModel
 import org.koitharu.kotatsu.list.ui.size.ItemSizeResolver
 import androidx.appcompat.R as appcompatR
 
+// A separate overload rather than a defaulted parameter: callers pass the click listener as a trailing lambda,
+// which would otherwise bind to the new last parameter.
 fun mangaGridItemAD(
     sizeResolver: ItemSizeResolver,
     clickListener: OnListItemClickListener<MangaListModel>,
+) = mangaGridItemAD(sizeResolver, clickListener, null)
+
+fun mangaGridItemAD(
+    sizeResolver: ItemSizeResolver,
+    clickListener: OnListItemClickListener<MangaListModel>,
+    onDismissClick: ((MangaListModel, View) -> Unit)?,
 ) = adapterDelegateViewBinding<MangaGridModel, ListModel, ItemMangaGridBinding>(
     { inflater, parent -> ItemMangaGridBinding.inflate(inflater, parent, false) },
 ) {
@@ -36,6 +44,13 @@ fun mangaGridItemAD(
         binding.textViewTitle
     }
     sizeResolver.attachToView(itemView, titleView, binding.progressView)
+    // Opt-in: only Explore passes a callback. The button consumes its own touches, so the card's click
+    // and long-press never see them.
+    binding.buttonDismiss.isVisible = onDismissClick != null
+    if (onDismissClick != null) {
+        binding.buttonDismiss.setTooltipCompat(R.string.not_interested)
+        binding.buttonDismiss.setOnClickListener { onDismissClick(item, it) }
+    }
 
     // Backdrop for the overlaid title: a short fade of a heavily darkened theme accent, tall enough
     // for two lines, with its bottom corners following the cover's own rounding. Only the theme that
@@ -73,6 +88,8 @@ fun mangaGridItemAD(
         itemView.setTooltipCompat(item.getSummary(context))
         titleView.text = item.title
         binding.progressView.setProgress(item.progress, PAYLOAD_PROGRESS_CHANGED in payloads)
+        // The dismiss button takes the corner the progress ring would use
+        if (onDismissClick != null) binding.progressView.isVisible = false
         with(binding.iconsView) {
             clearIcons()
             if (item.isPinned) addIcon(R.drawable.ic_pin_small)

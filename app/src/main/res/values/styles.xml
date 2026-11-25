@@ -463,7 +463,7 @@
 
 
 	<!-- ═══ Font ThemeOverlays ═══
-	     Applied in BaseActivity after the colour-scheme overlay.
+	     Applied in BaseActivity after the color-scheme overlay.
 	     Sets both android:fontFamily (used by android.widget.TextView) and
 	     fontFamily (used by Material3 / AppCompat text appearances). -->
 

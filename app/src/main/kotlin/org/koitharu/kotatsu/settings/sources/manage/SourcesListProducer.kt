@@ -6,6 +6,7 @@ import dagger.hilt.android.ViewModelLifecycle
 import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOn
@@ -23,7 +24,7 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.lifecycleScope
 import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
 import org.koitharu.kotatsu.explore.data.SourcesSortOrder
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.util.mapToSet
 import org.koitharu.kotatsu.settings.sources.model.SourceConfigItem
 import javax.inject.Inject
@@ -37,6 +38,7 @@ class SourcesListProducer @Inject constructor(
 ) : InvalidationTracker.Observer(TABLE_SOURCES) {
 
     private val scope = lifecycle.lifecycleScope
+    @Volatile
     private var query: String = ""
     val list = MutableStateFlow(emptyList<SourceConfigItem>())
 
@@ -52,21 +54,25 @@ class SourcesListProducer @Inject constructor(
             .launchIn(scope)
     }
 
-    override fun onInvalidated(tables: Set<String>) {
+    override fun onInvalidated(tables: Set<String>) = rebuild(0L)
+
+    private fun rebuild(debounceMs: Long) {
         val prevJob = job
         job = scope.launch(Dispatchers.Default) {
             prevJob.cancelAndJoin()
+            if (debounceMs > 0L) delay(debounceMs)
             list.update { buildList() }
         }
     }
 
     fun setQuery(value: String) {
         this.query = value
-        onInvalidated(emptySet())
+        // Typing: wait for a short pause instead of rebuilding (DB + package-manager lookups) on every keystroke.
+        rebuild(QUERY_DEBOUNCE_MS)
     }
 
     private suspend fun buildList(): List<SourceConfigItem> {
-        val enabledSources = repository.getEnabledSources().filter { it.unwrap() is MangaParserSource }
+        val enabledSources = repository.getEnabledSources().filter { it.unwrap() is ParserMangaSource }
         val pinned = repository.getPinnedSources().mapToSet { it.name }
         val isNsfwDisabled = settings.isNsfwContentDisabled
         val isReorderAvailable = settings.sourcesSortOrder == SourcesSortOrder.MANUAL
@@ -116,5 +122,6 @@ class SourcesListProducer @Inject constructor(
     companion object {
 
         const val TIP_REORDER = "src_reorder"
+        private const val QUERY_DEBOUNCE_MS = 150L
     }
 }

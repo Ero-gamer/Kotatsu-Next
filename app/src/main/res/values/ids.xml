@@ -8,11 +8,14 @@
 	<item name="layout_tip" type="id" />
 	<item name="group_period" type="id" />
 	<item name="tag_pull_feedback_ready" type="id" />
+	<item name="tag_tile_dpi" type="id" />
+	<item name="tag_background" type="id" />
 	<!-- Navigation -->
 	<item name="nav_history" type="id" />
 	<item name="nav_favorites" type="id" />
 	<item name="nav_local" type="id" />
 	<item name="nav_explore" type="id" />
+	<item name="nav_sources" type="id" />
 	<item name="nav_feed" type="id" />
 	<item name="nav_updated" type="id" />
 	<item name="nav_suggestions" type="id" />

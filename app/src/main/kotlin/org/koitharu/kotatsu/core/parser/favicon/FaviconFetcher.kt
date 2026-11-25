@@ -6,6 +6,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.LayerDrawable
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import coil3.ColorImage
 import coil3.ImageLoader
 import coil3.asImage
@@ -41,6 +42,7 @@ import org.koitharu.kotatsu.local.data.LocalMangaRepository
 import org.koitharu.kotatsu.local.data.LocalStorageCache
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import coil3.Uri as CoilUri
 
@@ -87,14 +89,19 @@ class FaviconFetcher(
                 )
             }
         }
+        // A source whose icon could not be loaded a moment ago is not asked again on every list bind.
+        failedAt[repository.source.name]?.let { at ->
+            if (SystemClock.elapsedRealtime() - at < FAILURE_TTL_MS) throw NoSuchElementException("No favicons found")
+        }
         var favicons = repository.getFavicons()
         var lastError: Exception? = null
         while (favicons.isNotEmpty()) {
             currentCoroutineContext().ensureActive()
-            val icon = favicons.find(sizePx) ?: throwNSEE(lastError)
+            val icon = favicons.find(sizePx) ?: throwNSEE(lastError, repository.source.name)
             try {
                 val result = imageLoader.fetch(icon.url, options)
                 if (result != null) {
+                    failedAt.remove(repository.source.name)
                     return if (options.diskCachePolicy.writeEnabled) {
                         writeToCache(cacheKey, result)
                     } else {
@@ -110,7 +117,7 @@ class FaviconFetcher(
                 favicons -= icon
             }
         }
-        throwNSEE(lastError)
+        throwNSEE(lastError, repository.source.name)
     }
 
     private suspend fun fetchPluginIcon(repository: ExternalMangaRepository): FetchResult {
@@ -176,8 +183,12 @@ class FaviconFetcher(
     private companion object {
 
         const val FALLBACK_SIZE = 9999 // largest icon
+        const val FAILURE_TTL_MS = 5 * 60 * 1000L
 
-        private fun throwNSEE(lastError: Exception?): Nothing {
+        private val failedAt = ConcurrentHashMap<String, Long>()
+
+        private fun throwNSEE(lastError: Exception?, source: String? = null): Nothing {
+            if (source != null) failedAt[source] = SystemClock.elapsedRealtime()
             if (lastError != null) {
                 throw lastError
             } else {

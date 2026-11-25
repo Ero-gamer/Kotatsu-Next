@@ -3,7 +3,9 @@
 //! Every entry point is wrapped in `catch_unwind`: a panic becomes a failure return (0 / null /
 //! false) and never unwinds into the JVM; the Kotlin side then falls back to the system decoders.
 
-use crate::common::{sampled_len, Decoder, Error, FileRange, PixelFormat, Rect, Result, Sink};
+use crate::common::{
+    sampled_len, Decoder, Error, FileRange, PixelFormat, Rect, Result, Sink, MAX_INPUT_BYTES,
+};
 use jni::errors::LogErrorAndDefault;
 use jni::objects::{JClass, JIntArray, JObject};
 use jni::sys::{jboolean, jint, jintArray, jlong, JNI_FALSE, JNI_TRUE};
@@ -12,14 +14,28 @@ use std::fs::File;
 use std::io::Read;
 use std::os::fd::{BorrowedFd, OwnedFd};
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-type Handle = Mutex<Box<dyn Decoder>>;
+/// An opened image. `broken` is set when the decoder panicked: its internal state is unknown after that, so
+/// every later decode fails fast and Kotlin falls back to the platform decoders.
+struct Handle {
+    decoder: Mutex<Box<dyn Decoder>>,
+    broken: AtomicBool,
+}
+
+/// How much of the file start the format sniffers see. A PNG may carry large `iCCP` / `eXIf` chunks
+/// before `acTL`, which an 8 KiB head cut off (an animation was classified as a still).
+const HEAD_BYTES: usize = 64 * 1024;
 
 /// Opens the image at `[offset, offset + length)` of `fd` (duplicated; the caller keeps its own).
 pub fn open(fd: i32, offset: u64, length: u64) -> Result<Box<dyn Decoder>> {
     if fd < 0 || length < 16 {
         return Err(Error::new("invalid source"));
+    }
+    // Checked before anything sized by the input is allocated or buffered.
+    if length > MAX_INPUT_BYTES {
+        return Err(Error::new(format!("input too large: {length} bytes")));
     }
     // SAFETY: the caller guarantees `fd` is an open descriptor for the duration of this call.
     let owned: OwnedFd = unsafe { BorrowedFd::borrow_raw(fd) }
@@ -27,7 +43,7 @@ pub fn open(fd: i32, offset: u64, length: u64) -> Result<Box<dyn Decoder>> {
         .map_err(|e| Error::new(format!("dup failed: {e}")))?;
     let file = Arc::new(File::from(owned));
     let range = FileRange::new(file, offset, length);
-    let mut head = vec![0u8; 8192.min(length as usize)];
+    let mut head = vec![0u8; HEAD_BYTES.min(length as usize)];
     let n = read_full(&mut range.clone(), &mut head)?;
     head.truncate(n);
     open_range(range, &head)
@@ -56,6 +72,14 @@ fn open_range(range: FileRange, head: &[u8]) -> Result<Box<dyn Decoder>> {
     if crate::apng::is_apng(head) {
         return Ok(Box::new(crate::apng::ApngDecoder::new(range)?));
     }
+    #[cfg(feature = "apng")]
+    if crate::pngstill::is_still_png(head) {
+        return Ok(Box::new(crate::pngstill::PngStillDecoder::new(range)?));
+    }
+    #[cfg(feature = "gif")]
+    if crate::gif::is_gif(head) {
+        return Ok(Box::new(crate::gif::GifDecoder::new(range)?));
+    }
     Err(Error::new("unsupported format"))
 }
 
@@ -82,7 +106,10 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
             return 0;
         }
         match open(fd, offset as u64, length as u64) {
-            Ok(decoder) => Box::into_raw(Box::new(Mutex::new(decoder))) as jlong,
+            Ok(decoder) => Box::into_raw(Box::new(Handle {
+                decoder: Mutex::new(decoder),
+                broken: AtomicBool::new(false),
+            })) as jlong,
             Err(_) => 0,
         }
     })
@@ -100,7 +127,7 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
         let Some(handle) = (unsafe { handle(h) }) else {
             return std::ptr::null_mut();
         };
-        let Ok(dec) = handle.lock() else {
+        let Ok(dec) = handle.decoder.lock() else {
             return std::ptr::null_mut();
         };
         let i = dec.info();
@@ -134,7 +161,9 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
         let Some(handle) = (unsafe { handle(h) }) else {
             return 0;
         };
-        let Ok(dec) = handle.lock() else { return 0 };
+        let Ok(dec) = handle.decoder.lock() else {
+            return 0;
+        };
         dec.frame_duration_ms(frame.max(0) as u32)
             .min(i32::MAX as u32) as jint
     })
@@ -164,7 +193,10 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
         let Some(handle) = (unsafe { handle(h) }) else {
             return false;
         };
-        let Ok(mut dec) = handle.lock() else {
+        if handle.broken.load(Ordering::Acquire) {
+            return false;
+        }
+        let Ok(mut dec) = handle.decoder.lock() else {
             return false;
         };
         let rect = Rect::new(left as u32, top as u32, width as u32, height as u32);
@@ -177,7 +209,17 @@ pub extern "system" fn Java_org_koitharu_kotatsu_core_image_codecs_NativeCodecs_
                 return Err(Error::new("bitmap size does not match the sampled region"));
             }
             let mut sink = Sink::new(data, stride, format, bw, bh)?;
-            dec.decode(frame as u32, rect, sample as u32, &mut sink)
+            // The guard `dec` lives outside this closure, so a panic caught here leaves the mutex healthy;
+            // the decoder itself is then in an unknown state and is retired instead of reused.
+            match catch_unwind(AssertUnwindSafe(|| {
+                dec.decode(frame as u32, rect, sample as u32, &mut sink)
+            })) {
+                Ok(result) => result,
+                Err(_) => {
+                    handle.broken.store(true, Ordering::Release);
+                    Err(Error::new("decoder panicked"))
+                }
+            }
         })
         .is_ok()
     });

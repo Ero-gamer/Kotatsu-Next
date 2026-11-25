@@ -20,7 +20,7 @@ class ExploreMenuProvider(
 
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
         R.id.action_manage -> {
-            router.openSourcesSettings()
+            router.openManageSources()
             true
         }
 

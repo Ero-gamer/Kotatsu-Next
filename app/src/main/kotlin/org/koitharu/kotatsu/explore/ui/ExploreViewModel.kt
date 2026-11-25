@@ -25,6 +25,7 @@ import org.koitharu.kotatsu.core.ui.util.ReversibleAction
 import org.koitharu.kotatsu.core.util.ext.MutableEventFlow
 import org.koitharu.kotatsu.core.util.ext.call
 import org.koitharu.kotatsu.core.util.ext.combine
+import org.koitharu.kotatsu.discover.data.DiscoverDismissals
 import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
 import org.koitharu.kotatsu.explore.data.SourcePreset
 import org.koitharu.kotatsu.explore.data.SourcePresetsRepository
@@ -51,6 +52,7 @@ class ExploreViewModel @Inject constructor(
     private val sourcesRepository: MangaSourcesRepository,
     private val presetsRepository: SourcePresetsRepository,
     private val shortcutManager: AppShortcutManager,
+    private val dismissals: DiscoverDismissals,
 ) : BaseViewModel() {
 
     val isGrid = settings.observeAsStateFlow(
@@ -230,14 +232,20 @@ class ExploreViewModel @Inject constructor(
         LoadingState(),
     )
 
-    private fun getSuggestionFlow() = isSuggestionsEnabled.mapLatest { isEnabled ->
-        if (isEnabled) {
-            runCatchingCancellable {
-                suggestionRepository.getRandomList(SUGGESTIONS_COUNT)
-            }.getOrDefault(emptyList())
-        } else {
-            emptyList()
-        }
+    private fun getSuggestionFlow() = combine(
+        isSuggestionsEnabled.mapLatest { isEnabled ->
+            if (isEnabled) {
+                runCatchingCancellable {
+                    // More than shown: some of them may have been passed on since they were stored
+                    suggestionRepository.getRandomList(SUGGESTIONS_COUNT * 2)
+                }.getOrDefault(emptyList())
+            } else {
+                emptyList()
+            }
+        },
+        dismissals.observe(),
+    ) { list, dismissed ->
+        list.filterNot { dismissed.matches(it) }.take(SUGGESTIONS_COUNT)
     }
 
     private fun List<Manga>.toRecommendationList() = map { manga ->

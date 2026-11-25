@@ -18,10 +18,15 @@ enum class ReaderBackground {
     DARK,
     WHITE,
     BLACK,
+
+    /** Paged readers: the color of each page's own border; other modes and unreadable pages use the default. */
+    AUTO,
     ;
 
     fun resolve(context: Context): Drawable? = when (this) {
-        DEFAULT -> context.getThemeDrawable(android.R.attr.windowBackground)
+        DEFAULT,
+        AUTO,
+        -> context.getThemeDrawable(android.R.attr.windowBackground)
 
         LIGHT -> ContextThemeWrapper(context, materialR.style.ThemeOverlay_Material3_Light)
             .getThemeDrawable(android.R.attr.windowBackground)
@@ -35,7 +40,9 @@ enum class ReaderBackground {
     }
 
     fun isLight(context: Context): Boolean = when (this) {
-        DEFAULT -> !context.resources.isNightMode
+        DEFAULT,
+        AUTO,
+        -> !context.resources.isNightMode
 
         LIGHT,
         WHITE,

@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:apng4android",
+  "name": "APNG4Android",
+  "description": "Animated WebP frame decoding pattern",
+  "website": "https://github.com/penfeizhou/APNG4Android",
+  "developers": [
+    {
+      "name": "penfeizhou",
+      "organisationUrl": "https://github.com/penfeizhou"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/penfeizhou/APNG4Android"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "tag": "ideas"
+}

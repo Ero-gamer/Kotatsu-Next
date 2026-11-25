@@ -1,5 +1,6 @@
 package org.koitharu.kotatsu.core.network
 
+import android.os.SystemClock
 import okhttp3.Cache
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -7,24 +8,53 @@ import okhttp3.OkHttpClient
 import okhttp3.dnsoverhttps.DnsOverHttps
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
+import java.io.IOException
 import java.net.InetAddress
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
 
 class DoHManager(
     cache: Cache,
     private val settings: AppSettings,
 ) : Dns {
 
-    private val bootstrapClient = OkHttpClient.Builder().cache(cache).build()
+    // Short timeouts: a DNS query that takes longer than this is as good as failed.
+    private val bootstrapClient = OkHttpClient.Builder()
+        .cache(cache)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .callTimeout(8, TimeUnit.SECONDS)
+        .build()
+
+    /** While DoH is unreachable, the system resolver is used directly instead of waiting out a timeout per lookup. */
+    @Volatile
+    private var bypassUntil = 0L
 
     private var cachedDelegate: Dns? = null
     private var cachedProvider: DoHProvider? = null
 
-    override fun lookup(hostname: String): List<InetAddress> = try {
-        getDelegate().lookup(hostname)
-    } catch (e: UnknownHostException) {
-        // fallback
-        Dns.SYSTEM.lookup(hostname)
+    override fun lookup(hostname: String): List<InetAddress> {
+        if (SystemClock.elapsedRealtime() < bypassUntil) {
+            return Dns.SYSTEM.lookup(hostname)
+        }
+        return try {
+            getDelegate().lookup(hostname)
+        } catch (e: UnknownHostException) {
+            // fallback; a failure caused by the network (not an NXDOMAIN answer) means DoH is down for a while
+            val result = Dns.SYSTEM.lookup(hostname)
+            if (e.cause is IOException) {
+                bypassUntil = SystemClock.elapsedRealtime() + BYPASS_MS
+            }
+            result
+        } catch (e: RuntimeException) {
+            // A name that cannot be looked up at all, or the secure lookup itself failing to start: neither is
+            // anything the caller expects from here, and both took the app down
+            try {
+                Dns.SYSTEM.lookup(hostname)
+            } catch (e2: RuntimeException) {
+                throw UnknownHostException(hostname).apply { initCause(e2) }
+            }
+        }
     }
 
     @Synchronized
@@ -94,5 +124,9 @@ class DoHManager(
     } catch (e: UnknownHostException) {
         e.printStackTraceDebug()
         null
+    }
+
+    private companion object {
+        const val BYPASS_MS = 2 * 60 * 1000L
     }
 }

@@ -11,9 +11,9 @@ import androidx.appcompat.R as appcompatR
 import com.google.android.material.R as materialR
 
 /**
- * Builds a Material3 [ColorScheme] by resolving the host theme's colour attributes
+ * Builds a Material3 [ColorScheme] by resolving the host theme's color attributes
  * (?attr/colorPrimary etc). Reading them from the host Context's theme means the user's chosen
- * colour scheme - Monet, Expressive, AMOLED, any of the named ones - carries into the Compose
+ * color scheme - Monet, Expressive, AMOLED, any of the named ones - carries into the Compose
  * subtree without reimplementing that resolution here.
  */
 fun composeColorSchemeFromTheme(context: Context, isDark: Boolean): ColorScheme {

@@ -15,6 +15,7 @@ import org.koitharu.kotatsu.bookmarks.data.BookmarksDao
 import org.koitharu.kotatsu.core.db.dao.ChaptersDao
 import org.koitharu.kotatsu.core.db.dao.MangaDao
 import org.koitharu.kotatsu.core.db.dao.MangaSourcesDao
+import org.koitharu.kotatsu.core.db.dao.PageStatsDao
 import org.koitharu.kotatsu.core.db.dao.PreferencesDao
 import org.koitharu.kotatsu.core.db.dao.TagsDao
 import org.koitharu.kotatsu.core.db.dao.TrackLogsDao
@@ -23,6 +24,7 @@ import org.koitharu.kotatsu.core.db.entity.MangaEntity
 import org.koitharu.kotatsu.core.db.entity.MangaPrefsEntity
 import org.koitharu.kotatsu.core.db.entity.MangaSourceEntity
 import org.koitharu.kotatsu.core.db.entity.MangaTagsEntity
+import org.koitharu.kotatsu.core.db.entity.PageStatsEntity
 import org.koitharu.kotatsu.core.db.entity.TagEntity
 import org.koitharu.kotatsu.core.db.migrations.Migration10To11
 import org.koitharu.kotatsu.core.db.migrations.Migration11To12
@@ -54,6 +56,14 @@ import org.koitharu.kotatsu.core.db.migrations.Migration33To34
 import org.koitharu.kotatsu.core.db.migrations.Migration34To35
 import org.koitharu.kotatsu.core.db.migrations.Migration35To36
 import org.koitharu.kotatsu.core.db.migrations.Migration36To37
+import org.koitharu.kotatsu.core.db.migrations.Migration37To38
+import org.koitharu.kotatsu.core.db.migrations.Migration38To39
+import org.koitharu.kotatsu.core.db.migrations.Migration39To40
+import org.koitharu.kotatsu.core.db.migrations.Migration40To41
+import org.koitharu.kotatsu.core.db.migrations.Migration41To42
+import org.koitharu.kotatsu.core.db.migrations.Migration42To43
+import org.koitharu.kotatsu.core.db.migrations.Migration43To44
+import org.koitharu.kotatsu.core.db.migrations.Migration44To45
 import org.koitharu.kotatsu.core.db.migrations.Migration3To4
 import org.koitharu.kotatsu.core.db.migrations.Migration4To5
 import org.koitharu.kotatsu.core.db.migrations.Migration5To6
@@ -72,6 +82,8 @@ import org.koitharu.kotatsu.history.data.HistoryDao
 import org.koitharu.kotatsu.history.data.HistoryEntity
 import org.koitharu.kotatsu.local.data.index.LocalMangaIndexDao
 import org.koitharu.kotatsu.local.data.index.LocalMangaIndexEntity
+import org.koitharu.kotatsu.local.data.optimize.OptimizeTaskDao
+import org.koitharu.kotatsu.local.data.optimize.OptimizeTaskEntity
 import org.koitharu.kotatsu.scrobbling.common.data.ScrobblingDao
 import org.koitharu.kotatsu.scrobbling.common.data.ScrobblingEntity
 import org.koitharu.kotatsu.stats.data.StatsDao
@@ -82,7 +94,7 @@ import org.koitharu.kotatsu.tracker.data.TrackEntity
 import org.koitharu.kotatsu.tracker.data.TrackLogEntity
 import org.koitharu.kotatsu.tracker.data.TracksDao
 
-const val DATABASE_VERSION = 37
+const val DATABASE_VERSION = 45
 
 @Database(
     entities = [
@@ -90,7 +102,7 @@ const val DATABASE_VERSION = 37
         FavouriteCategoryEntity::class, FavouriteEntity::class, MangaPrefsEntity::class, TrackEntity::class,
         TrackLogEntity::class, SuggestionEntity::class, BookmarkEntity::class, ScrobblingEntity::class,
         MangaSourceEntity::class, StatsEntity::class, LocalMangaIndexEntity::class,
-        SourcePresetEntity::class,
+        SourcePresetEntity::class, OptimizeTaskEntity::class, PageStatsEntity::class,
     ],
     version = DATABASE_VERSION,
 )
@@ -127,6 +139,10 @@ abstract class MangaDatabase : RoomDatabase() {
     abstract fun getChaptersDao(): ChaptersDao
 
     abstract fun getSourcePresetsDao(): SourcePresetsDao
+
+    abstract fun getOptimizeTaskDao(): OptimizeTaskDao
+
+    abstract fun getPageStatsDao(): PageStatsDao
 }
 
 fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
@@ -167,6 +183,14 @@ fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
     Migration34To35(),
     Migration35To36(),
     Migration36To37(),
+    Migration37To38(),
+    Migration38To39(),
+    Migration39To40(),
+    Migration40To41(),
+    Migration41To42(),
+    Migration42To43(),
+    Migration43To44(),
+    Migration44To45(),
 )
 
 @Suppress("SpreadOperator") // Room's addMigrations is vararg; an array is unavoidable here

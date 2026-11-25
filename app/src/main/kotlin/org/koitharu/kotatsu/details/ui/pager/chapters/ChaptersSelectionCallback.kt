@@ -5,6 +5,8 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.view.ActionMode
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import org.koitharu.kotatsu.R
@@ -17,6 +19,7 @@ import org.koitharu.kotatsu.core.util.ext.toCollection
 import org.koitharu.kotatsu.core.util.ext.toSet
 import org.koitharu.kotatsu.details.ui.pager.ChaptersPagesViewModel
 import org.koitharu.kotatsu.local.ui.LocalChaptersRemoveService
+import org.koitharu.kotatsu.local.ui.OptimizeFlow
 
 class ChaptersSelectionCallback(
     private val viewModel: ChaptersPagesViewModel,
@@ -45,6 +48,7 @@ class ChaptersSelectionCallback(
         }
         menu.findItem(R.id.action_save).isVisible = canSave
         menu.findItem(R.id.action_delete).isVisible = canDelete
+        menu.findItem(R.id.action_optimize).isVisible = canDelete && items.isNotEmpty()
         menu.findItem(R.id.action_select_all).isVisible = items.size < allItems.size
         menu.findItem(R.id.action_mark_current).isVisible = items.size == 1
         mode?.title = items.size.toString()
@@ -97,6 +101,17 @@ class ChaptersSelectionCallback(
                             ).show()
                         }
                     }
+                }
+                mode?.finish()
+                true
+            }
+
+            R.id.action_optimize -> {
+                val ids = controller.peekCheckedIds().toSet()
+                val local = viewModel.mangaDetails.value?.local
+                val scope = recyclerView.findViewTreeLifecycleOwner()?.lifecycleScope
+                if (ids.isNotEmpty() && local != null && scope != null) {
+                    OptimizeFlow.start(recyclerView.context, scope, local.manga.title, local.manga.id) { it.archivesOf(local, ids) }
                 }
                 mode?.finish()
                 true

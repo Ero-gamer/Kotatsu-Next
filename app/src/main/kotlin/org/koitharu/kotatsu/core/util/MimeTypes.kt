@@ -14,15 +14,34 @@ import coil3.util.MimeTypeMap as CoilMimeTypeMap
 
 object MimeTypes {
 
+    /** Image types older Android / Coil tables don't know; used only when they return nothing. */
+    private val EXTRA_TYPES = mapOf(
+        "jxl" to "image/jxl",
+        "avif" to "image/avif",
+        "apng" to "image/apng",
+        "bmp" to "image/bmp",
+        "heic" to "image/heic",
+        "heif" to "image/heif",
+        "jfif" to "image/jpeg",
+        "jpe" to "image/jpeg",
+        "pjpeg" to "image/jpeg",
+    )
+
     fun getMimeTypeFromExtension(fileName: String): MimeType? {
-        return CoilMimeTypeMap.getMimeTypeFromExtension(getNormalizedExtension(fileName) ?: return null)
-            ?.toMimeTypeOrNull()
+        val ext = getNormalizedExtension(fileName) ?: return null
+        return (CoilMimeTypeMap.getMimeTypeFromExtension(ext) ?: EXTRA_TYPES[ext])?.toMimeTypeOrNull()
     }
 
-    fun getMimeTypeFromUrl(url: String): MimeType? = CoilMimeTypeMap.getMimeTypeFromUrl(url)?.toMimeTypeOrNull()
+    fun getMimeTypeFromUrl(url: String): MimeType? {
+        CoilMimeTypeMap.getMimeTypeFromUrl(url)?.toMimeTypeOrNull()?.let { return it }
+        val path = url.substringBefore('#').substringBefore('?')
+        return EXTRA_TYPES[path.substringAfterLast('.', "").lowercase()]?.toMimeTypeOrNull()
+    }
 
     fun getExtension(mimeType: MimeType?): String? {
-        return MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType?.toString() ?: return null)?.nullIfEmpty()
+        val value = mimeType?.toString() ?: return null
+        return MimeTypeMap.getSingleton().getExtensionFromMimeType(value)?.nullIfEmpty()
+            ?: EXTRA_TYPES.entries.firstOrNull { it.value == value }?.key
     }
 
     @Blocking

@@ -29,6 +29,18 @@ abstract class StatsDao {
     @Query("SELECT IFNULL(SUM(duration)/SUM(pages), 0) FROM stats")
     abstract suspend fun getAverageTimePerPage(): Long
 
+    /** How much of each manga has actually gone past the reader's eyes, for everything they have read. */
+    @Query("SELECT manga_id AS mangaId, SUM(pages) AS pages FROM stats GROUP BY manga_id")
+    abstract suspend fun findPagesPerManga(): List<MangaPagesRead>
+
+    /**
+     * Hands everything read of one manga to another: for a manga moved to another source, which is the same
+     * reading under a new id. The other has to be in the history already, as these rows hang on it. A session
+     * the other already has from the very same moment stays as it is.
+     */
+    @Query("UPDATE OR IGNORE stats SET manga_id = :toMangaId WHERE manga_id = :fromMangaId")
+    abstract suspend fun moveAll(fromMangaId: Long, toMangaId: Long)
+
     @Query("DELETE FROM stats")
     abstract suspend fun clear()
 
@@ -56,7 +68,7 @@ abstract class StatsDao {
         }
         val where = conditions.joinToString(separator = " AND ")
         val query = SimpleSQLiteQuery(
-            "SELECT manga.*, SUM(duration) AS d FROM stats LEFT JOIN manga ON manga.manga_id = stats.manga_id WHERE $where GROUP BY manga.manga_id ORDER BY d DESC",
+            "SELECT manga.*, SUM(duration) AS d FROM stats JOIN manga ON manga.manga_id = stats.manga_id WHERE $where GROUP BY manga.manga_id ORDER BY d DESC",
         )
         return getDurationStatsImpl(query)
     }
@@ -86,3 +98,5 @@ abstract class StatsDao {
         }
     }
 }
+
+data class MangaPagesRead(val mangaId: Long, val pages: Int)

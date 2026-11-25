@@ -29,6 +29,9 @@ class ReversedReaderFragment : BasePagerReaderFragment() {
         super.onWheelScroll(value)
     }
 
+    override val isPagingReversed: Boolean
+        get() = true
+
     override fun switchPageBy(delta: Int) {
         super.switchPageBy(-delta)
     }

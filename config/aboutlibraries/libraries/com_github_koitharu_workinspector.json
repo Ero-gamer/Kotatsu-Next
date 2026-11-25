@@ -1,0 +1,18 @@
+{
+  "uniqueId": "com.github.Koitharu:WorkInspector",
+  "name": "WorkInspector",
+  "description": "WorkManager inspector (debug builds only)",
+  "website": "https://github.com/Koitharu/WorkInspector",
+  "developers": [
+    {
+      "name": "Koitharu",
+      "organisationUrl": "https://github.com/Koitharu"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/Koitharu/WorkInspector"
+  },
+  "licenses": [
+    "GPL-3.0-only"
+  ]
+}

@@ -4,6 +4,8 @@ import android.util.Log
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koitharu.kotatsu.core.model.chaptersCount
 import org.koitharu.kotatsu.parsers.model.Manga
@@ -18,6 +20,7 @@ import kotlin.math.roundToInt
 private const val MAX_COMPARISON_SAMPLE = 25
 private const val MAX_COMPARISON_PARALLELISM_PER_SOURCE = 2
 private const val MAX_COMPARISON_TIMEOUTS_PER_SOURCE = 2
+private const val MAX_SOURCES_IN_FLIGHT = 4
 private const val COMPARISON_REQUEST_TIMEOUT_MS = 15_000L
 private const val WEBVIEW_COMPARISON_REQUEST_TIMEOUT_MS = 30_000L
 
@@ -68,37 +71,41 @@ constructor(
             }
         }
         reportProgress()
+        // A few sources at a time: "all sources" would otherwise open a connection to every site at once.
+        val sourceGate = Semaphore(MAX_SOURCES_IN_FLIGHT)
         val plans =
             sources
                 .map { source ->
                     async {
-                        val comparison =
-                            compareSource(source, seeds) {
-                                reportProgress(titleCompleted = true)
-                            }
-                        if (comparison.failed) {
-                            Log.w(
-                                TAG,
-                                "Excluding source after initial comparison failure: source=${source.name} partialMatches=${comparison.matches.size}/${seeds.size}",
-                            )
-                            synchronized(progressLock) {
-                                onSourceFailed(source)
-                            }
-                            null
-                        } else {
-                            SourceReplacementPlan(
-                                source = source,
-                                matches = comparison.matches.mapValues { it.value.manga },
-                                total = seeds.size,
-                                averageTitleSimilarity =
-                                comparison.matches.values
-                                    .map(ScoredMatch::titleSimilarity)
-                                    .takeIf(List<Float>::isNotEmpty)
-                                    ?.average()
-                                    ?.toFloat()
-                                    ?: 0f,
-                            )
-                        }.also { reportProgress(sourceCompleted = true) }
+                        sourceGate.withPermit {
+                            val comparison =
+                                compareSource(source, seeds) {
+                                    reportProgress(titleCompleted = true)
+                                }
+                            if (comparison.failed) {
+                                Log.w(
+                                    TAG,
+                                    "Excluding source after initial comparison failure: source=${source.name} partialMatches=${comparison.matches.size}/${seeds.size}",
+                                )
+                                synchronized(progressLock) {
+                                    onSourceFailed(source)
+                                }
+                                null
+                            } else {
+                                SourceReplacementPlan(
+                                    source = source,
+                                    matches = comparison.matches.mapValues { it.value.manga },
+                                    total = seeds.size,
+                                    averageTitleSimilarity =
+                                    comparison.matches.values
+                                        .map(ScoredMatch::titleSimilarity)
+                                        .takeIf(List<Float>::isNotEmpty)
+                                        ?.average()
+                                        ?.toFloat()
+                                        ?: 0f,
+                                )
+                            }.also { reportProgress(sourceCompleted = true) }
+                        }
                     }
                 }.awaitAll()
                 .filterNotNull()

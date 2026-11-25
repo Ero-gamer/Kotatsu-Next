@@ -1,0 +1,6 @@
+# Python tooling scripts (scripts/*.py). Lint + format with Ruff: `ruff check --fix . && ruff format .`
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "FURB"]

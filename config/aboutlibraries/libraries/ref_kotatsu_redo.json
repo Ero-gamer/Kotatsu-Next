@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:kotatsu-redo",
+  "name": "Kotatsu Redo",
+  "description": "Fork this app builds on; suggestions, history and alternatives logic ported (GPL-3.0)",
+  "website": "https://github.com/Kotatsu-Redo/Kotatsu-redo",
+  "developers": [
+    {
+      "name": "Kotatsu Redo developers",
+      "organisationUrl": "https://github.com/Kotatsu-Redo"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/Kotatsu-Redo/Kotatsu-redo"
+  },
+  "licenses": [
+    "GPL-3.0-only"
+  ],
+  "tag": "upstream"
+}

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableManga
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableMangaPage
 import org.koitharu.kotatsu.core.nav.AppRouter
@@ -36,7 +37,10 @@ class ColorFilterConfigViewModel @Inject constructor(
 
     init {
         launchLoadingJob {
-            initialColorFilter = mangaDataRepository.getColorFilter(manga.id) ?: settings.readerColorFilter
+            // Filters switched off for this manga mean "defaults" here, not the (possibly tweaked) global values.
+            val ownFilter = mangaDataRepository.getColorFilter(manga.id)
+            val isDisabled = mangaDataRepository.observeColorFilterDisabled(manga.id).first()
+            initialColorFilter = ownFilter ?: settings.readerColorFilter.takeUnless { isDisabled }
             colorFilter.value = initialColorFilter
         }
     }
@@ -46,6 +50,7 @@ class ColorFilterConfigViewModel @Inject constructor(
     fun setRcas(intensity: Float) = updateColorFilter { it.copy(rcas = intensity) }
     fun setAdaptiveSharpen(intensity: Float) = updateColorFilter { it.copy(adaptiveSharpen = intensity) }
     fun setDeband(intensity: Float) = updateColorFilter { it.copy(deband = intensity) }
+    fun setBinarize(strength: Float) = updateColorFilter { it.copy(binarize = strength) }
     fun setSaturation(saturation: Float) = updateColorFilter { it.copy(saturation = saturation) }
     fun setVibrance(vibrance: Float) = updateColorFilter { it.copy(vibrance = vibrance) }
     fun setDenoise(denoise: Float) = updateColorFilter { it.copy(denoise = denoise) }
@@ -54,6 +59,13 @@ class ColorFilterConfigViewModel @Inject constructor(
     // setDither / setGrain removed — filters eliminated from GPU pipeline
     fun setInversion(invert: Boolean) = updateColorFilter { it.copy(isInverted = invert) }
     fun setGrayscale(grayscale: Boolean) = updateColorFilter { it.copy(isGrayscale = grayscale) }
+    fun setAutoContrast(enabled: Boolean) = updateColorFilter { it.copy(isAutoContrast = enabled) }
+    fun setAutoBrightness(enabled: Boolean) = updateColorFilter { it.copy(isAutoBrightness = enabled) }
+    fun setAutoSaturation(enabled: Boolean) = updateColorFilter { it.copy(isAutoSaturation = enabled) }
+    fun setOverlayRed(value: Float) = updateColorFilter { it.copy(overlayRed = value) }
+    fun setOverlayGreen(value: Float) = updateColorFilter { it.copy(overlayGreen = value) }
+    fun setOverlayBlue(value: Float) = updateColorFilter { it.copy(overlayBlue = value) }
+    fun setOverlayAlpha(value: Float) = updateColorFilter { it.copy(overlayAlpha = value) }
     fun setBookEffect(book: Boolean) = updateColorFilter { it.copy(isBookBackground = book) }
 
     fun reset() {
@@ -62,7 +74,11 @@ class ColorFilterConfigViewModel @Inject constructor(
 
     fun save() {
         launchLoadingJob(Dispatchers.Default) {
-            mangaDataRepository.saveColorFilter(manga, colorFilter.value)
+            val filter = colorFilter.value
+            mangaDataRepository.saveColorFilter(manga, filter)
+            // No stored values would fall back to the global filter; an empty result (e.g. after Reset) must
+            // mean defaults for this manga, so the per-manga "filters off" flag is kept in step with it.
+            mangaDataRepository.setColorFilterDisabled(manga, isDisabled = filter == null)
             onDismiss.call(Unit)
         }
     }

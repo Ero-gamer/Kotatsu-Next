@@ -29,6 +29,9 @@ class ReversedPageHolder(
     exceptionResolver = exceptionResolver,
 ) {
 
+    override val startsAtRight: Boolean
+        get() = true
+
     init {
         (binding.textViewNumber.layoutParams as FrameLayout.LayoutParams)
             .gravity = Gravity.START or Gravity.BOTTOM
@@ -51,7 +54,7 @@ class ReversedPageHolder(
                     minScale = height / sHeight.toFloat()
                     setScaleAndCenter(
                         minScale,
-                        PointF(sWidth.toFloat(), sHeight / 2f),
+                        PointF(startX(sWidth, rtl = true), sHeight / 2f),
                     )
                 }
 
@@ -69,11 +72,26 @@ class ReversedPageHolder(
                     minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE
                     setScaleAndCenter(
                         keepStartScale,
-                        PointF(sWidth.toFloat(), 0f),
+                        PointF(startX(sWidth, rtl = true), 0f),
+                    )
+                }
+
+                ZoomMode.STRETCH -> {
+                    minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CENTER_CROP
+                    resetScaleAndCenter()
+                }
+
+                ZoomMode.ORIGINAL -> {
+                    minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_CUSTOM
+                    minScale = 1f
+                    setScaleAndCenter(
+                        1f,
+                        PointF(sWidth / 2f, sHeight / 2f),
                     )
                 }
             }
             setupDoubleTapZoom(if (settings.zoomMode == ZoomMode.KEEP_START) keepStartScale else 0f)
+            scheduleLandscapeZoom()
         }
     }
 }

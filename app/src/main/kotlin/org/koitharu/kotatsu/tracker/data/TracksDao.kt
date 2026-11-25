@@ -6,8 +6,12 @@ import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.room.Upsert
 import androidx.sqlite.db.SupportSQLiteQuery
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import org.koitharu.kotatsu.core.db.MangaQueryBuilder
+import org.koitharu.kotatsu.core.db.entity.MangaWithTags
 import org.koitharu.kotatsu.list.domain.ListFilterOption
 
 @Dao
@@ -105,6 +109,25 @@ abstract class TracksDao : MangaQueryBuilder.ConditionCallback {
 
     @Upsert
     abstract suspend fun upsert(entity: TrackEntity)
+
+    @Transaction
+    @Query(
+        "SELECT * FROM manga JOIN tracks ON tracks.manga_id = manga.manga_id ORDER BY manga.manga_id LIMIT :limit OFFSET :offset",
+    )
+    protected abstract suspend fun findAllWithManga(offset: Int, limit: Int): Map<MangaWithTags, List<TrackEntity>>
+
+    fun dump(): Flow<Pair<MangaWithTags, TrackEntity>> = flow {
+        val window = 10
+        var offset = 0
+        while (currentCoroutineContext().isActive) {
+            val list = findAllWithManga(offset, window)
+            if (list.isEmpty()) {
+                break
+            }
+            offset += window
+            list.forEach { (manga, tracks) -> tracks.forEach { emit(manga to it) } }
+        }
+    }
 
     @Transaction
     @RawQuery(observedEntities = [TrackEntity::class])

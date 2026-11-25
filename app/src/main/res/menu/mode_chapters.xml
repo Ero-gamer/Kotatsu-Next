@@ -16,6 +16,11 @@
 		app:showAsAction="ifRoom|withText" />
 
 	<item
+		android:id="@+id/action_optimize"
+		android:title="@string/optimize_images"
+		app:showAsAction="never" />
+
+	<item
 		android:id="@+id/action_mark_current"
 		android:icon="@drawable/ic_eye_check"
 		android:title="@string/mark_as_current"

@@ -33,7 +33,13 @@ class RegionBitmapDecoder(
 ) : Decoder {
 
     override suspend fun decode(): DecodeResult? {
-        val regionDecoder = BitmapDecoderCompat.createRegionDecoder(fetchResult.source.source().inputStream())
+        // Some phones open an AVIF here and then fail to decode it: left to the decoder made for them
+        val format = probeFormat(fetchResult.source.source())
+        val regionDecoder = if (format == ImageFormat.AVIF) {
+            null
+        } else {
+            BitmapDecoderCompat.createRegionDecoder(fetchResult.source.source().inputStream())
+        }
         if (regionDecoder == null) {
             val revivedFetchResult = fetchResult.copyWithNewSource()
             return try {
@@ -55,7 +61,7 @@ class RegionBitmapDecoder(
         val bitmapOptions = BitmapFactory.Options()
         return try {
             val rect = bitmapOptions.configureScale(regionDecoder.width, regionDecoder.height)
-            bitmapOptions.configureConfig()
+            bitmapOptions.configureConfig(format)
             val bitmap = regionDecoder.decodeRegion(rect, bitmapOptions)
             bitmap.density = options.context.resources.displayMetrics.densityDpi
             DecodeResult(
@@ -65,6 +71,13 @@ class RegionBitmapDecoder(
         } finally {
             regionDecoder.recycle()
         }
+    }
+
+    private fun probeFormat(source: okio.BufferedSource): ImageFormat {
+        val peek = source.peek()
+        peek.request(PROBE_BYTES)
+        val head = peek.readByteArray(minOf(PROBE_BYTES, peek.buffer.size))
+        return ImageFormatProbe.sniff(head)
     }
 
     /** Compute and set the scaling properties for [BitmapFactory.Options]. */
@@ -131,7 +144,7 @@ class RegionBitmapDecoder(
         return rect
     }
 
-    private fun BitmapFactory.Options.configureConfig() {
+    private fun BitmapFactory.Options.configureConfig(format: ImageFormat) {
         var config = options.bitmapConfig
 
         inMutable = false
@@ -141,14 +154,11 @@ class RegionBitmapDecoder(
         }
         inPremultiplied = options.premultipliedAlpha
 
-        // Decode the image as RGB_565 as an optimization if allowed.
-        if (options.allowRgb565 && config == Bitmap.Config.ARGB_8888 && outMimeType == "image/jpeg") {
+        // Decode the image as RGB_565 as an optimization if allowed. The format comes from the header probe:
+        // BitmapFactory's outMimeType is only filled in by a decode, which has not happened yet here.
+        // JPEG has no alpha, so nothing is lost.
+        if (options.allowRgb565 && config == Bitmap.Config.ARGB_8888 && format == ImageFormat.JPEG) {
             config = Bitmap.Config.RGB_565
-        }
-
-        // High color depth images must be decoded as either RGBA_F16 or HARDWARE.
-        if (Build.VERSION.SDK_INT >= 26 && outConfig == Bitmap.Config.RGBA_F16 && config != Bitmap.Config.HARDWARE) {
-            config = Bitmap.Config.RGBA_F16
         }
 
         inPreferredConfig = config
@@ -169,6 +179,7 @@ class RegionBitmapDecoder(
 
     companion object {
 
+        private const val PROBE_BYTES = 64L
         const val SCROLL_UNDEFINED = -1
         val regionScrollKey = Extras.Key(SCROLL_UNDEFINED)
 

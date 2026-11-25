@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.plus
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScope
+import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScopeOptions
 import org.koitharu.kotatsu.alternatives.domain.AlternativesUseCase
 import org.koitharu.kotatsu.alternatives.domain.MigrateUseCase
 import org.koitharu.kotatsu.alternatives.domain.SourceReplacementPlan
@@ -105,10 +106,10 @@ class SourceReplacementViewModel @Inject constructor(
     val planningSampleSize = _planningSampleSize.asStateFlow()
     private val _planningCurrentSource = MutableStateFlow<MangaSource?>(null)
     val planningCurrentSource = _planningCurrentSource.asStateFlow()
-    private val _sourceScope = MutableStateFlow(AlternativeSourceScope.ENABLED)
+    private val _sourceScope = MutableStateFlow<AlternativeSourceScope>(AlternativeSourceScope.Enabled)
     val sourceScope = _sourceScope.asStateFlow()
-    private val _activePresetTitle = MutableStateFlow<String?>(null)
-    val activePresetTitle = _activePresetTitle.asStateFlow()
+    private val _scopeOptions = MutableStateFlow<AlternativeSourceScopeOptions?>(null)
+    val scopeOptions = _scopeOptions.asStateFlow()
     private var sourceScopeInitialized = false
     private var queueInitialized = false
 
@@ -273,9 +274,7 @@ class SourceReplacementViewModel @Inject constructor(
     }
 
     fun selectSourceScope(sourceScope: AlternativeSourceScope) {
-        if (sourceScope == _sourceScope.value ||
-            (sourceScope == AlternativeSourceScope.CURRENT_PRESET && activePresetTitle.value == null)
-        ) {
+        if (sourceScope == _sourceScope.value || scopeOptions.value?.isAvailable(sourceScope) != true) {
             return
         }
         sourceScopeInitialized = true
@@ -402,10 +401,8 @@ class SourceReplacementViewModel @Inject constructor(
                     ref = originSource,
                     sameLanguageOnly = true,
                 )
-                _activePresetTitle.value = scopeOptions.presetTitle
-                if (!sourceScopeInitialized ||
-                    (_sourceScope.value == AlternativeSourceScope.CURRENT_PRESET && scopeOptions.presetTitle == null)
-                ) {
+                _scopeOptions.value = scopeOptions
+                if (!sourceScopeInitialized || !scopeOptions.isAvailable(_sourceScope.value)) {
                     _sourceScope.value = scopeOptions.defaultScope
                     sourceScopeInitialized = true
                 }

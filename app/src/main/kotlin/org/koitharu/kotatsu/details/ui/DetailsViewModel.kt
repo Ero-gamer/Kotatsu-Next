@@ -5,12 +5,14 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -27,9 +29,9 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.ListMode
 import org.koitharu.kotatsu.core.prefs.TriStateOption
 import org.koitharu.kotatsu.core.ui.util.ReversibleAction
+import org.koitharu.kotatsu.core.ui.util.ReversibleHandle
 import org.koitharu.kotatsu.core.util.ext.call
 import org.koitharu.kotatsu.core.util.ext.computeSize
-import org.koitharu.kotatsu.core.util.ext.onEachWhile
 import org.koitharu.kotatsu.details.data.MangaDetails
 import org.koitharu.kotatsu.details.domain.BranchComparator
 import org.koitharu.kotatsu.details.domain.DetailsInteractor
@@ -47,6 +49,7 @@ import org.koitharu.kotatsu.list.ui.model.MangaListModel
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.domain.DeleteLocalMangaUseCase
 import org.koitharu.kotatsu.local.domain.model.LocalManga
+import org.koitharu.kotatsu.reader.domain.PagePreloader
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.findById
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
@@ -55,6 +58,9 @@ import org.koitharu.kotatsu.scrobbling.common.domain.Scrobbler
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingInfo
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingStatus
 import org.koitharu.kotatsu.stats.data.StatsRepository
+import org.koitharu.kotatsu.discover.data.DiscoverDismissals
+import org.koitharu.kotatsu.discover.data.DismissedIndex
+import org.koitharu.kotatsu.discover.domain.MangaDismisser
 import javax.inject.Inject
 
 @HiltViewModel
@@ -73,7 +79,10 @@ class DetailsViewModel @Inject constructor(
     private val detailsLoadUseCase: DetailsLoadUseCase,
     private val progressUpdateUseCase: ProgressUpdateUseCase,
     private val readingTimeUseCase: ReadingTimeUseCase,
+    private val pagePreloader: PagePreloader,
     statsRepository: StatsRepository,
+    private val dismisser: MangaDismisser,
+    dismissals: DiscoverDismissals,
 ) : ChaptersPagesViewModel(
     settings = settings,
     interactor = interactor,
@@ -106,6 +115,10 @@ class DetailsViewModel @Inject constructor(
         .withErrorHandling()
         .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, false)
 
+    /** What the reader passed on, so that the menu does not offer it for what they already did. */
+    val dismissedIndex = dismissals.observe()
+        .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, DismissedIndex.EMPTY)
+
     val remoteManga = MutableStateFlow<Manga?>(null)
 
     val historyInfo: StateFlow<HistoryInfo> = combine(
@@ -126,7 +139,7 @@ class DetailsViewModel @Inject constructor(
     val localSize = mangaDetails
         .map { it?.local }
         .distinctUntilChanged()
-        .combine(localStorageChanges.onStart { emit(null) }) { x, _ -> x }
+        .combine(localStorageChanges.filter { it == null || it.manga.id == mangaId }.onStart { emit(null) }) { x, _ -> x }
         .map { local ->
             if (local != null) {
                 runCatchingCancellable {
@@ -144,23 +157,32 @@ class DetailsViewModel @Inject constructor(
         .withErrorHandling()
         .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Eagerly, emptyList())
 
-    val relatedManga: StateFlow<List<MangaListModel>> = manga.mapLatest {
-        if (it != null && settings.isRelatedMangaEnabled) {
-            val related = relatedMangaUseCase(it).orEmpty().let { list ->
-                if (settings.isNsfwContentDisabled) {
-                    list.filterNot { manga -> manga.isNsfw() }
-                } else {
-                    list
-                }
-            }
-            mangaListMapper.toListModelList(
-                manga = related,
-                mode = ListMode.GRID,
-            )
-        } else {
-            emptyList()
+    private val relatedRefresh = MutableStateFlow(0)
+
+    /** Survives the screen going away and coming back from the reader, which should not cost requests again. */
+    @Volatile
+    private var loadedRelated: List<Manga>? = null
+
+    /**
+     * Only once the manga itself is done and the reader has stayed a moment, and only while this screen is showing:
+     * it takes requests to the same sites, and someone heading straight for the reader never sees it.
+     */
+    val relatedManga: StateFlow<List<MangaListModel>> = relatedRefresh.mapLatest {
+        loadingJob.join()
+        val seed = manga.value
+        if (seed == null || !settings.isRelatedMangaEnabled) {
+            return@mapLatest emptyList()
         }
-    }.stateIn(viewModelScope + Dispatchers.Default, SharingStarted.Lazily, emptyList())
+        val related = loadedRelated ?: run {
+            delay(RELATED_DELAY_MS)
+            relatedMangaUseCase(seed).orEmpty().also { loadedRelated = it }
+        }
+        mangaListMapper.toListModelList(
+            manga = if (settings.isNsfwContentDisabled) related.filterNot { it.isNsfw() } else related,
+            mode = ListMode.GRID,
+        )
+    }.withErrorHandling()
+        .stateIn(viewModelScope + Dispatchers.Default, SharingStarted.WhileSubscribed(), emptyList())
 
     val tags = manga.mapLatest {
         mangaListMapper.mapTags(it?.tags.orEmpty())
@@ -198,6 +220,23 @@ class DetailsViewModel @Inject constructor(
                 progressUpdateUseCase(manga.toManga())
             }
         }
+        launchJob(Dispatchers.Default + SkipErrors) {
+            // The first pages of what is likely read next, so that the reader opens on them already
+            val details = mangaDetails.firstOrNull { !it?.chapters.isNullOrEmpty() } ?: return@launchJob
+            val manga = details.toManga()
+            val history = historyRepository.getOne(manga)
+            val inProgress = history?.let { details.allChapters.findById(it.chapterId) }
+            val chapter = inProgress
+                ?: details.chapters[manga.getPreferredBranch(history)]?.firstOrNull()
+                ?: details.allChapters.firstOrNull()
+                ?: return@launchJob
+            pagePreloader.preload(
+                manga = manga,
+                chapter = chapter,
+                startPage = history?.takeIf { inProgress != null }?.page ?: 0,
+                withImages = history != null,
+            )
+        }
         launchJob(Dispatchers.Default) {
             val manga = mangaDetails.firstOrNull { it != null && it.isLocal } ?: return@launchJob
             remoteManga.value = interactor.findRemote(manga.toManga())
@@ -207,6 +246,8 @@ class DetailsViewModel @Inject constructor(
     fun reload() {
         loadingJob.cancel()
         loadingJob = doLoad(force = true)
+        loadedRelated = null
+        relatedRefresh.value++
     }
 
     fun updateScrobbling(index: Int, rating: Float, status: ScrobblingStatus?) {
@@ -230,6 +271,15 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
+    /** "Not interested", from the menu of a manga the reader has not saved or read. */
+    fun dismissFromSuggestions() {
+        val manga = getMangaOrNull() ?: return
+        launchJob(Dispatchers.Default) {
+            val key = dismisser.dismiss(manga)
+            onActionDone.call(ReversibleAction(R.string.removed_from_suggestions, ReversibleHandle { dismisser.undo(key) }))
+        }
+    }
+
     fun removeFromHistory() {
         launchJob(Dispatchers.Default) {
             val handle = historyRepository.delete(setOf(mangaId))
@@ -238,21 +288,33 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun doLoad(force: Boolean) = launchLoadingJob(Dispatchers.Default) {
+        var defaultBranch: DefaultBranch? = null
         detailsLoadUseCase.invoke(intent, force)
-            .onEachWhile {
-                if (it.allChapters.isNotEmpty()) {
-                    val manga = it.toManga()
-                    // find default branch
+            .onEach { details ->
+                if (details.allChapters.isEmpty()) {
+                    return@onEach
+                }
+                // The first list is usually the stored one, then comes the one just loaded from the source. Pick the
+                // default branch again when the one picked from the stored list is not in the new one (the source
+                // renamed its branches), or when it was not picked from the history and the user has kept it.
+                val picked = defaultBranch
+                val current = selectedBranch.value
+                if (picked == null || current !in details.chapters || (current == picked.name && !picked.isFromHistory)) {
+                    val manga = details.toManga()
                     val hist = historyRepository.getOne(manga)
-                    selectedBranch.value = manga.getPreferredBranch(hist)
-                    true
-                } else {
-                    false
+                    val branch = manga.getPreferredBranch(hist)
+                    selectedBranch.value = branch
+                    defaultBranch = DefaultBranch(
+                        name = branch,
+                        isFromHistory = hist != null && manga.chapters.orEmpty().any { c -> c.id == hist.chapterId },
+                    )
                 }
             }.collect {
                 mangaDetails.value = it
             }
     }
+
+    private class DefaultBranch(val name: String?, val isFromHistory: Boolean)
 
     private fun getScrobbler(index: Int): Scrobbler? {
         val info = scrobblingInfo.value.getOrNull(index)
@@ -265,5 +327,10 @@ class DetailsViewModel @Inject constructor(
             errorEvent.call(IllegalStateException("Scrobbler [$index] is not available"))
         }
         return scrobbler
+    }
+
+    private companion object {
+
+        const val RELATED_DELAY_MS = 1_500L
     }
 }

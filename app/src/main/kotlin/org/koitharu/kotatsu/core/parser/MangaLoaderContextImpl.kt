@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.Buffer
+import org.koitharu.kotatsu.core.exceptions.CloudFlareProtectedException
 import org.koitharu.kotatsu.core.exceptions.InteractiveActionRequiredException
 import org.koitharu.kotatsu.core.image.BitmapDecoderCompat
 import org.koitharu.kotatsu.core.network.MangaHttpClient
@@ -19,11 +20,13 @@ import org.koitharu.kotatsu.core.network.cookies.MutableCookieJar
 import org.koitharu.kotatsu.core.network.webview.WebViewExecutor
 import org.koitharu.kotatsu.core.network.webview.WebViewRequestInterceptorExecutor
 import org.koitharu.kotatsu.core.prefs.SourceSettings
+import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
 import org.koitharu.kotatsu.core.util.ext.toList
 import org.koitharu.kotatsu.core.util.ext.toMimeType
 import org.koitharu.kotatsu.core.util.ext.use
 import org.koitharu.kotatsu.parsers.MangaLoaderContext
 import org.koitharu.kotatsu.parsers.MangaParser
+import org.koitharu.kotatsu.parsers.ParsersBundle
 import org.koitharu.kotatsu.parsers.bitmap.Bitmap
 import org.koitharu.kotatsu.parsers.config.MangaSourceConfig
 import org.koitharu.kotatsu.parsers.model.MangaSource
@@ -48,6 +51,10 @@ class MangaLoaderContextImpl @Inject constructor(
 
     private val webViewUserAgent by lazy { obtainWebViewUserAgent() }
 
+    /** Whichever are in use at the moment: a parser asking for another gets one of the same age as the rest. */
+    override val parsers: ParsersBundle
+        get() = ActiveParsers.bundle
+
     @Deprecated("Provide a base url")
     @SuppressLint("SetJavaScriptEnabled")
     override suspend fun evaluateJs(script: String): String? = evaluateJs("", script, timeout = 10000L)
@@ -67,7 +74,12 @@ class MangaLoaderContextImpl @Inject constructor(
     override fun requestBrowserAction(
         parser: MangaParser,
         url: String,
-    ): Nothing = throw InteractiveActionRequiredException(parser.source, url)
+    ): Nothing {
+        if (parser.source.name == SOURCE_COMIX) {
+            throw CloudFlareProtectedException(url, parser.source, parser.getRequestHeaders())
+        }
+        throw InteractiveActionRequiredException(parser.source, url)
+    }
 
     override fun redrawImageResponse(response: Response, redraw: (image: Bitmap) -> Bitmap): Response = response.map { body ->
         BitmapDecoderCompat.decode(body.byteStream(), body.contentType()?.toMimeType(), isMutable = true)
@@ -178,6 +190,12 @@ class MangaLoaderContextImpl @Inject constructor(
         urlPattern: Regex,
         timeout: Long,
     ): List<String> = webViewRequestInterceptorExecutor.captureWebViewUrls(pageUrl, urlPattern, timeout)
+
+    private companion object {
+
+        /** By its name: which sources there are is no longer something the app is compiled with. */
+        const val SOURCE_COMIX = "COMIX"
+    }
 
     private fun obtainWebViewUserAgent(): String {
         val mainDispatcher = Dispatchers.Main.immediate

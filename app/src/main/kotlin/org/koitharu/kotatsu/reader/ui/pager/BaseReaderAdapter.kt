@@ -4,13 +4,13 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.koitharu.kotatsu.core.exceptions.resolve.ExceptionResolver
 import org.koitharu.kotatsu.core.os.NetworkState
 import org.koitharu.kotatsu.core.util.ext.resetTransformations
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.ui.config.ReaderSettings
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 @Suppress("LeakingThis")
 abstract class BaseReaderAdapter<H : BasePageHolder<*>>(
@@ -62,9 +62,10 @@ abstract class BaseReaderAdapter<H : BasePageHolder<*>>(
         viewType: Int,
     ): H = onCreateViewHolder(parent, loader, readerSettingsProducer, networkState, exceptionResolver)
 
-    suspend fun setItems(items: List<ReaderPage>) = suspendCoroutine { cont ->
+    suspend fun setItems(items: List<ReaderPage>) = suspendCancellableCoroutine { cont ->
+        // A superseded submit never runs its commit callback: a cancelled caller must not hang on it.
         differ.submitList(items) {
-            cont.resume(Unit)
+            if (cont.isActive) cont.resume(Unit)
         }
     }
 

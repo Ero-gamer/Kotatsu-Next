@@ -1,5 +1,6 @@
 package org.koitharu.kotatsu.core.parser
 
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -8,10 +9,10 @@ import okhttp3.Request
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.core.network.MangaHttpClient
 import org.koitharu.kotatsu.core.prefs.AppSettings
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.util.await
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
-import java.util.EnumSet
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 
 class MirrorSwitcher @Inject constructor(
@@ -19,7 +20,8 @@ class MirrorSwitcher @Inject constructor(
     @MangaHttpClient private val okHttpClient: OkHttpClient,
 ) {
 
-    private val blacklist = EnumSet.noneOf(MangaParserSource::class.java)
+    /** Sources whose mirrors all failed, with the time the ban ends: a site that was down is tried again later. */
+    private val blacklist = ConcurrentHashMap<ParserMangaSource, Long>()
     private val mutex: Mutex = Mutex()
 
     val isEnabled: Boolean
@@ -27,7 +29,7 @@ class MirrorSwitcher @Inject constructor(
 
     suspend fun <T : Any> trySwitchMirror(repository: ParserMangaRepository, loader: suspend () -> T?): T? {
         val source = repository.source
-        if (!isEnabled || source in blacklist) {
+        if (!isEnabled || isBlacklisted(source)) {
             return null
         }
         val availableMirrors = repository.domains
@@ -36,7 +38,7 @@ class MirrorSwitcher @Inject constructor(
             return null
         }
         mutex.withLock {
-            if (source in blacklist) {
+            if (isBlacklisted(source)) {
                 return null
             }
             logd { "Looking for mirrors for $source..." }
@@ -59,7 +61,7 @@ class MirrorSwitcher @Inject constructor(
                 }
             }
             repository.domain = currentHost // rollback
-            blacklist.add(source)
+            blacklist[source] = SystemClock.elapsedRealtime() + BLACKLIST_TTL_MS
             logd { "$source blacklisted" }
             return null
         }
@@ -89,6 +91,13 @@ class MirrorSwitcher @Inject constructor(
         }
     }
 
+    private fun isBlacklisted(source: ParserMangaSource): Boolean {
+        val until = blacklist[source] ?: return false
+        if (SystemClock.elapsedRealtime() < until) return true
+        blacklist.remove(source, until)
+        return false
+    }
+
     private fun <T : Any> T.takeIfValid() = takeIf {
         when (it) {
             is Collection<*> -> it.isNotEmpty()
@@ -99,6 +108,7 @@ class MirrorSwitcher @Inject constructor(
     private companion object {
 
         const val TAG = "MirrorSwitcher"
+        const val BLACKLIST_TTL_MS = 15 * 60 * 1000L
 
         inline fun logd(message: () -> String) {
             if (BuildConfig.DEBUG) {

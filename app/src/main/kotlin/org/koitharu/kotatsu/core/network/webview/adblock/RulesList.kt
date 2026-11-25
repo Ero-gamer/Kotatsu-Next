@@ -10,12 +10,14 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  */
 class RulesList {
 
-    private val blockRules = ArrayList<Rule>()
-    private val allowRules = ArrayList<Rule>()
+    private val blockRules = RuleSet()
+    private val allowRules = RuleSet()
 
     operator fun get(url: HttpUrl, baseUrl: HttpUrl?): Rule? {
-        val rule = blockRules.find { x -> x(url, baseUrl) }
-        return rule?.takeIf { allowRules.none { x -> x(url, baseUrl) } }
+        // Computed once per request: the public-suffix lookup behind it is far costlier than a map read.
+        val domain = url.topPrivateDomain() ?: url.host
+        val rule = blockRules.find(domain, url, baseUrl)
+        return rule?.takeIf { allowRules.find(domain, url, baseUrl) == null }
     }
 
     fun add(line: String) {
@@ -28,6 +30,31 @@ class RulesList {
         allowRules.trimToSize()
     }
 
+    /**
+     * Domain rules only ever match requests of their own domain, so they are looked up by it instead of
+     * being tested one by one (a list holds tens of thousands of them).
+     */
+    private class RuleSet {
+
+        private val byDomain = HashMap<String, ArrayList<Rule>>()
+        private val others = ArrayList<Rule>()
+
+        fun addDomain(domain: String, rule: Rule) {
+            byDomain.getOrPut(domain) { ArrayList(1) }.add(rule)
+        }
+
+        fun add(rule: Rule) {
+            others.add(rule)
+        }
+
+        fun find(domain: String, url: HttpUrl, baseUrl: HttpUrl?): Rule? =
+            byDomain[domain]?.find { x -> x(url, baseUrl) } ?: others.find { x -> x(url, baseUrl) }
+
+        fun trimToSize() {
+            others.trimToSize()
+        }
+    }
+
     private fun String.addImpl(isWhitelist: Boolean, modifiers: String?) {
         val list = if (isWhitelist) allowRules else blockRules
 
@@ -38,13 +65,14 @@ class RulesList {
 
             startsWith("||") -> {
                 // domain
-                list += Rule.Domain(substring(2).substringBefore('^').trim()).withModifiers(modifiers)
+                val domain = substring(2).substringBefore('^').trim()
+                list.addDomain(domain, Rule.Domain(domain).withModifiers(modifiers))
             }
 
             startsWith('|') -> {
                 val url = substring(1).substringBefore('^').trim().toHttpUrlOrNull()
                 if (url != null) {
-                    list += Rule.ExactUrl(url).withModifiers(modifiers)
+                    list.add(Rule.ExactUrl(url).withModifiers(modifiers))
                 }
             }
 
@@ -58,9 +86,9 @@ class RulesList {
 
             else -> {
                 if (endsWith('*')) {
-                    list += Rule.Path(this.dropLast(1), contains = true).withModifiers(modifiers)
+                    list.add(Rule.Path(this.dropLast(1), contains = true).withModifiers(modifiers))
                 } else if (!contains('*')) { // wildcards is not supported yet
-                    list += Rule.Path(this, contains = false).withModifiers(modifiers)
+                    list.add(Rule.Path(this, contains = false).withModifiers(modifiers))
                 }
             }
         }

@@ -105,6 +105,15 @@
                     app:icon="@drawable/ic_reader_vertical" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_bottom_to_top"
+                    style="@style/Widget.Kotatsu.ToggleButton.Vertical"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/bottom_to_top"
+                    app:icon="@drawable/ic_reader_btt" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_webtoon"
                     style="@style/Widget.Kotatsu.ToggleButton.Vertical"
                     android:layout_width="0dp"
@@ -252,6 +261,13 @@
                 android:layout_height="wrap_content"
                 android:text="@string/color_correction"
                 app:drawableStartCompat="@drawable/ic_appearance" />
+
+            <org.koitharu.kotatsu.core.ui.widgets.ListItemTextView
+                android:id="@+id/button_crop"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/crop_borders"
+                app:drawableStartCompat="@drawable/ic_crop" />
 
             <org.koitharu.kotatsu.core.ui.widgets.ListItemTextView
                 android:id="@+id/button_settings"

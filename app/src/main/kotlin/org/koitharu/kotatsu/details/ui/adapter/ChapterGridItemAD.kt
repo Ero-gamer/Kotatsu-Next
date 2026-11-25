@@ -3,6 +3,7 @@ package org.koitharu.kotatsu.details.ui.adapter
 import android.graphics.Typeface
 import androidx.core.view.isVisible
 import com.hannesdorfmann.adapterdelegates4.dsl.adapterDelegateViewBinding
+import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.list.AdapterDelegateClickListenerAdapter
 import org.koitharu.kotatsu.core.ui.list.OnListItemClickListener
 import org.koitharu.kotatsu.core.util.ext.getThemeColorStateList
@@ -28,6 +29,10 @@ fun chapterGridItemAD(
         binding.imageViewCurrent.isVisible = item.isCurrent
         binding.imageViewBookmarked.isVisible = item.isBookmarked
         binding.imageViewDownloaded.isVisible = item.isDownloaded
+        if (item.isDownloaded) {
+            binding.imageViewDownloaded.setImageResource(if (item.isOptimized) R.drawable.ic_images else R.drawable.ic_save_ok)
+            binding.imageViewDownloaded.contentDescription = context.getString(if (item.isOptimized) R.string.chapter_optimized else R.string.downloaded)
+        }
 
         when {
             item.isCurrent -> {

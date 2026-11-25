@@ -15,7 +15,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSearchStatus
 import org.koitharu.kotatsu.alternatives.domain.AlternativeSortOrder
-import org.koitharu.kotatsu.alternatives.domain.AlternativeSourceScope
 import org.koitharu.kotatsu.core.exceptions.resolve.SnackbarErrorObserver
 import org.koitharu.kotatsu.core.model.getTitle
 import org.koitharu.kotatsu.core.nav.router
@@ -39,7 +38,7 @@ import org.koitharu.kotatsu.list.ui.adapter.loadingFooterAD
 import org.koitharu.kotatsu.list.ui.adapter.loadingStateAD
 import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.parsers.model.Manga
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import javax.inject.Inject
 import androidx.appcompat.R as appcompatR
 
@@ -88,7 +87,7 @@ class AlternativesActivity :
             viewBinding.toolbar.post { filterBadge.setBadgeVisible(viewModel.hasCustomOptions()) }
             invalidateMenu()
         }
-        viewModel.activePresetTitle.observe(this) {
+        viewModel.scopeOptions.observe(this) {
             updateSummaryChips()
             invalidateMenu()
         }
@@ -150,19 +149,11 @@ class AlternativesActivity :
 
     private fun showSourceScopeMenu(anchor: View) {
         PopupMenu(this, anchor).apply {
-            viewModel.activePresetTitle.value?.let { presetTitle ->
-                menu.add(POPUP_GROUP, ACTION_SCOPE_PRESET, Menu.NONE, presetTitle).isChecked =
-                    viewModel.options.value.sourceScope == AlternativeSourceScope.CURRENT_PRESET
-            }
-            menu.add(POPUP_GROUP, ACTION_SCOPE_ENABLED, Menu.NONE, R.string.enabled_sources).isChecked =
-                viewModel.options.value.sourceScope == AlternativeSourceScope.ENABLED
-            menu.setGroupCheckable(POPUP_GROUP, true, true)
+            SourceScopeMenu.populate(menu, POPUP_GROUP, viewModel.scopeOptions.value, viewModel.options.value.sourceScope)
             setOnMenuItemClickListener { item ->
-                when (item.itemId) {
-                    ACTION_SCOPE_PRESET -> viewModel.setSourceScope(AlternativeSourceScope.CURRENT_PRESET)
-                    ACTION_SCOPE_ENABLED -> viewModel.setSourceScope(AlternativeSourceScope.ENABLED)
-                    else -> return@setOnMenuItemClickListener false
-                }
+                val scope = SourceScopeMenu.scopeFor(item.itemId, viewModel.scopeOptions.value)
+                    ?: return@setOnMenuItemClickListener false
+                viewModel.setSourceScope(scope)
                 true
             }
             show()
@@ -220,7 +211,7 @@ class AlternativesActivity :
 
     private fun buildReferenceSubtitle(reference: MangaAlternativeReference): String = buildList {
         add(reference.manga.source.getTitle(this@AlternativesActivity))
-        (reference.manga.source as? MangaParserSource)?.locale?.uppercase()?.let(::add)
+        (reference.manga.source as? ParserMangaSource)?.locale?.uppercase()?.let(::add)
         add(
             resources.getQuantityStringSafe(
                 R.plurals.chapters,
@@ -243,12 +234,7 @@ class AlternativesActivity :
             status.totalSources == 0 -> getString(R.string.preparing_search)
             else -> getString(R.string.searching_sources_progress, status.completedSources, status.totalSources)
         }
-        val sourceScopeTitle = when (options.sourceScope) {
-            AlternativeSourceScope.CURRENT_PRESET ->
-                viewModel.activePresetTitle.value ?: getString(R.string.source_presets)
-
-            AlternativeSourceScope.ENABLED -> getString(R.string.enabled_sources)
-        }
+        val sourceScopeTitle = SourceScopeMenu.title(this, options.sourceScope, viewModel.scopeOptions.value)
         viewBinding.chipsSummary.setChips(
             buildList {
                 add(
@@ -352,8 +338,6 @@ class AlternativesActivity :
 
     private companion object {
         const val POPUP_GROUP = Menu.FIRST + 2000
-        const val ACTION_SCOPE_PRESET = Menu.FIRST + 2001
-        const val ACTION_SCOPE_ENABLED = Menu.FIRST + 2002
         const val ACTION_SORT_FIRST = Menu.FIRST + 2010
     }
 }

@@ -24,6 +24,15 @@ class CloudFlareInterceptClient(
     targetUrl: String,
 ) : CloudFlareClient(cookieJar, callback, targetUrl) {
 
+    // Built once per page client, not per request (each client owns its own pool and dispatcher threads).
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .cookieJar(cookieJar)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+    }
+
     private val targetUri = runCatching { URI(targetUrl) }.getOrNull()
 
     // Headers we want to block
@@ -47,12 +56,6 @@ class CloudFlareInterceptClient(
             }
 
             Log.d(TAG, "Intercepting request: ${request.url}")
-
-            val client = OkHttpClient.Builder()
-                .cookieJar(cookieJar)
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
 
             val requestBuilder = Request.Builder()
                 .url(request.url.toString())

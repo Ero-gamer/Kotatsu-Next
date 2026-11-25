@@ -37,6 +37,8 @@ class SourcesSettingsFragment :
             entryValues = TriStateOption.entries.names()
             setDefaultValueCompat(TriStateOption.ASK.name)
         }
+        // Nothing to switch where no parsers are ever downloaded
+        findPreference<Preference>(AppSettings.KEY_PARSERS_AUTO_UPDATE)?.isVisible = viewModel.isParsersUpdateSupported
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

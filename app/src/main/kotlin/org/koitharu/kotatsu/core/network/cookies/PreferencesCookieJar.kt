@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.core.network.cookies
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.annotation.WorkerThread
 import androidx.collection.ArrayMap
 import androidx.core.content.edit
@@ -44,16 +45,25 @@ class PreferencesCookieJar(
     @WorkerThread
     @Synchronized
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-        val wrapped = cookies.map { CookieWrapper(it) }
-        prefs.edit(commit = true) {
-            for (cookie in wrapped) {
-                val key = cookie.key()
-                cache[key] = cookie
-                if (cookie.cookie.persistent) {
-                    putString(key, cookie.encode())
+        if (cookies.isEmpty()) {
+            return
+        }
+        // Load first: a lazy load after this save would overwrite the newer in-memory cookie with the stored one.
+        loadPersistent()
+        var editor: SharedPreferences.Editor? = null
+        for (cookie in cookies) {
+            val wrapped = CookieWrapper(cookie)
+            val key = wrapped.key()
+            val old = cache.put(key, wrapped)
+            if (cookie.persistent) {
+                val encoded = wrapped.encode()
+                // Most responses repeat the cookies already stored: write only what changed.
+                if (old == null || !old.cookie.persistent || old.encode() != encoded) {
+                    (editor ?: prefs.edit().also { editor = it }).putString(key, encoded)
                 }
             }
         }
+        editor?.apply() // memory is already updated; the disk write need not block the network thread
     }
 
     @Synchronized
@@ -101,7 +111,7 @@ class PreferencesCookieJar(
     }
 
     private fun removePersistent(keys: Collection<String>) {
-        prefs.edit(commit = true) {
+        prefs.edit {
             for (key in keys) {
                 remove(key)
             }

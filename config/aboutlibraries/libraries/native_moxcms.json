@@ -1,0 +1,21 @@
+{
+  "uniqueId": "native:moxcms",
+  "name": "moxcms",
+  "description": "ICC colour management (Rust). BSD-3-Clause or Apache-2.0",
+  "website": "https://github.com/awxkee/moxcms",
+  "developers": [
+    {
+      "name": "awxkee",
+      "organisationUrl": "https://github.com/awxkee"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/awxkee/moxcms"
+  },
+  "licenses": [
+    "BSD-3-Clause",
+    "Apache-2.0"
+  ],
+  "artifactVersion": "0.8.1",
+  "tag": "native"
+}

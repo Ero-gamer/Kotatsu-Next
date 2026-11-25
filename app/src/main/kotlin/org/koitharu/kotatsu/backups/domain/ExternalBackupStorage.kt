@@ -52,10 +52,18 @@ class ExternalBackupStorage @Inject constructor(
         ) {
             "Cannot create target backup file"
         }
-        checkNotNull(context.contentResolver.openOutputStream(out.uri, "wt")).sink().use { sink ->
-            file.source().buffer().use { src ->
-                src.readAll(sink)
+        try {
+            checkNotNull(context.contentResolver.openOutputStream(out.uri, "wt")) {
+                "Cannot open the target backup file"
+            }.sink().use { sink ->
+                file.source().buffer().use { src ->
+                    src.readAll(sink)
+                }
             }
+        } catch (e: Throwable) {
+            // A half-written backup must not stay (it would count in trim() and the last-backup date).
+            runCatching { out.delete() }
+            throw e
         }
         out.uri
     }

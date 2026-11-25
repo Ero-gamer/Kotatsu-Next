@@ -17,6 +17,8 @@ import coil3.size.Scale
 import coil3.size.Size
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.R
@@ -58,17 +60,38 @@ class AppShortcutManager @Inject constructor(
     }
     private var shortcutsUpdateJob: Job? = null
 
+    /**
+     * Whether the launcher takes pinned shortcuts. Asking is a call to the system's shortcut service, which is
+     * slow to answer while it is busy, as it is right after the shortcuts here are updated on leaving the reader.
+     * Asked from the main thread each time a menu opened, that froze the screen, so it is asked once, off it.
+     * Most launchers do, which is what is assumed until the answer is in.
+     */
+    @Volatile
+    var isPinShortcutSupported: Boolean = true
+        private set
+
     init {
         settings.subscribe(this)
+        processLifecycleScope.launch(Dispatchers.Default) {
+            isPinShortcutSupported = runCatchingCancellable {
+                ShortcutManagerCompat.isRequestPinShortcutSupported(context)
+            }.getOrDefault(false)
+        }
     }
 
     override fun onInvalidated(tables: Set<String>) {
         if (!settings.isDynamicShortcutsEnabled) {
             return
         }
+        scheduleUpdate(SHORTCUTS_DEBOUNCE_MS)
+    }
+
+    // History is written on every page turn: coalesce bursts into one rebuild.
+    private fun scheduleUpdate(delayMs: Long) {
         val prevJob = shortcutsUpdateJob
         shortcutsUpdateJob = processLifecycleScope.launch(Dispatchers.Default) {
-            prevJob?.join()
+            prevJob?.cancelAndJoin()
+            delay(delayMs)
             updateShortcutsImpl()
         }
     }
@@ -76,7 +99,7 @@ class AppShortcutManager @Inject constructor(
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         when (key) {
             AppSettings.KEY_SHORTCUTS -> if (settings.isDynamicShortcutsEnabled) {
-                onInvalidated(emptySet())
+                scheduleUpdate(0L)
             } else {
                 clearShortcuts()
             }
@@ -86,7 +109,7 @@ class AppShortcutManager @Inject constructor(
             AppSettings.KEY_SHORTCUTS_NO_NSFW,
             AppSettings.KEY_DISABLE_NSFW,
             -> if (settings.isDynamicShortcutsEnabled) {
-                onInvalidated(emptySet())
+                scheduleUpdate(0L)
             }
         }
     }
@@ -139,6 +162,7 @@ class AppShortcutManager @Inject constructor(
     }
 
     private fun clearShortcuts() {
+        shortcutsUpdateJob?.cancel()
         try {
             ShortcutManagerCompat.removeAllDynamicShortcuts(context)
         } catch (_: IllegalStateException) {
@@ -209,5 +233,6 @@ class AppShortcutManager @Inject constructor(
          * How much extra history to read when adult titles are being filtered out.
          */
         const val HISTORY_OVERFETCH = 4
+        const val SHORTCUTS_DEBOUNCE_MS = 5_000L
     }
 }

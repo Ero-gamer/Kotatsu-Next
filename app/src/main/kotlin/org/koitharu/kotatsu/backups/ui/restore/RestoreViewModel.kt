@@ -11,10 +11,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import org.koitharu.kotatsu.backups.data.model.BackupIndex
 import org.koitharu.kotatsu.backups.domain.BackupSection
+import org.koitharu.kotatsu.core.exceptions.BadBackupFormatException
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.ui.BaseViewModel
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.toUriOrNull
+import java.io.EOFException
 import java.io.FileNotFoundException
 import java.io.InputStream
 import java.util.Date
@@ -44,21 +46,27 @@ class RestoreViewModel @Inject constructor(
     private suspend fun loadBackupInfo() {
         val sections = runInterruptible(Dispatchers.IO) {
             if (uri == null) throw FileNotFoundException()
-            ZipInputStream(contentResolver.openInputStream(uri)).use { stream ->
-                val result = EnumSet.noneOf(BackupSection::class.java)
-                var entry = stream.nextEntry
-                while (entry != null) {
-                    val s = BackupSection.of(entry)
-                    if (s != null) {
-                        result.add(s)
-                        if (s == BackupSection.INDEX) {
-                            backupDate.value = stream.readDate()
+            try {
+                ZipInputStream(contentResolver.openInputStream(uri)).use { stream ->
+                    val result = EnumSet.noneOf(BackupSection::class.java)
+                    var entry = stream.nextEntry
+                    while (entry != null) {
+                        val s = BackupSection.of(entry)
+                        if (s != null) {
+                            result.add(s)
+                            if (s == BackupSection.INDEX) {
+                                backupDate.value = stream.readDate()
+                            }
                         }
+                        stream.closeEntry()
+                        entry = stream.nextEntry
                     }
-                    stream.closeEntry()
-                    entry = stream.nextEntry
+                    // Nothing of ours inside: say so, rather than offering an empty list to restore
+                    result.ifEmpty { throw BadBackupFormatException(null) }
                 }
-                result
+            } catch (e: EOFException) {
+                // A file cut short, which on its own reads "Unexpected end of ZLIB input stream"
+                throw BadBackupFormatException(e)
             }
         }
         availableEntries.value = BackupSection.entries.mapNotNull { entry ->

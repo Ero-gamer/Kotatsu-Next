@@ -5,7 +5,7 @@
 //! bound the peak memory of the f32 render buffers.
 
 use crate::common::{
-    check_limits, Decoder, Error, Format, Info, Rect, Resampler, Result, Sink,
+    check_limits, zeroed_vec, Decoder, Error, Format, Info, Rect, Resampler, Result, Sink,
     MAX_FRAME_DURATION_MS,
 };
 use jxl_oxide::color::{ColourEncoding, EnumColourEncoding, RenderingIntent};
@@ -81,8 +81,10 @@ impl JxlDecoder {
         };
         let durations_ms = (0..frame_count as usize)
             .map(|i| {
-                let ticks = image.frame_header(i).map(|h| h.duration).unwrap_or(0) as u64;
-                (ticks * 1000 * tps_den / tps_num).min(MAX_FRAME_DURATION_MS as u64) as u32
+                let ticks = image.frame_header(i).map(|h| h.duration).unwrap_or(0);
+                // u32 * 1000 * u32 does not fit u64: widen before multiplying
+                (ticks as u128 * 1000 * tps_den as u128 / tps_num as u128)
+                    .min(MAX_FRAME_DURATION_MS as u128) as u32
             })
             .collect();
         let alpha_associated = header
@@ -137,7 +139,7 @@ impl JxlDecoder {
         if w != band.width || h != band.height || !(1..=4).contains(&channels) {
             return Err(Error::new("JPEG XL: unexpected render size"));
         }
-        let mut samples = vec![0u8; w as usize * h as usize * channels];
+        let mut samples = zeroed_vec(w as usize * h as usize * channels)?;
         let written = stream.write_to_buffer::<u8>(&mut samples);
         if written != samples.len() {
             return Err(Error::new("JPEG XL: short render"));

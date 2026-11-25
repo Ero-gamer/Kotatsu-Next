@@ -41,11 +41,14 @@ class StatsCollector @Inject constructor(
                     duration = 0,
                     pages = 0,
                 ),
+                committedAt = now,
             )
             return
         }
         val pagesDelta = if (entry.state.page != state.page || entry.state.chapterId != state.chapterId) 1 else 0
+        // The stored state must follow the reader, or every call after the first page turn counts as a new page.
         val newEntry = entry.copy(
+            state = state,
             stats = StatsEntity(
                 mangaId = mangaId,
                 startedAt = entry.stats.startedAt,
@@ -53,13 +56,22 @@ class StatsCollector @Inject constructor(
                 pages = entry.stats.pages + pagesDelta,
             ),
         )
-        stats[mangaId] = newEntry
-        commit(newEntry.stats)
+        // One write per page turn is wasteful: write at most every COMMIT_INTERVAL_MS, the rest on pause.
+        if (now - entry.committedAt >= COMMIT_INTERVAL_MS) {
+            stats[mangaId] = newEntry.copy(committedAt = now, isDirty = false)
+            commit(newEntry.stats)
+        } else {
+            stats[mangaId] = newEntry.copy(isDirty = true)
+        }
     }
 
     @Synchronized
     fun onPause(mangaId: Long) {
+        val entry = stats[mangaId]
         stats.remove(mangaId)
+        if (entry != null && entry.isDirty) {
+            commit(entry.stats)
+        }
     }
 
     private fun commit(entity: StatsEntity) {
@@ -75,5 +87,12 @@ class StatsCollector @Inject constructor(
     private data class Entry(
         val state: ReaderState,
         val stats: StatsEntity,
+        val committedAt: Long,
+        val isDirty: Boolean = false,
     )
+
+    private companion object {
+
+        const val COMMIT_INTERVAL_MS = 15_000L
+    }
 }

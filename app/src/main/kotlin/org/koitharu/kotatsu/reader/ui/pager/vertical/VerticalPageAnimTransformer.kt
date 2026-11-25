@@ -2,14 +2,18 @@ package org.koitharu.kotatsu.reader.ui.pager.vertical
 
 import android.view.View
 import androidx.viewpager2.widget.ViewPager2
+import kotlin.math.abs
 
 class VerticalPageAnimTransformer : ViewPager2.PageTransformer {
 
     override fun transformPage(page: View, position: Float) = with(page) {
         translationY = -position * height
-        pivotX = width / 2f
-        pivotY = height * 0.2f
-        cameraDistance = 20000f
+        // Setters below do not compare with the current value: only touch them when they differ.
+        val px = width / 2f
+        if (pivotX != px) pivotX = px
+        val py = height * 0.2f
+        if (pivotY != py) pivotY = py
+        if (abs(cameraDistance - CAMERA_DISTANCE) > 1f) cameraDistance = CAMERA_DISTANCE
         when {
             position < -1f || position > 1f -> {
                 alpha = 0f
@@ -29,5 +33,10 @@ class VerticalPageAnimTransformer : ViewPager2.PageTransformer {
                 translationZ = 2f
             }
         }
+    }
+
+    private companion object {
+
+        const val CAMERA_DISTANCE = 20000f
     }
 }

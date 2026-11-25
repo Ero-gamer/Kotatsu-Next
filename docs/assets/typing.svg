@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="64" viewBox="0 0 640 64" role="img" aria-label="Kotatsu Next - Your manga universe, FOSS &amp; free - 11200+ sources, no ads, Material You">
+<title>Kotatsu Next</title>
+<defs><clipPath id="c0"><rect x="233.6" y="0" height="64" width="0">
+<animate attributeName="width" dur="10.8s" repeatCount="indefinite" keyTimes="0;0;0.1333;0.3;0.3333;1" values="0;0;172.8;172.8;0;0"/></rect></clipPath></defs>
+<g visibility="hidden">
+<animate attributeName="visibility" dur="10.8s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.0001;0.3333" values="visible;visible;hidden"/>
+<text x="233.6" y="32" clip-path="url(#c0)" fill="#C792EA" font-family="'Fira Code', 'DejaVu Sans Mono', Consolas, monospace" font-size="24" font-weight="600" dominant-baseline="central">Kotatsu Next</text>
+<rect y="18" width="2" height="28" fill="#C792EA">
+<animate attributeName="x" dur="10.8s" repeatCount="indefinite" keyTimes="0;0;0.1333;0.3;0.3333;1" values="233.6;233.6;406.4;406.4;233.6;233.6"/>
+<animate attributeName="opacity" dur="0.9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.5" values="1;0"/></rect>
+</g>
+<defs><clipPath id="c1"><rect x="89.6" y="0" height="64" width="0">
+<animate attributeName="width" dur="10.8s" repeatCount="indefinite" keyTimes="0;0.3333;0.4667;0.6333;0.6667;1" values="0;0;460.8;460.8;0;0"/></rect></clipPath></defs>
+<g visibility="hidden">
+<animate attributeName="visibility" dur="10.8s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.3333;0.6667" values="hidden;visible;hidden"/>
+<text x="89.6" y="32" clip-path="url(#c1)" fill="#C792EA" font-family="'Fira Code', 'DejaVu Sans Mono', Consolas, monospace" font-size="24" font-weight="600" dominant-baseline="central">Your manga universe, FOSS &amp; free</text>
+<rect y="18" width="2" height="28" fill="#C792EA">
+<animate attributeName="x" dur="10.8s" repeatCount="indefinite" keyTimes="0;0.3333;0.4667;0.6333;0.6667;1" values="89.6;89.6;550.4;550.4;89.6;89.6"/>
+<animate attributeName="opacity" dur="0.9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.5" values="1;0"/></rect>
+</g>
+<defs><clipPath id="c2"><rect x="46.4" y="0" height="64" width="0">
+<animate attributeName="width" dur="10.8s" repeatCount="indefinite" keyTimes="0;0.6667;0.8;0.9667;1;1" values="0;0;547.2;547.2;0;0"/></rect></clipPath></defs>
+<g visibility="hidden">
+<animate attributeName="visibility" dur="10.8s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.6667;1" values="hidden;visible;hidden"/>
+<text x="46.4" y="32" clip-path="url(#c2)" fill="#C792EA" font-family="'Fira Code', 'DejaVu Sans Mono', Consolas, monospace" font-size="24" font-weight="600" dominant-baseline="central">11200+ sources | No ads | Material You</text>
+<rect y="18" width="2" height="28" fill="#C792EA">
+<animate attributeName="x" dur="10.8s" repeatCount="indefinite" keyTimes="0;0.6667;0.8;0.9667;1;1" values="46.4;46.4;593.6;593.6;46.4;46.4"/>
+<animate attributeName="opacity" dur="0.9s" repeatCount="indefinite" calcMode="discrete" keyTimes="0;0.5" values="1;0"/></rect>
+</g>
+</svg>

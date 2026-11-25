@@ -69,7 +69,7 @@ abstract class BaseActivity<B : ViewBinding> :
             if (isAmoledTheme) {
                 setTheme(R.style.ThemeOverlay_Kotatsu_Amoled)
             }
-            // Apply card style overlay independently of colour scheme.
+            // Apply card style overlay independently of color scheme.
             if (settings.isCoverTitleCardStyle) {
                 setTheme(R.style.ThemeOverlay_Kotatsu_CoverTitleCards)
             } else {

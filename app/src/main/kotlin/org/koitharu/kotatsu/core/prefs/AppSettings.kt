@@ -23,7 +23,10 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.model.ReaderHideThreshold
 import org.koitharu.kotatsu.core.model.ZoomMode
+import org.koitharu.kotatsu.core.model.ReaderTint
+import org.koitharu.kotatsu.core.model.ZoomStart
 import org.koitharu.kotatsu.core.network.DoHProvider
 import org.koitharu.kotatsu.core.prefs.mmkv.MmkvPreferences
 import org.koitharu.kotatsu.core.prefs.mmkv.SharedPreferencesDataStore
@@ -138,6 +141,11 @@ constructor(
         get() = prefs.getInt(KEY_GRID_SIZE_PAGES, 100)
         set(value) = prefs.edit { putInt(KEY_GRID_SIZE_PAGES, value) }
 
+    /** The covers of the Explore tab, set apart from the library's: its charts are laid out closer together. */
+    var gridSizeDiscover: Int
+        get() = prefs.getInt(KEY_GRID_SIZE_DISCOVER, 100)
+        set(value) = prefs.edit { putInt(KEY_GRID_SIZE_DISCOVER, value) }
+
     val isQuickFilterEnabled: Boolean
         get() = prefs.getBoolean(KEY_QUICK_FILTER, true)
 
@@ -203,6 +211,10 @@ constructor(
 
     val isReaderControlAlwaysLTR: Boolean
         get() = prefs.getBoolean(KEY_READER_CONTROL_LTR, false)
+
+    /** Tap grid mirroring: 0 none, 1 left-right, 2 top-bottom, 3 both. */
+    val readerTapInversion: Int
+        get() = prefs.getString(KEY_READER_TAP_INVERSION, null)?.toIntOrNull()?.coerceIn(0, 3) ?: 0
 
     val isReaderNavigationInverted: Boolean
         get() = prefs.getBoolean(KEY_READER_NAVIGATION_INVERTED, false)
@@ -304,6 +316,10 @@ constructor(
     val isSmartSharpenEnabled: Boolean
         get() = prefs.getBoolean(KEY_READER_SMART_SHARPEN, true)
 
+    /** SSIV's minimum tile DPI: 180/240/320, lower = fewer tiles, less RAM, blurrier when zoomed. */
+    val readerTileDpi: Int
+        get() = prefs.getInt(KEY_READER_TILE_DPI, 320)
+
     val defaultReaderMode: ReaderMode
         get() = prefs.getEnumValue(KEY_READER_MODE, ReaderMode.STANDARD)
 
@@ -346,6 +362,42 @@ constructor(
 
     val zoomMode: ZoomMode
         get() = prefs.getEnumValue(KEY_ZOOM_MODE, ZoomMode.FIT_CENTER)
+
+    /** Wide page shown in a portrait view: after a short pause zoom to fit its height. */
+    val isLandscapeAutoZoom: Boolean
+        get() = prefs.getBoolean(KEY_LANDSCAPE_ZOOM, false)
+
+    /** A page-turn tap first pans a zoomed page by one screen width, and only turns the page at its edge. */
+    val isTapToPan: Boolean
+        get() = prefs.getBoolean(KEY_TAP_TO_PAN, false)
+
+    val readerHideThreshold: ReaderHideThreshold
+        get() = prefs.getEnumValue(KEY_READER_HIDE_THRESHOLD, ReaderHideThreshold.OFF)
+
+    val zoomStart: ZoomStart
+        get() = prefs.getEnumValue(KEY_ZOOM_START, ZoomStart.AUTO)
+
+    val isDoubleTapZoomEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DOUBLE_TAP_ZOOM, true)
+
+    /** Double-tap zoom animation length in ms; 0 keeps the default. */
+    val doubleTapZoomDuration: Int
+        get() = prefs.getString(KEY_DOUBLE_TAP_SPEED, null)?.toIntOrNull()?.coerceIn(0, 2000) ?: 0
+
+    /** Reader window brightness in percent; 0 follows the system. */
+    val readerBrightness: Int
+        get() = prefs.getInt(KEY_READER_BRIGHTNESS, 0).coerceIn(0, 100)
+
+    /** Black overlay strength in percent. */
+    val readerDim: Int
+        get() = prefs.getInt(KEY_READER_DIM, 0).coerceIn(0, MAX_READER_DIM)
+
+    val readerTint: ReaderTint
+        get() = prefs.getEnumValue(KEY_READER_TINT, ReaderTint.OFF)
+
+    /** Color overlay strength in percent. */
+    val readerTintStrength: Int
+        get() = prefs.getInt(KEY_READER_TINT_STRENGTH, DEFAULT_READER_TINT_STRENGTH).coerceIn(0, MAX_READER_TINT_STRENGTH)
 
     val trackSources: Set<String>
         get() = prefs.getStringSet(KEY_TRACK_SOURCES, null) ?: setOf(TRACK_FAVOURITES)
@@ -452,6 +504,15 @@ constructor(
         get() = prefs.getInt(KEY_SOURCES_VERSION, 0)
         set(value) = prefs.edit { putInt(KEY_SOURCES_VERSION, value) }
 
+    /** Sources were added by parsers downloaded since the list of new ones was last looked at. */
+    var hasNewDownloadedSources: Boolean
+        get() = prefs.getBoolean(KEY_SOURCES_NEW_DOWNLOADED, false)
+        set(value) = prefs.edit { putBoolean(KEY_SOURCES_NEW_DOWNLOADED, value) }
+
+    /** Whether newer parsers than the app's own are looked for and taken in, see ParsersUpdater. */
+    val isParsersAutoUpdateEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PARSERS_AUTO_UPDATE, true)
+
     var isAllSourcesEnabled: Boolean
         get() = prefs.getBoolean(KEY_SOURCES_ENABLED_ALL, false)
         set(value) = prefs.edit { putBoolean(KEY_SOURCES_ENABLED_ALL, value) }
@@ -466,8 +527,30 @@ constructor(
     val isAnimatedImagesEnabled: Boolean
         get() = prefs.getBoolean(KEY_ANIMATED_IMAGES, true)
 
+    /** Animated covers play on the details screen (needs [isAnimatedImagesEnabled]; never in memory-saver mode). */
+    val isDetailsCoverAnimated: Boolean
+        get() = prefs.getBoolean(KEY_DETAILS_COVER_ANIMATED, false)
+
     val isAnimatedAutoplay: Boolean
         get() = prefs.getBoolean(KEY_ANIMATED_AUTOPLAY, true)
+
+    val isAnimatedControls: Boolean
+        get() = prefs.getBoolean(KEY_ANIMATED_CONTROLS, true)
+
+    val isAnimatedAdvance: Boolean
+        get() = prefs.getBoolean(KEY_ANIMATED_ADVANCE, false)
+
+    /** Default animation speed multiplier. */
+    val animatedSpeed: Float
+        get() = prefs.getString(KEY_ANIMATED_SPEED, null)?.toFloatOrNull()?.coerceIn(0.25f, 4f) ?: 1f
+
+    /** Loop override: -1 = as in the file, 0 = forever, N = N plays. */
+    val animatedLoops: Int
+        get() = prefs.getString(KEY_ANIMATED_LOOPS, null)?.toIntOrNull()?.coerceAtLeast(-1) ?: -1
+
+    /** PNG page decoder: 0 = auto, 1 = system (Skia), 2 = native (Rust). */
+    val pngDecoderMode: Int
+        get() = prefs.getString(KEY_PNG_DECODER, null)?.toIntOrNull()?.coerceIn(0, 2) ?: 0
 
     val screenshotsPolicy: ScreenshotsPolicy
         get() = prefs.getEnumValue(KEY_SCREENSHOTS_POLICY, ScreenshotsPolicy.ALLOW)
@@ -509,6 +592,10 @@ constructor(
         get() = prefs.getEnumValue(KEY_DOWNLOADS_METERED_NETWORK, TriStateOption.ASK)
         set(value) = prefs.edit { putEnumValue(KEY_DOWNLOADS_METERED_NETWORK, value) }
 
+    /** How many chapters after the one being read are saved ahead of the reader (0 = off). */
+    val downloadAheadCount: Int
+        get() = prefs.getString(KEY_DOWNLOAD_AHEAD, null)?.toIntOrNull()?.coerceIn(0, 10) ?: 0
+
     val preferredDownloadFormat: DownloadFormat
         get() = prefs.getEnumValue(KEY_DOWNLOADS_FORMAT, DownloadFormat.AUTOMATIC)
 
@@ -543,8 +630,14 @@ constructor(
     val isReaderBarTransparent: Boolean
         get() = prefs.getBoolean(KEY_READER_BAR_TRANSPARENT, true)
 
+    val isSkipDuplicateChapters: Boolean
+        get() = prefs.getBoolean(KEY_READER_SKIP_DUPES, false)
+
     val isReaderChapterToastEnabled: Boolean
         get() = prefs.getBoolean(KEY_READER_CHAPTER_TOAST, true)
+
+    val isMissingChapterWarningEnabled: Boolean
+        get() = prefs.getBoolean(KEY_READER_MISSING_WARN, true)
 
     val isReaderKeepScreenOn: Boolean
         get() = prefs.getBoolean(KEY_READER_SCREEN_ON, true)
@@ -590,6 +683,7 @@ constructor(
                         legacyAdaptive
                     },
                     deband = getFloatCompat(KEY_CF_DEBAND, ReaderColorFilter.EMPTY.deband),
+                    binarize = getFloatCompat(KEY_CF_BINARIZE, ReaderColorFilter.EMPTY.binarize),
                     isInverted = prefs.getBoolean(KEY_CF_INVERTED, ReaderColorFilter.EMPTY.isInverted),
                     isGrayscale = prefs.getBoolean(KEY_CF_GRAYSCALE, ReaderColorFilter.EMPTY.isGrayscale),
                     isBookBackground = prefs.getBoolean(KEY_CF_BOOK, ReaderColorFilter.EMPTY.isBookBackground),
@@ -598,6 +692,13 @@ constructor(
                         KEY_CF_LINE_DARKEN,
                         ReaderColorFilter.EMPTY.isLineDarkenEnabled,
                     ),
+                    isAutoContrast = prefs.getBoolean(KEY_CF_AUTO_CONTRAST, ReaderColorFilter.EMPTY.isAutoContrast),
+                    isAutoBrightness = prefs.getBoolean(KEY_CF_AUTO_BRIGHTNESS, ReaderColorFilter.EMPTY.isAutoBrightness),
+                    isAutoSaturation = prefs.getBoolean(KEY_CF_AUTO_SATURATION, ReaderColorFilter.EMPTY.isAutoSaturation),
+                    overlayRed = getFloatCompat(KEY_CF_OVERLAY_R, ReaderColorFilter.EMPTY.overlayRed),
+                    overlayGreen = getFloatCompat(KEY_CF_OVERLAY_G, ReaderColorFilter.EMPTY.overlayGreen),
+                    overlayBlue = getFloatCompat(KEY_CF_OVERLAY_B, ReaderColorFilter.EMPTY.overlayBlue),
+                    overlayAlpha = getFloatCompat(KEY_CF_OVERLAY_A, ReaderColorFilter.EMPTY.overlayAlpha),
                 ).takeUnless { it.isEmpty }
             }.getOrNull()
         set(value) {
@@ -611,6 +712,7 @@ constructor(
                     putFloat(KEY_CF_RCAS, value.rcas)
                     putFloat(KEY_CF_ADAPTIVE_SHARPEN, value.adaptiveSharpen)
                     putFloat(KEY_CF_DEBAND, value.deband)
+                    putFloat(KEY_CF_BINARIZE, value.binarize)
                     // Legacy keys are superseded; drop them so the read-side fallback ends.
                     remove(KEY_CF_SHARPENING)
                     remove(KEY_CF_SHARPEN_MODE)
@@ -621,6 +723,13 @@ constructor(
                     putBoolean(KEY_CF_GRAYSCALE, value.isGrayscale)
                     putBoolean(KEY_CF_BOOK, value.isBookBackground)
                     putBoolean(KEY_CF_LINE_DARKEN, value.isLineDarkenEnabled)
+                    putBoolean(KEY_CF_AUTO_CONTRAST, value.isAutoContrast)
+                    putBoolean(KEY_CF_AUTO_BRIGHTNESS, value.isAutoBrightness)
+                    putBoolean(KEY_CF_AUTO_SATURATION, value.isAutoSaturation)
+                    putFloat(KEY_CF_OVERLAY_R, value.overlayRed)
+                    putFloat(KEY_CF_OVERLAY_G, value.overlayGreen)
+                    putFloat(KEY_CF_OVERLAY_B, value.overlayBlue)
+                    putFloat(KEY_CF_OVERLAY_A, value.overlayAlpha)
                 } else {
                     remove(KEY_CF_BRIGHTNESS)
                     remove(KEY_CF_CONTRAST)
@@ -635,6 +744,7 @@ constructor(
                     remove(KEY_CF_RCAS)
                     remove(KEY_CF_ADAPTIVE_SHARPEN)
                     remove(KEY_CF_DEBAND)
+                    remove(KEY_CF_BINARIZE)
                     // Keys of the removed decode-time resamplers (early builds only): clean up.
                     remove("cf_catmull_rom")
                     remove("cf_bspline")
@@ -642,6 +752,13 @@ constructor(
                     remove(KEY_CF_GRAYSCALE)
                     remove(KEY_CF_BOOK)
                     remove(KEY_CF_LINE_DARKEN)
+                    remove(KEY_CF_AUTO_CONTRAST)
+                    remove(KEY_CF_AUTO_BRIGHTNESS)
+                    remove(KEY_CF_AUTO_SATURATION)
+                    remove(KEY_CF_OVERLAY_R)
+                    remove(KEY_CF_OVERLAY_G)
+                    remove(KEY_CF_OVERLAY_B)
+                    remove(KEY_CF_OVERLAY_A)
                 }
             }
         }
@@ -702,6 +819,18 @@ constructor(
     var isWebtoonGapsEnabled: Boolean
         get() = prefs.getBoolean(KEY_WEBTOON_GAPS, false)
         set(value) = prefs.edit { putBoolean(KEY_WEBTOON_GAPS, value) }
+
+    /** Empty space left and right of a webtoon page, as a percentage of the display width per side. 0 = off. */
+    val webtoonSidePadding: Int
+        get() = prefs.getInt(KEY_WEBTOON_SIDE_PADDING, 0)
+
+    /** Empty space between the two pages of a double-page spread, percentage of display width. */
+    val doublePageGap: Int
+        get() = prefs.getInt(KEY_DOUBLE_PAGE_GAP, 0).coerceIn(0, 10)
+
+    /** Per-channel RGBA tolerance for "is this pixel white" during crop-borders edge detection. */
+    val cropBordersTolerance: Int
+        get() = prefs.getInt(KEY_READER_CROP_TOLERANCE, 16)
 
     var isWebtoonPullGestureEnabled: Boolean
         get() = prefs.getBoolean(KEY_WEBTOON_PULL_GESTURE, false)
@@ -812,6 +941,31 @@ constructor(
     val isStatsEnabled: Boolean
         get() = prefs.getBoolean(KEY_STATS_ENABLED, false)
 
+    val isTallSplitEnabled: Boolean
+        get() = prefs.getBoolean(KEY_TALL_SPLIT, false)
+
+    /** Double-page spread split at download time: 0 off, 1 left half first, 2 right half first. */
+    val dualPageSplit: Int
+        get() = when (prefs.getString(KEY_DUAL_SPLIT, null)) {
+            "ltr" -> DUAL_SPLIT_LTR
+            "rtl" -> DUAL_SPLIT_RTL
+            else -> DUAL_SPLIT_OFF
+        }
+
+    /** Re-encoded WebP pages follow the source quality (see WebpPolicy); off = fixed behaviour with [tallSplitQuality]. */
+    val isWebpQualityAuto: Boolean
+        get() = prefs.getBoolean(KEY_WEBP_QUALITY_AUTO, true)
+
+    /** Re-encode every downloaded still page as WebP (same resolution). */
+    val isConvertToWebpOnDownload: Boolean
+        get() = prefs.getBoolean(KEY_CONVERT_WEBP_DOWNLOAD, false)
+
+    val tallSplitQuality: Int
+        get() = prefs.getInt(KEY_TALL_SPLIT_QUALITY, 95).coerceIn(50, 100)
+
+    val isCbzAutoRepackEnabled: Boolean
+        get() = prefs.getBoolean(KEY_CBZ_AUTO_REPACK, false)
+
     val isAutoLocalChaptersCleanupEnabled: Boolean
         get() = prefs.getBoolean(KEY_CHAPTERS_CLEAR_AUTO, false)
 
@@ -824,7 +978,15 @@ constructor(
         return needle.toString() in rawValue
     }
 
+    val isReaderEraseGestureEnabled: Boolean
+        get() = prefs.getBoolean(KEY_READER_ERASE_GESTURE, true)
+
     fun isTipEnabled(tip: String): Boolean = prefs.getStringSet(KEY_TIPS_CLOSED, emptySet())?.contains(tip) != true
+
+    fun reopenTip(tip: String) {
+        val closedTips = prefs.getStringSet(KEY_TIPS_CLOSED, emptySet()).orEmpty()
+        prefs.edit { putStringSet(KEY_TIPS_CLOSED, closedTips - tip) }
+    }
 
     fun closeTip(tip: String) {
         val closedTips = prefs.getStringSet(KEY_TIPS_CLOSED, emptySet()).orEmpty()
@@ -871,9 +1033,43 @@ constructor(
 
     fun getAllValues(): Map<String, *> = prefs.all
 
-    fun upsertAll(m: Map<String, *>) = prefs.edit {
-        clear()
-        putAll(normalizeImportedPreferences(m))
+    /** Settings that make sense in a backup: [BACKUP_LOCAL_KEYS] belong to this device only. */
+    fun getBackupValues(): Map<String, *> = prefs.all.filterKeys { it !in BACKUP_LOCAL_KEYS }
+
+    /**
+     * Replaces the settings with the imported ones. Device-bound keys ([BACKUP_LOCAL_KEYS]) are neither imported nor
+     * erased, and a number keeps the type this key has now (JSON does not tell Int from Long from Float).
+     */
+    fun upsertAll(m: Map<String, *>) {
+        val current = prefs.all
+        val imported = HashMap<String, Any?>(m.size)
+        for ((key, value) in m) {
+            if (key in BACKUP_LOCAL_KEYS) continue
+            imported[key] = if (value is Number) {
+                when (current[key]) {
+                    is Float -> value.toFloat().takeIf { it.isFinite() } ?: value
+                    is Long -> value.toLong()
+                    is Int -> value.toInt()
+                    else -> value
+                }
+            } else {
+                value
+            }
+        }
+        prefs.edit {
+            clear()
+            putAll(normalizeImportedPreferences(imported))
+            for (key in BACKUP_LOCAL_KEYS) {
+                when (val v = current[key]) {
+                    is Boolean -> putBoolean(key, v)
+                    is Int -> putInt(key, v)
+                    is Long -> putLong(key, v)
+                    is Float -> putFloat(key, v)
+                    is String -> putString(key, v)
+                    is Set<*> -> putStringSet(key, v.filterIsInstanceTo(HashSet<String>()))
+                }
+            }
+        }
     }
 
     private fun getLongCompat(
@@ -979,6 +1175,7 @@ constructor(
         const val KEY_UPDATES_FEED_CLEAR = "updates_feed_clear"
         const val KEY_GRID_SIZE = "grid_size"
         const val KEY_GRID_SIZE_PAGES = "grid_size_pages"
+        const val KEY_GRID_SIZE_DISCOVER = "grid_size_discover"
         const val KEY_REMOTE_SOURCES = "remote_sources"
         const val KEY_LOCAL_STORAGE = "local_storage"
         const val KEY_READER_DOUBLE_PAGES = "reader_double_pages"
@@ -988,6 +1185,7 @@ constructor(
         const val KEY_READER_ZOOM_BUTTONS = "reader_zoom_buttons"
         const val KEY_READER_CONTROL_LTR = "reader_taps_ltr"
         const val KEY_READER_NAVIGATION_INVERTED = "reader_navigation_inverted"
+        const val KEY_READER_TAP_INVERSION = "reader_tap_inversion"
         const val KEY_READER_VERTICAL_SLIDER = "reader_vertical_slider"
         const val KEY_READER_FULLSCREEN = "reader_fullscreen"
         const val KEY_READER_VOLUME_BUTTONS = "reader_volume_buttons"
@@ -1013,15 +1211,30 @@ constructor(
         private const val LEGACY_SCALER_BSPLINE = "BSPLINE"
         const val KEY_READER_DOWNSCALER = "reader_downscaler"
         const val KEY_READER_SMART_SHARPEN = "reader_smart_sharpen"
+        const val KEY_READER_TILE_DPI = "reader_tile_dpi"
         const val KEY_READER_CONTROLS = "reader_controls"
         const val KEY_READER_MODE = "reader_mode"
         const val KEY_READER_MODE_DETECT = "reader_mode_detect"
         const val KEY_READER_CROP = "reader_crop"
+        const val KEY_READER_CROP_TOLERANCE = "reader_crop_tolerance"
         const val KEY_APP_PASSWORD = "app_password"
         const val KEY_APP_PASSWORD_NUMERIC = "app_password_num"
         const val KEY_PROTECT_APP = "protect_app"
         const val KEY_PROTECT_APP_BIOMETRIC = "protect_app_bio"
         const val KEY_ZOOM_MODE = "zoom_mode"
+        const val KEY_ZOOM_START = "zoom_start"
+        const val KEY_READER_BRIGHTNESS = "reader_brightness"
+        const val KEY_READER_DIM = "reader_dim"
+        const val KEY_READER_TINT = "reader_tint"
+        const val KEY_READER_TINT_STRENGTH = "reader_tint_strength"
+        const val MAX_READER_DIM = 80
+        const val MAX_READER_TINT_STRENGTH = 60
+        const val DEFAULT_READER_TINT_STRENGTH = 25
+        const val KEY_READER_HIDE_THRESHOLD = "reader_hide_threshold"
+        const val KEY_TAP_TO_PAN = "tap_to_pan"
+        const val KEY_DOUBLE_TAP_ZOOM = "reader_double_tap_zoom"
+        const val KEY_DOUBLE_TAP_SPEED = "reader_double_tap_speed"
+        const val KEY_LANDSCAPE_ZOOM = "landscape_zoom"
         const val KEY_BACKUP = "backup"
         const val KEY_RESTORE = "restore"
         const val KEY_BACKUP_PERIODICAL_ENABLED = "backup_periodic"
@@ -1039,6 +1252,12 @@ constructor(
         const val KEY_PAGES_NUMBERS = "pages_numbers"
         const val KEY_ANIMATED_IMAGES = "reader_animated"
         const val KEY_ANIMATED_AUTOPLAY = "reader_animated_autoplay"
+        const val KEY_DETAILS_COVER_ANIMATED = "details_cover_animated"
+        const val KEY_ANIMATED_CONTROLS = "reader_animated_controls"
+        const val KEY_ANIMATED_ADVANCE = "reader_animated_advance"
+        const val KEY_ANIMATED_SPEED = "reader_animated_speed"
+        const val KEY_ANIMATED_LOOPS = "reader_animated_loops"
+        const val KEY_PNG_DECODER = "reader_png_decoder"
         const val KEY_SCREENSHOTS_POLICY = "screenshots_policy"
         const val KEY_PAGES_PRELOAD = "pages_preload"
         const val KEY_SUGGESTIONS = "suggestions"
@@ -1053,6 +1272,7 @@ constructor(
         const val KEY_KITSU = "kitsu"
         const val KEY_DOWNLOADS_METERED_NETWORK = "downloads_metered_network"
         const val KEY_DOWNLOADS_FORMAT = "downloads_format"
+        const val KEY_DOWNLOAD_AHEAD = "download_ahead"
         const val KEY_ALL_FAVOURITES_VISIBLE = "all_favourites_visible"
         const val KEY_DOH = "doh"
         const val KEY_EXIT_CONFIRM = "exit_confirm"
@@ -1061,6 +1281,8 @@ constructor(
         const val KEY_READER_BAR = "reader_bar"
         const val KEY_READER_BAR_TRANSPARENT = "reader_bar_transparent"
         const val KEY_READER_CHAPTER_TOAST = "reader_chapter_toast"
+        const val KEY_READER_MISSING_WARN = "reader_missing_warn"
+        const val KEY_READER_SKIP_DUPES = "reader_skip_dupes"
         const val KEY_READER_BACKGROUND = "reader_background"
         const val KEY_READER_SCREEN_ON = "reader_screen_on"
         const val KEY_SHORTCUTS = "dynamic_shortcuts"
@@ -1076,11 +1298,17 @@ constructor(
         const val KEY_HISTORY_ORDER = "history_order"
         const val KEY_FAVORITES_ORDER = "fav_order"
         const val KEY_WEBTOON_GAPS = "webtoon_gaps"
+        const val KEY_WEBTOON_SIDE_PADDING = "webtoon_side_padding"
+        const val KEY_DOUBLE_PAGE_GAP = "double_page_gap"
         const val KEY_WEBTOON_ZOOM = "webtoon_zoom"
         const val KEY_WEBTOON_ZOOM_OUT = "webtoon_zoom_out"
         const val KEY_WEBTOON_PULL_GESTURE = "webtoon_pull_gesture"
+        const val KEY_READER_ERASE_GESTURE = "reader_erase_gesture"
+        const val KEY_ERASE_TUTORIAL = "erase_tutorial"
+        const val TIP_ERASE_TUTORIAL = "erase_tutorial"
         const val KEY_WEBTOON_MEMORY_SAVER = "webtoon_memory_saver"
         const val KEY_MEMORY_SAVER = "memory_saver"
+        const val TIP_DISCOVER_DISMISS = "discover_dismiss"
         const val KEY_PREFETCH_CONTENT = "prefetch_content"
         const val KEY_APP_LOCALE = "app_locale"
         const val KEY_SOURCES_GRID = "sources_grid"
@@ -1130,7 +1358,15 @@ constructor(
         const val KEY_CF_RCAS = "cf_rcas"
         const val KEY_CF_ADAPTIVE_SHARPEN = "cf_adaptive_sharpen"
         const val KEY_CF_DEBAND = "cf_deband"
+        const val KEY_CF_BINARIZE = "cf_binarize"
         const val KEY_CF_LINE_DARKEN = "cf_line_darken"
+        const val KEY_CF_AUTO_CONTRAST = "cf_auto_contrast"
+        const val KEY_CF_AUTO_BRIGHTNESS = "cf_auto_brightness"
+        const val KEY_CF_AUTO_SATURATION = "cf_auto_saturation"
+        const val KEY_CF_OVERLAY_R = "cf_overlay_r"
+        const val KEY_CF_OVERLAY_G = "cf_overlay_g"
+        const val KEY_CF_OVERLAY_B = "cf_overlay_b"
+        const val KEY_CF_OVERLAY_A = "cf_overlay_a"
         const val KEY_PAGES_TAB = "pages_tab"
         const val KEY_PAGE_FORMAT_BADGE = "page_format_badge"
         const val KEY_PAGE_ANIMATED_BADGE = "page_animated_badge"
@@ -1140,11 +1376,22 @@ constructor(
         const val KEY_READING_TIME = "reading_time"
         const val KEY_PAGES_SAVE_DIR = "pages_dir"
         const val KEY_PAGES_SAVE_ASK = "pages_dir_ask"
+        const val KEY_CBZ_AUTO_REPACK = "cbz_auto_repack"
+        const val KEY_TALL_SPLIT = "split_tall_images"
+        const val KEY_TALL_SPLIT_QUALITY = "tall_split_quality"
+        const val KEY_WEBP_QUALITY_AUTO = "webp_quality_auto"
+        const val KEY_CONVERT_WEBP_DOWNLOAD = "convert_webp_download"
+        const val KEY_DUAL_SPLIT = "split_dual_pages"
+        const val DUAL_SPLIT_OFF = 0
+        const val DUAL_SPLIT_LTR = 1
+        const val DUAL_SPLIT_RTL = 2
         const val KEY_STATS_ENABLED = "stats_on"
         const val KEY_FEED_HEADER = "feed_header"
         const val KEY_SEARCH_SUGGESTION_TYPES = "search_suggest_types"
         const val KEY_SOURCES_VERSION = "sources_version"
         const val KEY_SOURCES_ENABLED_ALL = "sources_enabled_all"
+        const val KEY_SOURCES_NEW_DOWNLOADED = "sources_new_downloaded"
+        const val KEY_PARSERS_AUTO_UPDATE = "parsers_auto_update"
         const val KEY_QUICK_FILTER = "quick_filter"
         const val KEY_COLLAPSE_DESCRIPTION = "description_collapse"
         const val KEY_BACKUP_TG_ENABLED = "backup_periodic_tg_enabled"
@@ -1154,6 +1401,28 @@ constructor(
         const val KEY_DISCORD_RPC_SKIP_NSFW = "discord_rpc_skip_nsfw"
         const val KEY_DISCORD_TOKEN = "discord_token"
         const val KEY_ACTIVE_SOURCE_PRESET = "active_source_preset"
+
+        /** Device-bound or secret: never written to a backup, never imported, never erased by a restore. */
+        val BACKUP_LOCAL_KEYS: Set<String> = setOf(
+            KEY_LOCAL_STORAGE,
+            KEY_LOCAL_MANGA_DIRS,
+            KEY_PAGES_SAVE_DIR,
+            KEY_BACKUP_PERIODICAL_ENABLED,
+            KEY_BACKUP_PERIODICAL_OUTPUT,
+            KEY_BACKUP_PERIODICAL_LAST,
+            KEY_BACKUP_TG_ENABLED,
+            KEY_BACKUP_TG_CHAT,
+            KEY_APP_VERSION,
+            KEY_PROTECT_APP,
+            KEY_PROTECT_APP_BIOMETRIC,
+            KEY_APP_PASSWORD,
+            KEY_APP_PASSWORD_NUMERIC,
+            KEY_PROXY_AUTH,
+            KEY_PROXY_LOGIN,
+            KEY_PROXY_PASSWORD,
+            KEY_INCOGNITO_MODE,
+            KEY_DISCORD_TOKEN,
+        )
 
         private val FLOAT_PREFERENCE_KEYS =
             setOf(

@@ -105,6 +105,8 @@ class FeedFragment :
 
     override fun onRefresh() {
         viewModel.update()
+        // The spinner follows the check: if it never starts (no connection), nothing else would stop the pulled spinner
+        requireViewBinding().swipeRefreshLayout.isRefreshing = viewModel.isRunning.value
     }
 
     override fun onFilterOptionClick(option: ListFilterOption) = viewModel.toggleFilterOption(option)

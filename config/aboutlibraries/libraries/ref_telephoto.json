@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:telephoto",
+  "name": "Telephoto",
+  "description": "Zoomable image design ideas",
+  "website": "https://github.com/saket/telephoto",
+  "developers": [
+    {
+      "name": "Saket Narayan",
+      "organisationUrl": "https://github.com/saket"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/saket/telephoto"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "tag": "ideas"
+}

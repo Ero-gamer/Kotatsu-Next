@@ -94,7 +94,7 @@ class MangaListMapper @Inject constructor(
         manga = manga,
         override = override,
         subtitle = manga.tags.joinToString(", ") { it.title },
-        counter = getCounter(manga.id),
+        counter = getCounter(manga.id, options),
     )
 
     private suspend fun toDetailedListModel(
@@ -106,7 +106,7 @@ class MangaListMapper @Inject constructor(
         subtitle = manga.altTitles.firstOrNull(),
         manga = manga,
         override = override,
-        counter = getCounter(manga.id),
+        counter = getCounter(manga.id, options),
         progress = getProgress(manga.id, options),
         isFavorite = isFavorite(manga.id, options),
         isSaved = isSaved(manga.id, options),
@@ -122,7 +122,7 @@ class MangaListMapper @Inject constructor(
     ) = MangaGridModel(
         manga = manga,
         override = override,
-        counter = getCounter(manga.id),
+        counter = getCounter(manga.id, options),
         progress = getProgress(manga.id, options),
         isFavorite = isFavorite(manga.id, options),
         isSaved = isSaved(manga.id, options),
@@ -141,7 +141,7 @@ class MangaListMapper @Inject constructor(
         ListMode.GRID -> toGridModel(manga, options, override, isPinned)
     }
 
-    private suspend fun getCounter(mangaId: Long): Int = if (settings.isTrackerEnabled) {
+    private suspend fun getCounter(mangaId: Long, @Options options: Int): Int = if (options.isBadgeEnabled(COUNTER) && settings.isTrackerEnabled) {
         trackingRepository.getNewChaptersCount(mangaId)
     } else {
         0
@@ -166,16 +166,16 @@ class MangaListMapper @Inject constructor(
     @Options
     @SuppressLint("WrongConstant")
     private fun getOptions(@Flags flags: Int): Int {
-        var options = settings.getMangaListBadges() or PROGRESS
+        var options = settings.getMangaListBadges() or PROGRESS or COUNTER
         options = options and flags.inv()
         return options
     }
 
-    @IntDef(DEFAULTS, NO_SAVED, NO_PROGRESS, NO_FAVORITE, flag = true)
+    @IntDef(DEFAULTS, NO_SAVED, NO_PROGRESS, NO_FAVORITE, NO_BADGES, flag = true)
     @Retention(AnnotationRetention.SOURCE)
     annotation class Flags
 
-    @IntDef(NONE, SAVED, FAVORITE, PROGRESS)
+    @IntDef(NONE, SAVED, FAVORITE, PROGRESS, COUNTER)
     @Retention(AnnotationRetention.SOURCE)
     private annotation class Options
 
@@ -185,10 +185,14 @@ class MangaListMapper @Inject constructor(
         private const val SAVED = 1
         private const val PROGRESS = 2
         private const val FAVORITE = 4
+        private const val COUNTER = 8
 
         const val DEFAULTS = NONE
         const val NO_SAVED = SAVED
         const val NO_PROGRESS = PROGRESS
         const val NO_FAVORITE = FAVORITE
+
+        /** For a list of what is not in the library: no badge could apply, so none of them gets looked up. */
+        const val NO_BADGES = SAVED or PROGRESS or FAVORITE or COUNTER
     }
 }

@@ -133,12 +133,20 @@ object CoverHash {
         return out
     }
 
+    // cos((i + 0.5) * k * PI / n) for every (k, i): computed once instead of 65 536 times per hash.
+    private val cosTable: Array<DoubleArray> by lazy {
+        Array(DCT_SIZE) { k -> DoubleArray(DCT_SIZE) { i -> cos(Math.PI * (i + 0.5) * k / DCT_SIZE) } }
+    }
+
     private fun DoubleArray.dct1d(): DoubleArray {
         val n = size
+        check(n == DCT_SIZE) { "Unexpected DCT size $n" }
+        val table = cosTable
         return DoubleArray(n) { k ->
+            val row = table[k]
             var sum = 0.0
             for (i in 0 until n) {
-                sum += this[i] * cos(Math.PI * (i + 0.5) * k / n)
+                sum += this[i] * row[i]
             }
             sum
         }

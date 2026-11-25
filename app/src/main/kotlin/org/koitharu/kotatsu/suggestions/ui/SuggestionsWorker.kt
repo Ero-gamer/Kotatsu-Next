@@ -47,7 +47,6 @@ import kotlinx.coroutines.sync.withPermit
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.exceptions.CloudFlareException
 import org.koitharu.kotatsu.core.exceptions.resolve.CaptchaHandler
-import org.koitharu.kotatsu.core.model.distinctById
 import org.koitharu.kotatsu.core.model.getLocale
 import org.koitharu.kotatsu.core.model.isNsfw
 import org.koitharu.kotatsu.core.nav.AppRouter
@@ -64,10 +63,13 @@ import org.koitharu.kotatsu.core.util.ext.getQuantityStringSafe
 import org.koitharu.kotatsu.core.util.ext.mangaSourceExtra
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.sanitize
-import org.koitharu.kotatsu.core.util.ext.takeMostFrequent
 import org.koitharu.kotatsu.core.util.ext.toBitmapOrNull
 import org.koitharu.kotatsu.core.util.ext.trySetForeground
 import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
+import org.koitharu.kotatsu.discover.data.DiscoverDismissals
+import org.koitharu.kotatsu.discover.domain.DiscoverRanking
+import org.koitharu.kotatsu.discover.domain.ReaderProfiles
+import org.koitharu.kotatsu.discover.data.DismissedIndex
 import org.koitharu.kotatsu.favourites.domain.FavouritesRepository
 import org.koitharu.kotatsu.history.data.HistoryRepository
 import org.koitharu.kotatsu.parsers.model.Manga
@@ -80,7 +82,10 @@ import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.parsers.util.sizeOrZero
 import org.koitharu.kotatsu.settings.work.PeriodicWorkScheduler
 import org.koitharu.kotatsu.suggestions.domain.MangaSuggestion
+import org.koitharu.kotatsu.suggestions.domain.SeedCandidate
+import org.koitharu.kotatsu.suggestions.domain.SuggestionRanking
 import org.koitharu.kotatsu.suggestions.domain.SuggestionRepository
+import org.koitharu.kotatsu.suggestions.domain.TagStatistics
 import org.koitharu.kotatsu.suggestions.domain.TagsBlacklist
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -101,6 +106,9 @@ class SuggestionsWorker @AssistedInject constructor(
     private val workManager: WorkManager,
     private val mangaRepositoryFactory: MangaRepository.Factory,
     private val sourcesRepository: MangaSourcesRepository,
+    private val tagStatistics: TagStatistics,
+    private val readerProfiles: ReaderProfiles,
+    private val dismissals: DiscoverDismissals,
 ) : CoroutineWorker(appContext, params) {
 
     private val notificationManager by lazy { NotificationManagerCompat.from(appContext) }
@@ -180,16 +188,50 @@ class SuggestionsWorker @AssistedInject constructor(
     }
 
     private suspend fun doWorkImpl(): Int {
-        val seed = (
-            historyRepository.getList(0, 20) +
-                favouritesRepository.getLastManga(20)
-            ).distinctById()
+        val excludeNsfw = appSettings.isSuggestionsExcludeNsfw || appSettings.isNsfwContentDisabled
+        val profile = runCatchingCancellable { readerProfiles.get() }.onFailure { it.printStackTraceDebug() }.getOrNull()
+        // "Not interested" said on the Discover screen applies here too
+        val dismissed = runCatchingCancellable { dismissals.get() }.onFailure { it.printStackTraceDebug() }
+            .getOrDefault(DismissedIndex.EMPTY)
+        val taste = DiscoverRanking.applyDismissals(profile?.taste.orEmpty(), dismissed.tagLists)
+        val now = java.time.Instant.now()
+        val favourites = favouritesRepository.getLastManga(20)
+        val favouriteIds = favourites.mapTo(HashSet()) { it.id }
+        val history = historyRepository.getListWithProgress(0, SEED_POOL)
+        // History that was opened and dropped does not steer suggestions; favourites are a deliberate pick.
+        val candidates = history.mapIndexedNotNull { index, (manga, progress) ->
+            val isFavourite = manga.id in favouriteIds
+            if (!isFavourite && SuggestionRanking.isDropped(progress.percent, progress.updatedAt, now)) {
+                return@mapIndexedNotNull null
+            }
+            SeedCandidate(
+                item = manga,
+                tags = DiscoverRanking.tagsOf(manga),
+                weight = SuggestionRanking.seedWeight(
+                    recency = index,
+                    percent = progress.percent,
+                    isFavourite = isFavourite,
+                    pagesRead = profile?.pagesRead?.get(manga.id) ?: 0,
+                ),
+            )
+        } + favourites.mapIndexed { index, manga ->
+            SeedCandidate(
+                item = manga,
+                tags = DiscoverRanking.tagsOf(manga),
+                weight = SuggestionRanking.seedWeight(index, -1f, isFavourite = true),
+            )
+        }
+        val seed = SuggestionRanking.pickSeeds(
+            candidates.distinctBy { it.item.id }.filter { !excludeNsfw || !it.item.isNsfw() },
+            SEED_LIMIT,
+        )
         val sources = getSources()
         if (seed.isEmpty() || sources.isEmpty()) {
             return 0
         }
         val tagsBlacklist = TagsBlacklist(appSettings.suggestionsTagsBlacklist, TAG_EQ_THRESHOLD)
-        val tags = seed.flatMap { it.tags.map { x -> x.title } }.takeMostFrequent(10)
+        val rarity = tagStatistics.snapshot()::rarity
+        val tags = SuggestionRanking.distinctiveTags(seed.flatMap { it.tags.map { x -> x.title } }, rarity, 10)
 
         val semaphore = Semaphore(MAX_PARALLELISM)
         val producer = channelFlow {
@@ -213,15 +255,25 @@ class SuggestionsWorker @AssistedInject constructor(
                     relevance = computeRelevance(manga.tags, tags),
                 )
             }.toList()
-            .sortedBy { it.relevance }
-            .take(MAX_RESULTS)
+            // Not what they already own, nor what they said they are not interested in
+            .filterNot { profile?.knows(it.manga) == true || dismissed.matches(it.manga) }
+            .map {
+                it.copy(
+                    relevance = DiscoverRanking.personalize(
+                        it.relevance.toDouble(),
+                        it.manga.tags.map { tag -> tag.title },
+                        taste,
+                    ).toFloat().coerceIn(0f, 1f),
+                )
+            }
+            .let { SuggestionRanking.diversify(it, MAX_RESULTS, rarity) }
         suggestionRepository.replace(suggestions)
-        if (appSettings.isSuggestionsNotificationAvailable &&
+        if (suggestions.isNotEmpty() && appSettings.isSuggestionsNotificationAvailable &&
             applicationContext.checkNotificationPermission(MANGA_CHANNEL_ID)
         ) {
             for (i in 0..3) {
                 try {
-                    val manga = suggestions[Random.nextInt(0, suggestions.size / 3)]
+                    val manga = suggestions[Random.nextInt(maxOf(1, suggestions.size / 3))]
                     val details = mangaRepositoryFactory.create(manga.manga.source)
                         .getDetails(manga.manga)
                     if (details.chapters.isNullOrEmpty()) {
@@ -463,6 +515,8 @@ class SuggestionsWorker @AssistedInject constructor(
         const val GROUP_SUGGESTION = "org.koitharu.kotatsu.SUGGESTIONS"
         const val WORKER_NOTIFICATION_ID = 36
         const val MAX_RESULTS = 160
+        const val SEED_POOL = 60
+        const val SEED_LIMIT = 20
         const val MAX_PARALLELISM = 3
         const val MAX_SOURCE_RESULTS = 20
         const val MAX_RAW_RESULTS = 280

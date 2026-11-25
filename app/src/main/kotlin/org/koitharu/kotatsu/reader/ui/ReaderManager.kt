@@ -12,6 +12,7 @@ import org.koitharu.kotatsu.reader.ui.pager.doublepage.DoubleReaderFragment
 import org.koitharu.kotatsu.reader.ui.pager.doublereversed.ReversedDoubleReaderFragment
 import org.koitharu.kotatsu.reader.ui.pager.reversed.ReversedReaderFragment
 import org.koitharu.kotatsu.reader.ui.pager.standard.PagerReaderFragment
+import org.koitharu.kotatsu.reader.ui.pager.vertical.BottomToTopReaderFragment
 import org.koitharu.kotatsu.reader.ui.pager.vertical.VerticalReaderFragment
 import org.koitharu.kotatsu.reader.ui.pager.webtoon.WebtoonReaderFragment
 import java.util.EnumMap
@@ -69,6 +70,7 @@ class ReaderManager(
         }
         modeMap[ReaderMode.WEBTOON] = WebtoonReaderFragment::class.java
         modeMap[ReaderMode.VERTICAL] = VerticalReaderFragment::class.java
+        modeMap[ReaderMode.BOTTOM_TO_TOP] = BottomToTopReaderFragment::class.java
     }
 
     private fun isLandscape() = container.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE

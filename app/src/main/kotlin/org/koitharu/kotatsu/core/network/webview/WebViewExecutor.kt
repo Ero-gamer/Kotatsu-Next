@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareCallback
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareClient
 import org.koitharu.kotatsu.browser.cloudflare.CloudFlareInterceptClient
@@ -135,7 +136,7 @@ class WebViewExecutor @Inject constructor(
                                 if (hasResumed) return@evaluateJavascript
                                 val content = result?.takeUnless { it == "null" }
                                 if (!content.isNullOrBlank()) {
-                                    println("DEBUG: Content found via polling. Returning immediately.")
+                                    if (BuildConfig.DEBUG) println("DEBUG: Content found via polling. Returning immediately.")
                                     resumeOnce(content)
                                 } else {
                                     handler.postDelayed(this, 1000)
@@ -151,19 +152,19 @@ class WebViewExecutor @Inject constructor(
                             if (originalHost != null && requestHost != null && requestHost.contains(originalHost)) {
                                 return false
                             }
-                            println("DEBUG: Blocked redirect to external domain: $url")
+                            if (BuildConfig.DEBUG) println("DEBUG: Blocked redirect to external domain: $url")
                             return true
                         }
 
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
                             if (hasResumed || url == "about:blank") return
-                            println("DEBUG: onPageFinished. Checking content...")
+                            if (BuildConfig.DEBUG) println("DEBUG: onPageFinished. Checking content...")
                             view?.evaluateJavascript(script) { result ->
                                 if (hasResumed) return@evaluateJavascript
                                 val content = result?.takeUnless { it == "null" }
                                 if (!content.isNullOrBlank()) {
-                                    println("DEBUG: Content found on pageFinished. Returning immediately.")
+                                    if (BuildConfig.DEBUG) println("DEBUG: Content found on pageFinished. Returning immediately.")
                                     resumeOnce(content)
                                 }
                             }
@@ -181,7 +182,7 @@ class WebViewExecutor @Inject constructor(
 
                     handler.postDelayed({
                         if (!hasResumed) {
-                            println("ERROR: Overall operation timed out.")
+                            if (BuildConfig.DEBUG) println("ERROR: Overall operation timed out.")
                             resumeOnce(null)
                         }
                     }, timeoutMs)
@@ -252,8 +253,8 @@ class WebViewExecutor @Inject constructor(
                         }
                     }
                     if (resolved == null) {
-                        Log.w(TAG, "Captcha auto-resolve timed out for ${exception.url}, dumping page HTML:")
-                        dumpPageHtml(webView)
+                        Log.w(TAG, "Captcha auto-resolve timed out for ${exception.url}")
+                        if (BuildConfig.DEBUG) dumpPageHtml(webView)
                     }
                     resolved == true
                 } catch (e: CancellationException) {

@@ -16,11 +16,11 @@ import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableManga
 import org.koitharu.kotatsu.core.nav.AppRouter
 import org.koitharu.kotatsu.core.parser.MangaDataRepository
-import org.koitharu.kotatsu.core.parser.MangaRepository
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.call
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.require
+import org.koitharu.kotatsu.details.domain.RelatedMangaUseCase
 import org.koitharu.kotatsu.list.domain.MangaListMapper
 import org.koitharu.kotatsu.list.ui.MangaListViewModel
 import org.koitharu.kotatsu.list.ui.model.EmptyState
@@ -34,15 +34,14 @@ import javax.inject.Inject
 @HiltViewModel
 class RelatedListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    mangaRepositoryFactory: MangaRepository.Factory,
     settings: AppSettings,
+    private val relatedMangaUseCase: RelatedMangaUseCase,
     private val mangaListMapper: MangaListMapper,
     mangaDataRepository: MangaDataRepository,
     @LocalStorageChanges localStorageChanges: SharedFlow<LocalManga?>,
 ) : MangaListViewModel(settings, mangaDataRepository, localStorageChanges) {
 
     private val seed = savedStateHandle.require<ParcelableManga>(AppRouter.KEY_MANGA).manga
-    private val repository = mangaRepositoryFactory.create(seed.source)
     private val mangaList = MutableStateFlow<List<Manga>?>(null)
     private val listError = MutableStateFlow<Throwable?>(null)
     private var loadingJob: Job? = null
@@ -79,7 +78,8 @@ class RelatedListViewModel @Inject constructor(
         return launchLoadingJob(Dispatchers.Default) {
             try {
                 listError.value = null
-                mangaList.value = repository.getRelated(seed)
+                // same path as the details screen row: the source's own list, then tag-based fill
+                mangaList.value = relatedMangaUseCase(seed).orEmpty()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {

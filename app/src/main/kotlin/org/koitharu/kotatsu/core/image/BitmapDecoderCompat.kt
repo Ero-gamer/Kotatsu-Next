@@ -31,7 +31,14 @@ object BitmapDecoderCompat {
 
     @Blocking
     fun decode(file: File, isMutable: Boolean = false): Bitmap = when (val format = probeMimeType(file)?.subtype) {
-        FORMAT_AVIF -> file.source().buffer().use { decodeAvif(it.readByteBuffer()) }
+        FORMAT_AVIF -> {
+            val mapped = file.mapReadOnlyOrNull()
+            try {
+                decodeAvif(mapped ?: file.source().buffer().use { it.readByteBuffer() })
+            } finally {
+                mapped?.capacity() // keeps the mapping reachable until native code is done
+            }
+        }
 
         else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             // isMutable=true forces ALLOCATOR_SOFTWARE (hardware bitmaps can't be mutable),
@@ -77,8 +84,20 @@ object BitmapDecoderCompat {
         null
     }
 
+    /**
+     * A region decoder for the file at [path]. The one-argument overload of [BitmapRegionDecoder.newInstance] only
+     * exists from Android 12 (calling it earlier throws NoSuchMethodError, which no `catch (Exception)` sees).
+     * Throws [IOException] like the platform method.
+     */
     @Blocking
-    fun probeMimeType(file: File): MimeType? = MimeTypes.probeMimeType(file) ?: detectBitmapType(file)
+    @Suppress("DEPRECATION")
+    @Throws(IOException::class)
+    fun createRegionDecoder(path: String): BitmapRegionDecoder? = BitmapRegionDecoder.newInstance(path, false)
+
+    @Blocking
+    fun probeMimeType(file: File): MimeType? = ImageFormatProbe.probe(file).format.mimeType?.toMimeTypeOrNull()
+        ?: MimeTypes.probeMimeType(file)
+        ?: detectBitmapType(file)
 
     @Blocking
     private fun detectBitmapType(file: File): MimeType? = runCatchingCancellable {
@@ -100,7 +119,9 @@ object BitmapDecoderCompat {
                 "Requested to decode byte buffer which cannot be handled by AvifDecoder",
             )
         }
-        val config = if (info.depth == 8 || info.alphaPresent) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
+        // Always 8 bits per channel. 10/12-bit AVIFs used to land in RGB_565 (5-6-5 bits): banded gradients, tinted
+        // grays, and nothing left for the sharpen / denoise / deband filters to work with.
+        val config = Bitmap.Config.ARGB_8888
         val bitmap = createBitmap(info.width, info.height, config)
         if (!AvifDecoder.decode(bytes, bytes.remaining(), bitmap)) {
             bitmap.recycle()

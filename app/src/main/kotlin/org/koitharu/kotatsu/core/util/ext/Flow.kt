@@ -62,15 +62,14 @@ fun <T> Flow<T>.throttle(timeoutMillis: Long): Flow<T> = throttle { timeoutMilli
 fun <T> Flow<T>.throttle(timeoutMillis: (T) -> Long): Flow<T> {
     var lastEmittedAt = 0L
     return transformLatest { value ->
-        val delay = timeoutMillis(value)
-        val now = SystemClock.elapsedRealtime()
-        if (delay > 0L) {
-            if (lastEmittedAt + delay < now) {
-                delay(lastEmittedAt + delay - now)
-            }
+        val interval = timeoutMillis(value)
+        if (interval > 0L) {
+            // Wait out what is left of the interval since the previous emission (a newer value replaces this one).
+            val wait = lastEmittedAt + interval - SystemClock.elapsedRealtime()
+            if (wait > 0L) delay(wait)
         }
         emit(value)
-        lastEmittedAt = now
+        lastEmittedAt = SystemClock.elapsedRealtime()
     }
 }
 

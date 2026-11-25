@@ -1,0 +1,21 @@
+{
+  "uniqueId": "native:jni",
+  "name": "jni (jni-rs)",
+  "description": "JNI bindings (Rust). MIT or Apache-2.0",
+  "website": "https://github.com/jni-rs/jni-rs",
+  "developers": [
+    {
+      "name": "jni-rs",
+      "organisationUrl": "https://github.com/jni-rs"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/jni-rs/jni-rs"
+  },
+  "licenses": [
+    "MIT",
+    "Apache-2.0"
+  ],
+  "artifactVersion": "0.22.4",
+  "tag": "native"
+}

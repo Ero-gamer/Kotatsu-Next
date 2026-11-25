@@ -65,6 +65,12 @@ class MALRepository @Inject constructor(
             body.add("code", code)
             body.add("redirect_uri", REDIRECT_URI)
             body.add("code_verifier", codeVerifier)
+        } else {
+            // Token refresh: MAL rejects an empty body, and the access token only lives about an hour.
+            val refreshToken = checkNotNull(storage.refreshToken) { "No MAL refresh token" }
+            body.add("client_id", clientId)
+            body.add("grant_type", "refresh_token")
+            body.add("refresh_token", refreshToken)
         }
         val request = Request.Builder()
             .post(body.build())
@@ -171,7 +177,7 @@ class MALRepository @Inject constructor(
             targetId = scrobblerMangaId,
             status = json.getString("status"),
             chapter = json.getInt("num_chapters_read"),
-            comment = json.getString("comments"),
+            comment = json.getStringOrNull("comments"),
             rating = (json.getDouble("score").toFloat() / 10f).coerceIn(0f, 1f),
         )
         db.getScrobblingDao().upsert(entity)

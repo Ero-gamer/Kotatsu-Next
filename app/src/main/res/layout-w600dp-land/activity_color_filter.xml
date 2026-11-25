@@ -266,6 +266,27 @@
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintTop_toTopOf="@id/button_brightness_minus" />
 
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_auto_brightness"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:layout_marginTop="4dp"
+				android:text="@string/auto_brightness"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_auto_brightness"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/button_brightness_minus" />
+
+			<ImageButton
+				android:id="@+id/info_auto_brightness"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/switch_auto_brightness" />
+
 			<TextView
 				android:id="@+id/textView_contrast"
 				android:layout_width="0dp"
@@ -278,7 +299,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toStartOf="@id/info_contrast"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/button_brightness_minus"
+				app:layout_constraintTop_toBottomOf="@id/switch_auto_brightness"
 				android:layout_marginStart="@dimen/margin_normal" />
 
 			<ImageButton
@@ -321,6 +342,28 @@
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintTop_toTopOf="@id/button_contrast_minus" />
 
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_auto_contrast"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:layout_marginTop="4dp"
+				android:text="@string/auto_contrast"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_auto_contrast"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_contrast_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_auto_contrast"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/switch_auto_contrast" />
+
 			<TextView
 				android:id="@+id/textView_saturation"
 				android:layout_width="0dp"
@@ -333,7 +376,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toStartOf="@id/info_saturation"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/button_contrast_minus"
+				app:layout_constraintTop_toBottomOf="@id/switch_auto_contrast"
 				android:layout_marginStart="@dimen/margin_normal" />
 
 			<ImageButton
@@ -376,6 +419,27 @@
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintTop_toTopOf="@id/button_saturation_minus" />
 
+			<com.google.android.material.materialswitch.MaterialSwitch
+				android:id="@+id/switch_auto_saturation"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:layout_marginTop="4dp"
+				android:text="@string/auto_saturation"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_auto_saturation"
+				app:layout_constraintStart_toStartOf="parent"
+				app:layout_constraintTop_toBottomOf="@id/button_saturation_minus" />
+
+			<ImageButton
+				android:id="@+id/info_auto_saturation"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/switch_auto_saturation" />
+
 			<TextView
 				android:id="@+id/textView_vibrance"
 				android:layout_width="0dp"
@@ -388,7 +452,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toStartOf="@id/info_vibrance"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/button_saturation_minus"
+				app:layout_constraintTop_toBottomOf="@id/switch_auto_saturation"
 				android:layout_marginStart="@dimen/margin_normal" />
 
 			<ImageButton
@@ -647,6 +711,61 @@
 				app:layout_constraintTop_toTopOf="@id/button_deband_minus" />
 
 			<TextView
+				android:id="@+id/textView_binarize"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_binarize"
+				android:text="@string/binarize"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_binarize"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_deband_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_binarize"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_binarize" />
+
+			<ImageButton
+				android:id="@+id/button_binarize_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_binarize"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_binarize"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_binarize_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_binarize_plus"
+				app:layout_constraintStart_toEndOf="@id/button_binarize_minus"
+				app:layout_constraintTop_toTopOf="@id/button_binarize_minus" />
+
+			<ImageButton
+				android:id="@+id/button_binarize_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_binarize_minus" />
+
+			<TextView
 				android:id="@+id/textView_denoise"
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
@@ -658,7 +777,7 @@
 				android:textAppearance="?textAppearanceTitleMedium"
 				app:layout_constraintEnd_toStartOf="@id/info_denoise"
 				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
-				app:layout_constraintTop_toBottomOf="@id/button_deband_minus"
+				app:layout_constraintTop_toBottomOf="@id/button_binarize_minus"
 				android:layout_marginStart="@dimen/margin_normal" />
 
 			<ImageButton
@@ -722,6 +841,251 @@
 				android:src="@drawable/ic_info_outline"
 				app:layout_constraintEnd_toEndOf="parent"
 				app:layout_constraintTop_toTopOf="@id/switch_line_darken" />
+
+			<TextView
+				android:id="@+id/header_overlay"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="@dimen/margin_normal"
+				android:text="@string/filter_category_overlay"
+				android:textAppearance="?textAppearanceTitleMedium"
+				android:textColor="?colorPrimary"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/switch_line_darken"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/subtitle_overlay"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:text="@string/filter_category_overlay_subtitle"
+				android:textAppearance="?textAppearanceBodySmall"
+				android:textColor="?colorOnSurfaceVariant"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/header_overlay"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<TextView
+				android:id="@+id/textView_overlay_red"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_overlay_red"
+				android:text="@string/overlay_red"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_overlay_red"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/subtitle_overlay"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_overlay_red"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_overlay_red" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_red_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_overlay_red"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_overlay_red"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_overlay_red_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_overlay_red_plus"
+				app:layout_constraintStart_toEndOf="@id/button_overlay_red_minus"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_red_minus" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_red_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_red_minus" />
+
+			<TextView
+				android:id="@+id/textView_overlay_green"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_overlay_green"
+				android:text="@string/overlay_green"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_overlay_green"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_overlay_red_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_overlay_green"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_overlay_green" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_green_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_overlay_green"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_overlay_green"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_overlay_green_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_overlay_green_plus"
+				app:layout_constraintStart_toEndOf="@id/button_overlay_green_minus"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_green_minus" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_green_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_green_minus" />
+
+			<TextView
+				android:id="@+id/textView_overlay_blue"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_overlay_blue"
+				android:text="@string/overlay_blue"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_overlay_blue"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_overlay_green_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_overlay_blue"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_overlay_blue" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_blue_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_overlay_blue"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_overlay_blue"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_overlay_blue_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_overlay_blue_plus"
+				app:layout_constraintStart_toEndOf="@id/button_overlay_blue_minus"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_blue_minus" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_blue_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_blue_minus" />
+
+			<TextView
+				android:id="@+id/textView_overlay_alpha"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:minHeight="48dp"
+				android:gravity="center_vertical"
+				android:layout_marginTop="@dimen/margin_small"
+				android:labelFor="@id/slider_overlay_alpha"
+				android:text="@string/overlay_alpha"
+				android:textAppearance="?textAppearanceTitleMedium"
+				app:layout_constraintEnd_toStartOf="@id/info_overlay_alpha"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/button_overlay_blue_minus"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<ImageButton
+				android:id="@+id/info_overlay_alpha"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_info_outline"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/textView_overlay_alpha" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_alpha_minus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_remove"
+				app:layout_constraintStart_toEndOf="@id/guideline_vertical"
+				app:layout_constraintTop_toBottomOf="@id/textView_overlay_alpha"
+				android:layout_marginStart="@dimen/margin_normal" />
+
+			<com.google.android.material.slider.Slider
+				android:id="@+id/slider_overlay_alpha"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:value="0.0"
+				android:valueFrom="0.0"
+				android:valueTo="1.0"
+				app:layout_constraintBottom_toBottomOf="@id/button_overlay_alpha_minus"
+				app:layout_constraintEnd_toStartOf="@id/button_overlay_alpha_plus"
+				app:layout_constraintStart_toEndOf="@id/button_overlay_alpha_minus"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_alpha_minus" />
+
+			<ImageButton
+				android:id="@+id/button_overlay_alpha_plus"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:background="?selectableItemBackgroundBorderless"
+				android:src="@drawable/ic_add"
+				app:layout_constraintEnd_toEndOf="parent"
+				app:layout_constraintTop_toTopOf="@id/button_overlay_alpha_minus" />
 
 		</androidx.constraintlayout.widget.ConstraintLayout>
 

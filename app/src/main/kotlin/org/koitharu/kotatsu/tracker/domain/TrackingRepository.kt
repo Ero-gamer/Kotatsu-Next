@@ -6,6 +6,7 @@ import dagger.Reusable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onStart
+import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.core.db.MangaDatabase
 import org.koitharu.kotatsu.core.db.entity.toManga
 import org.koitharu.kotatsu.core.db.entity.toMangaTags
@@ -114,13 +115,15 @@ constructor(
                 }
             }
         }
-        Log.i(
-            TAG,
-            "getTracks: collected ${result.size} of ${if (limit == Int.MAX_VALUE) "all" else limit} requested, " +
-                "scanned ${currentOffset - offset} eligible row(s), " +
-                "total tracks in db: ${db.getTracksDao().getTracksCount()}, " +
-                "minActivityTime=${minActivityTime.toInstantOrNull()}, staleCheckTime=${staleCheckTime.toInstantOrNull()}",
-        )
+        if (BuildConfig.DEBUG) {
+            // The extra COUNT query exists only for this line.
+            Log.i(
+                TAG,
+                "getTracks: collected ${result.size} of ${if (limit == Int.MAX_VALUE) "all" else limit} requested, " +
+                    "scanned ${currentOffset - offset} eligible row(s), " +
+                    "total tracks in db: ${db.getTracksDao().getTracksCount()}",
+            )
+        }
         return result
     }
 

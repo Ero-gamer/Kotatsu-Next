@@ -5,6 +5,7 @@ import org.koitharu.kotatsu.details.ui.model.ChapterListItem.Companion.FLAG_CURR
 import org.koitharu.kotatsu.details.ui.model.ChapterListItem.Companion.FLAG_DOWNLOADED
 import org.koitharu.kotatsu.details.ui.model.ChapterListItem.Companion.FLAG_GRID
 import org.koitharu.kotatsu.details.ui.model.ChapterListItem.Companion.FLAG_NEW
+import org.koitharu.kotatsu.details.ui.model.ChapterListItem.Companion.FLAG_OPTIMIZED
 import org.koitharu.kotatsu.details.ui.model.ChapterListItem.Companion.FLAG_UNREAD
 import org.koitharu.kotatsu.parsers.model.MangaChapter
 import kotlin.experimental.or
@@ -16,6 +17,7 @@ fun MangaChapter.toListItem(
     isDownloaded: Boolean,
     isBookmarked: Boolean,
     isGrid: Boolean,
+    isOptimized: Boolean = false,
 ): ChapterListItem {
     var flags: Byte = 0
     if (isCurrent) flags = flags or FLAG_CURRENT
@@ -24,6 +26,7 @@ fun MangaChapter.toListItem(
     if (isBookmarked) flags = flags or FLAG_BOOKMARKED
     if (isDownloaded) flags = flags or FLAG_DOWNLOADED
     if (isGrid) flags = flags or FLAG_GRID
+    if (isOptimized) flags = flags or FLAG_OPTIMIZED
     return ChapterListItem(
         chapter = this,
         flags = flags,

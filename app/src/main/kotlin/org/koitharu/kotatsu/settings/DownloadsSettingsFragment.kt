@@ -32,6 +32,7 @@ import org.koitharu.kotatsu.core.util.ext.viewLifecycleScope
 import org.koitharu.kotatsu.download.ui.worker.DownloadWorker
 import org.koitharu.kotatsu.local.data.CbzMaintenance
 import org.koitharu.kotatsu.local.data.LocalStorageManager
+import org.koitharu.kotatsu.local.ui.OptimizeFlow
 import org.koitharu.kotatsu.parsers.util.names
 import org.koitharu.kotatsu.settings.utils.DozeHelper
 import javax.inject.Inject
@@ -107,6 +108,19 @@ class DownloadsSettingsFragment :
 
         AppSettings.KEY_LOCAL_MANGA_DIRS -> {
             router.openDirectoriesSettings()
+            true
+        }
+
+        KEY_OPTIMIZE_SCREEN -> {
+            router.openOptimizer()
+            true
+        }
+
+        KEY_OPTIMIZE_ALL -> {
+            OptimizeFlow.start(requireContext(), viewLifecycleScope, getString(R.string.optimize_all_title), 0L) {
+                val dirs = storageManager.getReadableDirs()
+                withContext(Dispatchers.IO) { CbzMaintenance.listArchives(dirs) }
+            }
             true
         }
 
@@ -249,6 +263,8 @@ class DownloadsSettingsFragment :
 
     private companion object {
 
+        const val KEY_OPTIMIZE_ALL = "optimize_all"
+        const val KEY_OPTIMIZE_SCREEN = "optimize_screen"
         const val KEY_CBZ_REPACK = "cbz_repack_stored"
         const val KEY_CBZ_FIX_EXT = "cbz_fix_extensions"
     }

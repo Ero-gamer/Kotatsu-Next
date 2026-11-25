@@ -536,14 +536,25 @@ object ImageFormatProbe {
         private fun isAvifBrand(): Boolean {
             val size = u32be(0)
             if (size < 16) return false
-            if (has(8, "avif") || has(8, "avis")) return true
-            var p = 16L
+            // brands: major at 8, minor version at 12 (skipped), compatible brands from 16
+            var avif = false
+            var generic = false
+            var heic = false
+            var p = 8L
             val end = minOf(size, 256L)
             while (p + 4 <= end) {
-                if (has(p, "avif") || has(p, "avis")) return true
+                if (p != 12L) {
+                    when {
+                        has(p, "avif") || has(p, "avis") -> avif = true
+                        has(p, "mif1") || has(p, "miaf") || has(p, "msf1") -> generic = true
+                        has(p, "heic") || has(p, "heix") || has(p, "hevc") || has(p, "hevx") ||
+                            has(p, "heim") || has(p, "heis") -> heic = true
+                    }
+                }
                 p += 4
             }
-            return false
+            // generic HEIF brands alone (no avif brand) are AVIF unless an HEVC/HEIC brand says otherwise
+            return avif || (generic && !heic)
         }
 
         private class AvifState {

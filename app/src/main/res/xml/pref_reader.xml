@@ -26,6 +26,86 @@
 		app:allowDividerAbove="true"
 		app:useSimpleSummaryProvider="true" />
 
+	<ListPreference
+		android:entries="@array/zoom_starts"
+		android:icon="@drawable/ic_zoom_in"
+		android:key="zoom_start"
+		android:title="@string/zoom_start"
+		app:useSimpleSummaryProvider="true" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="false"
+		android:icon="@drawable/ic_zoom_in"
+		android:key="landscape_zoom"
+		android:summary="@string/landscape_zoom_summary"
+		android:title="@string/landscape_zoom" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="false"
+		android:icon="@drawable/ic_zoom_in"
+		android:key="tap_to_pan"
+		android:summary="@string/tap_to_pan_summary"
+		android:title="@string/tap_to_pan" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="true"
+		android:icon="@drawable/ic_zoom_in"
+		android:key="reader_double_tap_zoom"
+		android:summary="@string/double_tap_zoom_summary"
+		android:title="@string/double_tap_zoom" />
+
+	<ListPreference
+		android:defaultValue="0"
+		android:dependency="reader_double_tap_zoom"
+		android:entries="@array/double_tap_speeds"
+		android:entryValues="@array/double_tap_speed_values"
+		android:icon="@drawable/ic_zoom_in"
+		android:key="reader_double_tap_speed"
+		android:title="@string/double_tap_zoom_speed"
+		app:useSimpleSummaryProvider="true" />
+
+	<ListPreference
+		android:entries="@array/reader_hide_thresholds"
+		android:icon="@drawable/ic_zoom_out"
+		android:key="reader_hide_threshold"
+		android:title="@string/reader_hide_threshold"
+		app:useSimpleSummaryProvider="true" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:icon="@drawable/ic_appearance"
+		android:key="reader_brightness"
+		android:stepSize="5"
+		android:title="@string/reader_brightness"
+		android:valueFrom="0"
+		android:valueTo="100"
+		app:defaultValue="0" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:icon="@drawable/ic_appearance"
+		android:key="reader_dim"
+		android:stepSize="5"
+		android:title="@string/reader_dim"
+		android:valueFrom="0"
+		android:valueTo="80"
+		app:defaultValue="0" />
+
+	<ListPreference
+		android:entries="@array/reader_tints"
+		android:icon="@drawable/ic_appearance"
+		android:key="reader_tint"
+		android:title="@string/reader_tint"
+		app:useSimpleSummaryProvider="true" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:dependency="reader_tint"
+		android:icon="@drawable/ic_appearance"
+		android:key="reader_tint_strength"
+		android:stepSize="5"
+		android:title="@string/reader_tint_strength"
+		android:valueFrom="0"
+		android:valueTo="60"
+		app:defaultValue="25" />
+
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
 		android:icon="@drawable/ic_zoom_out"
@@ -50,6 +130,24 @@
 		android:valueTo="50"
 		app:defaultValue="0"
 		app:tickVisible="true" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:icon="@drawable/ic_split_horizontal"
+		android:key="double_page_gap"
+		android:stepSize="1"
+		android:title="@string/double_page_gap"
+		android:valueFrom="0"
+		android:valueTo="10"
+		app:defaultValue="0" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:icon="@drawable/ic_split_horizontal"
+		android:key="webtoon_side_padding"
+		android:stepSize="1"
+		android:title="@string/webtoon_side_padding"
+		android:valueFrom="0"
+		android:valueTo="25"
+		app:defaultValue="0" />
 
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
@@ -78,6 +176,16 @@
 		android:key="reader_taps_ltr"
 		android:summary="@string/reader_control_ltr_summary"
 		android:title="@string/reader_control_ltr" />
+
+	<ListPreference
+		android:defaultValue="0"
+		android:entries="@array/reader_tap_inversion"
+		android:entryValues="@array/values_reader_tap_inversion"
+		android:icon="@drawable/ic_revert"
+		android:key="reader_tap_inversion"
+		android:summary="@string/reader_tap_inversion_summary"
+		android:title="@string/reader_tap_inversion"
+		app:useSimpleSummaryProvider="false" />
 
 	<SwitchPreferenceCompat
 		android:defaultValue="false"
@@ -149,6 +257,62 @@
 		android:icon="@drawable/ic_crop"
 		android:key="reader_crop"
 		android:title="@string/crop_pages" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:icon="@drawable/ic_crop"
+		android:key="reader_crop_tolerance"
+		android:stepSize="2"
+		android:summary="@string/crop_tolerance_summary"
+		android:title="@string/crop_tolerance"
+		android:valueFrom="0"
+		android:valueTo="64"
+		app:defaultValue="16" />
+
+	<org.koitharu.kotatsu.settings.utils.SliderPreference
+		android:icon="@drawable/ic_size_large"
+		android:key="reader_tile_dpi"
+		android:stepSize="20"
+		android:summary="@string/reader_tile_dpi_summary"
+		android:title="@string/reader_tile_dpi"
+		android:valueFrom="160"
+		android:valueTo="400"
+		app:defaultValue="320" />
+
+	<ListPreference
+		android:defaultValue="0"
+		android:entries="@array/png_decoder_entries"
+		android:entryValues="@array/png_decoder_values"
+		android:icon="@drawable/ic_images"
+		android:key="reader_png_decoder"
+		android:summary="@string/png_decoder_summary"
+		android:title="@string/png_decoder" />
+
+	<PreferenceCategory
+		android:title="@string/hidden_images"
+		app:allowDividerAbove="true">
+
+		<SwitchPreferenceCompat
+			android:defaultValue="true"
+			android:icon="@drawable/ic_delete"
+			android:key="reader_erase_gesture"
+			android:summary="@string/erase_gesture_summary"
+			android:title="@string/erase_gesture" />
+
+		<Preference
+			android:icon="@drawable/ic_info_outline"
+			android:key="erase_tutorial"
+			android:persistent="false"
+			android:summary="@string/erase_tutorial_again_summary"
+			android:title="@string/erase_tutorial_again" />
+
+		<PreferenceScreen
+			android:fragment="org.koitharu.kotatsu.reader.ui.erase.HiddenImagesFragment"
+			android:icon="@drawable/ic_eye_off"
+			android:key="hidden_images"
+			android:summary="@string/hidden_images_summary"
+			android:title="@string/hidden_images" />
+
+	</PreferenceCategory>
 
 	<PreferenceCategory
 		android:title="@string/e_ink"
@@ -242,6 +406,20 @@
 		android:summary="@string/reader_chapter_toast_summary"
 		android:title="@string/reader_chapter_toast" />
 
+	<SwitchPreferenceCompat
+		android:defaultValue="true"
+		android:icon="@drawable/ic_notification"
+		android:key="reader_missing_warn"
+		android:summary="@string/missing_chapters_warning_summary"
+		android:title="@string/missing_chapters_warning" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="false"
+		android:icon="@drawable/ic_next"
+		android:key="reader_skip_dupes"
+		android:summary="@string/skip_duplicate_chapters_summary"
+		android:title="@string/skip_duplicate_chapters" />
+
 	<ListPreference
 		android:entries="@array/reader_backgrounds"
 		android:icon="@drawable/ic_appearance"
@@ -278,6 +456,50 @@
 		android:key="reader_animated_autoplay"
 		android:summary="@string/animated_autoplay_summary"
 		android:title="@string/animated_autoplay" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="false"
+		android:dependency="reader_animated"
+		android:icon="@drawable/ic_play"
+		android:key="details_cover_animated"
+		android:summary="@string/details_cover_animated_summary"
+		android:title="@string/details_cover_animated" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="true"
+		android:dependency="reader_animated"
+		android:icon="@drawable/ic_play"
+		android:key="reader_animated_controls"
+		android:summary="@string/animated_controls_summary"
+		android:title="@string/animated_controls" />
+
+	<SwitchPreferenceCompat
+		android:defaultValue="false"
+		android:dependency="reader_animated"
+		android:icon="@drawable/ic_next"
+		android:key="reader_animated_advance"
+		android:summary="@string/animated_advance_summary"
+		android:title="@string/animated_advance" />
+
+	<ListPreference
+		android:defaultValue="1"
+		android:dependency="reader_animated"
+		android:entries="@array/animated_speed_entries"
+		android:entryValues="@array/animated_speed_values"
+		android:icon="@drawable/ic_play"
+		android:key="reader_animated_speed"
+		android:title="@string/animated_speed"
+		app:useSimpleSummaryProvider="true" />
+
+	<ListPreference
+		android:defaultValue="-1"
+		android:dependency="reader_animated"
+		android:entries="@array/animated_loops_entries"
+		android:entryValues="@array/animated_loops_values"
+		android:icon="@drawable/ic_play"
+		android:key="reader_animated_loops"
+		android:title="@string/animated_loops"
+		app:useSimpleSummaryProvider="true" />
 
 	<ListPreference
 		android:defaultValue="2"

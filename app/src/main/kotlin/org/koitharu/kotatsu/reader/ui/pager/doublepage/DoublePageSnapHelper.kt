@@ -61,9 +61,9 @@ class DoublePageSnapHelper(private val settings: AppSettings) : SnapHelper() {
             orientationHelper = OrientationHelper.createHorizontalHelper(layoutManager)
             layoutDirectionHelper = LayoutDirectionHelper(recyclerView.layoutDirection)
             scroller = Scroller(target.context, snapInterpolator)
-            initItemDimensionIfNeeded(layoutManager)
+            refreshItemDimension(layoutManager)
         }
-        super.attachToRecyclerView(recyclerView)
+        super.attachToRecyclerView(target)
     }
 
     override fun calculateDistanceToFinalSnap(
@@ -87,7 +87,10 @@ class DoublePageSnapHelper(private val settings: AppSettings) : SnapHelper() {
         velocityY: Int,
     ): Int {
         val lm = layoutManager as LinearLayoutManager
-        initItemDimensionIfNeeded(layoutManager)
+        refreshItemDimension(layoutManager)
+        if (itemDimension <= 0) {
+            return RecyclerView.NO_POSITION
+        }
         scroller!!.fling(0, 0, velocityX, velocityY, Int.MIN_VALUE, Int.MAX_VALUE, Int.MIN_VALUE, Int.MAX_VALUE)
         if (velocityX != 0) {
             return layoutDirectionHelper
@@ -116,7 +119,7 @@ class DoublePageSnapHelper(private val settings: AppSettings) : SnapHelper() {
         if (firstVisiblePos == RecyclerView.NO_POSITION) {
             return RecyclerView.NO_POSITION
         }
-        initItemDimensionIfNeeded(layoutManager)
+        refreshItemDimension(layoutManager)
         if (firstVisiblePos >= priorFirstPosition) {
             // Scrolling toward bottom of data
             val firstCompletePosition = layoutManager.findFirstCompletelyVisibleItemPosition()
@@ -143,24 +146,34 @@ class DoublePageSnapHelper(private val settings: AppSettings) : SnapHelper() {
         return snapPos
     }
 
-    private fun initItemDimensionIfNeeded(layoutManager: RecyclerView.LayoutManager) {
-        if (itemDimension != 0) {
+    /**
+     * Re-reads the item size on every call (rotation / fold / window resize change it); a not yet laid out child keeps
+     * the previous values instead of dividing by zero.
+     */
+    private fun refreshItemDimension(layoutManager: RecyclerView.LayoutManager) {
+        val child: View = layoutManager.getChildAt(0) ?: return
+        val dimension: Int
+        val total: Int
+        if (layoutManager.canScrollHorizontally()) {
+            dimension = child.width
+            total = recyclerView.width
+        } else if (layoutManager.canScrollVertically()) {
+            dimension = child.height
+            total = recyclerView.height
+        } else {
             return
         }
-        val child: View = layoutManager.getChildAt(0) ?: return
-        if (layoutManager.canScrollHorizontally()) {
-            itemDimension = child.width
-            blockSize = getSpanCount(layoutManager) * (recyclerView.width / itemDimension)
-        } else if (layoutManager.canScrollVertically()) {
-            itemDimension = child.height
-            blockSize = getSpanCount(layoutManager) * (recyclerView.height / itemDimension)
+        if (dimension <= 0) {
+            return
         }
+        itemDimension = dimension
+        blockSize = (getSpanCount(layoutManager) * (total.toFloat() / dimension).roundToInt()).coerceAtLeast(1)
         maxPositionsToMove = blockSize * maxFlingBlocks
     }
 
     private fun getSpanCount(layoutManager: RecyclerView.LayoutManager): Int = if (layoutManager is GridLayoutManager) layoutManager.spanCount else 1
 
-    private fun roundDownToBlockSize(trialPosition: Int): Int = trialPosition and 1.inv()
+    private fun roundDownToBlockSize(trialPosition: Int): Int = trialPosition - trialPosition % blockSize
 
     override fun createScroller(layoutManager: RecyclerView.LayoutManager): RecyclerView.SmoothScroller? = if (layoutManager !is ScrollVectorProvider) {
         null

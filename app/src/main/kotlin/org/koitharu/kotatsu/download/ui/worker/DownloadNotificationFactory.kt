@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
 import android.text.format.DateUtils
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -43,6 +44,7 @@ import androidx.appcompat.R as appcompatR
 private const val CHANNEL_ID_DEFAULT = "download"
 private const val CHANNEL_ID_SILENT = "download_bg"
 private const val GROUP_ID = "downloads"
+private const val COVER_RETRY_MS = 2 * 60 * 1000L
 
 class DownloadNotificationFactory @AssistedInject constructor(
     @LocalizedAppContext private val context: Context,
@@ -52,7 +54,9 @@ class DownloadNotificationFactory @AssistedInject constructor(
     @Assisted val isSilent: Boolean,
 ) {
 
-    private val covers = HashMap<Manga, Drawable>() // TODO cache
+    // Keyed by id: hashing a Manga hashes its whole chapter list, on every notification update.
+    private val covers = HashMap<Long, Drawable>()
+    private val failedCovers = HashMap<Long, Long>()
     private val builder = NotificationCompat.Builder(context, if (isSilent) CHANNEL_ID_SILENT else CHANNEL_ID_DEFAULT)
     private val mutex = Mutex()
 
@@ -273,8 +277,13 @@ class DownloadNotificationFactory @AssistedInject constructor(
         false,
     )
 
-    private suspend fun getCover(manga: Manga) = covers[manga] ?: run {
-        runCatchingCancellable {
+    private suspend fun getCover(manga: Manga): Drawable? {
+        covers[manga.id]?.let { return it }
+        // A cover that failed is not requested again on every progress update (several per second).
+        failedCovers[manga.id]?.let { at ->
+            if (SystemClock.elapsedRealtime() - at < COVER_RETRY_MS) return null
+        }
+        return runCatchingCancellable {
             coil.execute(
                 ImageRequest.Builder(context)
                     .data(manga.coverUrl)
@@ -285,9 +294,11 @@ class DownloadNotificationFactory @AssistedInject constructor(
                     .build(),
             ).getDrawableOrThrow()
         }.onSuccess {
-            covers[manga] = it
+            covers[manga.id] = it
+            failedCovers.remove(manga.id)
         }.onFailure {
             it.printStackTraceDebug()
+            failedCovers[manga.id] = SystemClock.elapsedRealtime()
         }.getOrNull()
     }
 

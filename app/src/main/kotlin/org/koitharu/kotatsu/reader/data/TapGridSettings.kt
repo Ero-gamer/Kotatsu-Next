@@ -2,11 +2,13 @@ package org.koitharu.kotatsu.reader.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.StringRes
 import androidx.core.content.edit
 import dagger.Reusable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
+import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.prefs.mmkv.MmkvPreferences
 import org.koitharu.kotatsu.core.util.ext.getEnumValue
 import org.koitharu.kotatsu.core.util.ext.observeChanges
@@ -49,6 +51,69 @@ constructor(
 
     fun reset() {
         initPrefs(withDefaultValues = true)
+    }
+
+    /** Replaces every tap action with [preset]; long-tap on the centre keeps opening the menu. */
+    fun applyPreset(preset: Preset) {
+        prefs.edit {
+            clear()
+            for (area in TapGridArea.entries) {
+                putEnumValue(getPrefKey(area, false), preset.actionFor(area))
+            }
+            putEnumValue(getPrefKey(TapGridArea.CENTER, true), TapAction.SHOW_MENU)
+            putBoolean(KEY_INIT, true)
+        }
+    }
+
+    enum class Preset(@StringRes val nameResId: Int) {
+
+        /** Left and top turn back, right and bottom go forward. */
+        L_SHAPED(R.string.tap_preset_l_shaped),
+
+        /** Left column goes back, everything else forward. */
+        KINDLE(R.string.tap_preset_kindle),
+
+        /** Left column back, right column forward, middle column toggles the UI. */
+        LEFT_RIGHT(R.string.tap_preset_left_right),
+
+        /** Top row back, bottom row forward, middle row toggles the UI. */
+        TOP_BOTTOM(R.string.tap_preset_top_bottom),
+        ;
+
+        fun actionFor(area: TapGridArea): TapAction {
+            val col = when (area) {
+                TapGridArea.TOP_LEFT, TapGridArea.CENTER_LEFT, TapGridArea.BOTTOM_LEFT -> 0
+                TapGridArea.TOP_CENTER, TapGridArea.CENTER, TapGridArea.BOTTOM_CENTER -> 1
+                else -> 2
+            }
+            val row = when (area) {
+                TapGridArea.TOP_LEFT, TapGridArea.TOP_CENTER, TapGridArea.TOP_RIGHT -> 0
+                TapGridArea.CENTER_LEFT, TapGridArea.CENTER, TapGridArea.CENTER_RIGHT -> 1
+                else -> 2
+            }
+            return when (this) {
+                L_SHAPED -> when {
+                    area == TapGridArea.CENTER -> TapAction.TOGGLE_UI
+                    col == 0 || (row == 0 && col == 1) -> TapAction.PAGE_PREV
+                    else -> TapAction.PAGE_NEXT
+                }
+                KINDLE -> when {
+                    area == TapGridArea.CENTER -> TapAction.TOGGLE_UI
+                    col == 0 -> TapAction.PAGE_PREV
+                    else -> TapAction.PAGE_NEXT
+                }
+                LEFT_RIGHT -> when (col) {
+                    0 -> TapAction.PAGE_PREV
+                    1 -> TapAction.TOGGLE_UI
+                    else -> TapAction.PAGE_NEXT
+                }
+                TOP_BOTTOM -> when (row) {
+                    0 -> TapAction.PAGE_PREV
+                    1 -> TapAction.TOGGLE_UI
+                    else -> TapAction.PAGE_NEXT
+                }
+            }
+        }
     }
 
     fun disableAll() {

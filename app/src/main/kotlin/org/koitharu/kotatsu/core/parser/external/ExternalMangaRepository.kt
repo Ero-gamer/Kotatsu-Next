@@ -3,6 +3,7 @@
 package org.koitharu.kotatsu.core.parser.external
 
 import android.content.ContentResolver
+import android.os.SystemClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import org.koitharu.kotatsu.core.cache.MemoryContentCache
@@ -26,13 +27,27 @@ class ExternalMangaRepository(
 
     private val contentSource = ExternalPluginContentSource(contentResolver, source)
 
-    private val capabilities by lazy {
-        runCatching {
-            contentSource.getCapabilities()
-        }.onFailure {
-            it.printStackTraceDebug()
-        }.getOrNull()
-    }
+    @Volatile
+    private var capsValue: ExternalPluginContentSource.MangaSourceCapabilities? = null
+
+    @Volatile
+    private var capsFailedAt = 0L
+
+    /** Loaded once; a failed load (plugin briefly unavailable) is retried after [CAPS_RETRY_MS], not cached forever. */
+    private val capabilities: ExternalPluginContentSource.MangaSourceCapabilities?
+        get() {
+            capsValue?.let { return it }
+            val failedAt = capsFailedAt
+            if (failedAt != 0L && SystemClock.elapsedRealtime() - failedAt < CAPS_RETRY_MS) return null
+            return runCatching {
+                contentSource.getCapabilities()
+            }.onFailure {
+                it.printStackTraceDebug()
+            }.getOrNull().also {
+                capsValue = it
+                capsFailedAt = if (it == null) SystemClock.elapsedRealtime() else 0L
+            }
+        }
 
     private val filterOptions = suspendLazy(initializer = contentSource::getListFilterOptions)
 
@@ -49,6 +64,7 @@ class ExternalMangaRepository(
     override suspend fun getFilterOptions(): MangaListFilterOptions = filterOptions.get()
 
     override suspend fun getList(offset: Int, order: SortOrder?, filter: MangaListFilter?): List<Manga> = runInterruptible(Dispatchers.IO) {
+        capabilities // warm the cache here on IO so UI-thread getters usually find it loaded
         contentSource.getList(offset, order ?: defaultSortOrder, filter ?: MangaListFilter.EMPTY)
     }
 
@@ -65,4 +81,8 @@ class ExternalMangaRepository(
     }
 
     override suspend fun getRelatedMangaImpl(seed: Manga): List<Manga> = emptyList() // TODO
+
+    private companion object {
+        const val CAPS_RETRY_MS = 60_000L
+    }
 }

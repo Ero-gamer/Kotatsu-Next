@@ -11,16 +11,15 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
-import android.view.ViewConfiguration
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.OverScroller
 import androidx.core.animation.doOnEnd
-import androidx.core.view.ViewConfigurationCompat
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.ui.widgets.ZoomControl
 import org.koitharu.kotatsu.core.util.ext.getAnimationDuration
+import kotlin.math.pow
 
 // Same zoom model as webtoon mode: pinch ceiling 6x, double-tap toggles 100% <-> 2.8x.
 private const val MAX_SCALE = 6f
@@ -76,12 +75,10 @@ class DoublePageScalingFrame @JvmOverloads constructor(
             if (event.actionMasked == MotionEvent.ACTION_SCROLL) {
                 val withCtrl = event.metaState and KeyEvent.META_CTRL_MASK != 0
                 if (withCtrl) {
-                    val axisValue =
-                        event.getAxisValue(MotionEvent.AXIS_VSCROLL) * ViewConfigurationCompat.getScaledVerticalScrollFactor(
-                            ViewConfiguration.get(context),
-                            context,
-                        )
-                    val newScale = (scale + axisValue).coerceIn(MIN_SCALE, MAX_SCALE)
+                    val notches = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+                    if (notches == 0f) return super.onGenericMotionEvent(event)
+                    // 10 % per wheel notch (the old additive step of ~50 jumped to the min/max scale at once)
+                    val newScale = (scale * 1.1f.pow(notches)).coerceIn(MIN_SCALE, MAX_SCALE)
                     scaleChild(newScale, event.x, event.y)
                     return true
                 }

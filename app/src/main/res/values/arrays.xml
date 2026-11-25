@@ -10,6 +10,39 @@
 		<item>@string/zoom_mode_fit_height</item>
 		<item>@string/zoom_mode_fit_width</item>
 		<item>@string/zoom_mode_keep_start</item>
+		<item>@string/zoom_mode_stretch</item>
+		<item>@string/zoom_mode_original</item>
+	</string-array>
+	<string-array name="dual_split_modes" translatable="false">
+		<item>@string/disabled</item>
+		<item>@string/dual_split_ltr</item>
+		<item>@string/dual_split_rtl</item>
+	</string-array>
+	<string-array name="values_dual_split" translatable="false">
+		<item>off</item>
+		<item>ltr</item>
+		<item>rtl</item>
+	</string-array>
+	<string-array name="zoom_starts" translatable="false">
+		<item>@string/zoom_start_auto</item>
+		<item>@string/zoom_start_left</item>
+		<item>@string/zoom_start_right</item>
+		<item>@string/zoom_start_center</item>
+	</string-array>
+	<!-- Order must match ReaderTint: entryValues come from its enum entries. -->
+	<string-array name="reader_tints" translatable="false">
+		<item>@string/disabled</item>
+		<item>@string/reader_tint_amber</item>
+		<item>@string/reader_tint_sepia</item>
+		<item>@string/reader_tint_red</item>
+		<item>@string/reader_tint_green</item>
+		<item>@string/reader_tint_blue</item>
+	</string-array>
+	<string-array name="reader_hide_thresholds" translatable="false">
+		<item>@string/disabled</item>
+		<item>@string/reader_hide_threshold_low</item>
+		<item>@string/reader_hide_threshold_high</item>
+		<item>@string/reader_hide_threshold_highest</item>
 	</string-array>
 	<string-array name="track_sources" translatable="false">
 		<item>@string/favourites</item>
@@ -31,6 +64,42 @@
 		<item>@string/only_using_wifi</item>
 		<item>@string/never</item>
 	</string-array>
+	<string-array name="png_decoder_entries" translatable="false">
+		<item>Auto</item>
+		<item>Skia (system)</item>
+		<item>Rust (native)</item>
+	</string-array>
+	<string-array name="png_decoder_values" translatable="false">
+		<item>0</item>
+		<item>1</item>
+		<item>2</item>
+	</string-array>
+	<string-array name="animated_speed_entries" translatable="false">
+		<item>0.5×</item>
+		<item>1×</item>
+		<item>1.5×</item>
+		<item>2×</item>
+		<item>3×</item>
+	</string-array>
+	<string-array name="animated_speed_values" translatable="false">
+		<item>0.5</item>
+		<item>1</item>
+		<item>1.5</item>
+		<item>2</item>
+		<item>3</item>
+	</string-array>
+	<string-array name="animated_loops_entries" translatable="false">
+		<item>@string/animated_loops_file</item>
+		<item>@string/animated_loops_forever</item>
+		<item>@string/animated_loops_1</item>
+		<item>@string/animated_loops_3</item>
+	</string-array>
+	<string-array name="animated_loops_values" translatable="false">
+		<item>-1</item>
+		<item>0</item>
+		<item>1</item>
+		<item>3</item>
+	</string-array>
 	<string-array name="doh_providers" translatable="false">
 		<item>@string/disabled</item>
 		<item>Google</item>
@@ -43,10 +112,35 @@
 		<item>wsrv.nl</item>
 		<item>0ms.dev</item>
 	</string-array>
+	<string-array name="download_ahead_counts" translatable="false">
+		<item>@string/none</item>
+		<item>1</item>
+		<item>2</item>
+		<item>3</item>
+		<item>5</item>
+	</string-array>
+	<string-array name="download_ahead_count_values" translatable="false">
+		<item>0</item>
+		<item>1</item>
+		<item>2</item>
+		<item>3</item>
+		<item>5</item>
+	</string-array>
+	<string-array name="double_tap_speeds" translatable="false">
+		<item>@string/speed_default</item>
+		<item>@string/speed_fast</item>
+		<item>@string/speed_slow</item>
+	</string-array>
+	<string-array name="double_tap_speed_values" translatable="false">
+		<item>0</item>
+		<item>120</item>
+		<item>450</item>
+	</string-array>
 	<string-array name="reader_modes" translatable="false">
 		<item>@string/standard</item>
 		<item>@string/right_to_left</item>
 		<item>@string/vertical</item>
+		<item>@string/bottom_to_top</item>
 		<item>@string/webtoon</item>
 	</string-array>
 	<string-array name="scrobbling_statuses" translatable="false">
@@ -68,6 +162,19 @@
 		<item>@string/color_dark</item>
 		<item>@string/color_white</item>
 		<item>@string/color_black</item>
+		<item>@string/color_auto</item>
+	</string-array>
+	<string-array name="reader_tap_inversion" translatable="false">
+		<item>@string/tap_inversion_none</item>
+		<item>@string/tap_inversion_horizontal</item>
+		<item>@string/tap_inversion_vertical</item>
+		<item>@string/tap_inversion_both</item>
+	</string-array>
+	<string-array name="values_reader_tap_inversion" translatable="false">
+		<item>0</item>
+		<item>1</item>
+		<item>2</item>
+		<item>3</item>
 	</string-array>
 	<string-array name="reader_animation" translatable="false">
 		<item>@string/disabled</item>

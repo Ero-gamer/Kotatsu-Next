@@ -9,6 +9,9 @@ import org.koitharu.kotatsu.core.model.LocalMangaSource
 import org.koitharu.kotatsu.core.model.MangaSourceInfo
 import org.koitharu.kotatsu.core.model.TestMangaSource
 import org.koitharu.kotatsu.core.model.UnknownMangaSource
+import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
+import org.koitharu.kotatsu.core.parser.bundle.LiveMangaParser
+import org.koitharu.kotatsu.core.parser.bundle.ParsersUpdater
 import org.koitharu.kotatsu.core.parser.external.ExternalMangaRepository
 import org.koitharu.kotatsu.core.parser.external.ExternalMangaSource
 import org.koitharu.kotatsu.local.data.LocalMangaRepository
@@ -19,7 +22,7 @@ import org.koitharu.kotatsu.parsers.model.MangaListFilter
 import org.koitharu.kotatsu.parsers.model.MangaListFilterCapabilities
 import org.koitharu.kotatsu.parsers.model.MangaListFilterOptions
 import org.koitharu.kotatsu.parsers.model.MangaPage
-import org.koitharu.kotatsu.parsers.model.MangaParserSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.model.SortOrder
 import java.lang.ref.WeakReference
@@ -60,9 +63,16 @@ interface MangaRepository {
         private val loaderContext: MangaLoaderContext,
         private val contentCache: MemoryContentCache,
         private val mirrorSwitcher: MirrorSwitcher,
+        private val parsersUpdater: ParsersUpdater,
     ) {
 
         private val cache = ArrayMap<MangaSource, WeakReference<MangaRepository>>()
+
+        /** The last few repositories are held strongly: a GC must not drop a parser (and its fetched filters) in use. */
+        private val recent = object : LinkedHashMap<MangaSource, MangaRepository>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<MangaSource, MangaRepository>?) =
+                size > RECENT_LIMIT
+        }
 
         @AnyThread
         fun create(source: MangaSource): MangaRepository {
@@ -71,12 +81,16 @@ interface MangaRepository {
                 LocalMangaSource -> return localMangaRepository
                 UnknownMangaSource -> return EmptyMangaRepository(source)
             }
-            cache[source]?.get()?.let { return it }
+            // ArrayMap and LinkedHashMap are not thread-safe: every access happens under the lock.
             return synchronized(cache) {
-                cache[source]?.get()?.let { return it }
+                cache[source]?.get()?.let {
+                    recent[source] = it
+                    return it
+                }
                 val repository = createRepository(source)
                 if (repository != null) {
                     cache[source] = WeakReference(repository)
+                    recent[source] = repository
                     repository
                 } else {
                     EmptyMangaRepository(source)
@@ -85,11 +99,17 @@ interface MangaRepository {
         }
 
         private fun createRepository(source: MangaSource): MangaRepository? = when (source) {
-            is MangaParserSource -> ParserMangaRepository(
-                parser = loaderContext.newParserInstance(source),
-                cache = contentCache,
-                mirrorSwitcher = mirrorSwitcher,
-            )
+            is ParserMangaSource -> if (ActiveParsers.findSource(source.name) != null) {
+                ParserMangaRepository(
+                    parser = LiveMangaParser(source.name, loaderContext, parsersUpdater),
+                    cache = contentCache,
+                    mirrorSwitcher = mirrorSwitcher,
+                )
+            } else {
+                // A source of parsers that are not in use any more, held on to by whoever asks. Not kept: the next
+                // parsers may have it again
+                null
+            }
 
             TestMangaSource -> TestMangaRepository(
                 loaderContext = loaderContext,
@@ -107,6 +127,10 @@ interface MangaRepository {
             }
 
             else -> null
+        }
+
+        private companion object {
+            const val RECENT_LIMIT = 8
         }
     }
 }

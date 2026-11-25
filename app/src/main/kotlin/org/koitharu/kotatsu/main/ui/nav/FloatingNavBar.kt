@@ -250,7 +250,14 @@ private fun FloatingNavItem(
                     color = content,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
-                    modifier = Modifier.padding(start = 8.dp),
+                    // The badge hangs off the icon without taking room of its own: a wide one needs the gap
+                    modifier = Modifier.padding(
+                        start = when {
+                            item.badgeCount > 99 -> 22.dp
+                            item.badgeCount > 9 -> 16.dp
+                            else -> 8.dp
+                        },
+                    ),
                 )
             }
         }

@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.reader.ui
 
 import android.content.res.Resources
 import android.os.SystemClock
+import android.view.Choreographer
 import android.view.MotionEvent
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -19,16 +20,25 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.yield
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.observeAsFlow
 import org.koitharu.kotatsu.core.util.ext.resolveDp
+import kotlin.coroutines.resume
 import kotlin.math.roundToLong
 
 private const val MAX_DELAY = 32L
 private const val MAX_SWITCH_DELAY = 10_000L
 private const val INTERACTION_SKIP_MS = 2_000L
 private const val SPEED_FACTOR_DELTA = 0.02f
+
+// Pause/resume ramp, per millisecond (was SPEED_FACTOR_DELTA per MAX_DELAY tick).
+private const val SPEED_RAMP_PER_MS = SPEED_FACTOR_DELTA / MAX_DELAY
+
+// A stalled frame must not turn into one big jump.
+private const val MAX_FRAME_DT_MS = 50L
+private const val NOT_RESUMED_POLL_MS = 250L
 
 class ScrollTimer @AssistedInject constructor(
     @Assisted resources: Resources,
@@ -106,34 +116,58 @@ class ScrollTimer @AssistedInject constructor(
             return
         }
         job = coroutineScope.launch {
-            var accumulator = 0L
             var speedFactor = 1f
+            var pending = 0f
+            var blockedMs = 0L
+            var blocked = false
+            var last = awaitFrameMs()
             while (isActive) {
-                if (isPaused()) {
-                    speedFactor = (speedFactor - SPEED_FACTOR_DELTA).coerceAtLeast(0f)
-                } else if (speedFactor < 1f) {
-                    speedFactor = (speedFactor + SPEED_FACTOR_DELTA).coerceAtMost(1f)
-                }
-                if (speedFactor == 1f) {
-                    delay(delayMs)
-                } else if (speedFactor == 0f) {
-                    delayUntilResumed()
-                    continue
+                val now = awaitFrameMs()
+                val dt = (now - last).coerceIn(0L, MAX_FRAME_DT_MS)
+                last = now
+                val ramp = SPEED_RAMP_PER_MS * dt
+                speedFactor = if (isPaused()) {
+                    (speedFactor - ramp).coerceAtLeast(0f)
                 } else {
-                    delay((delayMs * (1f + speedFactor * 2)).toLong())
+                    (speedFactor + ramp).coerceAtMost(1f)
+                }
+                if (speedFactor == 0f) {
+                    delayUntilResumed()
+                    last = awaitFrameMs()
+                    continue
                 }
                 if (!listener.isReaderResumed()) {
+                    delay(NOT_RESUMED_POLL_MS)
+                    last = awaitFrameMs()
                     continue
                 }
-                if (!listener.scrollBy(scrollDelta, false)) {
-                    accumulator += delayMs
+                // Whole pixels per frame, the remainder carries over: speed no longer depends on timer jitter.
+                pending += scrollDelta.toFloat() / delayMs * speedFactor * dt
+                val whole = pending.toInt()
+                if (whole > 0) {
+                    pending -= whole
+                    blocked = !listener.scrollBy(whole, false)
                 }
-                if (accumulator >= pageSwitchDelay) {
-                    listener.switchPageBy(1)
-                    accumulator -= pageSwitchDelay
+                if (blocked) {
+                    blockedMs += dt
+                    if (blockedMs >= pageSwitchDelay) {
+                        listener.switchPageBy(1)
+                        blockedMs -= pageSwitchDelay
+                        blocked = false
+                    }
+                } else {
+                    blockedMs = 0L
                 }
             }
         }
+    }
+
+    /** Suspends until the next display frame and returns its time in milliseconds. */
+    private suspend fun awaitFrameMs(): Long = suspendCancellableCoroutine { cont ->
+        val choreographer = Choreographer.getInstance()
+        val callback = Choreographer.FrameCallback { nanos -> cont.resume(nanos / 1_000_000L) }
+        choreographer.postFrameCallback(callback)
+        cont.invokeOnCancellation { choreographer.removeFrameCallback(callback) }
     }
 
     private fun isPaused(): Boolean = isTouchDown.value || resumeAt > SystemClock.elapsedRealtime()

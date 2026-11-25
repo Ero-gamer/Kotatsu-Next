@@ -50,6 +50,8 @@ fun ImageRequest.Builder.decodeRegion(
 
 fun ImageRequest.Builder.allowAnimation(enabled: Boolean = true): ImageRequest.Builder = apply {
     extras[allowAnimationKey] = enabled
+    // Animated and static decodes must not share a memory-cache entry.
+    memoryCacheKeyExtra("anim", if (enabled) "1" else null)
 }
 
 fun ImageRequest.Builder.mangaSourceExtra(source: MangaSource?): ImageRequest.Builder = apply {

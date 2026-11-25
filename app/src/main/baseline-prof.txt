@@ -1,0 +1,18 @@
+# Hand-written baseline profile: startup, reader and image pipeline are compiled ahead of time.
+# Compiled into the APK by AGP; installed on first launch by androidx.profileinstaller.
+HSPLorg/koitharu/kotatsu/core/BaseApp;->**(**)**
+HSPLorg/koitharu/kotatsu/core/AppModule;->**(**)**
+HSPLorg/koitharu/kotatsu/core/prefs/AppSettings;->**(**)**
+HSPLorg/koitharu/kotatsu/core/image/**;->**(**)**
+HSPLorg/koitharu/kotatsu/core/ui/**;->**(**)**
+HSPLorg/koitharu/kotatsu/main/ui/**;->**(**)**
+HSPLorg/koitharu/kotatsu/list/ui/**;->**(**)**
+HSPLorg/koitharu/kotatsu/details/ui/**;->**(**)**
+HSPLorg/koitharu/kotatsu/reader/**;->**(**)**
+HSPLcom/davemorrissey/labs/subscaleview/**;->**(**)**
+Lorg/koitharu/kotatsu/core/BaseApp;
+Lorg/koitharu/kotatsu/main/ui/MainActivity;
+Lorg/koitharu/kotatsu/reader/ui/ReaderActivity;
+Lorg/koitharu/kotatsu/reader/ui/pager/**;
+Lorg/koitharu/kotatsu/core/image/**;
+Lcom/davemorrissey/labs/subscaleview/**;

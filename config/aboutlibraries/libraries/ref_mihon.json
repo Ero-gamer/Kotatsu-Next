@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:mihon",
+  "name": "Mihon",
+  "description": "Reader design ideas",
+  "website": "https://github.com/mihonapp/mihon",
+  "developers": [
+    {
+      "name": "Mihon contributors",
+      "organisationUrl": "https://github.com/mihonapp"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/mihonapp/mihon"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "tag": "ideas"
+}

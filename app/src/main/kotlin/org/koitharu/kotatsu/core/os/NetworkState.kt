@@ -69,6 +69,9 @@ class NetworkState(
         override fun onLost(network: Network) = invalidate()
 
         override fun onUnavailable() = invalidate()
+
+        // Wi-Fi <-> mobile hand-over keeps the network id but changes its capabilities (e.g. metered).
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) = invalidate()
     }
 
     private companion object {

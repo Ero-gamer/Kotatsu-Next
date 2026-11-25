@@ -26,6 +26,13 @@
 		app:showAsAction="never" />
 
 	<item
+		android:id="@+id/action_optimize"
+		android:orderInCategory="40"
+		android:title="@string/optimize_images"
+		android:visible="false"
+		app:showAsAction="never" />
+
+	<item
 		android:id="@+id/action_edit_override"
 		android:orderInCategory="40"
 		android:title="@string/edit"
@@ -65,6 +72,13 @@
 		android:id="@+id/action_browser"
 		android:orderInCategory="50"
 		android:title="@string/open_in_browser"
+		app:showAsAction="never" />
+
+	<item
+		android:id="@+id/action_not_interested"
+		android:orderInCategory="52"
+		android:title="@string/not_interested"
+		android:visible="false"
 		app:showAsAction="never" />
 
 	<item

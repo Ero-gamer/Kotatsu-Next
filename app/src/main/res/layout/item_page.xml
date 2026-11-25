@@ -33,6 +33,71 @@
 		android:visibility="gone"
 		app:icon="@drawable/ic_action_pause" />
 
+	<SeekBar
+		android:id="@+id/seek_anim"
+		android:layout_width="match_parent"
+		android:layout_height="40dp"
+		android:layout_gravity="bottom"
+		android:layout_marginStart="56dp"
+		android:layout_marginEnd="56dp"
+		android:layout_marginBottom="@dimen/margin_small"
+		android:contentDescription="@string/animation_seek"
+		android:visibility="gone" />
+
+	<LinearLayout
+		android:id="@+id/layout_anim_controls"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_horizontal|bottom"
+		android:layout_marginBottom="48dp"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:visibility="gone">
+
+		<ImageButton
+			android:id="@+id/button_anim_prev"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?selectableItemBackgroundBorderless"
+			android:contentDescription="@string/animation_prev_frame"
+			android:src="@drawable/ic_prev" />
+
+		<TextView
+			android:id="@+id/text_anim_time"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:minWidth="88dp"
+			android:gravity="center"
+			android:singleLine="true"
+			android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+		<ImageButton
+			android:id="@+id/button_anim_next"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?selectableItemBackgroundBorderless"
+			android:contentDescription="@string/animation_next_frame"
+			android:src="@drawable/ic_next" />
+
+		<TextView
+			android:id="@+id/button_anim_speed"
+			android:layout_width="wrap_content"
+			android:layout_height="40dp"
+			android:background="?selectableItemBackgroundBorderless"
+			android:contentDescription="@string/animation_speed"
+			android:gravity="center"
+			android:minWidth="48dp"
+			android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+		<ImageButton
+			android:id="@+id/button_anim_save"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?selectableItemBackgroundBorderless"
+			android:contentDescription="@string/animation_save_frame"
+			android:src="@drawable/ic_save" />
+	</LinearLayout>
+
 
 	<TextView
 		android:id="@+id/textView_number"

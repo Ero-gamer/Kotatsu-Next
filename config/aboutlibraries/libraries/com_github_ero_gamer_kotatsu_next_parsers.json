@@ -1,0 +1,18 @@
+{
+  "uniqueId": "com.github.Ero-gamer:kotatsu-next-parsers",
+  "name": "Kotatsu Next parsers",
+  "description": "Manga source parsers (fork of Kotatsu parsers / Kotatsu Redo parsers)",
+  "website": "https://github.com/Ero-gamer/kotatsu-next-parsers",
+  "developers": [
+    {
+      "name": "Kotatsu / Kotatsu Redo developers",
+      "organisationUrl": "https://github.com/Kotatsu-Redo/kotatsu-parsers-redo"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/Ero-gamer/kotatsu-next-parsers"
+  },
+  "licenses": [
+    "GPL-3.0-only"
+  ]
+}

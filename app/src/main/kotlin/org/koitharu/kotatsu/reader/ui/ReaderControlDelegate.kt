@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.reader.ui
 
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.view.KeyEvent
 import android.view.View
 import org.koitharu.kotatsu.R
@@ -27,21 +28,28 @@ class ReaderControlDelegate(
         }
     }
 
+    private fun TapGridArea.inverted(): TapGridArea {
+        val mode = settings.readerTapInversion
+        return mirrored(horizontal = mode == 1 || mode == 3, vertical = mode == 2 || mode == 3)
+    }
+
     fun onGridTouch(area: TapGridArea): Boolean {
         val action = tapGridSettings.getTapAction(
-            area = area,
+            area = area.inverted(),
             isLongTap = false,
         ) ?: return false
         processAction(action)
         return true
     }
 
-    fun onGridLongTouch(area: TapGridArea) {
+    /** @return true if an action was run, so the finger still down must not keep scrolling the pages */
+    fun onGridLongTouch(area: TapGridArea): Boolean {
         val action = tapGridSettings.getTapAction(
-            area = area,
+            area = area.inverted(),
             isLongTap = true,
-        ) ?: return
+        ) ?: return false
         processAction(action)
+        return true
     }
 
     fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -135,15 +143,23 @@ class ReaderControlDelegate(
 
         fun toggleUiVisibility()
 
+        /** The webtoon scrolled by [dy] pixels; lets the reader hide its bars once scrolled far enough. */
+        fun onReaderScrolled(dy: Int) = Unit
+
         fun onBookmarkClick()
 
         fun onColorFilterToggle(isEnabled: Boolean)
 
         fun openColorFilterConfig()
 
+        fun onCropClick(anchor: View)
+
         fun openMenu()
 
         fun onSavePageClick()
+
+        /** Saves one animation frame; the receiver owns [frame]. */
+        fun onSaveFrameClick(frame: Bitmap) = Unit
 
         fun onScrollTimerClick(isLongClick: Boolean)
 

@@ -219,7 +219,7 @@ class AniListRepository @Inject constructor(
             targetId = json.getLong("mediaId"),
             status = json.getString("status"),
             chapter = json.getInt("progress"),
-            comment = json.getString("notes"),
+            comment = json.getStringOrNull("notes"),
             rating = scoreFormat.normalize(json.getDouble("score").toFloat()),
         )
         db.getScrobblingDao().upsert(entity)

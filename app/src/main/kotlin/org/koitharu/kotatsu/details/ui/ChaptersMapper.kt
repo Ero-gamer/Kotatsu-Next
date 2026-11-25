@@ -8,6 +8,7 @@ import org.koitharu.kotatsu.details.ui.model.ChapterListItem
 import org.koitharu.kotatsu.details.ui.model.toListItem
 import org.koitharu.kotatsu.list.ui.model.ListHeader
 import org.koitharu.kotatsu.list.ui.model.ListModel
+import org.koitharu.kotatsu.local.data.OptimizedState
 import org.koitharu.kotatsu.parsers.util.mapToSet
 
 fun MangaDetails.mapChapters(
@@ -24,6 +25,7 @@ fun MangaDetails.mapChapters(
         return emptyList()
     }
     val bookmarked = bookmarks.mapToSet { it.chapterId }
+    val archiveOptimized = OptimizedState.isOptimized(local?.file)
     val newFrom = if (newCount == 0 || remoteChapters.isEmpty()) Int.MAX_VALUE else remoteChapters.size - newCount
     val ids = buildSet(maxOf(remoteChapters.size, localChapters.size)) {
         remoteChapters.mapTo(this) { it.id }
@@ -47,6 +49,7 @@ fun MangaDetails.mapChapters(
                 isUnread = isUnread,
                 isNew = isUnread && result.size >= newFrom,
                 isDownloaded = local != null,
+                isOptimized = local != null && archiveOptimized,
                 isBookmarked = chapter.id in bookmarked,
                 isGrid = isGrid,
             )
@@ -62,6 +65,7 @@ fun MangaDetails.mapChapters(
                 isUnread = isUnread,
                 isNew = false,
                 isDownloaded = !isLocal,
+                isOptimized = archiveOptimized,
                 isBookmarked = chapter.id in bookmarked,
                 isGrid = isGrid,
             )

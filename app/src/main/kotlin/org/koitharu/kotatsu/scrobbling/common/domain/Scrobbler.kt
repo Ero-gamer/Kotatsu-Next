@@ -1,8 +1,7 @@
 package org.koitharu.kotatsu.scrobbling.common.domain
 
+import android.os.SystemClock
 import androidx.annotation.FloatRange
-import androidx.collection.LongSparseArray
-import androidx.collection.getOrElse
 import androidx.core.text.parseAsHtml
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -27,6 +26,9 @@ import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblerUser
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingInfo
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingStatus
 import java.util.EnumMap
+import java.util.concurrent.ConcurrentHashMap
+
+private const val INFO_RETRY_MS = 5 * 60 * 1000L
 
 abstract class Scrobbler(
     protected val db: MangaDatabase,
@@ -35,7 +37,9 @@ abstract class Scrobbler(
     private val mangaRepositoryFactory: MangaRepository.Factory,
 ) {
 
-    private val infoCache = LongSparseArray<ScrobblerMangaInfo>()
+    // Entries are read from parallel coroutines: a plain sparse array is not safe here.
+    private val infoCache = ConcurrentHashMap<Long, ScrobblerMangaInfo>()
+    private val infoFailedAt = ConcurrentHashMap<Long, Long>()
     protected val statuses = EnumMap<ScrobblingStatus, String>(ScrobblingStatus::class.java)
 
     val user: Flow<ScrobblerUser> = flow {
@@ -121,13 +125,20 @@ abstract class Scrobbler(
     protected suspend fun getMangaInfo(id: Long): ScrobblerMangaInfo = repository.getMangaInfo(id)
 
     private suspend fun ScrobblingEntity.toScrobblingInfo(): ScrobblingInfo? {
-        val mangaInfo = infoCache.getOrElse(targetId) {
+        val mangaInfo = infoCache[targetId] ?: run {
+            // A title the service could not give a moment ago is not asked for again on every list refresh.
+            val failedAt = infoFailedAt[targetId]
+            if (failedAt != null && SystemClock.elapsedRealtime() - failedAt < INFO_RETRY_MS) {
+                return null
+            }
             runCatchingCancellable {
                 getMangaInfo(targetId)
             }.onFailure {
                 it.printStackTraceDebug()
+                infoFailedAt[targetId] = SystemClock.elapsedRealtime()
             }.onSuccess {
-                infoCache.put(targetId, it)
+                infoCache[targetId] = it
+                infoFailedAt.remove(targetId)
             }.getOrNull() ?: return null
         }
         return ScrobblingInfo(

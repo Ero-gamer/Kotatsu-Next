@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.reader.ui
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.ActivityResultCaller
@@ -26,6 +27,7 @@ import okio.sink
 import okio.source
 import org.koitharu.kotatsu.core.LocalizedAppContext
 import org.koitharu.kotatsu.core.image.BitmapDecoderCompat
+import org.koitharu.kotatsu.core.image.ImageFormatProbe
 import org.koitharu.kotatsu.core.os.OpenDocumentTreeHelper
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.MimeTypes
@@ -36,6 +38,7 @@ import org.koitharu.kotatsu.core.util.ext.toFileOrNull
 import org.koitharu.kotatsu.core.util.ext.writeAllCancellable
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaPage
+import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.reader.domain.PageLoader
 import java.io.File
 import java.text.SimpleDateFormat
@@ -76,9 +79,22 @@ class PageSaveHelper @AssistedInject constructor(
         val pageUrl = pageLoader.getPageUrl(task.page).toUri()
         val pageUri = pageLoader.loadPage(task.page, force = false)
         val proposedName = task.getFileBaseName() + "." + getPageExtension(pageUrl, pageUri)
-        val destination = File(checkNotNull(context.getExternalFilesDir(TEMP_DIR)), proposedName)
-        copyImpl(pageUri, destination.toUri())
+        val dir = checkNotNull(context.getExternalFilesDir(TEMP_DIR))
+        withContext(Dispatchers.IO) { purgeOldTempFiles(dir) }
+        val destination = File(dir, proposedName)
+        try {
+            copyImpl(pageUri, destination.toUri())
+        } catch (e: Throwable) {
+            destination.delete() // never leave a half-copied page to be shared later
+            throw e
+        }
         return destination
+    }
+
+    /** Pages saved only to be shared are not needed after a day. */
+    private fun purgeOldTempFiles(dir: File) {
+        val limit = System.currentTimeMillis() - TEMP_MAX_AGE_MS
+        dir.listFiles()?.forEach { if (it.isFile && it.lastModified() < limit) it.delete() }
     }
 
     private suspend fun saveImpl(task: Task): Uri {
@@ -92,6 +108,29 @@ class PageSaveHelper @AssistedInject constructor(
         }
         copyImpl(pageUri, destination)
         return destination
+    }
+
+    /** Saves [bitmap] (one animation frame) as PNG; the bitmap is recycled afterwards. */
+    suspend fun saveFrame(task: Task, bitmap: Bitmap): Uri {
+        try {
+            val proposedName = task.getFileBaseName() + "_frame.png"
+            val destination = getDefaultFileUri(proposedName)?.uri ?: run {
+                val defaultUri = settings.getPagesSaveDir(context)?.uri?.buildUpon()?.appendPath(proposedName)?.toString()
+                savePageRequest.launchAndAwait(defaultUri ?: proposedName)
+            }
+            withContext(Dispatchers.IO) {
+                runInterruptible {
+                    val out = context.contentResolver.openOutputStream(destination)
+                        ?: throw IOException("Output stream is null")
+                    out.use {
+                        if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) throw IOException("PNG encoding failed")
+                    }
+                }
+            }
+            return destination
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     private suspend fun saveImpl(tasks: Collection<Task>): Collection<Uri> {
@@ -123,7 +162,7 @@ class PageSaveHelper @AssistedInject constructor(
         // correct .webp extension instead of the original URL's .jpg extension.
         fileUri.toFileOrNull()?.let { file ->
             getImageExtension(file)?.let { return it }
-        }
+        } ?: probeExtension(fileUri)?.let { return it }
         // Fallback: derive extension from the original URL (used for zip/local sources
         // where probing the file is not applicable or the file is not accessible).
         val name = requireNotNull(
@@ -188,7 +227,18 @@ class PageSaveHelper @AssistedInject constructor(
     }
 
     private suspend fun getImageExtension(file: File): String? = runInterruptible(Dispatchers.IO) {
-        MimeTypes.getExtension(BitmapDecoderCompat.probeMimeType(file))
+        MimeTypes.getExtension(BitmapDecoderCompat.probeMimeType(file)) ?: ImageFormatProbe.probe(file).format.extension
+    }
+
+    /** Extension from the content of a page that is not a plain file (a cbz entry); null when unrecognised. */
+    private suspend fun probeExtension(uri: Uri): String? = withContext(Dispatchers.IO) {
+        runCatchingCancellable {
+            getSource(uri).buffer().use { src ->
+                src.request(PROBE_BYTES)
+                val head = src.buffer.readByteArray(minOf(src.buffer.size, PROBE_BYTES))
+                ImageFormatProbe.probe(head, head.size, truncated = true).format.extension
+            }
+        }.getOrNull()
     }
 
     data class Task(
@@ -222,5 +272,7 @@ class PageSaveHelper @AssistedInject constructor(
         private const val MAX_BASENAME_LENGTH = 12
         private const val EXTENSION_FALLBACK = "png"
         private const val TEMP_DIR = "pages"
+        private const val TEMP_MAX_AGE_MS = 24L * 60 * 60 * 1000
+        private const val PROBE_BYTES = 65_536L
     }
 }

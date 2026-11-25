@@ -21,13 +21,16 @@ class DownloadSlowdownDispatcher @Inject constructor(
         if (!repo.isSlowdownEnabled()) {
             return
         }
-        val lastRequest = synchronized(timeMap) {
-            val res = timeMap.getOrDefault(source, 0L)
-            timeMap[source] = SystemClock.elapsedRealtime()
-            res
+        // Reserve the slot under the lock: callers arriving together get consecutive slots instead of all
+        // seeing the same "last request" and firing at once.
+        val now = SystemClock.elapsedRealtime()
+        val slot = synchronized(timeMap) {
+            val next = maxOf(now, timeMap.getOrDefault(source, -defaultDelay) + defaultDelay)
+            timeMap[source] = next
+            next
         }
-        if (lastRequest != 0L) {
-            delay(lastRequest + defaultDelay - SystemClock.elapsedRealtime())
+        if (slot > now) {
+            delay(slot - now)
         }
     }
 }

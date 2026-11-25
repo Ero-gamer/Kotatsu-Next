@@ -6,16 +6,16 @@
 //! restarts the stream.
 
 use crate::common::{
-    check_limits, Decoder, Error, FileRange, Format, Info, Rect, Resampler, Result, Sink,
-    MAX_FRAME_DURATION_MS,
+    check_limits, emit_canvas, reserve_vec, zeroed_vec, Decoder, Error, FileRange, Format, Info,
+    Rect, Result, Sink, MAX_FRAME_DURATION_MS, MAX_STREAM_CANVAS_PIXELS,
 };
 use std::io::{BufReader, Read, Seek, SeekFrom};
 
 const SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
-const MAX_PIXELS: u64 = 64 * 1024 * 1024;
+const MAX_PIXELS: u64 = MAX_STREAM_CANVAS_PIXELS;
 const MAX_FRAMES: u32 = 10_000;
 
-/// True when `head` (at least the first 8 KiB of a file) is a PNG with an `acTL` chunk before `IDAT`.
+/// True when `head` (at least the first 64 KiB of a file) is a PNG with an `acTL` chunk before `IDAT`.
 pub fn is_apng(head: &[u8]) -> bool {
     if !head.starts_with(&SIGNATURE) {
         return false;
@@ -29,7 +29,8 @@ pub fn is_apng(head: &[u8]) -> bool {
             b"IDAT" | b"IEND" => return false,
             _ => {}
         }
-        pos = match pos.checked_add(12 + len) {
+        // `12 + len` itself wraps on 32-bit targets for a hostile length
+        pos = match len.checked_add(12).and_then(|n| pos.checked_add(n)) {
             Some(p) => p,
             None => return false,
         };
@@ -189,7 +190,7 @@ impl ApngDecoder {
             delays: layout.delays,
             skip_default: layout.skip_default,
             stream: None,
-            canvas: vec![0; canvas_len],
+            canvas: zeroed_vec(canvas_len)?,
             rendered: None,
         })
     }
@@ -205,7 +206,7 @@ impl ApngDecoder {
             .ok_or_else(|| Error::new("APNG: frame too large"))?;
         Ok(Stream {
             reader,
-            scratch: vec![0; cap],
+            scratch: zeroed_vec(cap)?,
             next: 0,
             prev: None,
             skipped_default: !self.skip_default,
@@ -276,7 +277,7 @@ impl ApngDecoder {
         }
         // 2. Remember what a "dispose to previous" would have to restore.
         let saved = if ctl.dispose == 2 && stream.next > 0 {
-            Some(copy_rect(&self.canvas, width, &ctl))
+            Some(copy_rect(&self.canvas, width, &ctl)?)
         } else {
             None
         };
@@ -299,13 +300,14 @@ fn clear_rect(canvas: &mut [u8], width: u32, c: &FrameCtl) {
     }
 }
 
-fn copy_rect(canvas: &[u8], width: u32, c: &FrameCtl) -> Vec<u8> {
-    let mut out = Vec::with_capacity(c.width as usize * c.height as usize * 4);
+fn copy_rect(canvas: &[u8], width: u32, c: &FrameCtl) -> Result<Vec<u8>> {
+    let mut out = Vec::new();
+    reserve_vec(&mut out, c.width as usize * c.height as usize * 4)?;
     for row in 0..c.height as usize {
         let start = ((c.y as usize + row) * width as usize + c.x as usize) * 4;
         out.extend_from_slice(&canvas[start..start + c.width as usize * 4]);
     }
-    out
+    Ok(out)
 }
 
 fn restore_rect(canvas: &mut [u8], width: u32, c: &FrameCtl, saved: &[u8]) {
@@ -371,12 +373,6 @@ fn over(dst: &mut [u8], src: &[u8; 4]) {
     dst[3] = ((out_a + 127) / 255) as u8;
 }
 
-#[inline]
-fn premultiply(c: u8, a: u8) -> u8 {
-    let v = c as u32 * a as u32 + 128;
-    ((v + (v >> 8)) >> 8) as u8
-}
-
 impl Decoder for ApngDecoder {
     fn info(&self) -> &Info {
         &self.info
@@ -405,25 +401,6 @@ impl Decoder for ApngDecoder {
                 }
             }
         }
-        let mut resampler = Resampler::new(sink, rect.width, rect.height, sample)?;
-        let width = self.info.width as usize;
-        let mut row = vec![0u8; rect.width as usize * 4];
-        for y in rect.top..rect.bottom() {
-            let start = (y as usize * width + rect.left as usize) * 4;
-            for (s, d) in self.canvas[start..start + rect.width as usize * 4]
-                .chunks_exact(4)
-                .zip(row.chunks_exact_mut(4))
-            {
-                let a = s[3];
-                d.copy_from_slice(&[
-                    premultiply(s[0], a),
-                    premultiply(s[1], a),
-                    premultiply(s[2], a),
-                    a,
-                ]);
-            }
-            resampler.push_row(&row);
-        }
-        Ok(())
+        emit_canvas(&self.canvas, self.info.width, rect, sample, sink)
     }
 }

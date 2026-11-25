@@ -204,14 +204,52 @@ fn apng_animation_composites_like_the_reference() {
     assert!(max_diff(&got, &crop(&expected, w, r)) <= 2);
 }
 
+#[cfg(feature = "gif")]
 #[test]
-fn still_png_and_garbage_are_rejected() {
+fn gif_animation_composites_like_the_reference() {
+    let mut dec = open_dec("anim.gif");
+    let info = dec.info().clone();
+    // NETSCAPE count 3 = three extra repetitions = four plays.
+    assert_eq!(
+        (info.width, info.height, info.frame_count, info.loop_count),
+        (48, 32, 5, 4)
+    );
+    assert!(info.has_alpha);
+    // A zero delay is played as 100 ms.
+    let durations = [50, 100, 100, 120, 70];
+    for i in 0..5u32 {
+        assert_eq!(
+            dec.frame_duration_ms(i),
+            durations[i as usize],
+            "duration {i}"
+        );
+        let (w, h, expected) = load_ref(&format!("ref/gif_{i}.png"));
+        let got = decode(dec.as_mut(), i, Rect::new(0, 0, w, h), 1);
+        assert!(
+            max_diff(&got, &expected) <= 2,
+            "gif frame {i}: {}",
+            max_diff(&got, &expected)
+        );
+    }
+    // Same frame again (no re-decode) and going backwards (stream restart) both stay correct.
+    for i in [4u32, 4, 2, 0, 3] {
+        let (w, h, expected) = load_ref(&format!("ref/gif_{i}.png"));
+        let got = decode(dec.as_mut(), i, Rect::new(0, 0, w, h), 1);
+        assert!(max_diff(&got, &expected) <= 2, "gif frame {i} (revisit)");
+    }
+    let (w, _h, expected) = load_ref("ref/gif_3.png");
+    let r = Rect::new(7, 5, 31, 20);
+    let got = decode(dec.as_mut(), 3, r, 1);
+    assert!(max_diff(&got, &crop(&expected, w, r)) <= 2);
+}
+
+#[test]
+fn still_png_opens_and_garbage_is_rejected() {
     let file = File::open(fixture("rgb.png")).unwrap();
     let len = file.metadata().unwrap().len();
-    assert!(
-        ssivcodecs::jni_api::open(file.as_raw_fd(), 0, len).is_err(),
-        "plain PNG is not an animation"
-    );
+    let still = ssivcodecs::jni_api::open(file.as_raw_fd(), 0, len).expect("still PNG");
+    assert_eq!(still.info().frame_count, 1, "plain PNG is a single frame");
+    assert_eq!(still.info().format as i32, 4);
     let jpg = File::open(fixture("rot.jpg")).unwrap();
     let len = jpg.metadata().unwrap().len();
     assert!(ssivcodecs::jni_api::open(jpg.as_raw_fd(), 0, len).is_err());
@@ -222,6 +260,17 @@ fn still_png_and_garbage_are_rejected() {
     let f = File::open(&tmp).unwrap();
     let range = FileRange::new(Arc::new(f), 0, (bytes.len() / 2) as u64);
     assert!(ssivcodecs::apng::ApngDecoder::new(range).is_err());
+}
+
+#[test]
+fn oversized_input_is_refused_before_reading() {
+    let file = File::open(fixture("rgb.png")).unwrap();
+    let too_big = ssivcodecs::common::MAX_INPUT_BYTES + 1;
+    assert!(ssivcodecs::jni_api::open(file.as_raw_fd(), 0, too_big).is_err());
+    assert!(
+        ssivcodecs::jni_api::open(file.as_raw_fd(), 0, 8).is_err(),
+        "too short"
+    );
 }
 
 #[test]

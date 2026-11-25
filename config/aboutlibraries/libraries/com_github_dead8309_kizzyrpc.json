@@ -1,0 +1,18 @@
+{
+  "uniqueId": "com.github.dead8309:KizzyRPC",
+  "name": "KizzyRPC",
+  "description": "Discord rich presence client",
+  "website": "https://github.com/dead8309/KizzyRPC",
+  "developers": [
+    {
+      "name": "dead8309",
+      "organisationUrl": "https://github.com/dead8309"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/dead8309/KizzyRPC"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ]
+}

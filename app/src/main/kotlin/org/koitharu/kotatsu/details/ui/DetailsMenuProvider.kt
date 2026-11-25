@@ -8,7 +8,6 @@ import android.view.View
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
@@ -21,6 +20,7 @@ import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.os.AppShortcutManager
 import org.koitharu.kotatsu.core.ui.dialog.buildAlertDialog
 import org.koitharu.kotatsu.core.util.ext.isHttpUrl
+import org.koitharu.kotatsu.local.ui.OptimizeFlow
 
 class DetailsMenuProvider(
     private val activity: FragmentActivity,
@@ -47,13 +47,18 @@ class DetailsMenuProvider(
         menu.findItem(R.id.action_share).isVisible = manga != null && AppRouter.isShareSupported(manga)
         menu.findItem(R.id.action_save).isVisible = manga?.source != null && manga.source != LocalMangaSource
         menu.findItem(R.id.action_delete).isVisible = manga?.source == LocalMangaSource
+        menu.findItem(R.id.action_optimize).isVisible = viewModel.mangaDetails.value?.local != null
         menu.findItem(R.id.action_browser).isVisible = manga?.publicUrl?.isHttpUrl() == true
         menu.findItem(R.id.action_alternatives).isVisible = manga?.source != LocalMangaSource
         menu.findItem(R.id.action_replace_source).isVisible = manga?.source != LocalMangaSource
-        menu.findItem(R.id.action_shortcut).isVisible = ShortcutManagerCompat.isRequestPinShortcutSupported(activity)
+        menu.findItem(R.id.action_shortcut).isVisible = appShortcutManager.isPinShortcutSupported
         menu.findItem(R.id.action_scrobbling).isVisible = viewModel.isScrobblingAvailable
         menu.findItem(R.id.action_online).isVisible = viewModel.remoteManga.value != null
         menu.findItem(R.id.action_stats).isVisible = viewModel.isStatsAvailable.value
+        // Only for what the reader has no stake in yet: saving or reading it already says they are interested
+        menu.findItem(R.id.action_not_interested).isVisible = manga != null &&
+            viewModel.favouriteCategories.value.isEmpty() && viewModel.history.value == null &&
+            !viewModel.dismissedIndex.value.matches(manga)
     }
 
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
@@ -74,6 +79,11 @@ class DetailsMenuProvider(
 
             R.id.action_save -> {
                 router.showDownloadDialog(manga, snackbarHost)
+            }
+
+            R.id.action_optimize -> {
+                val local = viewModel.mangaDetails.value?.local ?: return false
+                OptimizeFlow.start(activity, activity.lifecycleScope, local.manga.title, local.manga.id) { it.archivesOf(local) }
             }
 
             R.id.action_browser -> {
@@ -102,6 +112,10 @@ class DetailsMenuProvider(
 
             R.id.action_scrobbling -> {
                 router.showScrobblingSelectorSheet(manga, null)
+            }
+
+            R.id.action_not_interested -> {
+                viewModel.dismissFromSuggestions()
             }
 
             R.id.action_shortcut -> {

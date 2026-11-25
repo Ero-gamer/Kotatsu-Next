@@ -36,6 +36,25 @@ object ImageInspector {
         else -> inspectStream(context, uri)
     }
 
+    /** Whole file bytes (for pixel analysis); null when missing or larger than [maxBytes]. */
+    @Throws(IOException::class)
+    fun readAll(context: Context, uri: Uri, maxBytes: Int): ByteArray? {
+        if (uri.isZipUri()) {
+            ZipFile(File(uri.schemeSpecificPart)).use { zip ->
+                val entry = zip.getEntry(uri.fragment ?: return null) ?: return null
+                if (entry.size !in 1..maxBytes.toLong()) return null
+                return zip.getInputStream(entry).use { it.readBytes() }
+            }
+        }
+        if (uri.isFileUri()) {
+            val file = uri.toFileOrNull() ?: return null
+            if (!file.isFile || file.length() !in 1..maxBytes.toLong()) return null
+            return file.readBytes()
+        }
+        val (data, read) = context.contentResolver.openInputStream(uri)?.use { readCapped(it) } ?: return null
+        return if (read in 1 until minOf(maxBytes.toLong(), MAX_READ).toInt()) data.copyOf(read) else null
+    }
+
     private fun inspectFile(file: File): Report? {
         if (!file.isFile) return null
         val info = ImageFormatProbe.probe(file, deep = true)
@@ -57,12 +76,27 @@ object ImageInspector {
     }
 
     private fun inspectStream(context: Context, uri: Uri): Report? {
-        val data = ByteArray(MAX_READ.toInt())
-        val read = context.contentResolver.openInputStream(uri)?.use { it.readNBytesCompat(data) } ?: return null
+        val (data, read) = context.contentResolver.openInputStream(uri)?.use { readCapped(it) } ?: return null
         val info = ImageFormatProbe.probe(data, read, deep = true)
         val name = uri.lastPathSegment?.substringAfterLast('/') ?: ""
         return Report(name, extensionOf(name), info, "Content", data.copyOf(minOf(read, RawImageDetails.HEAD_SIZE)), minOf(read, RawImageDetails.HEAD_SIZE))
     }
+
+    /** Reads at most [MAX_READ] bytes growing the buffer on demand (no fixed 8 MB allocation for small files). */
+    private fun readCapped(input: java.io.InputStream): Pair<ByteArray, Int> {
+        var buf = ByteArray(64 * 1024)
+        var total = 0
+        while (total < MAX_READ) {
+            if (total == buf.size) buf = buf.copyOf(minOf(buf.size * 2L, MAX_READ).toInt())
+            val n = input.read(buf, total, buf.size - total)
+            if (n < 0) break
+            total += n
+        }
+        return buf to total
+    }
+
+    /** Fills [buf] from [input] as far as the stream goes; returns bytes read. */
+    fun readHead(input: java.io.InputStream, buf: ByteArray): Int = input.readNBytesCompat(buf)
 
     private fun extensionOf(name: String) = if ('.' in name) name.substringAfterLast('.') else ""
 

@@ -1,0 +1,19 @@
+{
+  "uniqueId": "ref:dropsauce",
+  "name": "DropSauce",
+  "description": "Backup/restore hardening ideas",
+  "website": "https://github.com/HuzaifaKhalid1311/DropSauce",
+  "developers": [
+    {
+      "name": "HuzaifaKhalid1311",
+      "organisationUrl": "https://github.com/HuzaifaKhalid1311"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/HuzaifaKhalid1311/DropSauce"
+  },
+  "licenses": [
+    "GPL-3.0-only"
+  ],
+  "tag": "upstream"
+}

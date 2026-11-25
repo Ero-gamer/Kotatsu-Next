@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Reports the latest STABLE version of every library / plugin in gradle/libs.versions.toml (+ AGP, Gradle, Room 3).
+"""Reports the latest STABLE version of every library / plugin the build uses: the version catalog
+(gradle/libs.versions.toml), coordinates written inline in *.gradle(.kts) files (e.g. ssiv-lib, buildscript classpath),
+the Gradle wrapper(s), plus AGP, Room 3 and a few migration-relevant extras.
 
 Reads the real maven-metadata.xml of Google Maven, Maven Central, the Gradle plugin portal and JitPack, so it must
 run where those hosts are reachable (GitHub Actions). Standard library only (Python >= 3.11).
 
-    python3 scripts/dep_versions.py [--toml gradle/libs.versions.toml] [--out dep-versions-report]
+    python3 scripts/dep_versions.py [--toml gradle/libs.versions.toml] [--scan .] [--out dep-versions-report]
 
 Writes <out>.md and <out>.json; with $GITHUB_STEP_SUMMARY set the markdown is appended to the job summary.
 Repository base URLs can be overridden for tests: DEP_REPOS="google=http://...,central=http://..."
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures as cf
+import functools
 import json
 import os
 import re
@@ -92,11 +95,17 @@ def fetch(url: str, retries: int = 3) -> bytes | None:
     return None
 
 
+@functools.cache
 def metadata_versions(group: str, name: str) -> tuple[str | None, list[str]]:
     path = f"{group.replace('.', '/')}/{name}/maven-metadata.xml"
     order = ORDER_DEFAULT
     if group.startswith("com.github."):
         order = ["jitpack"] + [r for r in ORDER_DEFAULT if r != "jitpack"]
+    elif group.startswith("com.google.devtools.ksp"):
+        order = ["central", "portal", "google", "jitpack"]  # Google Maven holds an ancient KSP 1.5.30
+    elif name.endswith(".gradle.plugin"):
+        # plugin markers: Google Maven only carries stale copies (e.g. KSP 1.5.30), the portal has the real ones
+        order = ["portal", "central", "google", "jitpack"]
     for repo in order:
         if repo not in REPOS:
             continue
@@ -125,9 +134,47 @@ def gradle_versions() -> list[str]:
         return []
 
 
-def collect(toml_path: str) -> list[dict]:
-    with open(toml_path, "rb") as f:
-        cat = tomllib.load(f)
+COORD = re.compile(r"""["']([A-Za-z][\w.\-]*):([A-Za-z][\w.\-]*):(\d[\w.\-+]*)["']""")
+SKIP_DIRS = {"build", ".git", ".gradle", "node_modules", "target", "bin"}
+
+
+def scan_inline(root: str) -> tuple[list[dict], list[tuple[str, str]]]:
+    """Inline "group:name:version" coordinates of *.gradle(.kts) files and the Gradle wrapper(s) under [root]."""
+    rows, wrappers, seen = [], [], set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            if name.endswith((".gradle", ".gradle.kts")):
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    text = f.read()
+                for m in COORD.finditer(text):
+                    group, artifact, version = m.groups()
+                    key = (path, group, artifact, version)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    rows.append(
+                        {
+                            "kind": "inline",
+                            "alias": os.path.relpath(path, root),
+                            "module": f"{group}:{artifact}",
+                            "ref": None,
+                            "current": version,
+                        }
+                    )
+            elif name == "gradle-wrapper.properties":
+                with open(path, encoding="utf-8", errors="replace") as f:
+                    m = re.search(r"gradle-([\w.\-]+?)-(?:bin|all)\.zip", f.read())
+                wrappers.append((os.path.relpath(path, root), m.group(1) if m else "?"))
+    return rows, sorted(wrappers)
+
+
+def collect(toml_path: str | None) -> list[dict]:
+    cat: dict = {}
+    if toml_path and os.path.exists(toml_path):
+        with open(toml_path, "rb") as f:
+            cat = tomllib.load(f)
     versions = cat.get("versions", {})
 
     def resolve(spec) -> tuple[str | None, str | None]:
@@ -189,12 +236,13 @@ def status(row: dict) -> str:
     return "OUTDATED" if sort_key(cur) < sort_key(stable) else "ahead of stable"
 
 
-def render(rows: list[dict], gradle: list[str], wrapper: str | None) -> str:
+def render(rows: list[dict], gradle: list[str], wrappers: list[tuple[str, str]]) -> str:
     out = ["# Dependency versions report", ""]
     out.append(
-        f"Gradle wrapper now: `{wrapper or '?'}`; latest stable Gradle: `{newest(gradle, True) or '?'}`"
-        f"; latest Gradle pre-release: `{newest(gradle, False) or '?'}`"
+        f"Latest stable Gradle: `{newest(gradle, True) or '?'}`; latest Gradle pre-release: "
+        f"`{newest(gradle, False) or '?'}`"
     )
+    out += [f"- wrapper `{path}`: `{version}`" for path, version in wrappers]
     out.append("")
     outdated = [r for r in rows if status(r) == "OUTDATED"]
     out.append(
@@ -210,7 +258,7 @@ def render(rows: list[dict], gradle: list[str], wrapper: str | None) -> str:
             "| {s} | `{m}` | {a} | {k} | {c} | {l} | {n} | {p} |".format(
                 s=status(r),
                 m=r["module"],
-                a=r["alias"] if r["kind"] != "extra" else "(extra)",
+                a={"extra": "(extra)", "inline": f"inline: {r['alias']}"}.get(r["kind"], r["alias"]),
                 k=r["ref"] or "",
                 c=r["current"] or "",
                 l=r["latest_stable"] or "",
@@ -232,28 +280,29 @@ def render(rows: list[dict], gradle: list[str], wrapper: str | None) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--toml", default="gradle/libs.versions.toml")
+    ap.add_argument("--toml", default="gradle/libs.versions.toml", help="version catalog (skipped if missing)")
+    ap.add_argument("--scan", action="append", help="dir scanned for inline coordinates + wrappers (default: .)")
     ap.add_argument("--out", default="dep-versions-report")
-    ap.add_argument("--wrapper", default="gradle/wrapper/gradle-wrapper.properties")
     args = ap.parse_args()
 
     rows = collect(args.toml)
+    wrappers: list[tuple[str, str]] = []
+    for root in args.scan or ["."]:
+        inline, found = scan_inline(root)
+        rows += inline
+        wrappers += [(os.path.normpath(os.path.join(root, p)), v) for p, v in found]
     with cf.ThreadPoolExecutor(max_workers=12) as pool:
         gradle_future = pool.submit(gradle_versions)
         rows = list(pool.map(lookup, rows))
         gradle = gradle_future.result()
-    wrapper = None
-    if os.path.exists(args.wrapper):
-        with open(args.wrapper) as f:
-            m = re.search(r"gradle-([\w.\-]+?)-(?:bin|all)\.zip", f.read())
-        wrapper = m.group(1) if m else None
-
-    md = render(rows, gradle, wrapper)
+    md = render(rows, gradle, wrappers)
     with open(args.out + ".md", "w") as f:
         f.write(md)
     with open(args.out + ".json", "w") as f:
         json.dump(
-            {"gradle_wrapper": wrapper, "gradle_latest_stable": newest(gradle, True), "entries": rows}, f, indent=1
+            {"gradle_wrappers": dict(wrappers), "gradle_latest_stable": newest(gradle, True), "entries": rows},
+            f,
+            indent=1,
         )
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

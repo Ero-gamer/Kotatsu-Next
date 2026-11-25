@@ -4,7 +4,7 @@ import org.koitharu.kotatsu.parsers.model.Manga
 
 data class AlternativesSearchOptions(
     val query: String,
-    val sourceScope: AlternativeSourceScope = AlternativeSourceScope.ENABLED,
+    val sourceScope: AlternativeSourceScope = AlternativeSourceScope.Enabled,
     val sameLanguageOnly: Boolean = false,
     val sameContentTypeOnly: Boolean = false,
     val hideNoChapters: Boolean = false,
@@ -14,9 +14,16 @@ data class AlternativesSearchOptions(
     fun isDefaultFor(title: String, defaultScope: AlternativeSourceScope): Boolean = this == AlternativesSearchOptions(query = title, sourceScope = defaultScope)
 }
 
-enum class AlternativeSourceScope {
-    CURRENT_PRESET,
-    ENABLED,
+/** Which sources an alternatives search or a source replacement runs across. */
+sealed interface AlternativeSourceScope {
+
+    data object Enabled : AlternativeSourceScope
+
+    /** The sources the user has not enabled: where an alternative is most often hiding. */
+    data object Disabled : AlternativeSourceScope
+
+    /** Any saved preset, not only the active one. */
+    data class Preset(val id: Long) : AlternativeSourceScope
 }
 
 enum class AlternativeSortOrder {
@@ -45,5 +52,19 @@ data class AlternativeSearchStatus(
 
 data class AlternativeSourceScopeOptions(
     val defaultScope: AlternativeSourceScope,
-    val presetTitle: String?,
-)
+    /** Presets that have at least one candidate source, in the user's preset order. */
+    val presets: List<PresetChoice> = emptyList(),
+    /** False when every candidate is already enabled, or every source is enabled. */
+    val hasDisabledSources: Boolean = false,
+) {
+
+    data class PresetChoice(val id: Long, val title: String)
+
+    fun isAvailable(scope: AlternativeSourceScope): Boolean = when (scope) {
+        AlternativeSourceScope.Enabled -> true
+        AlternativeSourceScope.Disabled -> hasDisabledSources
+        is AlternativeSourceScope.Preset -> presets.any { it.id == scope.id }
+    }
+
+    fun presetTitle(id: Long): String? = presets.firstOrNull { it.id == id }?.title
+}

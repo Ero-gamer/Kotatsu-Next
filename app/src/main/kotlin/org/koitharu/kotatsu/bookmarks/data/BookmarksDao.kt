@@ -2,7 +2,6 @@ package org.koitharu.kotatsu.bookmarks.data
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
@@ -36,7 +35,7 @@ abstract class BookmarksDao {
     )
     abstract fun observe(): Flow<Map<MangaWithTags, List<BookmarkEntity>>>
 
-    @Insert
+    @Upsert
     abstract suspend fun insert(entity: BookmarkEntity)
 
     @Delete

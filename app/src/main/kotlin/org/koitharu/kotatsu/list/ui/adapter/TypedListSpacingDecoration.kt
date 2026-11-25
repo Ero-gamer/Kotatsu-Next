@@ -39,6 +39,8 @@ class TypedListSpacingDecoration(
             ListItemType.EXPLORE_SOURCE_LIST,
             ListItemType.MANGA_SCROBBLING,
             ListItemType.MANGA_LIST,
+            ListItemType.DISCOVER_RANKED,
+            ListItemType.DISCOVER_ROW,
             -> outRect.set(0)
 
             ListItemType.DOWNLOAD,

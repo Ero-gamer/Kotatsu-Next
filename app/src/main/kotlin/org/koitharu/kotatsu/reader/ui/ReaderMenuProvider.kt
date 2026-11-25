@@ -9,6 +9,7 @@ import org.koitharu.kotatsu.R
 class ReaderMenuProvider(
     @Suppress("UnusedPrivateProperty") // reserved for the action_info handler below, not yet implemented
     private val viewModel: ReaderViewModel,
+    private val onOpenHiddenImages: () -> Unit,
 ) : MenuProvider {
 
     override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
@@ -18,6 +19,11 @@ class ReaderMenuProvider(
     override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
         R.id.action_info -> {
             // TODO
+            true
+        }
+
+        R.id.action_hidden_images -> {
+            onOpenHiddenImages()
             true
         }
 

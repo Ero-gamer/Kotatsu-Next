@@ -62,6 +62,7 @@ import org.koitharu.kotatsu.history.data.HistoryRepository
 import org.koitharu.kotatsu.local.data.LocalMangaRepository
 import org.koitharu.kotatsu.local.data.LocalStorageManager
 import org.koitharu.kotatsu.parsers.model.Manga
+import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.parsers.util.toIntUp
 import org.koitharu.kotatsu.settings.work.PeriodicWorkScheduler
@@ -146,20 +147,25 @@ class TrackWorker @AssistedInject constructor(
     @CheckResult
     private suspend fun checkUpdatesAsync(tracks: List<MangaTracking>): List<NotificationInfo> {
         val semaphore = Semaphore(MAX_PARALLELISM)
+        // At most a couple of requests at once to any one site, however many of its manga are tracked.
+        val sourceLimits = HashMap<MangaSource, Semaphore>()
         return channelFlow {
             for (track in tracks) {
+                val sourceLimit = sourceLimits.getOrPut(track.manga.source) { Semaphore(MAX_PARALLELISM_PER_SOURCE) }
                 launch {
-                    semaphore.withPermit {
-                        send(
-                            runCatchingCancellable {
-                                checkNewChaptersUseCase.invoke(track)
-                            }.getOrElse { error ->
-                                MangaUpdates.Failure(
-                                    manga = track.manga,
-                                    error = error,
-                                )
-                            },
-                        )
+                    sourceLimit.withPermit {
+                        semaphore.withPermit {
+                            send(
+                                runCatchingCancellable {
+                                    checkNewChaptersUseCase.invoke(track)
+                                }.getOrElse { error ->
+                                    MangaUpdates.Failure(
+                                        manga = track.manga,
+                                        error = error,
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -392,6 +398,7 @@ class TrackWorker @AssistedInject constructor(
         const val TAG = "tracking"
         const val TAG_ONESHOT = "tracking_oneshot"
         const val MAX_PARALLELISM = 6
+        const val MAX_PARALLELISM_PER_SOURCE = 2
         val BATCH_SIZE = if (BuildConfig.DEBUG) 20 else 46
         const val SETTINGS_ACTION_CODE = 5
     }

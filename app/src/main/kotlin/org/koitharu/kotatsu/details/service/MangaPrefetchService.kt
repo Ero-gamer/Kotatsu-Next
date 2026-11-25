@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.EntryPointAccessors
-import org.koitharu.kotatsu.core.cache.MemoryContentCache
 import org.koitharu.kotatsu.core.model.LocalMangaSource
 import org.koitharu.kotatsu.core.model.isLocal
 import org.koitharu.kotatsu.core.model.parcelable.ParcelableChapter
@@ -25,14 +24,19 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MangaPrefetchService : CoroutineIntentService() {
 
+    // Lazy: the service is re-created on the main thread after process death; building the repository
+    // factory (HTTP client, DB) eagerly there blocks the UI and could crash a background start.
     @Inject
-    lateinit var mangaRepositoryFactory: MangaRepository.Factory
+    lateinit var mangaRepositoryFactoryLazy: dagger.Lazy<MangaRepository.Factory>
 
     @Inject
-    lateinit var cache: MemoryContentCache
+    lateinit var historyRepositoryLazy: dagger.Lazy<HistoryRepository>
 
-    @Inject
-    lateinit var historyRepository: HistoryRepository
+    private val mangaRepositoryFactory: MangaRepository.Factory
+        get() = mangaRepositoryFactoryLazy.get()
+
+    private val historyRepository: HistoryRepository
+        get() = historyRepositoryLazy.get()
 
     override suspend fun IntentJobContext.processIntent(intent: Intent) {
         when (intent.action) {
@@ -83,7 +87,7 @@ class MangaPrefetchService : CoroutineIntentService() {
     companion object {
 
         private const val EXTRA_MANGA = "manga"
-        private const val EXTRA_CHAPTER = "manga"
+        private const val EXTRA_CHAPTER = "chapter"
         private const val ACTION_PREFETCH_DETAILS = "details"
         private const val ACTION_PREFETCH_PAGES = "pages"
         private const val ACTION_PREFETCH_LAST = "last"

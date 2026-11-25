@@ -54,6 +54,9 @@ data class ChapterListItem(
     val isGrid: Boolean
         get() = hasFlag(FLAG_GRID)
 
+    val isOptimized: Boolean
+        get() = hasFlag(FLAG_OPTIMIZED)
+
     operator fun contains(query: String): Boolean = with(chapter) {
         title?.contains(query, ignoreCase = true) == true ||
             numberString()?.contains(query) == true ||
@@ -102,6 +105,7 @@ data class ChapterListItem(
 
     companion object {
 
+        const val FLAG_OPTIMIZED: Byte = 1
         const val FLAG_UNREAD: Byte = 2
         const val FLAG_CURRENT: Byte = 4
         const val FLAG_NEW: Byte = 8

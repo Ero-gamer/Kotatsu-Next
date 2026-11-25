@@ -30,6 +30,15 @@
 		android:title="@string/download_over_cellular"
 		app:useSimpleSummaryProvider="true" />
 
+	<ListPreference
+		android:defaultValue="0"
+		android:entries="@array/download_ahead_counts"
+		android:entryValues="@array/download_ahead_count_values"
+		android:icon="@drawable/ic_download"
+		android:key="download_ahead"
+		android:summary="@string/download_ahead_summary"
+		android:title="@string/download_ahead" />
+
 	<Preference
 		android:icon="@drawable/ic_info_outline"
 		android:key="tracker_notifications_info"
@@ -62,7 +71,72 @@
 
 	</PreferenceCategory>
 
+	<PreferenceCategory android:title="@string/tall_split">
+
+		<SwitchPreferenceCompat
+			android:defaultValue="false"
+			android:icon="@drawable/ic_storage"
+			android:key="split_tall_images"
+			android:summary="@string/tall_split_summary"
+			android:title="@string/tall_split" />
+
+		<SwitchPreferenceCompat
+			android:defaultValue="true"
+			android:icon="@drawable/ic_appearance"
+			android:key="webp_quality_auto"
+			android:summary="@string/webp_quality_auto_summary"
+			android:title="@string/webp_quality_auto" />
+
+		<SwitchPreferenceCompat
+			android:defaultValue="false"
+			android:icon="@drawable/ic_storage"
+			android:key="convert_webp_download"
+			android:summary="@string/convert_webp_download_summary"
+			android:title="@string/convert_webp_download" />
+
+		<org.koitharu.kotatsu.settings.utils.SliderPreference
+			android:dependency="split_tall_images"
+			android:icon="@drawable/ic_appearance"
+			android:key="tall_split_quality"
+			android:stepSize="5"
+			android:title="@string/tall_split_quality"
+			android:valueFrom="50"
+			android:valueTo="100"
+			app:defaultValue="95" />
+
+		<ListPreference
+			android:defaultValue="off"
+			android:entries="@array/dual_split_modes"
+			android:entryValues="@array/values_dual_split"
+			android:icon="@drawable/ic_storage"
+			android:key="split_dual_pages"
+			android:summary="@string/dual_split_summary"
+			android:title="@string/dual_split" />
+
+	</PreferenceCategory>
+
 	<PreferenceCategory android:title="@string/archive_maintenance">
+
+		<SwitchPreferenceCompat
+			android:defaultValue="false"
+			android:icon="@drawable/ic_storage"
+			android:key="cbz_auto_repack"
+			android:summary="@string/cbz_auto_repack_summary"
+			android:title="@string/cbz_auto_repack" />
+
+		<Preference
+			android:icon="@drawable/ic_images"
+			android:key="optimize_screen"
+			android:persistent="false"
+			android:summary="@string/optimize_screen_summary"
+			android:title="@string/optimize_screen_title" />
+
+		<Preference
+			android:icon="@drawable/ic_images"
+			android:key="optimize_all"
+			android:persistent="false"
+			android:summary="@string/optimize_all_downloads_summary"
+			android:title="@string/optimize_all_downloads" />
 
 		<Preference
 			android:icon="@drawable/ic_storage"

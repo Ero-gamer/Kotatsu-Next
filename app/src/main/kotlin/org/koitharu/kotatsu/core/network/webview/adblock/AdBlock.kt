@@ -1,6 +1,7 @@
 package org.koitharu.kotatsu.core.network.webview.adblock
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.WorkerThread
 import dagger.Reusable
@@ -15,6 +16,7 @@ import org.koitharu.kotatsu.core.network.CommonHeaders
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.util.ext.isNotEmpty
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
+import org.koitharu.kotatsu.core.util.ext.renameReplacing
 import org.koitharu.kotatsu.parsers.util.await
 import org.koitharu.kotatsu.parsers.util.requireBody
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
@@ -33,6 +35,9 @@ class AdBlock @Inject constructor(
 
     private var rules: RulesList? = null
 
+    /** After a failed parse (list not downloaded yet) no new attempt is made before this time. */
+    private var nextParseAt = 0L
+
     @WorkerThread
     fun shouldLoadUrl(url: String, baseUrl: String?): Boolean {
         return shouldLoadUrl(
@@ -46,15 +51,24 @@ class AdBlock @Inject constructor(
         if (!settings.isAdBlockEnabled) {
             return true
         }
-        return synchronized(this) {
-            rules ?: parseRules().also { rules = it }
-        }?.let {
+        return getRules()?.let {
             val rule = it[url, baseUrl]
             if (rule != null) {
                 Log.i(TAG, "Blocked $url by $rule")
             }
             rule == null
         } ?: true
+    }
+
+    private fun getRules(): RulesList? = synchronized(this) {
+        rules ?: run {
+            val now = SystemClock.elapsedRealtime()
+            if (now < nextParseAt) return@run null
+            parseRules().also {
+                rules = it
+                if (it == null) nextParseAt = now + PARSE_RETRY_MS
+            }
+        }
     }
 
     @WorkerThread
@@ -95,11 +109,19 @@ class AdBlock @Inject constructor(
                         dateFormat.parse(it)
                     }.getOrNull()
                 }?.time ?: System.currentTimeMillis()
-                response.requireBody().source().use { source ->
-                    file.sink().use { sink ->
-                        source.readAll(sink)
+                // Download beside the list and swap it in: a dropped connection must not leave a truncated list.
+                val part = File(file.parentFile, file.name + ".tmp")
+                try {
+                    response.requireBody().source().use { source ->
+                        part.sink().use { sink ->
+                            source.readAll(sink)
+                        }
                     }
-                    file.setLastModified(lastModified)
+                    part.setLastModified(lastModified)
+                    part.renameReplacing(file)
+                } catch (e: Throwable) {
+                    part.delete()
+                    throw e
                 }
             }
         }
@@ -117,5 +139,6 @@ class AdBlock @Inject constructor(
         private const val LIST_DIR = "adblock"
         private const val EASYLIST_URL = "https://easylist.to/easylist/easylist.txt"
         private const val TAG = "AdBlock"
+        private const val PARSE_RETRY_MS = 5 * 60 * 1000L
     }
 }

@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
-import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
@@ -26,9 +25,13 @@ import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.removeItemDecoration
 import org.koitharu.kotatsu.databinding.FragmentReaderWebtoonBinding
 import org.koitharu.kotatsu.reader.domain.PageLoader
+import org.koitharu.kotatsu.reader.domain.indexOfPosition
+import org.koitharu.kotatsu.reader.ui.ReaderControlDelegate
 import org.koitharu.kotatsu.reader.ui.ReaderState
+import org.koitharu.kotatsu.reader.ui.pager.BasePageHolder
 import org.koitharu.kotatsu.reader.ui.pager.BaseReaderAdapter
 import org.koitharu.kotatsu.reader.ui.pager.BaseReaderFragment
+import org.koitharu.kotatsu.reader.ui.pager.ReaderMotion
 import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 import javax.inject.Inject
 
@@ -47,7 +50,7 @@ class WebtoonReaderFragment :
     @Inject
     lateinit var appSettings: AppSettings
 
-    private val scrollInterpolator = DecelerateInterpolator()
+    private val scrollInterpolator = ReaderMotion.quinticOut
 
     private var recyclerLifecycleDispatcher: RecyclerViewLifecycleDispatcher? = null
     private var canGoPrev = true
@@ -62,11 +65,23 @@ class WebtoonReaderFragment :
         super.onViewBindingCreated(binding, savedInstanceState)
         with(binding.recyclerView) {
             setHasFixedSize(true)
+            // One continuous strip: pages joining or leaving it must not fade in and out over what is being read
+            itemAnimator = null
             adapter = readerAdapter
             addOnPageScrollListener(this@WebtoonReaderFragment)
             recyclerLifecycleDispatcher = RecyclerViewLifecycleDispatcher().also {
                 addOnScrollListener(it)
             }
+            addOnScrollListener(
+                object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        for (i in 0 until recyclerView.childCount) {
+                            (recyclerView.getChildViewHolder(recyclerView.getChildAt(i)) as? BasePageHolder<*>)
+                                ?.onListScrolled()
+                        }
+                    }
+                },
+            )
             setOnPullGestureListener(this@WebtoonReaderFragment)
             applyMemorySaverMode(this, appSettings.isWebtoonMemorySaverEnabled)
         }
@@ -138,6 +153,7 @@ class WebtoonReaderFragment :
         lastVisiblePosition: Int,
     ) {
         viewModel.onCurrentPageChanged(firstVisiblePosition, lastVisiblePosition)
+        (activity as? ReaderControlDelegate.OnInteractionListener)?.onReaderScrolled(dy)
     }
 
     override suspend fun onPagesChanged(pages: List<ReaderPage>, pendingState: ReaderState?) = coroutineScope {
@@ -149,9 +165,7 @@ class WebtoonReaderFragment :
             }
         }
         if (pendingState != null) {
-            val position = pages.indexOfFirst {
-                it.chapterId == pendingState.chapterId && it.index == pendingState.page
-            }
+            val position = pages.indexOfPosition(pendingState.chapterId, pendingState.page) ?: -1
             setItems.join()
             if (position != -1) {
                 with(requireViewBinding().recyclerView) {
@@ -170,6 +184,9 @@ class WebtoonReaderFragment :
             setItems.join()
         }
     }
+
+    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? =
+        with(viewBinding?.recyclerView) { this?.findPageHolderAt(rawX, rawY) }
 
     override fun getCurrentState(): ReaderState? = viewBinding?.run {
         val currentItem = recyclerView.findCurrentPagePosition()

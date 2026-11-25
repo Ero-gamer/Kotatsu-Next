@@ -9,9 +9,13 @@ import androidx.preference.MultiSelectListPreference
 import androidx.preference.Preference
 import com.davemorrissey.labs.subscaleview.ImageDownscaler
 import com.davemorrissey.labs.subscaleview.ImageScaler
+import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
+import org.koitharu.kotatsu.core.model.ReaderHideThreshold
+import org.koitharu.kotatsu.core.model.ReaderTint
 import org.koitharu.kotatsu.core.model.ZoomMode
+import org.koitharu.kotatsu.core.model.ZoomStart
 import org.koitharu.kotatsu.core.nav.router
 import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.EInkFlashColor
@@ -76,6 +80,23 @@ class ReaderSettingsFragment :
             entryValues = ZoomMode.entries.names()
             setDefaultValueCompat(ZoomMode.FIT_CENTER.name)
         }
+        findPreference<ListPreference>(AppSettings.KEY_READER_HIDE_THRESHOLD)?.run {
+            entryValues = ReaderHideThreshold.entries.names()
+            setDefaultValueCompat(ReaderHideThreshold.OFF.name)
+        }
+        findPreference<ListPreference>(AppSettings.KEY_READER_TINT)?.run {
+            entryValues = ReaderTint.entries.names()
+            setDefaultValueCompat(ReaderTint.OFF.name)
+        }
+        findPreference<SliderPreference>(AppSettings.KEY_READER_TINT_STRENGTH)?.summaryProvider = PercentSummaryProvider()
+        findPreference<SliderPreference>(AppSettings.KEY_READER_DIM)?.summaryProvider = PercentSummaryProvider()
+        findPreference<SliderPreference>(AppSettings.KEY_WEBTOON_SIDE_PADDING)?.summaryProvider = PercentSummaryProvider()
+        findPreference<SliderPreference>(AppSettings.KEY_DOUBLE_PAGE_GAP)?.summaryProvider = PercentSummaryProvider()
+        findPreference<SliderPreference>(AppSettings.KEY_READER_BRIGHTNESS)?.summaryProvider = BrightnessSummaryProvider
+        findPreference<ListPreference>(AppSettings.KEY_ZOOM_START)?.run {
+            entryValues = ZoomStart.entries.names()
+            setDefaultValueCompat(ZoomStart.AUTO.name)
+        }
         findPreference<MultiSelectListPreference>(AppSettings.KEY_READER_CROP)?.run {
             summaryProvider = MultiSummaryProvider(R.string.disabled)
         }
@@ -115,6 +136,12 @@ class ReaderSettingsFragment :
             true
         }
 
+        AppSettings.KEY_ERASE_TUTORIAL -> {
+            settings.reopenTip(AppSettings.TIP_ERASE_TUTORIAL)
+            Snackbar.make(listView, R.string.erase_tutorial_again_done, Snackbar.LENGTH_SHORT).show()
+            true
+        }
+
         else -> {
             super.onPreferenceTreeClick(preference)
         }
@@ -132,6 +159,14 @@ class ReaderSettingsFragment :
     private fun updateReaderModeDependency() {
         findPreference<Preference>(AppSettings.KEY_READER_MODE_DETECT)?.run {
             isEnabled = settings.defaultReaderMode != ReaderMode.WEBTOON
+        }
+    }
+
+    private object BrightnessSummaryProvider : Preference.SummaryProvider<SliderPreference> {
+        override fun provideSummary(preference: SliderPreference): CharSequence = if (preference.value <= 0) {
+            preference.context.getString(R.string.system_default)
+        } else {
+            preference.context.getString(R.string.percent_string_pattern, preference.value.toString())
         }
     }
 

@@ -1,0 +1,18 @@
+{
+  "uniqueId": "com.github.Ero-gamer:subsampling-scale-image-view",
+  "name": "SubsamplingScaleImageView (Kotatsu Next fork)",
+  "description": "Tiled image view with libjpeg-turbo region decoding; fork of Dave Morrissey's SubsamplingScaleImageView",
+  "website": "https://github.com/Ero-gamer/subsampling-scale-image-view",
+  "developers": [
+    {
+      "name": "Ero-gamer / Dave Morrissey",
+      "organisationUrl": "https://github.com/davemorrissey/subsampling-scale-image-view"
+    }
+  ],
+  "scm": {
+    "url": "https://github.com/Ero-gamer/subsampling-scale-image-view"
+  },
+  "licenses": [
+    "Apache-2.0"
+  ]
+}

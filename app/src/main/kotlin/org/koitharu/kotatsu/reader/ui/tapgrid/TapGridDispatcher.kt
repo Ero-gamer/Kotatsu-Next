@@ -3,7 +3,9 @@ package org.koitharu.kotatsu.reader.ui.tapgrid
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import org.koitharu.kotatsu.reader.domain.TapGridArea
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class TapGridDispatcher(
@@ -12,7 +14,12 @@ class TapGridDispatcher(
 ) : GestureDetector.SimpleOnGestureListener() {
 
     private val detector = GestureDetector(rootView.context, this)
+    private val bounceGuard = TouchBounceGuard()
+    private val touchSlop = ViewConfiguration.get(rootView.context).scaledTouchSlop
     private var isDispatching = false
+    private var downX = 0f
+    private var downY = 0f
+    private var isDrag = false
 
     init {
         detector.setIsLongpressEnabled(true)
@@ -20,8 +27,26 @@ class TapGridDispatcher(
     }
 
     fun dispatchTouchEvent(event: MotionEvent) {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-            isDispatching = listener.onProcessTouch(event.rawX.toInt(), event.rawY.toInt())
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.rawX
+                downY = event.rawY
+                isDrag = false
+                // A touch right after a drag was released is digitizer bounce: no tap, no long press.
+                isDispatching = !bounceGuard.isBounce(event.eventTime) &&
+                    listener.onProcessTouch(event.rawX.toInt(), event.rawY.toInt())
+            }
+
+            MotionEvent.ACTION_MOVE -> if (!isDrag && event.pointerCount == 1) {
+                isDrag = abs(event.rawX - downX) > touchSlop || abs(event.rawY - downY) > touchSlop
+            }
+
+            MotionEvent.ACTION_UP -> if (isDrag) {
+                bounceGuard.onDragEnd(event.eventTime)
+                isDrag = false
+            }
+
+            MotionEvent.ACTION_CANCEL -> isDrag = false
         }
         detector.onTouchEvent(event)
     }

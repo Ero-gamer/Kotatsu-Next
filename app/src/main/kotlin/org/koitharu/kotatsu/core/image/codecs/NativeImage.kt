@@ -3,7 +3,6 @@ package org.koitharu.kotatsu.core.image.codecs
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.ParcelFileDescriptor
-import java.io.Closeable
 import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -13,20 +12,19 @@ import kotlin.concurrent.write
 class NativeImage private constructor(
     private var handle: Long,
     val format: Int,
-    val width: Int,
-    val height: Int,
-    val frameCount: Int,
-    val hasAlpha: Boolean,
+    override val width: Int,
+    override val height: Int,
+    override val frameCount: Int,
+    override val hasAlpha: Boolean,
     /** Animation repeat count, 0 = forever. */
-    val loopCount: Int,
-) : Closeable {
+    override val loopCount: Int,
+) : FrameSource {
 
     private val lock = ReentrantReadWriteLock()
 
-    val isAnimated: Boolean
-        get() = frameCount > 1
+    private val fullRect = Rect(0, 0, width, height)
 
-    fun frameDurationMs(frame: Int): Int = lock.read {
+    override fun frameDurationMs(frame: Int): Int = lock.read {
         if (handle == 0L) 0 else NativeCodecs.nativeFrameDuration(handle, frame)
     }
 
@@ -41,7 +39,9 @@ class NativeImage private constructor(
         } catch (_: OutOfMemoryError) {
             return null
         }
-        return if (decodeInto(frame, rect, s, bitmap)) bitmap else null
+        if (decodeInto(frame, rect, s, bitmap)) return bitmap
+        bitmap.recycle()
+        return null
     }
 
     /** [bitmap] must be exactly the sampled size of [rect]. */
@@ -57,6 +57,8 @@ class NativeImage private constructor(
             bitmap,
         )
     }
+
+    override fun decodeInto(frame: Int, sample: Int, bitmap: Bitmap): Boolean = decodeInto(frame, fullRect, sample, bitmap)
 
     override fun close() {
         lock.write {
