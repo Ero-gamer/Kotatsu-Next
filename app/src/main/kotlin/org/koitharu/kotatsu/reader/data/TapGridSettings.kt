@@ -97,16 +97,19 @@ constructor(
                     col == 0 || (row == 0 && col == 1) -> TapAction.PAGE_PREV
                     else -> TapAction.PAGE_NEXT
                 }
+
                 KINDLE -> when {
                     area == TapGridArea.CENTER -> TapAction.TOGGLE_UI
                     col == 0 -> TapAction.PAGE_PREV
                     else -> TapAction.PAGE_NEXT
                 }
+
                 LEFT_RIGHT -> when (col) {
                     0 -> TapAction.PAGE_PREV
                     1 -> TapAction.TOGGLE_UI
                     else -> TapAction.PAGE_NEXT
                 }
+
                 TOP_BOTTOM -> when (row) {
                     0 -> TapAction.PAGE_PREV
                     1 -> TapAction.TOGGLE_UI

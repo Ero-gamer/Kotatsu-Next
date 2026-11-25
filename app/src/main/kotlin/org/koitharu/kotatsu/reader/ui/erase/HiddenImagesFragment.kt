@@ -72,25 +72,29 @@ class HiddenImagesViewModel @Inject constructor(
  * What makes "never again" safe to offer: nothing erased, by accident or by a false match, is out of reach.
  */
 @AndroidEntryPoint
-class HiddenImagesFragment : BaseFragment<FragmentSettingsSourcesBinding>(), RecyclerViewOwner {
+class HiddenImagesFragment :
+    BaseFragment<FragmentSettingsSourcesBinding>(),
+    RecyclerViewOwner {
 
     private val viewModel by viewModels<HiddenImagesViewModel>()
 
     override val recyclerView: RecyclerView?
         get() = viewBinding?.recyclerView
 
-    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?) =
-        FragmentSettingsSourcesBinding.inflate(inflater, container, false)
+    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?) = FragmentSettingsSourcesBinding.inflate(inflater, container, false)
 
     override fun onViewBindingCreated(binding: FragmentSettingsSourcesBinding, savedInstanceState: Bundle?) {
         super.onViewBindingCreated(binding, savedInstanceState)
         val adapter = BaseListAdapter<ListModel>()
-            .addDelegate(ListItemType.MANGA_LIST, hiddenImageAD { entity ->
-                viewModel.showAgain(entity.id)
-                Snackbar.make(binding.root, R.string.hidden_images_shown, Snackbar.LENGTH_LONG)
-                    .setAction(R.string.undo) { viewModel.hideAgain(entity) }
-                    .show()
-            })
+            .addDelegate(
+                ListItemType.MANGA_LIST,
+                hiddenImageAD { entity ->
+                    viewModel.showAgain(entity.id)
+                    Snackbar.make(binding.root, R.string.hidden_images_shown, Snackbar.LENGTH_LONG)
+                        .setAction(R.string.undo) { viewModel.hideAgain(entity) }
+                        .show()
+                },
+            )
             .addDelegate(ListItemType.HINT_EMPTY, nothingHiddenAD())
         binding.recyclerView.adapter = adapter
         viewModel.content.observe(viewLifecycleOwner, adapter)
@@ -108,21 +112,20 @@ class HiddenImagesFragment : BaseFragment<FragmentSettingsSourcesBinding>(), Rec
     }
 }
 
-private fun hiddenImageAD(onShowAgain: (HiddenImageEntity) -> Unit) =
-    adapterDelegateViewBinding<HiddenImageItem, ListModel, ItemHiddenImageBinding>(
-        { inflater, parent -> ItemHiddenImageBinding.inflate(inflater, parent, false) },
-    ) {
-        binding.buttonShow.setOnClickListener { onShowAgain(item.entity) }
-        bind {
-            val entity = item.entity
-            val thumbnail = entity.thumbnail
-            binding.imageViewThumbnail.setImageBitmap(
-                thumbnail?.let { BitmapFactory.decodeByteArray(it, 0, it.size) },
-            )
-            binding.textViewTitle.text = entity.mangaTitle
-            binding.textViewSubtitle.text = DateUtils.getRelativeTimeSpanString(entity.createdAt)
-        }
+private fun hiddenImageAD(onShowAgain: (HiddenImageEntity) -> Unit) = adapterDelegateViewBinding<HiddenImageItem, ListModel, ItemHiddenImageBinding>(
+    { inflater, parent -> ItemHiddenImageBinding.inflate(inflater, parent, false) },
+) {
+    binding.buttonShow.setOnClickListener { onShowAgain(item.entity) }
+    bind {
+        val entity = item.entity
+        val thumbnail = entity.thumbnail
+        binding.imageViewThumbnail.setImageBitmap(
+            thumbnail?.let { BitmapFactory.decodeByteArray(it, 0, it.size) },
+        )
+        binding.textViewTitle.text = entity.mangaTitle
+        binding.textViewSubtitle.text = DateUtils.getRelativeTimeSpanString(entity.createdAt)
     }
+}
 
 private fun nothingHiddenAD() = adapterDelegate<NothingHidden, ListModel>(R.layout.item_hidden_images_empty) {
     (itemView as TextView).setText(R.string.hidden_images_empty)

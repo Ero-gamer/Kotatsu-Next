@@ -22,8 +22,8 @@ import org.koitharu.kotatsu.parsers.model.MangaListFilter
 import org.koitharu.kotatsu.parsers.model.MangaListFilterCapabilities
 import org.koitharu.kotatsu.parsers.model.MangaListFilterOptions
 import org.koitharu.kotatsu.parsers.model.MangaPage
-import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.SortOrder
 import java.lang.ref.WeakReference
 import javax.inject.Inject
@@ -70,8 +70,7 @@ interface MangaRepository {
 
         /** The last few repositories are held strongly: a GC must not drop a parser (and its fetched filters) in use. */
         private val recent = object : LinkedHashMap<MangaSource, MangaRepository>(16, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<MangaSource, MangaRepository>?) =
-                size > RECENT_LIMIT
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<MangaSource, MangaRepository>?) = size > RECENT_LIMIT
         }
 
         @AnyThread

@@ -6,8 +6,8 @@ import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.internal.closeQuietly
-import org.koitharu.kotatsu.core.model.isLocal
 import org.koitharu.kotatsu.core.image.ImageFormatProbe
+import org.koitharu.kotatsu.core.model.isLocal
 import org.koitharu.kotatsu.core.util.MimeTypes
 import org.koitharu.kotatsu.core.util.ext.MimeType
 import org.koitharu.kotatsu.core.util.ext.deleteAwait

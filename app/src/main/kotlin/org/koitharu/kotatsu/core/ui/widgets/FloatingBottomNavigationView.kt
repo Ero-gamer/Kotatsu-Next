@@ -119,8 +119,7 @@ class FloatingBottomNavigationView @JvmOverloads constructor(
      * their own touches, as Compose surfaces do.
      */
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean =
-        if (useLegacyNavigation) super.onTouchEvent(event) else false
+    override fun onTouchEvent(event: MotionEvent): Boolean = if (useLegacyNavigation) super.onTouchEvent(event) else false
 
     override fun setSelectedItemId(@IdRes itemId: Int) {
         super.setSelectedItemId(itemId)

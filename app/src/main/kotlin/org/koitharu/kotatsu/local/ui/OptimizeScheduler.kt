@@ -48,8 +48,11 @@ class OptimizeScheduler @Inject constructor(
         val root = local.file
         when {
             root.isZipArchive -> listOf(root)
+
             !root.isDirectory -> emptyList()
+
             chapterIds == null -> CbzMaintenance.listArchives(listOf(root))
+
             else -> local.manga.chapters.orEmpty()
                 .filter { it.id in chapterIds }
                 .mapNotNull { chapter -> runCatching { chapter.url.toUri().toFile() }.getOrNull() }

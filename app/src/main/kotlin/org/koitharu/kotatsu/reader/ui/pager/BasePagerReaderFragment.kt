@@ -175,8 +175,7 @@ abstract class BasePagerReaderFragment :
         }
     }
 
-    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? =
-        viewBinding?.pager?.findCurrentViewHolder() as? BasePageHolder<*>
+    override fun findPageHolderAt(rawX: Int, rawY: Int): BasePageHolder<*>? = viewBinding?.pager?.findCurrentViewHolder() as? BasePageHolder<*>
 
     override fun getCurrentState(): ReaderState? = viewBinding?.run {
         val adapter = pager.adapter as? BaseReaderAdapter<*>

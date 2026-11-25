@@ -324,7 +324,9 @@ class EraseOverlayView @JvmOverloads constructor(
         super.onDraw(canvas)
         when (mode) {
             Mode.IDLE -> if (trailSize > 0) drawTrail(canvas)
+
             Mode.TRAIL -> drawTrail(canvas)
+
             Mode.SEARCHING -> {
                 drawTrail(canvas)
                 borderPaint.alpha = (PULSE_MIN + (255 - PULSE_MIN) * abs(searchPulse * 2f - 1f)).toInt()
@@ -332,7 +334,9 @@ class EraseOverlayView @JvmOverloads constructor(
             }
 
             Mode.SETTLING -> drawSelection(canvas, withHandles = false)
+
             Mode.CROP -> drawSelection(canvas, withHandles = true)
+
             Mode.ERASING -> drawErase(canvas)
         }
     }
@@ -470,7 +474,9 @@ class EraseOverlayView @JvmOverloads constructor(
         val minimum = MIN_SIZE_DP * density
         when (activeHandle) {
             Handle.NONE -> return
+
             Handle.MOVE -> r.offset(dx, dy)
+
             else -> {
                 if (activeHandle == Handle.LEFT || activeHandle == Handle.TOP_LEFT || activeHandle == Handle.BOTTOM_LEFT) {
                     r.left = (r.left + dx).coerceAtMost(r.right - minimum)

@@ -31,8 +31,7 @@ data class DiscoverRowItem(
     /** What goes in [title], for a row that says why it is there. */
     val titleArgument: String? = null,
 ) : ListModel {
-    override fun areItemsTheSame(other: ListModel) =
-        other is DiscoverRowItem && other.title == title && other.titleText == titleText && other.titleArgument == titleArgument
+    override fun areItemsTheSame(other: ListModel) = other is DiscoverRowItem && other.title == title && other.titleText == titleText && other.titleArgument == titleArgument
 }
 
 data class DiscoverRankedManga(

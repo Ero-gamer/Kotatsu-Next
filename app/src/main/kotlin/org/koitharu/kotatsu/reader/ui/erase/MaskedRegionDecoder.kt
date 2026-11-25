@@ -66,8 +66,7 @@ class MaskedRegionDecoder(
         }
     }
 
-    private fun decodeSlice(sRect: Rect, slice: IntRange, sampleSize: Int): Bitmap =
-        delegate.decodeRegion(Rect(sRect.left, slice.first, sRect.right, slice.last + 1), sampleSize)
+    private fun decodeSlice(sRect: Rect, slice: IntRange, sampleSize: Int): Bitmap = delegate.decodeRegion(Rect(sRect.left, slice.first, sRect.right, slice.last + 1), sampleSize)
 
     private fun paintPatch(canvas: Canvas, index: Int, sRect: Rect, slice: IntRange, y: Float, sampleSize: Int) {
         val patch = mask.patches[index]

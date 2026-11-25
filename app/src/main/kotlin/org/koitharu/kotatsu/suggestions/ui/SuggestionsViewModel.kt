@@ -18,7 +18,6 @@ import org.koitharu.kotatsu.core.prefs.observeAsFlow
 import org.koitharu.kotatsu.core.util.ext.onFirst
 import org.koitharu.kotatsu.discover.data.DiscoverDismissals
 import org.koitharu.kotatsu.discover.domain.MangaDismisser
-import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.list.domain.MangaListMapper
 import org.koitharu.kotatsu.list.domain.QuickFilterListener
 import org.koitharu.kotatsu.list.ui.MangaListViewModel
@@ -27,6 +26,7 @@ import org.koitharu.kotatsu.list.ui.model.LoadingState
 import org.koitharu.kotatsu.list.ui.model.toErrorState
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.domain.model.LocalManga
+import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.suggestions.domain.SuggestionRepository
 import org.koitharu.kotatsu.suggestions.domain.SuggestionsListQuickFilter
 import javax.inject.Inject

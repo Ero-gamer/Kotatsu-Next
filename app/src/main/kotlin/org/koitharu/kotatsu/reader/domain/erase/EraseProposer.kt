@@ -173,10 +173,14 @@ object EraseProposer {
             rest = bands.filter { it !== band }.map {
                 SourceRegion(0, luma.sourceY(it.start), luma.sourceWidth, luma.sourceY(it.end))
             },
-            snapX = (edges(columns, luma.width) { luma.sourceX(it) } + intArrayOf(region.left, region.right) +
-                (aroundStroke?.let { intArrayOf(it.left, it.right) } ?: IntArray(0))).distinct().sorted().toIntArray(),
-            snapY = (edges(bands, luma.height) { luma.sourceY(it) } + intArrayOf(region.top, region.bottom) +
-                (aroundStroke?.let { intArrayOf(it.top, it.bottom) } ?: IntArray(0))).distinct().sorted().toIntArray(),
+            snapX = (
+                edges(columns, luma.width) { luma.sourceX(it) } + intArrayOf(region.left, region.right) +
+                    (aroundStroke?.let { intArrayOf(it.left, it.right) } ?: IntArray(0))
+                ).distinct().sorted().toIntArray(),
+            snapY = (
+                edges(bands, luma.height) { luma.sourceY(it) } + intArrayOf(region.top, region.bottom) +
+                    (aroundStroke?.let { intArrayOf(it.top, it.bottom) } ?: IntArray(0))
+                ).distinct().sorted().toIntArray(),
             aroundStroke = aroundStroke,
         )
     }
@@ -492,10 +496,9 @@ object EraseProposer {
     }
 
     /** Every separate stretch of content on a page, top to bottom. */
-    internal fun contentBands(luma: PageLuma): List<SourceRegion> =
-        findRowBands(luma, (luma.width / 12).coerceAtLeast(2)).map {
-            SourceRegion(0, luma.sourceY(it.start), luma.sourceWidth, luma.sourceY(it.end))
-        }
+    internal fun contentBands(luma: PageLuma): List<SourceRegion> = findRowBands(luma, (luma.width / 12).coerceAtLeast(2)).map {
+        SourceRegion(0, luma.sourceY(it.start), luma.sourceWidth, luma.sourceY(it.end))
+    }
 
     /**
      * The rest of an image found cut off on the next page, if this page ends the way it should for that.
@@ -694,8 +697,7 @@ object EraseProposer {
         return changed * 100 >= (right - left) * CUT_SHARE_PERCENT
     }
 
-    private fun overlap(aStart: Int, aEnd: Int, bStart: Int, bEnd: Int): Int =
-        (minOf(aEnd, bEnd) - maxOf(aStart, bStart)).coerceAtLeast(0)
+    private fun overlap(aStart: Int, aEnd: Int, bStart: Int, bEnd: Int): Int = (minOf(aEnd, bEnd) - maxOf(aStart, bStart)).coerceAtLeast(0)
 
     private inline fun edges(spans: List<Span>, size: Int, toSource: (Int) -> Int): IntArray {
         val values = sortedSetOf(toSource(0), toSource(size))

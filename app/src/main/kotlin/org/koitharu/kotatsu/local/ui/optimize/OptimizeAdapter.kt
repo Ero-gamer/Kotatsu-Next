@@ -110,16 +110,15 @@ class OptimizeAdapter(
 
         override fun areItemsTheSame(oldItem: OptimizeTaskEntity, newItem: OptimizeTaskEntity) = oldItem.id == newItem.id
 
-        override fun areContentsTheSame(oldItem: OptimizeTaskEntity, newItem: OptimizeTaskEntity) =
-            oldItem.state == newItem.state &&
-                oldItem.title == newItem.title &&
-                oldItem.total == newItem.total &&
-                oldItem.done == newItem.done &&
-                oldItem.changed == newItem.changed &&
-                oldItem.failed == newItem.failed &&
-                oldItem.savedBytes == newItem.savedBytes &&
-                oldItem.split == newItem.split &&
-                oldItem.convert == newItem.convert &&
-                oldItem.workId == newItem.workId
+        override fun areContentsTheSame(oldItem: OptimizeTaskEntity, newItem: OptimizeTaskEntity) = oldItem.state == newItem.state &&
+            oldItem.title == newItem.title &&
+            oldItem.total == newItem.total &&
+            oldItem.done == newItem.done &&
+            oldItem.changed == newItem.changed &&
+            oldItem.failed == newItem.failed &&
+            oldItem.savedBytes == newItem.savedBytes &&
+            oldItem.split == newItem.split &&
+            oldItem.convert == newItem.convert &&
+            oldItem.workId == newItem.workId
     }
 }

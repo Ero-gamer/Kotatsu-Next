@@ -311,8 +311,7 @@ object ImageSignature {
             cellsOffBy(rule, here, FAR_FROM_SHAPE) == 0
     }
 
-    private fun inkPercent(signature: ByteArray, background: Int): Int =
-        signature.count { abs((it.toInt() and 0xFF) - background) > SHAPE_CONTENT_DISTANCE } * 100 / signature.size
+    private fun inkPercent(signature: ByteArray, background: Int): Int = signature.count { abs((it.toInt() and 0xFF) - background) > SHAPE_CONTENT_DISTANCE } * 100 / signature.size
 
     /** Whether two brightnesses are close enough to be the same background to [isSameShape]. */
     fun isSameBackground(a: Int, b: Int): Boolean = abs(a - b) <= MAX_SHAPE_BACKGROUND_DIFFERENCE
@@ -473,24 +472,21 @@ object ImageSignature {
     }
 
     /** Whether there is enough in a rule for [isExactCopy] to mean anything. */
-    fun hasInkToCopy(signature: ByteArray): Boolean =
-        inkPercent(signature, backgroundOf(signature)) >= MIN_COPY_INK_PERCENT &&
-            detailOf(signature) >= MIN_COPY_DETAIL &&
-            !isOneCurve(signature)
+    fun hasInkToCopy(signature: ByteArray): Boolean = inkPercent(signature, backgroundOf(signature)) >= MIN_COPY_INK_PERCENT &&
+        detailOf(signature) >= MIN_COPY_DETAIL &&
+        !isOneCurve(signature)
 
     /**
      * Whether [here], a whole file of the same proportions as [rule], is another copy of it. All that is asked of what is in
      * it is to agree everywhere, as this is a far stronger thing to find than a shape somewhere on a page: an outline
      * matching a whole file really is that file, where one on a page is the edge of anything.
      */
-    fun isSameFile(rule: ByteArray, here: ByteArray): Boolean =
-        isSameBrightness(rule, here) &&
-            correlation(rule, here) >= MIN_PLAIN_COPY_CORRELATION &&
-            cellsOffBy(rule, here, NEAR_FROM_SAME_COLOUR) == 0
+    fun isSameFile(rule: ByteArray, here: ByteArray): Boolean = isSameBrightness(rule, here) &&
+        correlation(rule, here) >= MIN_PLAIN_COPY_CORRELATION &&
+        cellsOffBy(rule, here, NEAR_FROM_SAME_COLOUR) == 0
 
     /** Whether [here], at the size and position of a rule, is the image: see [matches] and [MIN_SAME_HERE_CORRELATION]. */
-    fun isSameHere(rule: ByteArray, here: ByteArray, isPlain: Boolean): Boolean =
-        matches(rule, here, isPlain) && correlation(rule, here) >= MIN_SAME_HERE_CORRELATION
+    fun isSameHere(rule: ByteArray, here: ByteArray, isPlain: Boolean): Boolean = matches(rule, here, isPlain) && correlation(rule, here) >= MIN_SAME_HERE_CORRELATION
 
     private fun isSameBrightness(rule: ByteArray, here: ByteArray): Boolean {
         var difference = 0L

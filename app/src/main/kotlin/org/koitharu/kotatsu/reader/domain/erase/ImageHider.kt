@@ -25,8 +25,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.koitharu.kotatsu.core.LocalizedAppContext
 import org.koitharu.kotatsu.core.image.codecs.AvifAwareRegionDecoder
@@ -79,6 +79,7 @@ class ImageHider @Inject constructor(
      * is looking at has the rest of the processor, and is at most one decode behind them in the queue for it.
      */
     private val aheadPermit = Semaphore(1)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val aheadDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val memory = SynchronizedSieveCache<Long, PageScan>(MEMORY_CACHE_SIZE)
@@ -121,15 +122,15 @@ class ImageHider @Inject constructor(
         return visibilityOf(page, resolution)
     }
 
-    private suspend fun visibilityOf(page: MangaPage, resolution: PageResolution): PageVisibility {
-        return when (resolution) {
-            is PageResolution.Visible -> PageVisibility.Show(null)
-            is PageResolution.Masked -> PageVisibility.Show(resolution.mask)
-            is PageResolution.Hidden -> {
-                // Remembered by page too: next time it is left out of the list without being loaded
-                repository.markPageHidden(page.id, resolution.ruleIds.first())
-                PageVisibility.Hide
-            }
+    private suspend fun visibilityOf(page: MangaPage, resolution: PageResolution): PageVisibility = when (resolution) {
+        is PageResolution.Visible -> PageVisibility.Show(null)
+
+        is PageResolution.Masked -> PageVisibility.Show(resolution.mask)
+
+        is PageResolution.Hidden -> {
+            // Remembered by page too: next time it is left out of the list without being loaded
+            repository.markPageHidden(page.id, resolution.ruleIds.first())
+            PageVisibility.Hide
         }
     }
 
@@ -312,8 +313,7 @@ class ImageHider @Inject constructor(
     }
 
     /** A plain file. An entry inside an archive is a file uri with more to it, and is not one of these. */
-    private fun filePathOf(uri: Uri): String? =
-        uri.path.takeIf { uri.scheme == ContentResolver.SCHEME_FILE && uri.fragment == null && uri.query == null }
+    private fun filePathOf(uri: Uri): String? = uri.path.takeIf { uri.scheme == ContentResolver.SCHEME_FILE && uri.fragment == null && uri.query == null }
 
     /**
      * Removes the rest of a cut off image from the page next to where it was found, if it is there.
@@ -430,8 +430,7 @@ class ImageHider @Inject constructor(
         return ImageFingerprint.of(luma, left, top, right, bottom).isDistinctive
     }
 
-    private suspend fun applicableRules(page: MangaPage): List<HiddenImageRule> =
-        repository.getRules().filter { it.pageId == null || it.pageId == page.id }
+    private suspend fun applicableRules(page: MangaPage): List<HiddenImageRule> = repository.getRules().filter { it.pageId == null || it.pageId == page.id }
 
     /**
      * The answer already worked out for this page, if it still holds: nothing has been remembered since,

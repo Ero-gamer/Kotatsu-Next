@@ -362,11 +362,9 @@ class DiscoverViewModel @Inject constructor(
     }
 
     /** So that changing a filter shows a list loading at once, not the previous answer until the new one. */
-    private fun Flow<DiscoverSection>.loading(): Flow<DiscoverSection> =
-        onStart { emit(DiscoverSection(emptyList(), isFinal = false)) }
+    private fun Flow<DiscoverSection>.loading(): Flow<DiscoverSection> = onStart { emit(DiscoverSection(emptyList(), isFinal = false)) }
 
-    private fun <T> Flow<T>.shared(): Flow<T> =
-        shareIn(viewModelScope + Dispatchers.Default, SharingStarted.WhileSubscribed(KEEP_RUNNING_MS), replay = 1)
+    private fun <T> Flow<T>.shared(): Flow<T> = shareIn(viewModelScope + Dispatchers.Default, SharingStarted.WhileSubscribed(KEEP_RUNNING_MS), replay = 1)
 
     private class ForYouSetting(
         val filter: DiscoverFilter,

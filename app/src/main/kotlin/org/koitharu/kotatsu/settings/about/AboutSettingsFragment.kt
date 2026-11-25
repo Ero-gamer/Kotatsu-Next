@@ -78,12 +78,12 @@ class AboutSettingsFragment : BasePreferenceFragment(R.string.about) {
             true
         }
 
-            KEY_PARSERS_VERSION -> {
-                if (viewModel.isParsersUpdateSupported) {
-                    viewModel.checkParsers()
-                }
-                true
+        KEY_PARSERS_VERSION -> {
+            if (viewModel.isParsersUpdateSupported) {
+                viewModel.checkParsers()
             }
+            true
+        }
 
         KEY_LICENSES -> {
             startActivity(Intent(requireContext(), LicensesActivity::class.java))

@@ -42,6 +42,9 @@ import org.koitharu.kotatsu.details.domain.RelatedMangaUseCase
 import org.koitharu.kotatsu.details.ui.model.HistoryInfo
 import org.koitharu.kotatsu.details.ui.model.MangaBranch
 import org.koitharu.kotatsu.details.ui.pager.ChaptersPagesViewModel
+import org.koitharu.kotatsu.discover.data.DiscoverDismissals
+import org.koitharu.kotatsu.discover.data.DismissedIndex
+import org.koitharu.kotatsu.discover.domain.MangaDismisser
 import org.koitharu.kotatsu.download.ui.worker.DownloadWorker
 import org.koitharu.kotatsu.history.data.HistoryRepository
 import org.koitharu.kotatsu.list.domain.MangaListMapper
@@ -49,18 +52,15 @@ import org.koitharu.kotatsu.list.ui.model.MangaListModel
 import org.koitharu.kotatsu.local.data.LocalStorageChanges
 import org.koitharu.kotatsu.local.domain.DeleteLocalMangaUseCase
 import org.koitharu.kotatsu.local.domain.model.LocalManga
-import org.koitharu.kotatsu.reader.domain.PagePreloader
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.util.findById
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
+import org.koitharu.kotatsu.reader.domain.PagePreloader
 import org.koitharu.kotatsu.reader.ui.ReaderState
 import org.koitharu.kotatsu.scrobbling.common.domain.Scrobbler
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingInfo
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblingStatus
 import org.koitharu.kotatsu.stats.data.StatsRepository
-import org.koitharu.kotatsu.discover.data.DiscoverDismissals
-import org.koitharu.kotatsu.discover.data.DismissedIndex
-import org.koitharu.kotatsu.discover.domain.MangaDismisser
 import javax.inject.Inject
 
 @HiltViewModel

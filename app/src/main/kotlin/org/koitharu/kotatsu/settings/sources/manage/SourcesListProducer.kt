@@ -38,6 +38,7 @@ class SourcesListProducer @Inject constructor(
 ) : InvalidationTracker.Observer(TABLE_SOURCES) {
 
     private val scope = lifecycle.lifecycleScope
+
     @Volatile
     private var query: String = ""
     val list = MutableStateFlow(emptyList<SourceConfigItem>())

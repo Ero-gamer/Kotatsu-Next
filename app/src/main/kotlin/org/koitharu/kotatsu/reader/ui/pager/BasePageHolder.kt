@@ -48,9 +48,9 @@ import org.koitharu.kotatsu.core.util.ext.toFileOrNull
 import org.koitharu.kotatsu.databinding.LayoutPageInfoBinding
 import org.koitharu.kotatsu.parsers.util.ifZero
 import org.koitharu.kotatsu.reader.domain.PageEdgeColor
+import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.domain.PageStats
 import org.koitharu.kotatsu.reader.domain.PageStatsEngine
-import org.koitharu.kotatsu.reader.domain.PageLoader
 import org.koitharu.kotatsu.reader.domain.ReaderColorFilter
 import org.koitharu.kotatsu.reader.domain.applyOverlay
 import org.koitharu.kotatsu.reader.domain.erase.PageMask

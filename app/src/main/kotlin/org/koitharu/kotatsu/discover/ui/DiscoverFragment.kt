@@ -33,7 +33,6 @@ import org.koitharu.kotatsu.core.ui.BaseFragment
 import org.koitharu.kotatsu.core.ui.BaseListAdapter
 import org.koitharu.kotatsu.core.ui.list.OnListItemClickListener
 import org.koitharu.kotatsu.core.ui.util.RecyclerViewOwner
-import org.koitharu.kotatsu.main.ui.owners.BottomNavOwner
 import org.koitharu.kotatsu.core.ui.util.SpanSizeResolver
 import org.koitharu.kotatsu.core.ui.widgets.ChipsView
 import org.koitharu.kotatsu.core.ui.widgets.TipView
@@ -59,6 +58,7 @@ import org.koitharu.kotatsu.list.ui.model.ListModel
 import org.koitharu.kotatsu.list.ui.model.MangaListModel
 import org.koitharu.kotatsu.list.ui.size.DynamicItemSizeResolver
 import org.koitharu.kotatsu.list.ui.size.StaticItemSizeResolver
+import org.koitharu.kotatsu.main.ui.owners.BottomNavOwner
 import org.koitharu.kotatsu.parsers.model.ContentType
 import org.koitharu.kotatsu.parsers.model.Manga
 import javax.inject.Inject
@@ -92,8 +92,7 @@ class DiscoverFragment :
     override val recyclerView: RecyclerView?
         get() = viewBinding?.pager?.currentItem?.let(pages::getOrNull)
 
-    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?) =
-        FragmentDiscoverBinding.inflate(inflater, container, false)
+    override fun onCreateViewBinding(inflater: LayoutInflater, container: ViewGroup?) = FragmentDiscoverBinding.inflate(inflater, container, false)
 
     override fun onViewBindingCreated(binding: FragmentDiscoverBinding, savedInstanceState: Bundle?) {
         super.onViewBindingCreated(binding, savedInstanceState)
@@ -230,7 +229,7 @@ class DiscoverFragment :
                 ListItemType.MANGA_GRID.ordinal,
                 ListItemType.DISCOVER_RANKED.ordinal,
                 ListItemType.FOOTER_LOADING.ordinal,
-                    -> 1
+                -> 1
 
                 else -> grid.spanCount
             }
@@ -244,9 +243,7 @@ class DiscoverFragment :
     }
 
     /** As narrow as a column of covers may get: as many are shown as fit at that. */
-    private fun getColumnWidth(): Int {
-        return (resources.getDimension(R.dimen.preferred_grid_width) * settings.gridSizeDiscover / 100f).roundToInt()
-    }
+    private fun getColumnWidth(): Int = (resources.getDimension(R.dimen.preferred_grid_width) * settings.gridSizeDiscover / 100f).roundToInt()
 
     /**
      * Its own size, and not the library's: there was no way to change it at all, and five small covers across was
@@ -287,8 +284,7 @@ class DiscoverFragment :
 
         override fun getItemViewType(position: Int) = position
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-            object : RecyclerView.ViewHolder(pages[viewType]) {}
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = object : RecyclerView.ViewHolder(pages[viewType]) {}
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) = Unit
     }

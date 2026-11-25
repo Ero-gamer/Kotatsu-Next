@@ -19,8 +19,8 @@ import org.koitharu.kotatsu.explore.data.SourcePreset
 import org.koitharu.kotatsu.explore.data.SourcePresetsRepository
 import org.koitharu.kotatsu.parsers.config.ConfigKey
 import org.koitharu.kotatsu.parsers.model.Manga
-import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.search.domain.SearchKind
 import org.koitharu.kotatsu.search.domain.SearchV2Helper
@@ -133,6 +133,7 @@ class AlternativesUseCase @Inject constructor(
                 .orEmpty()
 
             AlternativeSourceScope.Enabled -> sourcesRepository.getEnabledSources()
+
             AlternativeSourceScope.Disabled -> sourcesRepository.getDisabledSources().toList()
         }
         return sources.asSequence()

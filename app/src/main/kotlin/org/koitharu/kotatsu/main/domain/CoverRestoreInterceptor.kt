@@ -138,6 +138,7 @@ class CoverRestoreInterceptor @Inject constructor(
      */
     private fun Throwable.shouldRestore(): Boolean = when (this) {
         is HttpException -> response.code == HttpURLConnection.HTTP_NOT_FOUND || response.code == HttpURLConnection.HTTP_GONE
+
         is SocketTimeoutException, is SocketException, is UnknownHostException, is SSLException, is EOFException,
         is CloudFlareProtectedException, is CloudFlareBlockedException,
         -> false

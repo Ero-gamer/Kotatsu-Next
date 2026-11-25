@@ -145,8 +145,7 @@ class ChaptersLoader @Inject constructor(
      * and not when loading: `ReaderPage.index` and [getPagesCount] are what saved progress is made of, and
      * must go on describing the chapter as the source serves it.
      */
-    suspend fun snapshot(): List<ReaderPage> =
-        withoutHidden(synchronized(chapterPages) { chapterPages.toList() }, hiddenImages.getHiddenPages())
+    suspend fun snapshot(): List<ReaderPage> = withoutHidden(synchronized(chapterPages) { chapterPages.toList() }, hiddenImages.getHiddenPages())
 
     fun observeHiddenPages() = hiddenImages.observeHiddenPages()
 
@@ -207,5 +206,4 @@ fun missingChaptersBetween(a: MangaChapter, b: MangaChapter): Int {
 }
 
 /** Chapter number without a trailing ".0". */
-fun formatChapterNumber(number: Float): String =
-    if (number % 1f == 0f) number.toInt().toString() else number.toString()
+fun formatChapterNumber(number: Float): String = if (number % 1f == 0f) number.toInt().toString() else number.toString()

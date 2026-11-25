@@ -26,7 +26,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.ElementsIntoSet
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -74,6 +73,7 @@ import org.koitharu.kotatsu.parsers.MangaLoaderContext
 import org.koitharu.kotatsu.search.ui.MangaSuggestionsProvider
 import org.koitharu.kotatsu.sync.domain.SyncController
 import org.koitharu.kotatsu.widget.WidgetUpdater
+import java.util.concurrent.TimeUnit
 import javax.inject.Provider
 import javax.inject.Singleton
 
@@ -135,7 +135,12 @@ interface AppModule {
                     .callTimeout(30, TimeUnit.SECONDS)
                     // Own dispatcher and pool: a screen full of covers must not queue behind (or be queued
                     // ahead of) source requests, and a stale cover connection must not poison the parsers.
-                    .dispatcher(Dispatcher().apply { maxRequests = 48; maxRequestsPerHost = 8 })
+                    .dispatcher(
+                        Dispatcher().apply {
+                            maxRequests = 48
+                            maxRequestsPerHost = 8
+                        },
+                    )
                     .connectionPool(ConnectionPool(5, 30, TimeUnit.SECONDS))
                     .build()
             }

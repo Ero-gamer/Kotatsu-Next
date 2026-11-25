@@ -486,10 +486,22 @@ object ImageKeypoints {
             3 * width, 3 * width - 1, 2 * width - 2, width - 3,
             -3, -width - 3, -2 * width - 2, -3 * width - 1,
         )
-        val r0 = ring[0]; val r1 = ring[1]; val r2 = ring[2]; val r3 = ring[3]
-        val r4 = ring[4]; val r5 = ring[5]; val r6 = ring[6]; val r7 = ring[7]
-        val r8 = ring[8]; val r9 = ring[9]; val r10 = ring[10]; val r11 = ring[11]
-        val r12 = ring[12]; val r13 = ring[13]; val r14 = ring[14]; val r15 = ring[15]
+        val r0 = ring[0]
+        val r1 = ring[1]
+        val r2 = ring[2]
+        val r3 = ring[3]
+        val r4 = ring[4]
+        val r5 = ring[5]
+        val r6 = ring[6]
+        val r7 = ring[7]
+        val r8 = ring[8]
+        val r9 = ring[9]
+        val r10 = ring[10]
+        val r11 = ring[11]
+        val r12 = ring[12]
+        val r13 = ring[13]
+        val r14 = ring[14]
+        val r15 = ring[15]
         val classes = ringClass
         val threshold = FAST_THRESHOLD
         if (scratch.rowA.size < width) {
@@ -544,7 +556,11 @@ object ImageKeypoints {
                 var dark = 0
                 for (i in 0 until 16) {
                     val difference = diffs[i]
-                    if (difference > threshold) bright = bright or (1 shl i) else if (difference < -threshold) dark = dark or (1 shl i)
+                    if (difference > threshold) {
+                        bright = bright or (1 shl i)
+                    } else if (difference < -threshold) {
+                        dark = dark or (1 shl i)
+                    }
                 }
                 val brightArcs = arcsOf(bright)
                 val darkArcs = arcsOf(dark)
@@ -755,11 +771,10 @@ object ImageKeypoints {
         }
     }
 
-    fun distance(a: LongArray, aAt: Int, b: LongArray, bAt: Int): Int =
-        java.lang.Long.bitCount(a[aAt] xor b[bAt]) +
-            java.lang.Long.bitCount(a[aAt + 1] xor b[bAt + 1]) +
-            java.lang.Long.bitCount(a[aAt + 2] xor b[bAt + 2]) +
-            java.lang.Long.bitCount(a[aAt + 3] xor b[bAt + 3])
+    fun distance(a: LongArray, aAt: Int, b: LongArray, bAt: Int): Int = java.lang.Long.bitCount(a[aAt] xor b[bAt]) +
+        java.lang.Long.bitCount(a[aAt + 1] xor b[bAt + 1]) +
+        java.lang.Long.bitCount(a[aAt + 2] xor b[bAt + 2]) +
+        java.lang.Long.bitCount(a[aAt + 3] xor b[bAt + 3])
 }
 
 /**
@@ -901,6 +916,7 @@ class RuleDetail(
 
         /** The hatching around a shouted bubble came to 0.29, and it matches other hatching that is not the same at all. */
         const val MIN_SEVERAL = 0.3
+
         // At 128 wide and 16,384 in all, twice as many small edits got through as at this, and an added word on 2 real pages
         private const val FINE_MAX_WIDTH = 160
         private const val FINE_MAX_PIXELS = 25600
@@ -1355,7 +1371,7 @@ class KeypointIndex(val details: List<RuleDetail>, private val maxBucket: Int = 
         private const val TABLES = 8
         private const val TABLE_BITS = 13
         private const val BUCKETS = 1 shl TABLE_BITS
-        
+
         /** Measured from 8 to 16 on 7,524 samples: no fewer copies found at the lowest, for half the work of the highest. */
         private const val CLOSEST = 8
         private const val MAX_SAMPLE_DISTANCE = 12
@@ -2122,8 +2138,12 @@ object KeypointMatcher {
                 cells[row * columns + column] = if (area <= 1e-9) {
                     (rule.fine[y0.toInt().coerceAtMost(height - 1) * width + x0.toInt().coerceAtMost(width - 1)].toInt() and 0xFF).toFloat()
                 } else {
-                    ((interpolated(table, stride, width, height, x1, y1) - interpolated(table, stride, width, height, x0, y1) -
-                        interpolated(table, stride, width, height, x1, y0) + interpolated(table, stride, width, height, x0, y0)) / area).toFloat()
+                    (
+                        (
+                            interpolated(table, stride, width, height, x1, y1) - interpolated(table, stride, width, height, x0, y1) -
+                                interpolated(table, stride, width, height, x1, y0) + interpolated(table, stride, width, height, x0, y0)
+                            ) / area
+                        ).toFloat()
                 }
             }
         }

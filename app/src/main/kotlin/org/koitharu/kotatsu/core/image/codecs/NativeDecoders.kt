@@ -60,7 +60,9 @@ class NativeAnimatedDecoder private constructor(
                     if (NativeCodecs.isAvailable) NativeImage.open(file) else null
 
                 ImageFormat.WEBP -> WebpFrameSource.open(file)
+
                 ImageFormat.AVIF -> AvifFrameSource.open(file)
+
                 else -> null
             } ?: return null
             if (!image.isAnimated) {
