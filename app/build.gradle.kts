@@ -131,7 +131,7 @@ android {
     }
 
     sourceSets {
-        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
     compileOptions {
@@ -411,10 +411,13 @@ val rustTasks =
         }
     }
 
+// A static directory (not the Provider): AGP 9 rejects Providers in the SourceSet API. The merge*JniLibFolders
+// dependency below orders the cargo tasks before the merge.
 android.sourceSets
     .getByName("main")
     .jniLibs
-    .srcDir(rustOutDir)
+    .directories
+    .add(rustOutDir.get().asFile.absolutePath)
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("JniLibFolders") }.configureEach {
     dependsOn(rustTasks)
 }
