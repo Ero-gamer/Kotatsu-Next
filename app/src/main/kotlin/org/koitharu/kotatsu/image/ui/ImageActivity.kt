@@ -98,7 +98,9 @@ class ImageActivity :
     override fun onClick(v: View) {
         when (v.id) {
             R.id.button_back -> dispatchNavigateUp()
+
             R.id.button_menu -> menuMediator.onLongClick(v)
+
             R.id.button_play -> {
                 viewBinding.buttonPlay.isVisible = false
                 loadImage(animated = true)

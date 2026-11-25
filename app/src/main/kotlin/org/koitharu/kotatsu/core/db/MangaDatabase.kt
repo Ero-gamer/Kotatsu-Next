@@ -59,12 +59,12 @@ import org.koitharu.kotatsu.core.db.migrations.Migration36To37
 import org.koitharu.kotatsu.core.db.migrations.Migration37To38
 import org.koitharu.kotatsu.core.db.migrations.Migration38To39
 import org.koitharu.kotatsu.core.db.migrations.Migration39To40
+import org.koitharu.kotatsu.core.db.migrations.Migration3To4
 import org.koitharu.kotatsu.core.db.migrations.Migration40To41
 import org.koitharu.kotatsu.core.db.migrations.Migration41To42
 import org.koitharu.kotatsu.core.db.migrations.Migration42To43
 import org.koitharu.kotatsu.core.db.migrations.Migration43To44
 import org.koitharu.kotatsu.core.db.migrations.Migration44To45
-import org.koitharu.kotatsu.core.db.migrations.Migration3To4
 import org.koitharu.kotatsu.core.db.migrations.Migration4To5
 import org.koitharu.kotatsu.core.db.migrations.Migration5To6
 import org.koitharu.kotatsu.core.db.migrations.Migration6To7

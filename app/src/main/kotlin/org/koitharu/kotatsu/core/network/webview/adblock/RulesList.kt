@@ -47,8 +47,7 @@ class RulesList {
             others.add(rule)
         }
 
-        fun find(domain: String, url: HttpUrl, baseUrl: HttpUrl?): Rule? =
-            byDomain[domain]?.find { x -> x(url, baseUrl) } ?: others.find { x -> x(url, baseUrl) }
+        fun find(domain: String, url: HttpUrl, baseUrl: HttpUrl?): Rule? = byDomain[domain]?.find { x -> x(url, baseUrl) } ?: others.find { x -> x(url, baseUrl) }
 
         fun trimToSize() {
             others.trimToSize()

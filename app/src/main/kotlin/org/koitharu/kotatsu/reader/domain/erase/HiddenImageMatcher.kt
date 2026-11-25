@@ -152,6 +152,7 @@ object HiddenImageMatcher {
     /** How much of what is in an image has to be on the page to recognise it cut off by the page's edge. */
     private const val MIN_EDGE_CONTENT_PERCENT = 25
     private const val MIN_EDGE_CONTENT_CELLS = 24
+
     /**
      * Measured, on 147 pages of real long strips against a real cut off banner: the true page scored 27 to 29
      * and the closest wrong one 41. Cutting real panels out of a story is the far worse mistake, so this sits
@@ -431,21 +432,23 @@ object HiddenImageMatcher {
                 // Looking for it at other sizes or cut off is what its points are for, and they find more of it. Doing both, every
                 // rule on every page, was most of the time a page took on a slow phone, for next to nothing that points had not found
                 val isFoundByPointsIfAtAll = detail != null && ruleDetail != null
-                if (!rule.isOutline && !isWholeOnPage) find(luma, rule, scratch) { top, bottom ->
-                    if (!ImageColour.isSame(rule.colour, luma, left, right, top, bottom - top) || !hasColoursAt(left, top, right)) {
-                        return@find
+                if (!rule.isOutline && !isWholeOnPage) {
+                    find(luma, rule, scratch) { top, bottom ->
+                        if (!ImageColour.isSame(rule.colour, luma, left, right, top, bottom - top) || !hasColoursAt(left, top, right)) {
+                            return@find
+                        }
+                        isWholeOnPage = true
+                        val rows = EraseProposer.growIntoBlank(
+                            luma = luma,
+                            top = top,
+                            bottom = bottom,
+                            left = growLeft,
+                            right = growRight,
+                            rowsAbove = (rule.padTop * (bottom - top)).roundToInt(),
+                            rowsBelow = (rule.padBottom * (bottom - top)).roundToInt(),
+                        )
+                        onFound(luma.sourceY(rows.first), luma.sourceY(rows.last + 1))
                     }
-                    isWholeOnPage = true
-                    val rows = EraseProposer.growIntoBlank(
-                        luma = luma,
-                        top = top,
-                        bottom = bottom,
-                        left = growLeft,
-                        right = growRight,
-                        rowsAbove = (rule.padTop * (bottom - top)).roundToInt(),
-                        rowsBelow = (rule.padBottom * (bottom - top)).roundToInt(),
-                    )
-                    onFound(luma.sourceY(rows.first), luma.sourceY(rows.last + 1))
                 }
                 val onFoundAtSize = { top: Int, bottom: Int, foundLeft: Int, foundRight: Int ->
                     if (ImageColour.isSame(rule.colour, luma, foundLeft, foundRight, top, bottom - top) && hasColoursAt(foundLeft, top, foundRight)) {
@@ -466,24 +469,26 @@ object HiddenImageMatcher {
                 if (!isFoundByPointsIfAtAll && !isWholeOnPage && !rule.isOutline) bestAtAnySize(luma, rule)?.let { onFoundAtSize(it.top, it.bottom, it.left, it.right) }
                 // All of it is here, so nothing about it is cut off. Without this, an image that nearly fills a
                 // page also looks like one hanging off both of its ends.
-                if (!isFoundByPointsIfAtAll && !isWholeOnPage && !rule.isOutline) findCutOff(luma, rule, left, right) { top, bottom, isAtTop, missingRows ->
-                    if (!hasColoursAt(left, if (isAtTop) top - missingRows else top, right)) {
-                        return@findCutOff
+                if (!isFoundByPointsIfAtAll && !isWholeOnPage && !rule.isOutline) {
+                    findCutOff(luma, rule, left, right) { top, bottom, isAtTop, missingRows ->
+                        if (!hasColoursAt(left, if (isAtTop) top - missingRows else top, right)) {
+                            return@findCutOff
+                        }
+                        if (missingRows > 0) {
+                            val missing = missingRows.toFloat() * luma.sourceHeight / luma.height
+                            cuts += EdgeCut(rule.id, isAtTop, missing / luma.sourceWidth)
+                        }
+                        val rows = EraseProposer.growIntoBlank(
+                            luma = luma,
+                            top = top,
+                            bottom = bottom,
+                            left = growLeft,
+                            right = growRight,
+                            rowsAbove = (rule.padTop * (bottom - top)).roundToInt(),
+                            rowsBelow = (rule.padBottom * (bottom - top)).roundToInt(),
+                        )
+                        onFound(luma.sourceY(rows.first), luma.sourceY(rows.last + 1))
                     }
-                    if (missingRows > 0) {
-                        val missing = missingRows.toFloat() * luma.sourceHeight / luma.height
-                        cuts += EdgeCut(rule.id, isAtTop, missing / luma.sourceWidth)
-                    }
-                    val rows = EraseProposer.growIntoBlank(
-                        luma = luma,
-                        top = top,
-                        bottom = bottom,
-                        left = growLeft,
-                        right = growRight,
-                        rowsAbove = (rule.padTop * (bottom - top)).roundToInt(),
-                        rowsBelow = (rule.padBottom * (bottom - top)).roundToInt(),
-                    )
-                    onFound(luma.sourceY(rows.first), luma.sourceY(rows.last + 1))
                 }
             }
         }
@@ -1078,8 +1083,7 @@ object HiddenImageMatcher {
         window,
     )
 
-    private fun CutOff.isSameImage() =
-        correlation >= (if (visibleRows * 100 < window * MAX_SLIVER_PERCENT) MIN_SLIVER_CORRELATION else MIN_EDGE_CORRELATION) && isSameInBrightness()
+    private fun CutOff.isSameImage() = correlation >= (if (visibleRows * 100 < window * MAX_SLIVER_PERCENT) MIN_SLIVER_CORRELATION else MIN_EDGE_CORRELATION) && isSameInBrightness()
 
     private fun CutOff.isSameInBrightness() = difference <= MAX_EDGE_DIFFERENCE && abs(shift) <= MAX_EDGE_SHIFT &&
         farPercent <= when {

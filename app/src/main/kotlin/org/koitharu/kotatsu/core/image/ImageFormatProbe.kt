@@ -546,7 +546,9 @@ object ImageFormatProbe {
                 if (p != 12L) {
                     when {
                         has(p, "avif") || has(p, "avis") -> avif = true
+
                         has(p, "mif1") || has(p, "miaf") || has(p, "msf1") -> generic = true
+
                         has(p, "heic") || has(p, "heix") || has(p, "hevc") || has(p, "hevx") ||
                             has(p, "heim") || has(p, "heis") -> heic = true
                     }

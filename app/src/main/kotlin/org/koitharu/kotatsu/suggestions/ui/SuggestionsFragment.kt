@@ -38,20 +38,18 @@ class SuggestionsFragment : MangaListFragment() {
         return super.onCreateActionMode(controller, menuInflater, menu)
     }
 
-    override fun onActionItemClicked(controller: ListSelectionController, mode: ActionMode?, item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_not_interested -> {
-                // Before finishing: that clears the selection
-                val keys = viewModel.dismiss(selectedItems.toList())
-                mode?.finish()
-                Snackbar.make(requireViewBinding().recyclerView, R.string.removed_from_suggestions, Snackbar.LENGTH_LONG)
-                    .setAction(R.string.undo) { viewModel.undoDismiss(keys) }
-                    .show()
-                true
-            }
-
-            else -> super.onActionItemClicked(controller, mode, item)
+    override fun onActionItemClicked(controller: ListSelectionController, mode: ActionMode?, item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_not_interested -> {
+            // Before finishing: that clears the selection
+            val keys = viewModel.dismiss(selectedItems.toList())
+            mode?.finish()
+            Snackbar.make(requireViewBinding().recyclerView, R.string.removed_from_suggestions, Snackbar.LENGTH_LONG)
+                .setAction(R.string.undo) { viewModel.undoDismiss(keys) }
+                .show()
+            true
         }
+
+        else -> super.onActionItemClicked(controller, mode, item)
     }
 
     private inner class SuggestionMenuProvider : MenuProvider {

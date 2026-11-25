@@ -31,16 +31,16 @@ import org.json.JSONObject
 import org.koitharu.kotatsu.backups.data.model.BackupIndex
 import org.koitharu.kotatsu.backups.data.model.BookmarkBackup
 import org.koitharu.kotatsu.backups.data.model.CategoryBackup
+import org.koitharu.kotatsu.backups.data.model.DismissedBackup
 import org.koitharu.kotatsu.backups.data.model.FavouriteBackup
 import org.koitharu.kotatsu.backups.data.model.FeedBackup
-import org.koitharu.kotatsu.backups.data.model.MangaPrefsBackup
-import org.koitharu.kotatsu.backups.data.model.SourceSettingsBackup
-import org.koitharu.kotatsu.backups.data.model.DismissedBackup
 import org.koitharu.kotatsu.backups.data.model.HiddenImageBackup
 import org.koitharu.kotatsu.backups.data.model.HistoryBackup
 import org.koitharu.kotatsu.backups.data.model.MangaBackup
+import org.koitharu.kotatsu.backups.data.model.MangaPrefsBackup
 import org.koitharu.kotatsu.backups.data.model.ScrobblingBackup
 import org.koitharu.kotatsu.backups.data.model.SourceBackup
+import org.koitharu.kotatsu.backups.data.model.SourceSettingsBackup
 import org.koitharu.kotatsu.backups.data.model.StatisticBackup
 import org.koitharu.kotatsu.backups.domain.BackupSection
 import org.koitharu.kotatsu.core.db.MangaDatabase
@@ -48,12 +48,12 @@ import org.koitharu.kotatsu.core.prefs.AppSettings
 import org.koitharu.kotatsu.core.prefs.SourceSettings
 import org.koitharu.kotatsu.core.util.CompositeResult
 import org.koitharu.kotatsu.core.util.progress.Progress
+import org.koitharu.kotatsu.discover.data.DiscoverDismissals
 import org.koitharu.kotatsu.explore.data.MangaSourcesRepository
 import org.koitharu.kotatsu.filter.data.PersistableFilter
 import org.koitharu.kotatsu.filter.data.SavedFiltersRepository
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.reader.data.TapGridSettings
-import org.koitharu.kotatsu.discover.data.DiscoverDismissals
 import org.koitharu.kotatsu.reader.data.erase.HiddenImagesRepository
 import java.io.File
 import java.io.InputStream
@@ -216,92 +216,92 @@ class BackupRepository @Inject constructor(
                 // A damaged section must not take the rest of the backup down with it
                 result += runCatchingCancellable {
                     when (section) {
-                    BackupSection.INDEX -> CompositeResult.EMPTY
+                        BackupSection.INDEX -> CompositeResult.EMPTY
 
-                    // useless in our case
-                    BackupSection.HISTORY -> input.readJsonArray<HistoryBackup>(serializer()).restoreToDb {
-                        upsertManga(it.manga)
-                        getHistoryDao().upsert(it.toEntity())
-                    }
-
-                    BackupSection.CATEGORIES -> input.readJsonArray<CategoryBackup>(serializer()).restoreToDb {
-                        getFavouriteCategoriesDao().upsert(it.toEntity())
-                    }
-
-                    BackupSection.FAVOURITES -> input.readJsonArray<FavouriteBackup>(serializer()).restoreToDb {
-                        upsertManga(it.manga)
-                        getFavouritesDao().upsert(it.toEntity())
-                    }
-
-                    BackupSection.SETTINGS -> input.readMap().let {
-                        settings.upsertAll(it)
-                        CompositeResult.success()
-                    }
-
-                    BackupSection.SETTINGS_READER_GRID -> input.readMap().let {
-                        tapGridSettings.upsertAll(it)
-                        CompositeResult.success()
-                    }
-
-                    BackupSection.BOOKMARKS -> input.readJsonArray<BookmarkBackup>(serializer()).restoreToDb {
-                        upsertManga(it.manga)
-                        getBookmarksDao().upsert(it.bookmarks.map { b -> b.toEntity() })
-                    }
-
-                    BackupSection.SOURCES -> input.readJsonArray<SourceBackup>(serializer()).restoreToDb {
-                        getSourcesDao().upsert(it.toEntity())
-                    }
-
-                    BackupSection.SCROBBLING -> input.readJsonArray<ScrobblingBackup>(serializer()).restoreToDb {
-                        getScrobblingDao().upsert(it.toEntity())
-                    }
-
-                    BackupSection.STATS -> input.readJsonArray<StatisticBackup>(serializer()).restoreToDb {
-                        // statistics hang on the history row: without one (history not restored) there is nowhere to put it
-                        if (getHistoryDao().find(it.mangaId) != null) {
-                            getStatsDao().upsert(it.toEntity())
-                        }
-                    }
-
-                    BackupSection.SAVED_FILTERS -> input.readJsonArray<PersistableFilter>(serializer())
-                        .restoreWithoutTransaction {
-                            savedFiltersRepository.save(it)
+                        // useless in our case
+                        BackupSection.HISTORY -> input.readJsonArray<HistoryBackup>(serializer()).restoreToDb {
+                            upsertManga(it.manga)
+                            getHistoryDao().upsert(it.toEntity())
                         }
 
-                    BackupSection.HIDDEN_IMAGES -> input.readJsonArray<HiddenImageBackup>(serializer())
-                        .restoreWithoutTransaction {
-                            hiddenImages?.restore(it.toEntity())
+                        BackupSection.CATEGORIES -> input.readJsonArray<CategoryBackup>(serializer()).restoreToDb {
+                            getFavouriteCategoriesDao().upsert(it.toEntity())
                         }
 
-                    // Merged with what is here: a pass already on this device is kept as it is
-                    BackupSection.DISMISSED -> input.readJsonArray<DismissedBackup>(serializer())
-                        .restoreWithoutTransaction {
-                            dismissals?.store?.restore(listOf(it.key to it.entry))
+                        BackupSection.FAVOURITES -> input.readJsonArray<FavouriteBackup>(serializer()).restoreToDb {
+                            upsertManga(it.manga)
+                            getFavouritesDao().upsert(it.toEntity())
                         }
 
-                    BackupSection.MANGA_PREFS -> input.readJsonArray<MangaPrefsBackup>(serializer()).restoreToDb {
-                        upsertManga(it.manga)
-                        getPreferencesDao().upsert(it.toEntity())
-                    }
-
-                    BackupSection.SOURCE_SETTINGS -> input.readJsonArray<SourceSettingsBackup>(serializer())
-                        .restoreWithoutTransaction {
-                            restoreSourceSettings(it)
+                        BackupSection.SETTINGS -> input.readMap().let {
+                            settings.upsertAll(it)
+                            CompositeResult.success()
                         }
 
-                    BackupSection.FEED -> input.readJsonArray<FeedBackup>(serializer()).restoreToDb {
-                        upsertManga(it.manga)
-                        getTracksDao().upsert(it.toTrackEntity())
-                        val logs = getTrackLogsDao()
-                        for (log in it.logs) {
-                            // restoring the same backup twice must not double the feed
-                            if (logs.countAt(it.manga.id, log.createdAt) == 0) {
-                                logs.insert(it.toLogEntity(log))
+                        BackupSection.SETTINGS_READER_GRID -> input.readMap().let {
+                            tapGridSettings.upsertAll(it)
+                            CompositeResult.success()
+                        }
+
+                        BackupSection.BOOKMARKS -> input.readJsonArray<BookmarkBackup>(serializer()).restoreToDb {
+                            upsertManga(it.manga)
+                            getBookmarksDao().upsert(it.bookmarks.map { b -> b.toEntity() })
+                        }
+
+                        BackupSection.SOURCES -> input.readJsonArray<SourceBackup>(serializer()).restoreToDb {
+                            getSourcesDao().upsert(it.toEntity())
+                        }
+
+                        BackupSection.SCROBBLING -> input.readJsonArray<ScrobblingBackup>(serializer()).restoreToDb {
+                            getScrobblingDao().upsert(it.toEntity())
+                        }
+
+                        BackupSection.STATS -> input.readJsonArray<StatisticBackup>(serializer()).restoreToDb {
+                            // statistics hang on the history row: without one (history not restored) there is nowhere to put it
+                            if (getHistoryDao().find(it.mangaId) != null) {
+                                getStatsDao().upsert(it.toEntity())
                             }
                         }
-                    }
 
-                    null -> CompositeResult.EMPTY // skip unknown entries
+                        BackupSection.SAVED_FILTERS -> input.readJsonArray<PersistableFilter>(serializer())
+                            .restoreWithoutTransaction {
+                                savedFiltersRepository.save(it)
+                            }
+
+                        BackupSection.HIDDEN_IMAGES -> input.readJsonArray<HiddenImageBackup>(serializer())
+                            .restoreWithoutTransaction {
+                                hiddenImages?.restore(it.toEntity())
+                            }
+
+                        // Merged with what is here: a pass already on this device is kept as it is
+                        BackupSection.DISMISSED -> input.readJsonArray<DismissedBackup>(serializer())
+                            .restoreWithoutTransaction {
+                                dismissals?.store?.restore(listOf(it.key to it.entry))
+                            }
+
+                        BackupSection.MANGA_PREFS -> input.readJsonArray<MangaPrefsBackup>(serializer()).restoreToDb {
+                            upsertManga(it.manga)
+                            getPreferencesDao().upsert(it.toEntity())
+                        }
+
+                        BackupSection.SOURCE_SETTINGS -> input.readJsonArray<SourceSettingsBackup>(serializer())
+                            .restoreWithoutTransaction {
+                                restoreSourceSettings(it)
+                            }
+
+                        BackupSection.FEED -> input.readJsonArray<FeedBackup>(serializer()).restoreToDb {
+                            upsertManga(it.manga)
+                            getTracksDao().upsert(it.toTrackEntity())
+                            val logs = getTrackLogsDao()
+                            for (log in it.logs) {
+                                // restoring the same backup twice must not double the feed
+                                if (logs.countAt(it.manga.id, log.createdAt) == 0) {
+                                    logs.insert(it.toLogEntity(log))
+                                }
+                            }
+                        }
+
+                        null -> CompositeResult.EMPTY // skip unknown entries
                     }
                 }.getOrElse { CompositeResult.failure(it) }
                 progress?.emit(commonProgress)
@@ -370,9 +370,7 @@ class BackupRepository @Inject constructor(
 
     private fun InputStream.readString(): String = readBytes().decodeToString()
 
-    private fun dumpSettings(): String {
-        return JSONObject(settings.getBackupValues()).toString()
-    }
+    private fun dumpSettings(): String = JSONObject(settings.getBackupValues()).toString()
 
     /** Only sources that have a prefs file: asking for one creates (and keeps in memory) an empty prefs object. */
     private fun dumpSourceSettings(): List<SourceSettingsBackup> {

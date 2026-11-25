@@ -144,8 +144,11 @@ class EraseController(
                 buffer(x, y)
                 when (phase) {
                     Phase.IDLE -> Unit
+
                     Phase.ARMED -> showTrail(x, y, event.eventTime)
+
                     Phase.REJECTED -> dropTrail()
+
                     Phase.RECOGNIZED -> {
                         showTrail(x, y, event.eventTime)
                         isClaimed = true
@@ -203,8 +206,12 @@ class EraseController(
             return
         }
         val region = current.target.screenToRegion(
-            rect.left, rect.top, rect.right, rect.bottom,
-            current.luma.sourceWidth, current.luma.sourceHeight,
+            rect.left,
+            rect.top,
+            rect.right,
+            rect.bottom,
+            current.luma.sourceWidth,
+            current.luma.sourceHeight,
         )
         if (region == null) {
             abort(R.string.erase_not_possible)
@@ -242,7 +249,12 @@ class EraseController(
             val analysis = runCatchingCancellable {
                 val luma = hider.decodeLuma(target.imageUri, withChroma = true)
                 val region = target.screenToRegion(
-                    stroke.left, stroke.top, stroke.right, stroke.bottom, luma.sourceWidth, luma.sourceHeight,
+                    stroke.left,
+                    stroke.top,
+                    stroke.right,
+                    stroke.bottom,
+                    luma.sourceWidth,
+                    luma.sourceHeight,
                 ) ?: error("The page is no longer on screen")
                 val aspect = overlay.height.toFloat() / overlay.width.coerceAtLeast(1)
                 val proposal = withContext(Dispatchers.Default) { EraseProposer.propose(luma, region, aspect) }
@@ -439,9 +451,8 @@ class EraseController(
     }
 
     /** Borders the reader has not moved are still where they were put, give or take what drawing them rounds off. */
-    private fun RectF.isSameAs(other: RectF): Boolean =
-        abs(left - other.left) <= SAME_BORDER_PX && abs(top - other.top) <= SAME_BORDER_PX &&
-            abs(right - other.right) <= SAME_BORDER_PX && abs(bottom - other.bottom) <= SAME_BORDER_PX
+    private fun RectF.isSameAs(other: RectF): Boolean = abs(left - other.left) <= SAME_BORDER_PX && abs(top - other.top) <= SAME_BORDER_PX &&
+        abs(right - other.right) <= SAME_BORDER_PX && abs(bottom - other.bottom) <= SAME_BORDER_PX
 
     private class Session(val target: ErasePageTarget, val luma: PageLuma) {
 

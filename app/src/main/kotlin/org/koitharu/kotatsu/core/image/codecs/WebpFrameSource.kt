@@ -246,8 +246,7 @@ class WebpFrameSource private constructor(
         private fun tag(b: ByteArray, o: Int) = String(b, o, 4, Charsets.ISO_8859_1)
         private fun le16(b: ByteArray, o: Int) = (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8)
         private fun le24(b: ByteArray, o: Int) = le16(b, o) or ((b[o + 2].toInt() and 0xFF) shl 16)
-        private fun le32(b: ByteArray, o: Int): Long =
-            (le24(b, o).toLong()) or ((b[o + 3].toLong() and 0xFF) shl 24)
+        private fun le32(b: ByteArray, o: Int): Long = (le24(b, o).toLong()) or ((b[o + 3].toLong() and 0xFF) shl 24)
 
         private fun put(b: ByteArray, o: Int, s: String) {
             for (i in s.indices) b[o + i] = s[i].code.toByte()

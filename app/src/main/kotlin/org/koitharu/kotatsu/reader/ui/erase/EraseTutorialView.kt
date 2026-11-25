@@ -25,7 +25,8 @@ import org.koitharu.kotatsu.core.util.ext.isAnimationsEnabled
 class EraseTutorialView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-) : FrameLayout(context, attrs), EraseController.PracticeListener {
+) : FrameLayout(context, attrs),
+    EraseController.PracticeListener {
 
     private enum class Step(@StringRes val title: Int, @StringRes val body: Int) {
         RUB(R.string.erase_tutorial_rub_title, R.string.erase_tutorial_rub_body),

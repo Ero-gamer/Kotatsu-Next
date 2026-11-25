@@ -69,9 +69,11 @@ object PageConverter {
 
     private fun decode(source: File, info: ImageInfo): Bitmap? = when (info.format) {
         ImageFormat.AVIF -> BitmapDecoderCompat.decode(source)
+
         ImageFormat.JXL -> NativeImage.open(source)?.use {
             it.decode(0, Rect(0, 0, it.width, it.height), 1, Bitmap.Config.ARGB_8888)
         }
+
         else -> {
             val options = BitmapFactory.Options().apply {
                 inPreferredConfig = Bitmap.Config.ARGB_8888

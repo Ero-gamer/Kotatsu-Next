@@ -24,9 +24,9 @@ import org.koitharu.kotatsu.history.data.HistoryRepository
 import org.koitharu.kotatsu.parsers.model.ContentType
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaListFilter
-import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.MangaSource
 import org.koitharu.kotatsu.parsers.model.MangaTag
+import org.koitharu.kotatsu.parsers.model.ParserMangaSource
 import org.koitharu.kotatsu.parsers.model.SortOrder
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.suggestions.domain.SuggestionRepository
@@ -103,30 +103,28 @@ class DiscoverRepository @Inject constructor(
      * where they would rather read it anyway. Someone with a big library has already read the top of any list,
      * so this goes further down it until there is enough left.
      */
-    fun observeCategory(category: ReaderCategory, type: ContentType?, force: Boolean): Flow<DiscoverSection> =
-        cachedSection("category:${category.key}:$type", CATEGORY_MAX_AGE_MS, force) { emit ->
-            val taste = currentTaste()
-            val known = knownTitles()
-            val lists = ArrayList<RankedList>()
-            val mutex = Mutex()
-            coroutineScope {
-                for (source in chartSources().take(MAX_CATEGORY_SOURCES)) {
-                    launch {
-                        val list = fetchCategory(source, category, type, known)
-                        if (list.isEmpty()) return@launch
-                        val partial = mutex.withLock {
-                            lists += RankedList(list, 1.0)
-                            DiscoverRanking.fuse(lists, taste)
-                        }
-                        emit(partial)
+    fun observeCategory(category: ReaderCategory, type: ContentType?, force: Boolean): Flow<DiscoverSection> = cachedSection("category:${category.key}:$type", CATEGORY_MAX_AGE_MS, force) { emit ->
+        val taste = currentTaste()
+        val known = knownTitles()
+        val lists = ArrayList<RankedList>()
+        val mutex = Mutex()
+        coroutineScope {
+            for (source in chartSources().take(MAX_CATEGORY_SOURCES)) {
+                launch {
+                    val list = fetchCategory(source, category, type, known)
+                    if (list.isEmpty()) return@launch
+                    val partial = mutex.withLock {
+                        lists += RankedList(list, 1.0)
+                        DiscoverRanking.fuse(lists, taste)
                     }
+                    emit(partial)
                 }
             }
-            mutex.withLock { DiscoverRanking.fuse(lists, taste).take(MAX_TOP) }
         }
+        mutex.withLock { DiscoverRanking.fuse(lists, taste).take(MAX_TOP) }
+    }
 
-    fun observeTop(window: DiscoverWindow, filter: DiscoverFilter, force: Boolean): Flow<DiscoverSection> =
-        // The name changes with the size of the list, so a shorter one cached earlier is not shown for the rest of its day
+    fun observeTop(window: DiscoverWindow, filter: DiscoverFilter, force: Boolean): Flow<DiscoverSection> = // The name changes with the size of the list, so a shorter one cached earlier is not shown for the rest of its day
         cachedSection("top$MAX_TOP:${window.wireName}:${filter.type}:${filter.genre}", TOP_MAX_AGE_MS, force) { emit ->
             val lists = ArrayList<RankedList>()
             val sourceCharts = ArrayList<SourceChart>()
@@ -173,29 +171,28 @@ class DiscoverRepository @Inject constructor(
             mutex.withLock { DiscoverRanking.fuse(lists).take(MAX_TOP) }
         }
 
-    fun observeNewFinds(filter: DiscoverFilter, force: Boolean): Flow<DiscoverSection> =
-        cachedSection("new:${filter.type}:${filter.genre}", NEW_MAX_AGE_MS, force) { emit ->
-            val taste = currentTaste()
-            val known = knownTitles()
-            val lists = ArrayList<List<Manga>>()
-            val mutex = Mutex()
-            coroutineScope {
-                val semaphore = Semaphore(MAX_PARALLELISM)
-                for (source in chartSources()) {
-                    launch {
-                        semaphore.withPermit {
-                            val list = fetchNewest(source, filter) ?: return@withPermit
-                            val partial = mutex.withLock {
-                                lists += list
-                                DiscoverRanking.newFinds(lists, taste, known, MAX_NEW)
-                            }
-                            emit(partial)
+    fun observeNewFinds(filter: DiscoverFilter, force: Boolean): Flow<DiscoverSection> = cachedSection("new:${filter.type}:${filter.genre}", NEW_MAX_AGE_MS, force) { emit ->
+        val taste = currentTaste()
+        val known = knownTitles()
+        val lists = ArrayList<List<Manga>>()
+        val mutex = Mutex()
+        coroutineScope {
+            val semaphore = Semaphore(MAX_PARALLELISM)
+            for (source in chartSources()) {
+                launch {
+                    semaphore.withPermit {
+                        val list = fetchNewest(source, filter) ?: return@withPermit
+                        val partial = mutex.withLock {
+                            lists += list
+                            DiscoverRanking.newFinds(lists, taste, known, MAX_NEW)
                         }
+                        emit(partial)
                     }
                 }
             }
-            mutex.withLock { DiscoverRanking.newFinds(lists, taste, known, MAX_NEW) }
         }
+        mutex.withLock { DiscoverRanking.newFinds(lists, taste, known, MAX_NEW) }
+    }
 
     /**
      * What the suggestions worker has already worked out for this reader. Never asked to do it again here:
@@ -374,14 +371,13 @@ class DiscoverRepository @Inject constructor(
     }
 
     /** One slow or blocked site must only cost the list its own entries. */
-    private suspend fun <T : Any> fetchFrom(source: MangaSource, block: suspend (MangaRepository) -> T?): T? =
-        runCatchingCancellable {
-            withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
-                block(repositoryFactory.create(source))
-            }
-        }.onFailure {
-            it.printStackTraceDebug()
-        }.getOrNull()
+    private suspend fun <T : Any> fetchFrom(source: MangaSource, block: suspend (MangaRepository) -> T?): T? = runCatchingCancellable {
+        withTimeoutOrNull(SOURCE_TIMEOUT_MS) {
+            block(repositoryFactory.create(source))
+        }
+    }.onFailure {
+        it.printStackTraceDebug()
+    }.getOrNull()
 
     /** @return null if this source has no way of answering the filter, rather than an unfiltered list */
     private suspend fun MangaRepository.getFiltered(
@@ -439,8 +435,7 @@ class DiscoverRepository @Inject constructor(
         return DiscoverRanking.applyDismissals(taste, dismissals.get().tagLists)
     }
 
-    private suspend fun knownTitles(): Set<String> =
-        runCatchingCancellable { profiles.get().knownTitles }.getOrDefault(emptySet())
+    private suspend fun knownTitles(): Set<String> = runCatchingCancellable { profiles.get().knownTitles }.getOrDefault(emptySet())
 
     private class Timed<T>(val value: T) {
         private val takenAt = System.currentTimeMillis()

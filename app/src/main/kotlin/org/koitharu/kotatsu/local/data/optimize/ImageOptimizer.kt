@@ -379,8 +379,7 @@ object ImageOptimizer {
     }
 
     /** The group's sampled quality wins; the page's own header estimate fills in when the group has none. */
-    private fun targetFor(format: ImageFormat, group: SourceQuality, own: SourceQuality, options: OptimizeOptions): WebpTarget =
-        WebpPolicy.target(options.autoQuality, format, if (group is SourceQuality.Unknown) own else group, options.fallbackQuality)
+    private fun targetFor(format: ImageFormat, group: SourceQuality, own: SourceQuality, options: OptimizeOptions): WebpTarget = WebpPolicy.target(options.autoQuality, format, if (group is SourceQuality.Unknown) own else group, options.fallbackQuality)
 
     // ── helpers ──────────────────────────────────────────────────────────────
 

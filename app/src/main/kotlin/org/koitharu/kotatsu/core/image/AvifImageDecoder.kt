@@ -66,7 +66,9 @@ class AvifImageDecoder(
             val free = options.context.ramAvailable
             val config = when {
                 pixels * 4 <= free -> Bitmap.Config.ARGB_8888
+
                 !decoder.alphaPresent && pixels * 2 <= free -> Bitmap.Config.RGB_565
+
                 else -> throw ImageDecodeException(
                     uri = source.fileOrNull()?.toString(),
                     format = "avif",

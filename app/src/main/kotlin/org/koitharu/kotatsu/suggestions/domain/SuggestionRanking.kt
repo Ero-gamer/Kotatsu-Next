@@ -59,8 +59,7 @@ internal object SuggestionRanking {
      * thousand chapters is far more of someone's time than all of a short one. Grows slowly and stops, so that
      * the one enormous series somebody has been on for years does not become all there is to them.
      */
-    fun engagement(pagesRead: Int): Double =
-        (1.0 + ln(1.0 + pagesRead.coerceAtLeast(0) / ENGAGEMENT_PAGES) / ln(2.0)).coerceAtMost(ENGAGEMENT_MAX)
+    fun engagement(pagesRead: Int): Double = (1.0 + ln(1.0 + pagesRead.coerceAtLeast(0) / ENGAGEMENT_PAGES) / ln(2.0)).coerceAtMost(ENGAGEMENT_MAX)
 
     /**
      * Pages read of a title, as well as can be told. Reading statistics are off unless turned on, so for most
@@ -76,8 +75,7 @@ internal object SuggestionRanking {
     }
 
     /** What they read long ago still says something about them, only less than what they are reading now. */
-    fun fade(age: Duration): Double =
-        0.5.pow(age.toHours().coerceAtLeast(0) / 24.0 / FADE_HALF_LIFE_DAYS).coerceAtLeast(FADE_FLOOR)
+    fun fade(age: Duration): Double = 0.5.pow(age.toHours().coerceAtLeast(0) / 24.0 / FADE_HALF_LIFE_DAYS).coerceAtLeast(FADE_FLOOR)
 
     /**
      * How much one title has to say as a place to start.

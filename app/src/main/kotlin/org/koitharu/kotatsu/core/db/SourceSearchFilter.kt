@@ -1,7 +1,7 @@
 package org.koitharu.kotatsu.core.db
 
-import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
 import android.database.DatabaseUtils.sqlEscapeString
+import org.koitharu.kotatsu.core.parser.bundle.ActiveParsers
 
 /**
  * Resolves search text to the source names stored in `manga.source`.

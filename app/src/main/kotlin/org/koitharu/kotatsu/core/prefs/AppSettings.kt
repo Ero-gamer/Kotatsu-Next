@@ -24,8 +24,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import org.koitharu.kotatsu.R
 import org.koitharu.kotatsu.core.model.ReaderHideThreshold
-import org.koitharu.kotatsu.core.model.ZoomMode
 import org.koitharu.kotatsu.core.model.ReaderTint
+import org.koitharu.kotatsu.core.model.ZoomMode
 import org.koitharu.kotatsu.core.model.ZoomStart
 import org.koitharu.kotatsu.core.network.DoHProvider
 import org.koitharu.kotatsu.core.prefs.mmkv.MmkvPreferences
