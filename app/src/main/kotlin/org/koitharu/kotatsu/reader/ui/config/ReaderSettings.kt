@@ -155,6 +155,10 @@ data class ReaderSettings(
         isPagesCropEnabledStandard
     }
 
+    /** Whether any GPU shader filter runs on the decoded tiles (see [applyBitmapConfig]). */
+    val isGpuFilterActive: Boolean
+        get() = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled).isAnyActive
+
     /**
      * Applies bitmap quality and GPU filter configuration to [ssiv].
      *
@@ -187,10 +191,6 @@ data class ReaderSettings(
      *
      * No CPU pixel-loop filters are installed. [FilteringRegionDecoder] is deprecated.
      */
-    /** Whether any GPU shader filter runs on the decoded tiles (see [applyBitmapConfig]). */
-    val isGpuFilterActive: Boolean
-        get() = GpuParams.from(effectiveColorFilter, isSmartSharpenEnabled).isAnyActive
-
     @CheckResult
     fun applyBitmapConfig(ssiv: SubsamplingScaleImageView): Boolean {
         NativePngMode.mode = pngDecoderMode

@@ -227,10 +227,6 @@ class EdgeDetector(
         return height
     }
 
-    /**
-     * Calculate scale factor for performance optimization.
-     * Large images can be downscaled for edge detection without losing accuracy.
-     */
     /** False only when the header proves the image is opaque; unknown formats / sources count as alpha. */
     private fun mayHaveAlpha(source: ImageSource): Boolean {
         val uri = (source as? ImageSource.Uri)?.uri ?: return true
@@ -251,6 +247,10 @@ class EdgeDetector(
         ImageFormatProbe.probe(head, read, truncated = true)
     }
 
+    /**
+     * Calculate scale factor for performance optimization.
+     * Large images can be downscaled for edge detection without losing accuracy.
+     */
     private fun calculateScaleFactor(size: Point): Float {
         val maxDimension = max(size.x, size.y)
         return when {
