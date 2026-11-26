@@ -1,9 +1,17 @@
 name: Unzip and Commit
 
+# Upload a zip to the REPO ROOT and this workflow applies it to the branch it was pushed to.
+# Strict by design: any problem (corrupt zip, unsafe path, wrapper folder, file that did not land on disk,
+# file git refused to stage, push rejected, final content mismatch) FAILS the run and commits nothing.
+#
+# Optional secret UNZIP_PAT (fine-grained token, contents: write + workflows: write):
+#   - needed to apply changes under .github/workflows/ (the default GITHUB_TOKEN may not push those)
+#   - makes the bot commit trigger the other workflows (CI); the default token never does.
+
 on:
   push:
     paths:
-      - '**.zip' # Triggers only when a zip file is uploaded
+      - '**.zip' # any zip; zips outside the repo root are rejected by the first step
 
 concurrency:
   group: unzip-${{ github.ref }}
@@ -12,28 +20,254 @@ concurrency:
 jobs:
   unzip:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write # Needed to commit the extracted files
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
+    env:
+      BRANCH: ${{ github.ref_name }}
+      HAS_PAT: ${{ secrets.UNZIP_PAT != '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7.0.1
+        with:
+          token: ${{ secrets.UNZIP_PAT || github.token }}
+          fetch-depth: 1
 
-      - name: Extract zip
+      - name: Reject zips pushed outside the repo root
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
-          # Extract every root-level zip (overwriting existing files), then remove it
-          found=0
-          while IFS= read -r -d '' zip; do
-            unzip -o -q "$zip" -d .
-            rm -- "$zip"
-            found=1
-          done < <(find . -maxdepth 1 -name "*.zip" -print0)
-          [ "$found" = 1 ] || echo "No zip found."
+          if [[ -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ]] && git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
+            stray=$(git diff --name-only --diff-filter=AM "$BEFORE" HEAD -- '*.zip' | grep '/' || true)
+            if [ -n "$stray" ]; then
+              echo "::error::Zip must be uploaded to the repository root (it would be ignored here):"
+              echo "$stray"
+              exit 1
+            fi
+          fi
 
-      - name: Stage Changes
-        run: git add -A
+      - name: Extract zips (strict)
+        id: extract
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, posixpath, re, stat, sys, zipfile
+
+          TEMP = os.environ.get("RUNNER_TEMP", "/tmp")
+          SUMMARY = os.environ.get("GITHUB_STEP_SUMMARY")
+          IGNORED_DIRS = {"__MACOSX", "__pycache__"}
+          IGNORED_NAMES = {".DS_Store", "Thumbs.db"}
+          IGNORED_SUFFIXES = (".pyc", ".whl")  # packaging/tool leftovers, never part of the project
+          MAX_FILES = 20000
+          MAX_BYTES = 2 * 1024**3
+
+
+          def die(msg):
+              print(f"::error::{msg}")
+              sys.exit(1)
+
+
+          def out(key, value):
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write(f"{key}={value}\n")
+
+
+          def natkey(s):
+              return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", s)]
+
+
+          def sha256_file(path):
+              h = hashlib.sha256()
+              with open(path, "rb") as f:
+                  for chunk in iter(lambda: f.read(1 << 20), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+
+          root = os.getcwd()
+          zips = sorted(
+              (f for f in os.listdir(".") if f.lower().endswith(".zip") and os.path.isfile(f) and not os.path.islink(f)),
+              key=natkey,
+          )
+          if not zips:
+              print("::notice::No zip in the repo root: nothing to do.")
+              out("has_work", "false")
+              sys.exit(0)
+
+          expected = {}  # path -> sha256 of the final content (later zips win)
+          changed = set()  # paths whose content or exec bit differ from the checkout
+          report = []
+
+          for zname in zips:
+              try:
+                  z = zipfile.ZipFile(zname)
+              except Exception as e:
+                  die(f"{zname}: not a readable zip ({e})")
+              bad = z.testzip()
+              if bad:
+                  die(f"{zname}: CRC error in '{bad}'")
+
+              entries, ignored, seen = [], [], set()
+              total = 0
+              for info in z.infolist():
+                  name = info.filename
+                  if "\\" in name or re.search(r"[\x00-\x1f]", name):
+                      die(f"{zname}: unsafe name {name!r}")
+                  if name.startswith("/") or re.match(r"^[A-Za-z]:", name):
+                      die(f"{zname}: absolute path {name!r}")
+                  p = posixpath.normpath(name.rstrip("/")) if name.rstrip("/") else ""
+                  parts = p.split("/") if p else []
+                  if not parts or ".." in parts or p == ".":
+                      die(f"{zname}: unsafe path {name!r}")
+                  if ".git" in parts:
+                      die(f"{zname}: refusing to touch .git ({name!r})")
+                  if info.flag_bits & 0x1:
+                      die(f"{zname}: '{name}' is encrypted")
+                  mode = (info.external_attr >> 16) & 0xFFFF
+                  if stat.S_ISLNK(mode):
+                      die(f"{zname}: symlink entry {name!r} not allowed")
+                  if info.is_dir():
+                      continue
+                  if (
+                      any(x in IGNORED_DIRS for x in parts)
+                      or parts[-1] in IGNORED_NAMES
+                      or parts[-1].lower().endswith(IGNORED_SUFFIXES)
+                  ):
+                      ignored.append(p)
+                      continue
+                  if p in seen:
+                      die(f"{zname}: duplicate entry {p!r}")
+                  seen.add(p)
+                  total += info.file_size
+                  entries.append((info, p, parts, bool(mode & 0o111)))
+
+              if not entries:
+                  die(f"{zname}: contains no files")
+              if len(entries) > MAX_FILES or total > MAX_BYTES:
+                  die(f"{zname}: too large ({len(entries)} files, {total} bytes)")
+
+              tops = {parts[0] for _, _, parts, _ in entries}
+              if len(tops) == 1 and all(len(parts) > 1 for _, _, parts, _ in entries):
+                  top = next(iter(tops))
+                  if not os.path.isdir(top):
+                      die(
+                          f"{zname}: every file is inside a single folder '{top}/' that does not exist in the repo. "
+                          "Looks like a wrapper folder: zip the CONTENTS (folders at the zip root)."
+                      )
+
+              new = modified = same = 0
+              for info, p, parts, is_exec in entries:
+                  target = os.path.join(root, *parts)
+                  cur = root
+                  for part in parts[:-1]:
+                      cur = os.path.join(cur, part)
+                      if os.path.islink(cur):
+                          die(f"{zname}: '{p}' goes through symlink '{cur}'")
+                  if os.path.islink(target) or os.path.isdir(target):
+                      die(f"{zname}: '{p}' collides with an existing link/folder")
+                  os.makedirs(os.path.dirname(target), exist_ok=True)
+                  tmp = target + ".unzip-tmp"
+                  h = hashlib.sha256()
+                  with z.open(info) as src, open(tmp, "wb") as dst:
+                      for chunk in iter(lambda: src.read(1 << 20), b""):
+                          h.update(chunk)
+                          dst.write(chunk)
+                  digest = h.hexdigest()
+                  existed = os.path.isfile(target)
+                  old = sha256_file(target) if existed else None
+                  old_exec = existed and bool(os.stat(target).st_mode & 0o111)
+                  if old == digest:
+                      os.remove(tmp)
+                      if old_exec != is_exec:
+                          os.chmod(target, 0o755 if is_exec else 0o644)
+                          changed.add(p)
+                          modified += 1
+                      else:
+                          same += 1
+                  else:
+                      os.chmod(tmp, 0o755 if is_exec else 0o644)
+                      os.replace(tmp, target)
+                      changed.add(p)
+                      if existed:
+                          modified += 1
+                      else:
+                          new += 1
+                  expected[p] = digest
+              report.append((zname, len(entries), new, modified, same, ignored))
+              print(f"{zname}: {len(entries)} files -> {new} new, {modified} modified, {same} identical, {len(ignored)} ignored")
+
+          # Verify EVERYTHING landed on disk exactly as in the zips
+          for p, digest in expected.items():
+              if not os.path.isfile(p) or sha256_file(p) != digest:
+                  die(f"verification failed: '{p}' on disk does not match the zip")
+
+          if not changed:
+              die(
+                  "The zip(s) changed nothing: every file is already identical in the repo. "
+                  "Wrong/old zip, or already applied. Delete the zip file(s) and push again."
+              )
+
+          for zname in zips:
+              os.remove(zname)
+
+          paths = sorted(changed) + zips
+          with open(os.path.join(TEMP, "paths.nul"), "w") as f:
+              f.write("\0".join(paths) + "\0")
+          with open(os.path.join(TEMP, "manifest.json"), "w") as f:
+              json.dump({"files": expected, "changed": sorted(changed), "zips": zips}, f)
+
+          if SUMMARY:
+              with open(SUMMARY, "a") as f:
+                  f.write("### Unzip result\n\n| zip | files | new | modified | identical | ignored |\n|---|---|---|---|---|---|\n")
+                  for zname, n, a, m, s, ign in report:
+                      f.write(f"| {zname} | {n} | {a} | {m} | {s} | {len(ign)} |\n")
+                  f.write("\n**Changed files:**\n\n")
+                  for p in sorted(changed):
+                      f.write(f"- `{p}`\n")
+                  for zname, *_rest, ign in report:
+                      if ign:
+                          f.write(f"\n**Ignored in {zname} (junk):** " + ", ".join(f"`{x}`" for x in ign) + "\n")
+          out("has_work", "true")
+          PY
+
+      - name: Stage and verify
+        if: steps.extract.outputs.has_work == 'true'
+        run: |
+          # -f: also stage files matched by .gitignore; nothing may be skipped silently
+          git add -A -f --pathspec-from-file="$RUNNER_TEMP/paths.nul" --pathspec-file-nul
+
+          python3 - <<'PY'
+          import os, subprocess, sys
+
+          def die(msg):
+              print(f"::error::{msg}")
+              sys.exit(1)
+
+          expected = {p for p in open(os.path.join(os.environ["RUNNER_TEMP"], "paths.nul")).read().split("\0") if p}
+          staged = {p for p in subprocess.run(["git", "diff", "--cached", "--name-only", "-z"],
+                                              capture_output=True, text=True, check=True).stdout.split("\0") if p}
+          zips = {p for p in expected if p.lower().endswith(".zip") and "/" not in p}
+          missing = (expected - zips) - staged
+          if missing:
+              die("git did not stage these changed files: " + ", ".join(sorted(missing)))
+          unexpected = staged - expected
+          if unexpected:
+              die("unexpected staged paths: " + ", ".join(sorted(unexpected)))
+          if subprocess.run(["git", "diff", "--quiet"]).returncode != 0:
+              die("working tree differs from what was staged (line-ending/filter problem?)")
+          wf = sorted(p for p in staged if p.startswith(".github/workflows/"))
+          if wf and os.environ.get("HAS_PAT") != "true":
+              die("The zip changes workflow files (" + ", ".join(wf) + ") but the secret UNZIP_PAT is not set; "
+                  "GitHub rejects such pushes from the default token. Add UNZIP_PAT (contents+workflows write) or "
+                  "upload those files through the web UI.")
+          print(f"Staged {len(staged)} paths ({len(staged - zips)} files + {len(staged & zips)} zip deletions).")
+          PY
 
       - name: Generate AI Commit Message
+        if: steps.extract.outputs.has_work == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -109,15 +343,49 @@ jobs:
           set_msg(ask(api_key, prompt) or "Auto-extract: Code files updated from archive (API Unavailable)")
           PY
 
-      - name: Commit and Push
+      - name: Commit
+        if: steps.extract.outputs.has_work == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --cached --quiet && { echo "::error::Nothing staged to commit"; exit 1; }
+          git commit -q -m "${COMMIT_MSG:-Auto-extract: Code files updated from zip archive}"
+          git log -1 --stat | tail -n 25
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "$COMMIT_MSG"
-            git pull --rebase --autostash || true
-            git push
-          fi
+      - name: Push (rebase + retry, fails if rejected)
+        if: steps.extract.outputs.has_work == 'true'
+        run: |
+          for i in 1 2 3 4; do
+            git fetch --no-tags --depth=50 origin "$BRANCH"
+            git rebase "origin/$BRANCH"
+            if git push origin "HEAD:$BRANCH"; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $i), retrying..."
+            sleep $((i * 4))
+          done
+          echo "::error::Push failed after 4 attempts"
+          exit 1
+
+      - name: Audit remote content against the zip
+        if: steps.extract.outputs.has_work == 'true'
+        run: |
+          git fetch --no-tags --depth=50 origin "$BRANCH"
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess, sys
+
+          branch = os.environ["BRANCH"]
+          m = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "manifest.json")))
+          bad = []
+          for p, digest in m["files"].items():
+              r = subprocess.run(["git", "show", f"origin/{branch}:{p}"], capture_output=True)
+              if r.returncode != 0 or hashlib.sha256(r.stdout).hexdigest() != digest:
+                  bad.append(p)
+          for z in m["zips"]:
+              if subprocess.run(["git", "cat-file", "-e", f"origin/{branch}:{z}"], capture_output=True).returncode == 0:
+                  bad.append(f"{z} (zip still present)")
+          if bad:
+              print("::error::Remote does not match the zip (or changed again meanwhile): " + ", ".join(bad))
+              sys.exit(1)
+          print(f"Audit OK: {len(m['files'])} files on origin/{branch} match the zip byte for byte.")
+          PY
