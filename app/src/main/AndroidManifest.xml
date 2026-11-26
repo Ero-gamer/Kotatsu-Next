@@ -3,11 +3,8 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:tools="http://schemas.android.com/tools">
 
-	<!--
-		Compose material3-ripple 1.5.0 declares minSdk 24 and LeakCanary 3.0-alpha-9 (debug/nightly only) declares 26,
-		while the app supports API 23. Overridden on purpose; raise minSdk instead if API 23 misbehaves.
-	-->
-	<uses-sdk tools:overrideLibrary="androidx.compose.material3.ripple,com.squareup.leakcanary" />
+	<!-- LeakCanary 3.0-alpha-9 (debug/nightly only) declares minSdk 26 while the app is minSdk 24. -->
+	<uses-sdk tools:overrideLibrary="com.squareup.leakcanary" />
 
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

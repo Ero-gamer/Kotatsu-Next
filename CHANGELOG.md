@@ -45,7 +45,7 @@ marked "device test" still need a run on a real phone.
 - Webtoon reader: Ctrl + wheel zoom is multiplicative; seam/misalignment fixes between pages.
 
 ### Fixed
-- Manifest merge after the dependency bump: `uses-sdk tools:overrideLibrary` for Compose `material3-ripple` 1.5.0 (minSdk 24) and LeakCanary 3.0-alpha-9 (minSdk 26, debug/nightly only); the app stays minSdk 23. Raise minSdk to 24 if API 23 devices misbehave.
+- **minSdk raised 23 to 24** (Android 7.0+): Compose Material3 1.5 declares minSdk 24. `uses-sdk tools:overrideLibrary` only for LeakCanary 3.0-alpha-9 (minSdk 26, debug/nightly builds only).
 - Restoring a backup on another device no longer imports that device's storage paths.
 - Re-bookmarking the same page no longer crashes (upsert).
 - A long-press on the tap grid no longer scrolls the page afterwards.

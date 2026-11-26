@@ -45,7 +45,7 @@
 | 1200+ manga sources | Material You UI | Cross-device sync |
 | Search by name & genre | Standard + Webtoon reader | Password / fingerprint lock |
 | Favorites & categories | Gesture controls | Offline downloads + CBZ |
-| Reading history | Tablet & desktop optimized | Android 6.0+ support |
+| Reading history | Tablet & desktop optimized | Android 7.0+ support |
 | Incognito mode | New chapter notifications | Tracker integrations |
 
 </div>
@@ -93,7 +93,7 @@ Release notes: [CHANGELOG.md](CHANGELOG.md). All other differences from upstream
 - 🔗 **Tracker integration** — Shikimori, AniList, MyAnimeList, Kitsu
 - 🔒 **Privacy** — password / fingerprint protection
 - 🔄 **Cross-device sync** — automatic sync across devices on the same account
-- 📱 **Legacy support** — Android 6.0+
+- 📱 **Legacy support** — Android 7.0+
 
 </details>
 
