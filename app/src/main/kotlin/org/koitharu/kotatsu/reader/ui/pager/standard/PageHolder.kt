@@ -223,7 +223,7 @@ open class PageHolder(
     private fun animatePanTo(x: Float, y: Float) {
         val ssiv = binding.ssiv
         ssiv.animateScaleAndCenter(ssiv.scale, PointF(x, y))?.apply {
-            withDuration(ssiv.context.getAnimationDuration(R.integer.config_shortAnimTime))
+            withDuration(ssiv.context.getAnimationDuration(android.R.integer.config_shortAnimTime))
             withInterpolator(DecelerateInterpolator())
             start()
         }

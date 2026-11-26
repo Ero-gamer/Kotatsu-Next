@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.list.ui.adapter
 
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible

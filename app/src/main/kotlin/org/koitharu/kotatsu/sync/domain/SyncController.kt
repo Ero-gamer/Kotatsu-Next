@@ -225,6 +225,9 @@ constructor(
         }
     }
 
+    private fun getLastSync(account: Account, authority: String): Long =
+        am.getUserData(account, lastSyncKey(authority))?.toLongOrNull() ?: 0L
+
     private fun peekAccount(): Account? = am.getAccountsByType(accountType).firstOrNull()
 
     private suspend fun MangaDatabase.gc(
@@ -256,9 +259,10 @@ constructor(
             authority: String,
             time: Long,
         ) {
-            val key = "last_sync_" + authority.substringAfterLast('.')
             val am = AccountManager.get(context)
-            am.setUserData(account, key, time.toString())
+            am.setUserData(account, lastSyncKey(authority), time.toString())
         }
+
+        private fun lastSyncKey(authority: String) = "last_sync_" + authority.substringAfterLast('.')
     }
 }
