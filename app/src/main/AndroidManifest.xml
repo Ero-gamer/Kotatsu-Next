@@ -4,7 +4,7 @@
 	xmlns:tools="http://schemas.android.com/tools">
 
 	<!-- LeakCanary 3.0-alpha-9 (debug/nightly only) declares minSdk 26 while the app is minSdk 24. -->
-	<uses-sdk tools:overrideLibrary="com.squareup.leakcanary" />
+	<uses-sdk tools:overrideLibrary="com.squareup.leakcanary,com.squareup.leakcanary.core,com.squareup.leakcanary.utils,com.squareup.leakcanary.process,com.squareup.leakcanary.startup,com.squareup.leakcanary.plumber,com.squareup.leakcanary.plumber.core,com.squareup.leakcanary.plumber.startup,com.squareup.leakcanary.objectwatcher,com.squareup.leakcanary.objectwatcher.core,com.squareup.leakcanary.objectwatcher.startup,com.squareup.leakcanary.fragments.androidx" />
 
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

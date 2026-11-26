@@ -89,6 +89,7 @@ class MangaListMapper @Inject constructor(
 
     private suspend fun toCompactListModel(
         manga: Manga,
+        @Options options: Int,
         override: MangaOverride?,
     ) = MangaCompactListModel(
         manga = manga,
@@ -136,7 +137,7 @@ class MangaListMapper @Inject constructor(
         override: MangaOverride?,
         isPinned: Boolean = false,
     ): MangaListModel = when (mode) {
-        ListMode.LIST -> toCompactListModel(manga, override)
+        ListMode.LIST -> toCompactListModel(manga, options, override)
         ListMode.DETAILED_LIST -> toDetailedListModel(manga, options, override, isPinned)
         ListMode.GRID -> toGridModel(manga, options, override, isPinned)
     }

@@ -3,7 +3,7 @@
 Keep this file current; contains no personal data.
 
 ## Targets
-- App: Kotatsu Next (fork of Kotatsu Redo). SSIV fork consumed via JitPack (`ssiv = "7.00"`).
+- App: Kotatsu Next (fork of Kotatsu Redo). SSIV fork consumed via JitPack (`ssiv = "9.0.0"`).
 - Reference device: 2 GB RAM, Android 9, armeabi-v7a, 720x1600. No local Android build environment.
 
 ## Standing preferences
@@ -15,8 +15,8 @@ Keep this file current; contains no personal data.
 - Be honest about what was not compiled or run on Android.
 
 ## Decisions
-- Stay on AGP 8.13.2/Gradle 9.0.0; Kotlin 2.4.21; KSP 2.3.11; no AGP 9 migration (user skipped it).
-- Dagger 2.58 / androidx.hilt 1.3.0 until AGP 9. detekt 1.23.8 (2.x alpha). jni 0.21.
+- AGP 9.5.2 / Gradle 9.9.2 / Hilt 2.60.1 / built-in Kotlin (migrated 2026-11-25); Kotlin 2.4.21; KSP 2.3.13. detekt 1.23.8 (2.x alpha).
+- Next: Room 2.8.5 modernization, then Room 3.
 - No Rust/alt libs for WebP/AVIF/GIF region decode (none give cheap regions).
 - Shell cannot reach Maven; use release pages/docs for versions.
 

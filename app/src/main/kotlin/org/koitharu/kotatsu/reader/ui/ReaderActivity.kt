@@ -78,8 +78,8 @@ import org.koitharu.kotatsu.parsers.model.MangaChapter
 import org.koitharu.kotatsu.reader.data.TapGridSettings
 import org.koitharu.kotatsu.reader.domain.TapGridArea
 import org.koitharu.kotatsu.reader.domain.erase.ImageHider
-import org.koitharu.kotatsu.reader.domain.formatChapterNumber
 import org.koitharu.kotatsu.reader.domain.indexOfPosition
+import org.koitharu.kotatsu.reader.domain.formatChapterNumber
 import org.koitharu.kotatsu.reader.domain.missingChaptersBetween
 import org.koitharu.kotatsu.reader.ui.config.CropMenu
 import org.koitharu.kotatsu.reader.ui.config.ReaderConfigSheet
@@ -89,8 +89,8 @@ import org.koitharu.kotatsu.reader.ui.pager.ReaderPage
 import org.koitharu.kotatsu.reader.ui.pager.ReaderUiState
 import org.koitharu.kotatsu.reader.ui.tapgrid.TapGridDispatcher
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 import kotlin.math.abs
+import javax.inject.Inject
 import androidx.appcompat.R as appcompatR
 
 @AndroidEntryPoint
@@ -555,16 +555,16 @@ class ReaderActivity :
         val dim = settings.readerDim
         if (dim != appliedDim) {
             appliedDim = dim
-            viewBinding.overlayDim.isVisible = dim > 0
-            viewBinding.overlayDim.setBackgroundColor(Color.argb(dim * 255 / 100, 0, 0, 0))
+            viewBinding.overlayDim?.isVisible = dim > 0
+            viewBinding.overlayDim?.setBackgroundColor(Color.argb(dim * 255 / 100, 0, 0, 0))
         }
         val tint = settings.readerTint
         val strength = settings.readerTintStrength
         if (tint != appliedTint || strength != appliedTintStrength) {
             appliedTint = tint
             appliedTintStrength = strength
-            viewBinding.overlayTint.isVisible = tint != ReaderTint.OFF && strength > 0
-            viewBinding.overlayTint.setBackgroundColor((strength * 255 / 100 shl 24) or tint.rgb)
+            viewBinding.overlayTint?.isVisible = tint != ReaderTint.OFF && strength > 0
+            viewBinding.overlayTint?.setBackgroundColor((strength * 255 / 100 shl 24) or tint.rgb)
         }
     }
 
@@ -593,7 +593,8 @@ class ReaderActivity :
 
         override fun canStartEraseAt(rawX: Int, rawY: Int): Boolean = onProcessTouch(rawX, rawY)
 
-        override fun findEraseTarget(rawX: Float, rawY: Float): ErasePageTarget? = readerManager.currentReader?.findPageHolderAt(rawX.toInt(), rawY.toInt())?.createEraseTarget()
+        override fun findEraseTarget(rawX: Float, rawY: Float): ErasePageTarget? =
+            readerManager.currentReader?.findPageHolderAt(rawX.toInt(), rawY.toInt())?.createEraseTarget()
 
         override suspend fun findNeighbourImages(page: ReaderPage): List<Uri> = viewModel.loadNeighbourImages(page)
 

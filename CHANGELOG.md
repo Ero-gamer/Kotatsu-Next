@@ -45,8 +45,8 @@ marked "device test" still need a run on a real phone.
 - Webtoon reader: Ctrl + wheel zoom is multiplicative; seam/misalignment fixes between pages.
 
 ### Fixed
-- Parsers dependency now points at fork commit `303cb61374` (has `src/contract`: `ParserMangaSource`, `ParsersBundle`...); tag 1.9.8 predates it and the app could not compile against it.
-- First Kotlin compile errors after the Stage B bump: `PageHolder` used `R.integer.config_shortAnimTime` (now `android.R`), `MangaGridItemAD` lacked the `View` import, `SyncController.getLastSync` was never defined (reads the value `setLastSync` stores).
+- Parsers dependency is `1.9.9` (fork synced with upstream; the old 1.9.8 tag had no `src/contract`, so the app could not compile against it). SSIV stays `9.0.0`.
+- First Kotlin compile errors after the Stage B bump: `PageHolder` used `R.integer.config_shortAnimTime` (now `android.R`), `MangaGridItemAD` lacked the `View` import, `SyncController.getLastSync` was never defined (reads the value `setLastSync` stores). Next round: `updateList` in `PagesViewModel`/`PagePickerViewModel` is `suspend` (`ChaptersLoader.snapshot()` is), `toCompactListModel` takes `options`, `ExploreViewModel` imports the 2-flow `combine`, the reader overlays use `?.` (they exist only in some layouts). LeakCanary manifest override now covers all its library packages.
 - **minSdk raised 23 to 24** (Android 7.0+): Compose Material3 1.5 declares minSdk 24. `uses-sdk tools:overrideLibrary` only for LeakCanary 3.0-alpha-9 (minSdk 26, debug/nightly builds only).
 - Restoring a backup on another device no longer imports that device's storage paths.
 - Re-bookmarking the same page no longer crashes (upsert).
