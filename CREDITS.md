@@ -17,7 +17,7 @@ file and each project's source link satisfy. Versions are in `gradle/libs.versio
 | Kotatsu parsers (Redo) | https://github.com/Kotatsu-Redo/kotatsu-parsers-redo | GPL-3.0 |
 | SubsamplingScaleImageView (Dave Morrissey) | https://github.com/davemorrissey/subsampling-scale-image-view | Apache-2.0 |
 | DropSauce (HuzaifaKhalid1311) | https://github.com/HuzaifaKhalid1311/DropSauce | GPL-3.0 |
-| Kotatsu SSIV fork / this SSIV fork | https://github.com/Ero-gamer/subsampling-scale-image-view | Apache-2.0 |
+| Kotatsu SSIV fork / this SSIV fork | https://github.com/Ero-gamer/subsampling-scale-image-view | GPL-3.0 |
 
 ## Native code (app + SSIV)
 | Library | Source | License |
