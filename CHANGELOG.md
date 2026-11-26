@@ -27,6 +27,10 @@ marked "device test" still need a run on a real phone.
 - **Open source licenses** screen (Settings > About), AboutLibraries 15.2.0: lists every resolved dependency with its license,
   plus native libraries (libjpeg-turbo, libwebp, jxl-oxide, ...) and upstream projects from `config/aboutlibraries/`.
 
+- **auto-unzip workflow rewritten, strict**: validates zips (CRC, unsafe paths, symlinks, wrapper folder, zips outside the root), verifies every
+  file on disk by SHA-256, force-stages gitignored files, fails when a file is not staged / the zip changes nothing / the push is rejected,
+  audits origin against the zip afterwards, writes a summary table.
+
 ### Changed
 - **Build migration to AGP 9.5.2, Gradle 9.9.2, Dagger/Hilt 2.60.1, built-in Kotlin** (app and SSIV). The
   held AndroidX bumps went in with it: Compose BOM 2026.11.01, core-ktx 1.19.1, lifecycle 2.11.1,

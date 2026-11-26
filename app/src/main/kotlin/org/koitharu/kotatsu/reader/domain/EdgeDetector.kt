@@ -3,9 +3,9 @@ package org.koitharu.kotatsu.reader.domain
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.net.Uri
 import android.graphics.Point
 import android.graphics.Rect
-import android.net.Uri
 import androidx.annotation.ColorInt
 import androidx.core.graphics.alpha
 import androidx.core.graphics.blue

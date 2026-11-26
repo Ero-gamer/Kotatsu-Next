@@ -41,4 +41,4 @@ Planned: Room 2.8.5 modernization, then Room 3 (`androidx.room3` 3.0.3).
 
 ## CI
 `ci.yml` (spotless auto-fix, detekt, `build`: cargo test + assembleDebug), `native-lint.yml` (SSIV C++/GLSL/
-Rust/Python lint), `dep-versions.yml` (manual report).
+Rust/Python lint), `dep-versions.yml` (manual report), `auto-unzip.yml` (upload a zip to the repo root: strict extract, stage, commit, push, byte audit; any problem fails the run and commits nothing; optional secret `UNZIP_PAT` for workflow-file changes and to let the bot commit trigger CI).

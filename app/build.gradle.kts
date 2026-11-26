@@ -50,7 +50,10 @@ val appAbis = listOf("armeabi-v7a", "arm64-v8a")
 // -Pssiv.legacyJni=false stores native libs uncompressed (smaller install, larger APK; default true).
 
 android {
-    compileSdk = 37
+    // Compose 1.13 requires compileSdk 37.1 (minor API level). targetSdk stays 37.
+    compileSdk {
+        version = release(37) { minorApiLevel = 1 }
+    }
     namespace = "org.koitharu.kotatsu"
 
     dependenciesInfo {
@@ -78,15 +81,11 @@ android {
         // Where parsers newer than the built-in ones are published, and the public half of the key they are signed
         // with. Override with `parsers_bundle_url` / `parsers_bundle_key` in local.properties or PARSERS_BUNDLE_URL /
         // PARSERS_BUNDLE_KEY in the environment; the key `none` takes no parsers from anywhere.
-        fun parsersSetting(
-            property: String,
-            env: String,
-        ): String? =
+        fun parsersSetting(property: String, env: String): String? =
             localProperties.getProperty(property)?.takeIf { it.isNotBlank() }
                 ?: System.getenv(env)?.takeIf { it.isNotBlank() }
-        val parsersBundleUrl =
-            parsersSetting("parsers_bundle_url", "PARSERS_BUNDLE_URL")
-                ?: "https://github.com/Ero-gamer/kotatsu-next-parsers/releases/download/parsers-bundle"
+        val parsersBundleUrl = parsersSetting("parsers_bundle_url", "PARSERS_BUNDLE_URL")
+            ?: "https://github.com/Ero-gamer/kotatsu-next-parsers/releases/download/parsers-bundle"
         var parsersBundleKey = parsersSetting("parsers_bundle_key", "PARSERS_BUNDLE_KEY") ?: parsersBundlePublicKey
         if (parsersBundleKey == "none") {
             parsersBundleKey = ""
@@ -333,12 +332,7 @@ val ndkFromSdk = androidComponents.sdkComponents.ndkDirectory
 
 val rustTasks =
     rustAbis.map { (abi, rustTriple, clangTriple, libName) ->
-        tasks.register(
-            "buildRust${abi.replace(
-                "-",
-                "",
-            ).replaceFirstChar { it.uppercase() }}${if (libName.endsWith("_neon")) "Neon" else ""}",
-        ) {
+        tasks.register("buildRust${abi.replace("-", "").replaceFirstChar { it.uppercase() }}${if (libName.endsWith("_neon")) "Neon" else ""}") {
             group = "build"
             description = "Builds lib$libName.so for $abi ($rustTriple)"
             onlyIf { rustEnabled }
@@ -401,8 +395,7 @@ val rustTasks =
                                     "CC_$ccKey" to linker.absolutePath,
                                     "AR_$ccKey" to (bin?.resolve("llvm-ar")?.absolutePath ?: "llvm-ar"),
                                     // 16 KB page-size aligned segments (Android 15+).
-                                    "RUSTFLAGS" to
-                                        "-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,--gc-sections -C link-arg=-Wl,--icf=safe",
+                                    "RUSTFLAGS" to "-C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,--gc-sections -C link-arg=-Wl,--icf=safe",
                                 ),
                         )
                     val built = rustTargetDir.get().asFile.resolve("$rustTriple/release/libssivcodecs.so")
