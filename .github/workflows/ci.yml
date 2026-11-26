@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.2.0
+        uses: actions/setup-java@v6.3.0
         with:
           java-version: '21.0.13+9.0.LTS'
           distribution: 'temurin'
@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@v7.0.1
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6.2.0
+        uses: actions/setup-java@v6.3.0
         with:
           java-version: '21.0.13+9.0.LTS'
           distribution: 'temurin'
