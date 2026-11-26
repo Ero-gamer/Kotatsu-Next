@@ -45,6 +45,7 @@ marked "device test" still need a run on a real phone.
 - Webtoon reader: Ctrl + wheel zoom is multiplicative; seam/misalignment fixes between pages.
 
 ### Fixed
+- Release R8 failed with "Optimized resource shrinking requires non-final IDs": `android.r8.optimizedResourceShrinking=false` (classic resource shrinking; `res/raw/keep.xml` still applies). Debug/nightly: LeakCanary's adaptive icon cannot link at minSdk 24, so both build types carry a plain replacement `leak_canary_icon`; `TestMangaRepository` opts in to `InternalParsersApi`.
 - Parsers dependency is `1.9.9` (fork synced with upstream; the old 1.9.8 tag had no `src/contract`, so the app could not compile against it). SSIV stays `9.0.0`.
 - First Kotlin compile errors after the Stage B bump: `PageHolder` used `R.integer.config_shortAnimTime` (now `android.R`), `MangaGridItemAD` lacked the `View` import, `SyncController.getLastSync` was never defined (reads the value `setLastSync` stores). Next round: `updateList` in `PagesViewModel`/`PagePickerViewModel` is `suspend` (`ChaptersLoader.snapshot()` is), `toCompactListModel` takes `options`, `ExploreViewModel` imports the 2-flow `combine`, the reader overlays use `?.` (they exist only in some layouts). LeakCanary manifest override now covers all its library packages.
 - **minSdk raised 23 to 24** (Android 7.0+): Compose Material3 1.5 declares minSdk 24. `uses-sdk tools:overrideLibrary` only for LeakCanary 3.0-alpha-9 (minSdk 26, debug/nightly builds only).

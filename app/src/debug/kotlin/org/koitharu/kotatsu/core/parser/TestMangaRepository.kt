@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.core.parser
 
 import org.koitharu.kotatsu.core.cache.MemoryContentCache
 import org.koitharu.kotatsu.core.model.TestMangaSource
+import org.koitharu.kotatsu.parsers.InternalParsersApi
 import org.koitharu.kotatsu.parsers.MangaLoaderContext
 import org.koitharu.kotatsu.parsers.model.Manga
 import org.koitharu.kotatsu.parsers.model.MangaChapter
@@ -16,6 +17,7 @@ import java.util.EnumSet
  This class is for parser development and testing purposes
  You can open it in the app via Settings -> Debug
  */
+@OptIn(InternalParsersApi::class)
 class TestMangaRepository(
     @Suppress("unused") private val loaderContext: MangaLoaderContext,
     cache: MemoryContentCache,

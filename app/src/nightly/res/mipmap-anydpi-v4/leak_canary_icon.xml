@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	Replaces LeakCanary's adaptive launcher icon: its resource sits in a qualifier without -v26, which fails to link
+	with minSdk 24. Same name and qualifier, so this one wins.
+-->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+	android:src="@android:drawable/sym_def_app_icon" />
