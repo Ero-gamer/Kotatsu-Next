@@ -268,20 +268,25 @@ jobs:
 
       - name: Generate AI Commit Message
         if: steps.extract.outputs.has_work == 'true'
+        timeout-minutes: 1
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 - <<'PY'
-          import json, os, subprocess, urllib.request, uuid
+          import concurrent.futures as cf
+          import json, os, re, subprocess, urllib.request, uuid
 
-          # (model, lowest supported thinking level), newest first; the next one is only tried on failure
+          # (model, lowest supported thinking level). All are raced in parallel: first good answer wins,
+          # so one slow or overloaded model can no longer stall the run.
           MODELS = [
-              ("gemini-3.8-flash", "low"),  # has no "minimal" level
-              ("gemini-3.6-flash", "minimal"),
               ("gemini-3.5-flash-lite", "minimal"),
               ("gemini-3.1-flash-lite", "minimal"),
+              ("gemini-3.6-flash", "minimal"),
+              ("gemini-3.8-flash", "low"),  # has no "minimal" level
           ]
-          MAX_DIFF_CHARS = 100_000
+          DEADLINE = 25          # seconds for the whole race
+          MAX_DIFF_CHARS = 16_000
+          MAX_FILE_CHARS = 2_500
           FALLBACK = "Auto-extract: Code files updated from zip archive"
 
 
@@ -296,24 +301,45 @@ jobs:
                   f.write(f"COMMIT_MSG<<{delim}\n{msg}\n{delim}\n")
 
 
+          def call(api_key, prompt, model, level):
+              payload = json.dumps({
+                  "contents": [{"parts": [{"text": prompt}]}],
+                  "generationConfig": {
+                      "thinkingConfig": {"thinkingLevel": level},
+                      "temperature": 0.2,
+                      "maxOutputTokens": 400,
+                  },
+              }).encode()
+              req = urllib.request.Request(
+                  f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                  data=payload,
+                  headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+              )
+              with urllib.request.urlopen(req, timeout=DEADLINE) as r:
+                  parts = json.load(r)["candidates"][0]["content"]["parts"]
+              text = "".join(p.get("text", "") for p in parts).strip()
+              text = re.sub(r"^```\w*\n?|\n?```$", "", text).strip()
+              if not text:
+                  raise ValueError("empty answer")
+              return text
+
+
           def ask(api_key, prompt):
-              for model, level in MODELS:
-                  payload = json.dumps({
-                      "contents": [{"parts": [{"text": prompt}]}],
-                      "generationConfig": {"thinkingConfig": {"thinkingLevel": level}},
-                  }).encode()
-                  req = urllib.request.Request(
-                      f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                      data=payload,
-                      headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-                  )
-                  try:
-                      with urllib.request.urlopen(req, timeout=90) as r:
-                          text = json.load(r)["candidates"][0]["content"]["parts"][0]["text"].strip()
-                      if text:
-                          return text
-                  except Exception as e:
-                      print(f"Model {model} failed ({e}), trying next fallback...")
+              pool = cf.ThreadPoolExecutor(max_workers=len(MODELS))
+              futs = {pool.submit(call, api_key, prompt, m, lv): m for m, lv in MODELS}
+              try:
+                  for fut in cf.as_completed(futs, timeout=DEADLINE):
+                      try:
+                          text = fut.result()
+                      except Exception as e:
+                          print(f"Model {futs[fut]} failed ({e})")
+                          continue
+                      print(f"Model {futs[fut]} answered")
+                      return text
+              except cf.TimeoutError:
+                  print(f"No model answered within {DEADLINE}s")
+              finally:
+                  pool.shutdown(wait=False, cancel_futures=True)
               return None
 
 
@@ -322,25 +348,30 @@ jobs:
               set_msg("Auto-extract: GEMINI_API_KEY secret is missing")
               raise SystemExit
 
-          # Staged changes only, ignoring .zip archive deletions
-          exclude = ["--", ".", ":(exclude)*.zip"]
+          # Staged changes only, ignoring .zip deletions and generated schema dumps
+          exclude = ["--", ".", ":(exclude)*.zip", ":(exclude)**/schemas/*.json"]
           status = sh(["git", "diff", "--cached", "--name-status", *exclude]).strip()
           if not status:
               set_msg(FALLBACK)
               raise SystemExit
-          patch = sh(["git", "diff", "--cached", "--stat", "-p", *exclude])[:MAX_DIFF_CHARS]
+
+          # Compact diff: 1 context line, each file capped so one huge file cannot crowd out the rest
+          raw = sh(["git", "diff", "--cached", "-U1", "--no-color", *exclude])
+          chunks = re.split(r"(?m)^(?=diff --git )", raw)
+          patch = "".join(c[:MAX_FILE_CHARS] + ("\n[truncated]\n" if len(c) > MAX_FILE_CHARS else "") for c in chunks)
+          patch = patch[:MAX_DIFF_CHARS]
 
           prompt = (
-              "Analyze the following git changes extracted from a zip archive. "
-              "Provide a concise commit title (max 50 characters) summarizing the primary changes, "
-              "followed by detailed bullet points describing important additions, refactors, or modifications across the source code files. "
-              "Focus strictly on actual code changes and technical implementation details. "
-              "Do NOT mention, summarize, or note the removal or deletion of any .zip archive file. "
-              "Do not use markdown code blocks.\n\n"
-              f"Changed Files Summary:\n{status}\n\n"
-              f"Diff:\n{patch}"
+              "Write a git commit message for these changes (extracted from a zip archive).\n"
+              "Format: a title of at most 50 characters, a blank line, then 3-8 short bullets starting with '- ' "
+              "covering the important additions, refactors and fixes in the source code.\n"
+              "Rules: technical and specific; only real code changes; never mention zip files or their removal; "
+              "no markdown, no code fences, no preamble.\n\n"
+              f"Files:\n{status}\n\nDiff:\n{patch}"
           )
           set_msg(ask(api_key, prompt) or "Auto-extract: Code files updated from archive (API Unavailable)")
+          # Hard exit: losing racers may still be blocked in a socket read and would delay a normal exit
+          os._exit(0)
           PY
 
       - name: Commit
