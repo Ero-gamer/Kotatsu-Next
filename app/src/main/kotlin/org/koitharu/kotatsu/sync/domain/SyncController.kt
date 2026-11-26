@@ -225,8 +225,7 @@ constructor(
         }
     }
 
-    private fun getLastSync(account: Account, authority: String): Long =
-        am.getUserData(account, lastSyncKey(authority))?.toLongOrNull() ?: 0L
+    private fun getLastSync(account: Account, authority: String): Long = am.getUserData(account, lastSyncKey(authority))?.toLongOrNull() ?: 0L
 
     private fun peekAccount(): Account? = am.getAccountsByType(accountType).firstOrNull()
 
