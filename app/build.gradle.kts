@@ -19,7 +19,7 @@ plugins {
 // taken from anywhere and the app keeps the ones it was built with. Whoever holds the private half can run code in
 // every installed copy of the app, so generate it with `./gradlew generateParsersSigningKey -PkeyFile=...` in the
 // parsers repository and keep the private file offline.
-val parsersBundlePublicKey = ""
+val parsersBundlePublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAED+jhALf9nFUiUysnwO6eUenLu/DPRjDW0YiiFoD6QifWLTAZN+1q/4Xbl9fW9ARRZunVgzO0qB6DsagJ0coNtg=="
 
 // Keep every Kotlin runtime artifact on the plugin's Kotlin version (single source: the catalog).
 // The "detekt" tool configuration is skipped: detekt resolves its own embedded Kotlin compiler and
